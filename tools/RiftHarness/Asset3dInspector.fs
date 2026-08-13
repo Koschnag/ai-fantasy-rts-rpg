@@ -72,7 +72,7 @@ module Asset3dInspector =
 
     [<Literal>]
     let ToolchainPinSha256 =
-        "697aadbbbf7125884bf1910c5d02bc694118f676c714a28bd3ae26c17d03abf4"
+        "840ca3968e7f20d9e525a2d3a0337e8ba81fad50800942ef299496ae18677d4b"
 
     let private invalid () =
         raise (AssetInspectionError "INVALID_ARTIFACT")
@@ -705,7 +705,7 @@ module Asset3dInspector =
 
             if
                 stringValue "version" asset <> "2.0"
-                || stringValue "generator" asset <> "Khronos glTF Blender I/O v5.2.39"
+                || stringValue "generator" asset <> "Riftward .NET Asset Generator v1"
                 || integer "scene" root <> 0
             then
                 invalid ()
@@ -2120,30 +2120,31 @@ module Asset3dInspector =
                         invalid ()
 
                     match tool.TryGetProperty("id") with
-                    | true, value when value.ValueKind = JsonValueKind.String -> value.GetString() = "blender"
+                    | true, value when value.ValueKind = JsonValueKind.String -> value.GetString() = "dotnet-sdk"
                     | _ -> false)
                 |> Seq.toArray
 
             if matches.Length <> 1 then
                 invalid ()
 
-            let blender = matches[0]
-            exactFields [| "id"; "license"; "platform"; "sha256"; "version" |] Array.empty blender
+            let dotnetSdk = matches[0]
+
+            exactFields [| "id"; "install"; "integrity"; "license"; "version" |] Array.empty dotnetSdk
 
             if
-                stringValue "id" blender <> "blender"
-                || stringValue "license" blender <> "GPL-3.0-or-later"
-                || stringValue "platform" blender <> "linux-x64"
-                || stringValue "sha256" blender
-                   <> "96f6c181a30f4950607839dc84d42a354b250d8a0231b098b59b7bc69c351c48"
-                || stringValue "version" blender <> "5.2.0"
+                stringValue "id" dotnetSdk <> "dotnet-sdk"
+                || stringValue "install" dotnetSdk <> "scripts/bootstrap-dotnet.sh"
+                || stringValue "integrity" dotnetSdk
+                   <> "platform-specific SHA-512 values embedded in bootstrap script"
+                || stringValue "license" dotnetSdk <> "MIT"
+                || stringValue "version" dotnetSdk <> "10.0.110"
             then
                 invalid ()
 
-            let canonical = Array.append (Internal.canonicalElement blender) [| byte '\n' |]
+            let canonical = Array.append (Internal.canonicalElement dotnetSdk) [| byte '\n' |]
             let hash = Internal.sha256Hex canonical
 
-            if canonical.Length <> 163 || hash <> ToolchainPinSha256 then
+            if canonical.Length <> 173 || hash <> ToolchainPinSha256 then
                 invalid ()
 
             hash
@@ -2246,11 +2247,9 @@ module Asset3dInspector =
                 invalid ()
 
             let sourcePaths =
-                [| "tools/BlenderCalibration/generate.py"
-                   "tools/RiftHarness/AssetJobJournal.fs"
+                [| "tools/RiftHarness/AssetJobJournal.fs"
                    "tools/RiftHarness/BlenderCalibration.fs"
-                   "tools/RiftHarness/BlenderGenerator.fs"
-                   "tools/RiftHarness/LinuxSandbox.fs" |]
+                   "tools/RiftHarness/DotnetAssetGenerator.fs" |]
 
             let sources = property "generatorSources" report
 

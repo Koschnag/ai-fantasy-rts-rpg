@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://project-riftward.invalid/schemas/blender-technique-report.schema.json",
-  "title": "Project Riftward Blender calibration-v1 technique report",
+  "title": "Project Riftward .NET calibration-v1 technique report",
   "type": "object",
   "additionalProperties": false,
   "required": ["artifacts", "familyId", "familyMetrics", "generatorSourceSha256", "generatorSources", "limits", "materials", "modules", "profile", "schemaVersion", "seed", "specSha256", "toolchainPinSha256"],
@@ -30,14 +30,12 @@
     "generatorSourceSha256": { "$ref": "#/$defs/sha256" },
     "generatorSources": {
       "type": "array",
-      "minItems": 5,
-      "maxItems": 5,
+      "minItems": 3,
+      "maxItems": 3,
       "prefixItems": [
-        { "$ref": "#/$defs/sourceGeneratePy" },
         { "$ref": "#/$defs/sourceAssetJobJournal" },
         { "$ref": "#/$defs/sourceBlenderCalibration" },
-        { "$ref": "#/$defs/sourceBlenderGenerator" },
-        { "$ref": "#/$defs/sourceLinuxSandbox" }
+        { "$ref": "#/$defs/sourceDotnetAssetGenerator" }
       ],
       "items": false
     },
@@ -107,28 +105,16 @@
         { "properties": { "path": { "const": "tools/RiftHarness/AssetJobJournal.fs" } } }
       ]
     },
-    "sourceGeneratePy": {
-      "allOf": [
-        { "$ref": "#/$defs/source" },
-        { "properties": { "path": { "const": "tools/BlenderCalibration/generate.py" } } }
-      ]
-    },
     "sourceBlenderCalibration": {
       "allOf": [
         { "$ref": "#/$defs/source" },
         { "properties": { "path": { "const": "tools/RiftHarness/BlenderCalibration.fs" } } }
       ]
     },
-    "sourceBlenderGenerator": {
+    "sourceDotnetAssetGenerator": {
       "allOf": [
         { "$ref": "#/$defs/source" },
-        { "properties": { "path": { "const": "tools/RiftHarness/BlenderGenerator.fs" } } }
-      ]
-    },
-    "sourceLinuxSandbox": {
-      "allOf": [
-        { "$ref": "#/$defs/source" },
-        { "properties": { "path": { "const": "tools/RiftHarness/LinuxSandbox.fs" } } }
+        { "properties": { "path": { "const": "tools/RiftHarness/DotnetAssetGenerator.fs" } } }
       ]
     },
     "srgb8": {

@@ -8,7 +8,7 @@ Alle kreativen Shipping-Assets entstehen gemäß ADR 004 synthetisch aus interne
 AssetSpec
   -> Agent erzeugt Generatorprogramm und Parameter
   -> headless Synthese
-  -> technische DCC-Verarbeitung
+  -> deterministische technische Verarbeitung
   -> Quarantäne + Manifest + Receipt
   -> Budget-, Provenienz-, Originalitäts- und Lizenzgates
   -> Source-Promotion
@@ -22,7 +22,8 @@ Damit kann KI 100 % der kreativen Ausgangsdaten erzeugen, während deterministis
 | Bereich | Kandidat | Lizenz | Rolle | Status |
 |---|---|---|---|---|
 | Orchestrierung und Validierung | F#/.NET-Worker im Repository | Projektcode | Jobs, Hashes, Manifeste, Budgets, Reports | im Aufbau |
-| 3D, UV, Rig, Animation, Bake, VFX | [Blender](https://www.blender.org/about/license/) | GPL-3.0-or-later; erzeugte Werke werden nicht automatisch GPL | headless `--background --python` | installiert und zugelassenes DCC |
+| erste 3D-Kalibrierung | F#/.NET-10-Generator im Repository | Projektcode; BCL-only | direkter GLB-Writer und deterministischer CPU-Rasterizer/PNG | T-006 in Arbeit; Produktionspfad |
+| optionale 3D-Sichtkontrolle | [Blender](https://www.blender.org/about/license/) | GPL-3.0-or-later; erzeugte Werke werden nicht automatisch GPL | manuelles Öffnen lokaler GLB-Dateien | installiert; nicht gatendes Kontrollwerkzeug, keine Produktionsdependency |
 | prozedurale PBR-Materialien | [Material Maker](https://github.com/RodZill4/material-maker) | MIT | Graphen und CLI-Export | zu pinnen/evaluieren |
 | UV-Atlas | [xatlas](https://github.com/jpcy/xatlas) | MIT | headless UV-Unwrapping | zu pinnen/evaluieren |
 | Mesh-/glTF-Optimierung | [meshoptimizer](https://github.com/zeux/meshoptimizer) / `gltfpack` | MIT | LOD, Quantisierung, Animationsoptimierung | zu pinnen/evaluieren |
@@ -30,7 +31,7 @@ Damit kann KI 100 % der kreativen Ausgangsdaten erzeugen, während deterministis
 | glTF-Prüfung | [Khronos glTF Validator](https://github.com/KhronosGroup/glTF-Validator) | Apache-2.0 | strukturierter CLI-Report | zu pinnen/evaluieren |
 | synthetisches Audio/Musik | [Csound](https://github.com/csound/csound) | LGPL-2.1-or-later | samplefreie, skriptbare Synthese | zu pinnen/evaluieren |
 
-Nur Blender ist heute installiert. Die übrigen Werkzeuge werden nicht pauschal installiert, sondern jeweils mit exaktem Commit/Artefakthash und einem messbaren T-050-Job aufgenommen. Die Spielruntime enthält keine KI- oder DCC-Runtime.
+Der erste 3D-Produktionspfad benötigt außer .NET keine dieser externen Komponenten. Weitere Werkzeuge werden nicht pauschal aufgenommen, sondern jeweils mit exaktem Commit/Artefakthash und einem messbaren T-050-Job. Blender kann bei Bedarf rein manuell kontrollieren; seine Installation, Version und Ausgabe sind für T-006/T-007 nicht gatend. Die Spielruntime enthält keine KI- oder DCC-Runtime.
 
 ## Generative Modelle
 
@@ -52,7 +53,7 @@ Bildmodelle und musikalische Modelle können für Quarantänespikes evaluiert we
 
 Die Hardwarebudgets des Spiels gelten nicht für Offline-Generierungsworker. Arbeitsannahmen:
 
-- prozedurale/Blender-Pipeline: 8 CPU-Kerne und 32 GB RAM; GPU optional
+- prozedurale .NET-Pipeline: CPU-only; innerhalb der jobbezogenen T-006-Ressourcengrenzen, keine GPU oder DCC erforderlich
 - Bild-/Musik-Eval: separate Linux-/NVIDIA-Maschine oder austauschbarer Remote-Worker mit ungefähr 16 GB VRAM und 32–64 GB RAM
 - experimentelle generative 3D-Modelle: nur Quarantäne auf gesonderter Hardware; sie sind kein Produktionskern
 
@@ -70,19 +71,19 @@ Ihre Rohbilder bleiben gitignored in `assets/quarantine/concepts/`. Die versioni
 
 ## Erster reproduzierbarer 3D-Spike
 
-Der vollständige maschinenprüfbare Vertrag steht in `BLENDER_GENERATOR_CONTRACT.md`. Er friert `calibration-v1`, CLI/Exitcodes, Safe Paths, PCG32, Geometrie- und LOD-Formeln, Achsen/Pivots/Snap-Namen, GLB-/PNG-/Reportregeln, Proxybudgets, Blender-Pin, Linux-Isolation, T-003-Crosschecks, Jobjournal, Crash-Recovery und Fresh-Checkout-CI ein. Dadurch sind keine kreativen oder technischen Produktentscheidungen mehr nötig, um den Spike nach T-003 in kleinen Schritten zu implementieren.
+Der vollständige maschinenprüfbare Vertrag steht in `DOTNET_GENERATOR_CONTRACT.md`. Er friert `calibration-v1`, CLI/Exitcodes, Safe Paths, PCG32, Geometrie- und LOD-Formeln, Achsen/Pivots/Snap-Namen, den direkten GLB-Writer, den deterministischen CPU-Rasterizer/PNG-Encoder, Proxybudgets, den .NET-Pin, BCL-only-/In-process-Grenzen, T-003-Crosschecks, Jobjournal, Crash-Recovery und Fresh-Checkout-CI ein.
 
 | Task | kleinster überprüfbarer Liefergegenstand | Abhängigkeiten | Status |
 |---|---|---|---|
-| T-005 | strikter Spec-Parser, Referenzmathematik und unabhängiger .NET-Inspector mit rein synthetischen Fixtures; startet Blender nie | T-003 | DONE |
-| T-006 | gepinnter Blender-Generator, harte Linux-Isolation und transaktionaler T-003-Quarantäne-Lifecycle mit Recovery | T-003, T-005 | READY |
-| T-007 | pfadgefilterter Fresh-Checkout-CI-Nachweis für Archivepin, Offlinebetrieb, Byteidentität, Fehler- und Crashpfade | T-003, T-005, T-006 | DRAFT |
+| T-005 | strikter Spec-Parser, Referenzmathematik und unabhängiger .NET-Inspector mit rein synthetischen Fixtures; startet keinen Unterprozess | T-003 | DONE |
+| T-006 | BCL-only-F#/.NET-Generator, direkter GLB-Writer, CPU-Rasterizer und transaktionaler T-003-Quarantäne-Lifecycle mit Recovery | T-003, T-005 | DONE |
+| T-007 | pfadgefilterter Fresh-Checkout-CI-Nachweis für .NET-Pin, Null-Unterprozess/-Netz, Byteidentität, T-005-Regression sowie Fehler- und Crashpfade | T-003, T-005, T-006 | READY |
 
-Die Familie enthält ausschließlich drei kultur- und regionsneutrale technische Formen: gerade Wand, 90-Grad-Ecke und Wandöffnung mit Holzsturz. Kreative Eingabe ist nur das strikt numerische Spec; Prompts, Negativprompts, Fremdmodelle, Referenzbilder, Texturen, pip-Pakete, Add-ons und generative 3D-Modelle sind ausgeschlossen. T-005 kann deshalb zunächst alle Parser-, Inspector-, Budget- und Korruptionsregeln ohne DCC und ohne Binärfixture fremder Herkunft implementieren.
+Die Familie enthält ausschließlich drei kultur- und regionsneutrale technische Formen: gerade Wand, 90-Grad-Ecke und Wandöffnung mit Holzsturz. Kreative Eingabe ist nur das strikt numerische Spec; Prompts, Negativprompts, Fremdmodelle, Referenzbilder, Texturen, Add-ons und generative 3D-Modelle sind ausgeschlossen. T-005 ist als DCC-unabhängiger Inspector abgenommen.
 
-T-006 verwendet nur den gepinnten Blender-Build und .NET. Er erzeugt je Modul drei algorithmische Render-LODs, einfache Kollision, feste 4-Meter-Snap-Punkte, zwei familienweit geteilte numerische PBR-Materialien, ein GLB, eine 960×540-Preview und einen kanonischen Technikreport. Gleiche Specs müssen auf demselben gepinnten Linux-x64-Worker byteidentische Ausgaben liefern. Zeit, Host, Job- und Run-ID sowie absolute Pfade gehören ausschließlich in Journal-/Run-/Evidenzdaten.
+T-006 läuft vollständig in F#/.NET 10 und BCL-only. Er schreibt GLB 2.0 direkt und rastert die 960×540-Preview deterministisch auf der CPU; es gibt keinen Unterprozess, Netzwerkzugriff, DCC-, GPU-, Skriptruntime- oder zusätzlichen nativen Pfad. Je Modul entstehen drei algorithmische Render-LODs, einfache Kollision, feste 4-Meter-Snap-Punkte, zwei geteilte numerische PBR-Materialien und ein kanonischer Technikreport. Zeit, Host, Job- und Run-ID sowie absolute Pfade gehören ausschließlich in Journal-/Run-/Evidenzdaten.
 
-Ein isolierter Vorab-Smoke mit Blender 5.2.0 und beobachtetem Buildhash `fbe6228777e7` bestätigte lediglich, dass minimalistischer headless Eevee- und GLB-Export grundsätzlich funktioniert. Er ist ausdrücklich **nicht gatend** und kein zusätzlicher Toolchainpin. Die dabei gefundene Regel, neben `render.use_stamp=false` jedes einzelne variable Stampfeld abzuschalten, ist in den deterministischen PNG-Vertrag eingeflossen. Erst T-006/T-007 prüfen die echte Familie; der Smoke belegt weder Geometrie, Provenienz, Budgets noch Hardwareleistung.
+T-006 ist ein bewusstes Amendment gegenüber der ursprünglichen T-005-Planungsgrundlage: T-005 bleibt historisch abgenommen und unverändert, aber T-006 setzt `Riftward .NET Asset Generator v1`, genau drei F#-Generatorquellen und `dotnet-sdk:10.0.110` als Produktionsidentität. Nach diesen eng begrenzten Inspector-Konstantenänderungen muss die vollständige T-005-Suite erneut bestehen. Ein vorhandenes DCC darf nur separat und manuell GLB-Dateien ansehen; ein solcher Kontrollblick ersetzt kein Gate.
 
 Die `calibration-v1`-Grenzen bleiben kleine Strukturproxies: LOD0 höchstens 4.096 Dreiecke/3.072 Vertices, LOD1 1.024/1.024, LOD2 192/256, Kollision 48 Dreiecke, höchstens zwei Render-Primitives je LOD, genau zwei gemeinsam genutzte Materialien sowie je höchstens 2 MiB Familien-GLB und geschätzte dekodierte Geometrie. Die exakte Accessorformel steht im Vertrag. Diese Werte entscheiden Q-AST-004 nicht und sind kein FPS-, Drawcall-, RAM- oder VRAM-Nachweis für die Zielhardware.
 
@@ -94,7 +95,7 @@ T-006-Ergebnisse bleiben unter `assets/quarantine/3d/`. Ein gültiger T-003-Rece
 
 1. T-003 ist separat abgenommen; alle vorhandenen Keyframes bleiben dennoch Quarantäne.
 2. T-005 ist unabhängig abgenommen; seine Proxybudgets sind kein Hardware- oder Shipping-Nachweis.
-3. T-006 ist `READY` und implementiert isolierte Generierung, T-003-Bindung, Journal und Recovery.
-4. T-007 beweist den vollständigen Pfad in einem frischen Linux-x64-Checkout.
+3. T-006 ist unabhängig abgenommen; das erste rein .NET-generierte 3D-Asset bleibt technisch validiert in Quarantäne.
+4. T-007 ist `READY` und beweist den vollständigen .NET-Pfad in einem frischen Linux-x64-Checkout.
 5. T-050 misst akzeptierte Varianten, Dreiecke, LOD, UV, Texturspeicher, Exportzeit und visuelle Konsistenz und erprobt getrennte Freigabe, Source-Promotion sowie Cooking.
 6. Erst danach wird der Assetumfang vervielfacht.

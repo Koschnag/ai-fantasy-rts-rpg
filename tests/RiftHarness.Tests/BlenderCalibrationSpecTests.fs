@@ -122,11 +122,9 @@ module BlenderCalibrationSpecTests =
             |> Seq.toArray
 
         let expectedSources =
-            [| "#/$defs/sourceGeneratePy"
-               "#/$defs/sourceAssetJobJournal"
+            [| "#/$defs/sourceAssetJobJournal"
                "#/$defs/sourceBlenderCalibration"
-               "#/$defs/sourceBlenderGenerator"
-               "#/$defs/sourceLinuxSandbox" |]
+               "#/$defs/sourceDotnetAssetGenerator" |]
 
         assertTrue (sourceRefs = expectedSources) "Technique-report generator source order is not ordinal."
 

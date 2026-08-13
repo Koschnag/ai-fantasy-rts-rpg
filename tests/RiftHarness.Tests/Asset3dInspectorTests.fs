@@ -510,7 +510,7 @@ module Asset3dInspectorTests =
 
         root["asset"] <-
             JsonObject(
-                [ KeyValuePair("generator", node "Khronos glTF Blender I/O v5.2.39")
+                [ KeyValuePair("generator", node "Riftward .NET Asset Generator v1")
                   KeyValuePair("version", node "2.0") ]
             )
 
@@ -643,11 +643,9 @@ module Asset3dInspectorTests =
 
     let private reportNode (validated: ValidatedCalibrationSpec) (glb: GlbInspection) (png: PngInspection) =
         let sourcePaths =
-            [| "tools/BlenderCalibration/generate.py"
-               "tools/RiftHarness/AssetJobJournal.fs"
+            [| "tools/RiftHarness/AssetJobJournal.fs"
                "tools/RiftHarness/BlenderCalibration.fs"
-               "tools/RiftHarness/BlenderGenerator.fs"
-               "tools/RiftHarness/LinuxSandbox.fs" |]
+               "tools/RiftHarness/DotnetAssetGenerator.fs" |]
 
         let sourceHashes =
             sourcePaths |> Array.map (fun path -> Internal.sha256Text ("fixture:" + path))

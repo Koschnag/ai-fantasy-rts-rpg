@@ -17,6 +17,10 @@
     <Compile Include="Asset3dInspectorTests.fs" Condition="Exists('Asset3dInspectorTests.fs')" />
     <Compile Include="BlenderCalibrationCliTests.fs" />
     <Compile Include="BlenderCalibrationWrapperTests.fs" />
+    <Compile Include="AssetJobJournalTests.fs" Condition="Exists('AssetJobJournalTests.fs')" />
+    <Compile Include="DotnetAssetGeneratorTests.fs" Condition="Exists('DotnetAssetGeneratorTests.fs')" />
+    <Compile Include="DotnetAssetPipelineTests.fs" Condition="Exists('DotnetAssetPipelineTests.fs')" />
+    <Compile Include="DotnetAssetPipelineCliTests.fs" Condition="Exists('DotnetAssetPipelineCliTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

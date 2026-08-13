@@ -29,8 +29,10 @@ rift_need_build_outputs() {
   fi
 }
 
-rift_need_blender_calibration_runtime() {
-  rift_calibration_command=blender-calibration
+rift_need_asset_calibration_runtime() {
+  rift_calibration_namespace=$1
+  shift
+  rift_calibration_command=$rift_calibration_namespace
   rift_calibration_previous=
 
   for rift_calibration_argument in "$@"; do
@@ -64,9 +66,11 @@ rift_need_blender_calibration_runtime() {
   fi
 }
 
-rift_blender_calibration() {
-  rift_need_blender_calibration_runtime "$@"
-  if rift_calibration_temp=$(mktemp -d /tmp/riftward-calibration.XXXXXX 2>/dev/null); then
+rift_asset_calibration() {
+  rift_calibration_namespace=$1
+  shift
+  rift_need_asset_calibration_runtime "$rift_calibration_namespace" "$@"
+  if rift_calibration_temp=$(mktemp -d /tmp/riftward-asset-calibration.XXXXXX 2>/dev/null); then
     :
   else
     printf '{"command":"%s","error":{"code":"INTERNAL_ERROR","message":"internal error"},"ok":false,"schemaVersion":1}\n' \
@@ -87,8 +91,9 @@ rift_blender_calibration() {
       TZ=UTC \
       DOTNET_CLI_TELEMETRY_OPTOUT=1 \
       DOTNET_NOLOGO=1 \
+      DOTNET_EnableDiagnostics=0 \
       "$rift_calibration_dotnet" "$rift_root/tools/RiftHarness/bin/Release/net10.0/RiftHarness.dll" \
-      blender-calibration "$@"
+      "$rift_calibration_namespace" "$@"
   ) >"$rift_calibration_stdout" 2>"$rift_calibration_stderr"; then
     rift_calibration_status=0
   else
@@ -199,8 +204,11 @@ case "$rift_command" in
     rift_need_build_outputs
     rift_harness assets-check "$@"
     ;;
+  asset-calibration)
+    rift_asset_calibration asset-calibration "$@"
+    ;;
   blender-calibration)
-    rift_blender_calibration "$@"
+    rift_asset_calibration blender-calibration "$@"
     ;;
   security)
     "$rift_root/scripts/security.sh" "$@"
@@ -233,7 +241,8 @@ case "$rift_command" in
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \
-      '  blender-calibration ...  Kalibrierungsspec und 3D-Artefakte offline prüfen' \
+      '  asset-calibration ...  .NET-Kalibrierung prüfen, erzeugen und recovern' \
+      '  blender-calibration ...  historischer Read-only-Alias für validate-spec/inspect' \
       '  security      lokalen Secret-/NuGet-/JSON-/LFS-Baseline-Gate ausführen' \
       '  fresh-checkout-test  isolierten Bootstrap-, Build-, Lint-, Test-, RAG- und Verify-Lauf ausführen' \
       '  verify        nach bootstrap Build, Tests, Harness- und JSON-Integrität prüfen' \

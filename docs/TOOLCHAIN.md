@@ -23,7 +23,7 @@ sind keine beiläufige Aktualisierung.
 |---|---:|---|---|---|
 | Codex CLI | 0.147.0 | `~/.local/bin/codex` | vorhandene Installation | KI-Arbeit |
 | .NET SDK | 10.0.110 | `~/.local/share/dotnet` | MIT, offizieller .NET-Build | C#, F#, Harness und spätere Runtime |
-| Blender | 5.2.0 | `~/.local/opt/blender-5.2.0` | GPL, offizieller Blender-Build | reproduzierbare 3D-/Rig-/LOD-/Bake-Pipeline |
+| Blender | 5.2.0 | `~/.local/opt/blender-5.2.0` | GPL, offizieller Blender-Build | optionales, nicht gatendes Kontrollwerkzeug zum manuellen Öffnen lokaler GLB-Dateien; keine T-006/T-007-Produktionsdependency |
 | Git LFS | 3.7.1 | `~/.local/bin/git-lfs` | MIT mit BSD-/Third-Party-Hinweisen, offizieller Git-LFS-Build | große binäre Produktionsassets außerhalb normaler Git-Blobs |
 | GitHub CLI | 2.94.0 | `~/.local/bin/gh` | MIT, offizieller checksummengeprüfter GitHub-Build | privates Remote anlegen, Sichtbarkeit prüfen und pushen |
 | Fantomas | 7.0.5 | repo-lokales .NET-Tool | Apache-2.0, NuGet/Upstream | deterministische F#-Formatierung für `fmt` und `lint` |
@@ -89,7 +89,7 @@ sudo apt install --no-install-recommends \
 
 `dotnet-sdk-10.0` kann alternativ systemweit aus Ubuntu installiert werden. Ubuntu- und Microsoft-Paketquellen für .NET sollen nicht gemischt werden. Die aktuelle Maschine nutzt vorerst die benutzerlokale SDK-Installation, weil `sudo` in der laufenden Sitzung eine interaktive Passwortabfrage verlangt.
 
-Blender ist aus demselben Grund als offizieller, SHA-256-geprüfter portabler Linux-Build installiert. Der reproduzierbare Bootstrap steht in `scripts/bootstrap-blender-linux.sh`. Blender ist ein Produktionswerkzeug; seine GPL-Lizenz wird dadurch nicht zur Lizenz des erzeugten Spiels oder der eigenen Assets.
+Blender ist als offizieller, SHA-256-geprüfter portabler Linux-Build vorhanden; der historische Bootstrap steht in `scripts/bootstrap-blender-linux.sh`. Seit dem T-006-Contract-Amendment ist Blender ausschließlich ein optionales, manuelles FOSS-Kontrollwerkzeug. Der aktive Kalibrierungsgenerator läuft BCL-only in F#/.NET 10, schreibt GLB direkt und rastert PNG auf der CPU; weder Blender-Version noch -Installation oder -Ausgabe sind Produktionspin oder CI-Gate. Die GPL-Lizenz des Kontrollwerkzeugs wird nicht zur Lizenz des erzeugten Spiels oder eigener Assets.
 
 Git LFS ist ebenfalls checksummengeprüft benutzerlokal installiert und als globaler Git-Filter registriert. Die konkreten Binärformate für freigegebene Quellassets stehen in `.gitattributes`; Quarantäne und gecookte Laufzeitartefakte bleiben gemäß `.gitignore` außerhalb von Git. Ohne gewähltes LFS-Remote ist diese Ablage noch kein externes Backup.
 
@@ -117,6 +117,13 @@ Native Quellen und ihre transitiven Komponenten werden mit vollständigem Commit
 - Shell: nur dünne Bootstrap-/CI-Hülle; mit ShellCheck und `set -eu`
 
 F# ist in .NET 10 grundsätzlich Native-AOT-fähig, besitzt aber noch offene Trimming-/AOT-Warnflächen in `FSharp.Core`. Deshalb bleibt der ausgelieferte Native-AOT-Host zunächst C#; F#-Tools laufen auf CoreCLR. Native AOT und selbstenthaltenes CoreCLR werden später auf Startzeit, Speicher und Frame-Times verglichen, nicht dogmatisch gewählt.
+
+T-006 konkretisiert diese Aufteilung: Der `calibration-v1`-Produktionspfad ist
+ein in-process laufendes F#/.NET-10-CoreCLR-Werkzeug und verwendet für direkten
+GLB-Write, CPU-Rasterisierung und PNG-Encoding ausschließlich die BCL. Er
+startet keinen Unterprozess, öffnet kein Netzwerk und lädt keine zusätzliche
+native Bibliothek. Der bindende Vertrag steht in
+`DOTNET_GENERATOR_CONTRACT.md`.
 
 ## Plattform-Builds
 

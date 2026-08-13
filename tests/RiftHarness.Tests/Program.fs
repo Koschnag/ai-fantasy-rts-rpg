@@ -132,8 +132,8 @@ module private Tests =
                   RequireApproved = false }
 
         Assert.isTrue report.Valid $"Repository-Assetfixtures ungueltig: {AssetStore.reportJson report}"
-        Assert.equal 3 report.ManifestsChecked "Repository-Assetfixturezahl ist falsch."
-        Assert.equal 3 report.QuarantineCount "Repository-Keyframes bleiben nicht geschlossen in Quarantaene."
+        Assert.equal 4 report.ManifestsChecked "Repository-Assetfixturezahl ist falsch."
+        Assert.equal 4 report.QuarantineCount "Repository-Assets bleiben nicht geschlossen in Quarantaene."
         Assert.isTrue (not report.ShippingReady) "Quarantaene-Keyframes wurden shipping-faehig gemeldet."
 
     let assetSchemaIsStrictOfflineAndShortCircuitsCrossFields () =
@@ -1718,6 +1718,54 @@ module Program =
               BlenderCalibrationCliTests.inspectEnvelopeAndExitMappingAreCanonical
               "Blender calibration wrapper is closed and ignores host injection environment",
               BlenderCalibrationWrapperTests.validateSpecWrapperIsClosedAndIgnoresHostInjectionEnvironment
+              "Asset job journal schema is closed and canonical",
+              AssetJobJournalTests.schemaIsClosedOfflineAndCanonicalEntryIsValid
+              "Asset job journal state graph and hash chain are strict",
+              AssetJobJournalTests.stateGraphHashChainAndCanonicalBytesAreStrict
+              "Asset job lock rejects concurrent recovery", AssetJobJournalTests.exclusiveLockRejectsConcurrentRecovery
+              "Asset job publication and recovery are idempotent",
+              AssetJobJournalTests.publicationAndRecoveryAreIdempotent
+              "Asset job crash points remain recoverable", AssetJobJournalTests.crashPointsRemainRecoverable
+              "Asset job recovery rejects changed, linked and corrupt ownership",
+              AssetJobJournalTests.recoveryRefusesChangedSymlinkAndCorruptOwnership
+              ".NET asset generator output passes the independent inspector",
+              DotnetAssetGeneratorTests.generatedArtifactsPassTheIndependentInspector
+              ".NET asset generator is byte-identical across isolated workspaces",
+              DotnetAssetGeneratorTests.equalInputsAreByteIdenticalAcrossIsolatedWorkspaces
+              ".NET asset generator alternate seed changes geometry and preview",
+              DotnetAssetGeneratorTests.alternateSeedChangesGeometryAndPreviewButKeepsTheContract
+              ".NET asset generator stage path and collisions fail closed",
+              DotnetAssetGeneratorTests.stagePathAndCollisionFailClosed
+              ".NET asset generator sources and toolchain are bounded",
+              DotnetAssetGeneratorTests.sourceAndToolchainInputsAreRequiredAndBounded
+              ".NET asset generator has no process, network or native escape hatches",
+              DotnetAssetGeneratorTests.productionPathHasNoProcessNetworkOrNativeEscapeHatches
+              ".NET asset pipeline publishes a committed T-003 quarantine",
+              DotnetAssetPipelineTests.happyPathPublishesCommittedT003Quarantine
+              ".NET asset pipeline is byte-identical for equal inputs",
+              DotnetAssetPipelineTests.equalInputsProduceByteIdenticalArtifacts
+              ".NET asset pipeline recovery preserves tampered foreign bytes",
+              DotnetAssetPipelineTests.committedTamperFailsRecoveryWithoutDeletingForeignBytes
+              ".NET asset pipeline rejects target collisions without overwrite",
+              DotnetAssetPipelineTests.targetCollisionIsRejectedWithoutOverwrite
+              ".NET asset pipeline receipt collision leaves no stage or publication",
+              DotnetAssetPipelineTests.receiptTargetCollisionLeavesNoStageOrPublication
+              ".NET asset pipeline fails the run and rolls back pre-finish artifact errors",
+              DotnetAssetPipelineTests.preFinishArtifactFailureCreatesFailedRunAndRollsBack
+              ".NET asset pipeline production spec, pin and job limits fail closed",
+              DotnetAssetPipelineTests.productionSpecPinAndJobLimitsFailClosed
+              ".NET asset pipeline cancellation rolls back before publication",
+              DotnetAssetPipelineTests.cancellationFailsBeforePublicationAndRollsBack
+              ".NET asset CLI exposes new read-only commands and legacy aliases",
+              DotnetAssetPipelineCliTests.validateAndInspectUseNewNamespaceWithLegacyReadOnlyAliases
+              ".NET asset CLI legacy alias rejects mutation",
+              DotnetAssetPipelineCliTests.legacyAliasRejectsGenerateAndRecover
+              ".NET asset CLI generate and recover envelopes are canonical",
+              DotnetAssetPipelineCliTests.generateAndRecoverEnvelopesAreCanonicalAndUseFixedActor
+              ".NET asset CLI maps pipeline failures to stable redacted exits",
+              DotnetAssetPipelineCliTests.pipelineFailuresMapStableRedactedExitCodes
+              ".NET asset wrapper is closed and ignores host injection",
+              DotnetAssetPipelineCliTests.assetCalibrationWrapperIsClosedAndIgnoresHostInjection
               "Blender calibration GLB reference fixture is accepted",
               Asset3dInspectorTests.glbReferenceFixtureIsAccepted
               "Blender calibration GLB topology tampering is rejected",

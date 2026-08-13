@@ -50,10 +50,14 @@ Die Vorproduktion ist abgeschlossen, wenn:
 - Datenschutz, Sicherheit und technische Randbedingungen geklärt sind,
 - die erste Umsetzungseinheit den Status `READY` hat.
 
-`T-002`, das Asset-Provenienz-/Quarantänegate `T-003` und der unabhängige
-`calibration-v1`-Inspector `T-005` sind abgenommen. Als nächster Auftrag ist
-der isolierte Blender-Worker `T-006` `READY`; sein Fresh-Checkout-/CI-Nachweis
-`T-007` bleibt bis zur getrennten Abnahme des Workers `DRAFT`.
+`T-002`, das Asset-Provenienz-/Quarantänegate `T-003`, der unabhängige
+`calibration-v1`-Inspector `T-005` und der BCL-only-F#/.NET-Assetgenerator
+`T-006` sind abgenommen. Der Generator schreibt GLB direkt und rendert PNG
+deterministisch auf der CPU, ohne Unterprozess, Netzwerk oder DCC. Sein
+Fresh-Checkout-/CI-Nachweis `T-007` ist als nächster Auftrag `READY`.
+T-006 amendiert bewusst nur Generator-Identifier, Quelleninventar und
+.NET-Toolchainbindung; T-005 bleibt historisch abgenommen und wird vollständig
+als Regression erneut ausgeführt.
 Vollständige allgemeine Run-Provenienz/Evidenz (`T-004`) und das native
 SDL3-/bgfx-Walking-Skeleton (`T-010`) folgen, sobald der jeweilige Auftrag
 `READY` ist. Nur `READY`-Aufträge dürfen ohne weitere fachliche Klärung
@@ -79,7 +83,7 @@ gestartet werden.
 ./scripts/rift.sh lint
 ./scripts/rift.sh test
 ./scripts/rift.sh security
-./scripts/rift.sh blender-calibration validate-spec --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json
+./scripts/rift.sh asset-calibration validate-spec --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json
 ./scripts/rift.sh rag-build
 ./scripts/rift.sh rag-query --query "Atmosphäre und RPG RTS Übergang" --top 5
 ./scripts/rift.sh harness memory status

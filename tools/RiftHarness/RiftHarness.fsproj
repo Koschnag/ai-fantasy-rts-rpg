@@ -16,11 +16,21 @@
     <Compile Include="Assets.fs" />
     <Compile Include="BlenderCalibration.fs" />
     <Compile Include="Asset3dInspector.fs" Condition="Exists('Asset3dInspector.fs')" />
+    <Compile Include="AssetJobJournal.fs" Condition="Exists('AssetJobJournal.fs')" />
+    <Compile Include="DotnetAssetGenerator.fs" Condition="Exists('DotnetAssetGenerator.fs')" />
+    <Compile Include="DotnetAssetPipeline.fs" Condition="Exists('DotnetAssetPipeline.fs')" />
     <Compile Include="Verification.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="JsonSchema.Net" Version="[8.0.5]" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="AssetJobJournal.fs" LogicalName="RiftHarness.GeneratorSource.AssetJobJournal.fs" />
+    <EmbeddedResource Include="BlenderCalibration.fs" LogicalName="RiftHarness.GeneratorSource.BlenderCalibration.fs" />
+    <EmbeddedResource Include="DotnetAssetGenerator.fs" LogicalName="RiftHarness.GeneratorSource.DotnetAssetGenerator.fs" />
+    <AssemblyMetadata Include="RiftwardDotnetSdkVersion" Value="$(NETCoreSdkVersion)" />
   </ItemGroup>
 </Project>

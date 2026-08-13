@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/asset-job-journal-entry.schema.json",
+  "title": "Append-only asset generation job journal entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sequence",
+    "jobId",
+    "state",
+    "previousEntrySha256",
+    "atUtc",
+    "ownedPaths",
+    "entrySha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "sequence": { "type": "integer", "minimum": 1, "maximum": 64 },
+    "jobId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "state": {
+      "enum": [
+        "CREATED",
+        "GENERATED",
+        "INSPECTED",
+        "PROVENANCE_PREPARED",
+        "QUARANTINE_PUBLISHED",
+        "METADATA_PUBLISHED",
+        "VERIFIED",
+        "COMMITTED",
+        "ROLLED_BACK"
+      ]
+    },
+    "previousEntrySha256": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256" },
+        { "type": "null" }
+      ]
+    },
+    "atUtc": { "type": "string", "format": "date-time", "maxLength": 40 },
+    "ownedPaths": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/ownedPath" }
+    },
+    "entrySha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*[\\\\:\\u0000-\\u001f\\u007f]).+$"
+    },
+    "ownedPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/safePath" },
+        "type": { "enum": ["file", "directory"] },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

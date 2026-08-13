@@ -2,55 +2,55 @@
   "$schema": "../schemas/task.schema.json",
   "schemaVersion": 1,
   "id": "T-007",
-  "title": "Fresh-Checkout-CI für die Blender-Kalibrierung",
-  "status": "draft",
-  "objective": "Ein eigener Linux-x64-CI-Pfad beweist aus einem sauberen Checkout die Pin-, Offline-, Reproduzierbarkeits-, Recovery- und T-003-Invarianten der calibration-v1-Pipeline ohne Quarantäneoutput zu versionieren.",
+  "title": "Fresh-Checkout-CI für die .NET-Assetkalibrierung",
+  "status": "ready",
+  "objective": "Ein eigener Linux-x64-CI-Pfad beweist aus einem sauberen Checkout die gelockte .NET-, BCL-only-, Determinismus-, Recovery-, T-005-Regressions- und T-003-Invariante der calibration-v1-Pipeline, ohne Quarantäneoutput zu versionieren.",
   "inScope": [
-    "pfadgefilterter Linux-x64-CI-Job für T-005/T-006 und betroffene Verträge, Specs, Toolchain- sowie Provenienzdateien",
-    "Fresh-Checkout-Bootstrap des Blender-Archives mit SHA-256-Prüfung gegen toolchain.lock.json vor Extraktion und ohne Vertrauen in ungeprüfte Caches",
-    "Locked Restore, Build, Unit-, Inspector-, Isolation-, Crash-Recovery- und T-003-Integrationstests",
-    "zwei echte offline isolierte Headless-Generierungen desselben Specs und ein fester Alternativseed",
-    "maschinenlesliche CI-Evidenz zu Pin, Host/RID, Namespace, Caps, Befehlen, Exitcodes, Hashen und Kriterien",
-    "nicht gatende, klar bezeichnete Ablage der lokalen Blender-Smoke-Beobachtung"
+    "pfadgefilterter Linux-x64-CI-Job für T-005/T-006 und betroffene Verträge, Specs, .NET-Generator-/Inspectorquellen, Toolchain- sowie Provenienzdateien",
+    "Locked Restore und Prüfung des geschlossenen dotnet-sdk-10.0.110-Eintrags sowie aller drei lokalen Generatorquellen ohne Vertrauen in ungeprüfte Caches",
+    "Build, vollständige T-005-Regressions-, direkte GLB-, CPU-Raster-/PNG-, Ressourcen-, Crash-Recovery- und T-003-Integrationstests",
+    "zwei getrennte in-process-Generierungen desselben Specs und ein Lauf mit Alternativseed, ohne Unterprozess, Netzwerk, DCC, GPU oder projektfremde native Abhängigkeit",
+    "maschinenlesliche CI-Evidenz zu SDK-/Lockhash, Host/RID, Abhängigkeitsprüfung, Befehlen, Exitcodes, Hashen und Kriterien"
   ],
   "outOfScope": [
-    "Windows- oder macOS-Blender-Worker sowie Cross-Host- oder Cross-Architektur-Byteidentität",
+    "DCC-/Blender-Bootstrap, Archivepin, Prozesssandbox oder DCC-Smoke als Produktions- oder CI-Gate",
+    "Windows-/macOS-CI und ungeprüfte Cross-Host-, Cross-RID- oder Cross-SDK-Byteidentität",
     "Runtime-, FPS-, RAM-, VRAM- oder Zielhardwarebenchmark",
     "CI-Commit, Pull-Request-Automation, Git-LFS-Promotion, Backup, Cooking oder Packaging",
     "Upload oder Versionierung von Quarantäne-GLB/PNG als freigegebene Assets",
-    "neue DCC-, Modell-, Add-on-, Python- oder Validatorabhängigkeit",
+    "neue DCC-, Modell-, Skriptruntime-, NuGet-, native oder Validatorabhängigkeit",
     "visuelle, originäre, lizenzrechtliche oder Shipping-Freigabe"
   ],
   "requirements": ["Z-002", "Z-004", "Z-005", "F-007", "F-008", "F-009", "NF-001", "NF-003", "NF-008", "ADR-004"],
   "acceptanceCriteria": [
     {
       "id": "AC-T007-01",
-      "statement": "Der CI-Job startet in einem sauberen Linux/x86_64-Checkout, lädt das in toolchain.lock.json bezeichnete Blender-5.2.0-Archiv, prüft vor Extraktion SHA-256 96f6c181a30f4950607839dc84d42a354b250d8a0231b098b59b7bc69c351c48 und bestätigt die Versionsausgabe; ein Cachehit darf den Hashcheck nicht ersetzen.",
-      "verification": "Fresh-Checkout-Test und CI-Evidenz enthalten Lockdateihash, Archivehash, Plattform und semantische Blender-Version; manipulierte Lock-, Download- und Cachefixtures scheitern vor Generation"
+      "statement": "Der Job startet in einem sauberen Linux/x86_64-Checkout, verwendet Locked Restore, bestätigt .NET SDK 10.0.110 und bindet den kanonischen dotnet-sdk-Lockeintrag mit SHA-256 840ca3968e7f20d9e525a2d3a0337e8ba81fad50800942ef299496ae18677d4b sowie exakt die drei T-006-Generatorquellen.",
+      "verification": "Fresh-Checkout-Evidenz enthält Lockdatei-, SDK-Eintrag- und Quellenhashes; manipulierte Lock-, SDK-, Quell-, Restore- und Cachefixtures scheitern vor Generation"
     },
     {
       "id": "AC-T007-02",
-      "statement": "Nach abgeschlossener Tool-/Restore-Phase laufen Generator und Blender ausschließlich im T-006-Netzwerk-Namespace ohne Route; zwei getrennte temporäre Checkoutkopien des Referenzspecs erzeugen identische SHA-256 für GLB, PNG und Report, der Alternativseed 1592594997 ändert GLB und Preview und alle Ausgaben bestehen den T-005-Inspector.",
-      "verification": "Der CI-Job speichert eine kompakte kanonische Evidenz mit Namespace-Probe und den neun Artefakthashes; ein absichtlicher Netzwerkzugriff im Generierungsprozess lässt den Test scheitern"
+      "statement": "Nach Restore laufen alle Generierungen in-process ohne Netzwerk- oder Prozess-API; zwei getrennte temporäre Checkout-/Publikationswurzeln erzeugen identische SHA-256 für GLB, PNG und Report, Alternativseed 1592594997 ändert GLB und Preview und alle Ausgaben bestehen den T-005-Inspector.",
+      "verification": "Abhängigkeits-/IL- und instrumentierte Tests belegen null Prozess- und Socketöffnungen; CI-Evidenz bindet die neun Artefakthashes und die T-005-Inspectorreports"
     },
     {
       "id": "AC-T007-03",
-      "statement": "Die Fresh-Checkout-Suite führt T-005-Unit- und Korruptionsfixtures, T-006-Pin-, Isolation-, Limit- und Crashpunkte, journal-recover, T-003 assets-check --require-local sowie den erwarteten Fehlschlag von --require-approved aus.",
-      "verification": "Die maschinenlesliche Evidenz ordnet jedem AC-T005-* und AC-T006-* mindestens einen Befehl, Exitcode und Reporthash zu; kein Skip, erwartungswidriger Exitcode oder fehlender Hash ist grün"
+      "statement": "Die Fresh-Checkout-Suite führt alle T-005-Unit- und Korruptionsfixtures nach dem Identifier-/Quellen-/Pin-Amendment, alle T-006-GLB-/Raster-/PNG-/Ressourcen-/Crashpunkte, journal-recover, T-003 assets-check --require-local sowie den erwarteten Fehlschlag von --require-approved aus.",
+      "verification": "Die Evidenz ordnet jedem AC-T005-* und AC-T006-* mindestens einen Befehl, Exitcode und Reporthash zu; kein Skip, erwartungswidriger Exitcode oder fehlender Hash ist grün"
     },
     {
       "id": "AC-T007-04",
-      "statement": "Der Job prüft nach jedem Erfolgs- und Fehlerlauf, dass Gitstatus und Index keine Quarantäne-, Cooked-, Recovery- oder Binärdatei enthalten und dass CI weder source noch Memory/RAG verändert; hochladbar sind ausschließlich bereinigte JSON-Evidenz und Testlogs innerhalb der Loggrenzen.",
-      "verification": "Fresh-Checkout-Diff- und Git-Index-Prüfung mit Positiv- und absichtlicher Leakage-Fixture; GLB, PNG, Specs mit unbekannter Herkunft und absolute Pfade werden nicht als CI-Evidenz veröffentlicht"
+      "statement": "Der Job prüft nach Erfolgs- und Fehlerläufen, dass Gitstatus und Index keine Quarantäne-, Cooked-, Recovery- oder Binärdatei enthalten und dass CI weder source noch Memory/RAG verändert; hochladbar sind nur bereinigte JSON-Evidenz und begrenzte Testlogs.",
+      "verification": "Fresh-Checkout-Diff- und Git-Index-Prüfung mit Positiv- und Leakage-Fixture; GLB, PNG, Specs unbekannter Herkunft und absolute Pfade werden nicht als CI-Evidenz veröffentlicht"
     },
     {
       "id": "AC-T007-05",
-      "statement": "Der lokale Vorab-Smoke mit Build fbe6228777e7 bleibt als nicht gatende Beobachtung gekennzeichnet; allein toolchain.lock.json plus Archive-SHA-, Plattform- und Versionsprüfung definieren den Pin, und der Smoke ersetzt weder echte Generator-, Inspector-, Provenienz- noch Performanceabnahme.",
-      "verification": "Ein Policytest verbietet den Smoke-Buildhash in Lock, Schema und erwartungswertbildender CI-Konfiguration; er ist nur in ausdrücklich als observation/non-gating markierter Dokumentation und im optionalen Evidenzfeld observation.nonGating zulässig"
+      "statement": "Die CI-Policy behandelt den abgenommenen T-005-Stand als historische Evidenz, erzwingt jedoch für T-006 die neuen Konstanten Riftward .NET Asset Generator v1, riftward-dotnet-asset-generator/1, das dreiteilige Quelleninventar und dotnet-sdk:10.0.110; ein optionaler DCC-Kontrolllauf ist nie gatend.",
+      "verification": "Policytests sperren alte Produktions-Identifier, DCC-/Archivepins, externe Generatorskripte, DCC-Bootstrap und DCC-Smoke in erwartungswertbildender T-006/T-007-Konfiguration"
     },
     {
       "id": "AC-T007-06",
-      "statement": "Der Assetgenerator-CI-Job wird nur durch Änderungen an T-005/T-006/T-007, dem Generatorvertrag, calibration-v1-Specs, Implementierung/Tests, T-003-Provenienzverträgen, Blender-Bootstrap oder Blender-Toolchainpin aktiviert und ist von allgemeinen Runtime-Plattformclaims getrennt.",
+      "statement": "Der CI-Job wird nur durch Änderungen an T-005/T-006/T-007, DOTNET_GENERATOR_CONTRACT, calibration-v1-Specs, Generator/Inspector/Tests, T-003-Provenienzverträgen, .NET-Toolchainpin oder relevanten Wrappern aktiviert und bleibt von allgemeinen Runtime-Plattformclaims getrennt.",
       "verification": "Workflow-Policytests prüfen positive und negative Pfadmengen, minimale Berechtigungen, keine Secrets, begrenzte Laufzeit sowie Abbruch konkurrierender veralteter Jobs"
     }
   ],
@@ -59,13 +59,13 @@
   "decisionPolicy": {
     "mayDecide": [
       "Workflow-Aufteilung, Testsharding und Evidenzdateinamen innerhalb des festgelegten CI-Vertrags",
-      "sichere Cachekeys, sofern jeder Blender-Archiveinsatz erneut gegen den Lock-SHA geprüft wird",
-      "kleinere CI-Zeitoptimierungen ohne Skip, Gateabschwächung oder Produktionsnetzwerk"
+      "sichere NuGet-/Build-Cachekeys bei weiterhin gelocktem Restore und erneuter lokaler Quellen-/Pinprüfung",
+      "kleinere CI-Zeitoptimierungen ohne Skip, Gateabschwächung oder Netzwerk im Generierungspfad"
     ],
     "mustEscalate": [
-      "neue CI-, DCC-, Modell-, Python- oder Validatorabhängigkeit",
-      "Abschwächung von Fresh-Checkout-, Archivehash-, Offline-, Reproduzierbarkeits-, Recovery- oder T-003-Prüfungen",
-      "Ausweitung auf Windows/macOS-DCC-Produktion oder Behauptung von Cross-Host-Determinismus",
+      "neue CI-, DCC-, Modell-, Skriptruntime-, NuGet-, native oder Validatorabhängigkeit",
+      "Abschwächung von Fresh-Checkout-, Locked-Restore-, BCL-only-, Null-Prozess-/Null-Netz-, Determinismus-, T-005-Regressions-, Recovery- oder T-003-Prüfungen",
+      "Behauptung ungeprüfter Cross-Host-, Cross-RID- oder Cross-SDK-Deterministik",
       "Upload, Promotion oder Freigabe kreativer Binärassets sowie jede visuelle, lizenzielle oder Shipping-Entscheidung"
     ]
   }

@@ -5,6 +5,7 @@ open System.Globalization
 open System.IO
 open System.Text.Encodings.Web
 open System.Text.Json
+open System.Threading
 
 module Cli =
     let takeFlag (name: string) (arguments: string list) =
@@ -100,18 +101,24 @@ module Cli =
         | :? NotSupportedException
         | :? System.Security.SecurityException -> false
 
-    let private executeBlenderCalibration arguments =
+    [<Literal>]
+    let private AssetGeneratorActor = "riftward-dotnet-asset-generator"
+
+    let private executeAssetCalibration namespaceName allowMutation arguments =
         let rec inferCommand remaining =
             match remaining with
             | "--workspace" :: _ :: tail -> inferCommand tail
             | "validate-spec" :: _ -> "validate-spec"
             | "inspect" :: _ -> "inspect"
-            | _ -> "blender-calibration"
+            | "generate" :: _ -> "generate"
+            | "recover" :: _ -> "recover"
+            | _ -> namespaceName
 
         let command = inferCommand arguments
 
         try
-            let optionNames = [ "--workspace"; "--spec"; "--glb"; "--preview"; "--report" ]
+            let optionNames =
+                [ "--workspace"; "--spec"; "--glb"; "--preview"; "--report"; "--job-id" ]
 
             for optionName in optionNames do
                 if arguments |> List.filter ((=) optionName) |> List.length > 1 then
@@ -135,7 +142,7 @@ module Cli =
             match remaining with
             | "validate-spec" :: options ->
                 let specPath, rest = requireOption "--spec" options
-                noArguments "blender-calibration validate-spec" rest
+                noArguments (namespaceName + " validate-spec") rest
                 let validated = BlenderCalibration.validateSpecFile root specPath
 
                 writeCalibrationEnvelope command (fun writer ->
@@ -157,7 +164,7 @@ module Cli =
                 let glbPath, rest = requireOption "--glb" rest
                 let previewPath, rest = requireOption "--preview" rest
                 let reportPath, rest = requireOption "--report" rest
-                noArguments "blender-calibration inspect" rest
+                noArguments (namespaceName + " inspect") rest
                 let validated = BlenderCalibration.validateSpecFile root specPath
 
                 let inspected =
@@ -186,8 +193,55 @@ module Cli =
                     writer.WriteEndObject())
 
                 0
+            | "generate" :: options when allowMutation ->
+                let specPath, rest = requireOption "--spec" options
+                let jobId, rest = requireOption "--job-id" rest
+                noArguments (namespaceName + " generate") rest
+
+                using (new CancellationTokenSource(TimeSpan.FromSeconds(300.0))) (fun cancellation ->
+                    let generated =
+                        DotnetAssetPipeline.generateWithCancellation
+                            root
+                            specPath
+                            jobId
+                            AssetGeneratorActor
+                            cancellation.Token
+
+                    writeCalibrationEnvelope command (fun writer ->
+                        writer.WriteBoolean("ok", true)
+                        writer.WritePropertyName("result")
+                        writer.WriteStartObject()
+                        writer.WriteString("assetId", generated.AssetId)
+                        writer.WriteString("glbSha256", generated.GlbSha256)
+                        writer.WriteString("jobId", generated.JobId)
+                        writer.WriteString("manifestPath", generated.ManifestPath)
+                        writer.WriteString("manifestSha256", generated.ManifestSha256)
+                        writer.WriteString("previewSha256", generated.PreviewSha256)
+                        writer.WriteString("receiptPath", generated.ReceiptPath)
+                        writer.WriteString("receiptSha256", generated.ReceiptSha256)
+                        writer.WriteString("reportSha256", generated.ReportSha256)
+                        writer.WriteString("specPath", generated.SpecPath)
+                        writer.WriteString("specSha256", generated.SpecSha256)
+                        writer.WriteEndObject()))
+
+                0
+            | "recover" :: options when allowMutation ->
+                let jobId, rest = requireOption "--job-id" options
+                noArguments (namespaceName + " recover") rest
+                let recovered = DotnetAssetPipeline.recover root jobId
+
+                writeCalibrationEnvelope command (fun writer ->
+                    writer.WriteBoolean("ok", true)
+                    writer.WritePropertyName("result")
+                    writer.WriteStartObject()
+                    writer.WriteString("jobId", recovered.JobId)
+                    writer.WriteString("state", recovered.State)
+                    writer.WriteEndObject())
+
+                0
             | _ -> calibrationError command "INVALID_ARGUMENT" "invalid arguments" 2
         with
+        | DotnetAssetPipelineError(code, message, exitCode) -> calibrationError command code message exitCode
         | CalibrationSpecError code when code = "UNSAFE_PATH" -> calibrationError command "UNSAFE_PATH" "unsafe path" 2
         | CalibrationSpecError _ -> calibrationError command "INVALID_SPEC" "validation failed" 2
         | AssetInspectionPathError _ -> calibrationError command "UNSAFE_PATH" "unsafe path" 2
@@ -215,8 +269,11 @@ Aufruf:
   riftharness query-rag --query TEXT [--top N] [--run RUN_ID] [--workspace PATH]
   riftharness assets-check [--manifest FILE] [--require-local] [--require-approved] [--workspace PATH]
   riftharness export-generation-receipt RUN_ID --manifest FILE --output FILE [--workspace PATH]
-  riftharness blender-calibration validate-spec --spec FILE [--workspace PATH]
-  riftharness blender-calibration inspect --spec FILE --glb FILE --preview FILE --report FILE [--workspace PATH]
+  riftharness asset-calibration validate-spec --spec FILE [--workspace PATH]
+  riftharness asset-calibration inspect --spec FILE --glb FILE --preview FILE --report FILE [--workspace PATH]
+  riftharness asset-calibration generate --spec FILE --job-id ULID [--workspace PATH]
+  riftharness asset-calibration recover --job-id ULID [--workspace PATH]
+  riftharness blender-calibration validate-spec|inspect ...  (historischer Read-only-Alias)
   riftharness verify [--run RUN_ID] [--workspace PATH]
 """
 
@@ -432,7 +489,8 @@ Aufruf:
 
     let execute arguments =
         match arguments with
-        | "blender-calibration" :: remaining -> executeBlenderCalibration remaining
+        | "asset-calibration" :: remaining -> executeAssetCalibration "asset-calibration" true remaining
+        | "blender-calibration" :: remaining -> executeAssetCalibration "blender-calibration" false remaining
         | _ -> executeStandard arguments
 
 module Program =

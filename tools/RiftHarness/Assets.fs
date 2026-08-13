@@ -41,6 +41,13 @@ type GenerationReceiptExport =
       ReceiptPath: string
       ReceiptSha256: string }
 
+type GenerationReceiptPrepared =
+    { RunId: string
+      AssetId: string
+      ReceiptPath: string
+      ReceiptSha256: string
+      Bytes: byte array }
+
 type private AssetSchemas =
     { Manifest: JsonSchema
       Receipt: JsonSchema
@@ -653,7 +660,6 @@ module AssetStore =
 
     let private validateCleanRoomInputs locations policy manifestRelative findings (manifestRoot: JsonElement) =
         let generator = manifestRoot.GetProperty("generator")
-        let proceduralSourceHash = getOptionalString "generatorSourceSha256" generator
 
         for input in manifestRoot.GetProperty("inputs").EnumerateArray() do
             match getOptionalString "path" input with
@@ -664,7 +670,7 @@ module AssetStore =
                     textSourceExtensions.Contains(extension)
                     || getString "allowedUse" input = "internal-specification"
                     || (getString "kind" generator = "procedural"
-                        && proceduralSourceHash = Some(getString "sha256" input))
+                        && getString "allowedUse" input = "generation-input")
 
                 if mustScanAsText then
                     try
@@ -1463,7 +1469,7 @@ module AssetStore =
         let specHash = getString "specSha256" manifestRoot
         let mutable specMatches = 0
         let generator = manifestRoot.GetProperty("generator")
-        let mutable sourceMatches = 0
+        let proceduralSources = ResizeArray<string * string>()
         let inputIds = HashSet<string>(StringComparer.Ordinal)
 
         for index, input in manifestRoot.GetProperty("inputs").EnumerateArray() |> Seq.indexed do
@@ -1530,14 +1536,14 @@ module AssetStore =
             then
                 specMatches <- specMatches + 1
 
-            if
-                getString "kind" generator = "procedural"
-                && getOptionalString "generatorSourceSha256" generator = Some(getString "sha256" input)
-                && getOptionalString "path" input |> Option.isSome
-                && getString "allowedUse" input = "generation-input"
-                && (originClass = "internal-specification" || originClass = "agentic-synthetic")
-            then
-                sourceMatches <- sourceMatches + 1
+            if getString "kind" generator = "procedural" then
+                match getOptionalString "path" input with
+                | Some path when
+                    getString "allowedUse" input = "generation-input"
+                    && (originClass = "internal-specification" || originClass = "agentic-synthetic")
+                    ->
+                    proceduralSources.Add(path, getString "sha256" input)
+                | _ -> ()
 
         if specMatches <> 1 then
             addError
@@ -1547,13 +1553,35 @@ module AssetStore =
                 "/specSha256"
                 "Spezifikationshash muss genau einen internen Input binden."
 
-        if getString "kind" generator = "procedural" && sourceMatches <> 1 then
-            addError
-                findings
-                "ASSET_GENERATOR_SOURCE_BINDING_INVALID"
-                (Some manifestRelative)
-                "/generator/generatorSourceSha256"
-                "Prozedurale Generatorquelle muss genau einen Input binden."
+        if getString "kind" generator = "procedural" then
+            let sources =
+                proceduralSources
+                |> Seq.sortWith (fun (left, _) (right, _) -> StringComparer.Ordinal.Compare(left, right))
+                |> Seq.toArray
+
+            let aggregate =
+                use binding = new MemoryStream()
+
+                for path, hash in sources do
+                    let bytes = Constants.Utf8NoBom.GetBytes(path + "\n" + hash + "\n")
+                    binding.Write(bytes)
+
+                binding.ToArray() |> Internal.sha256Hex
+
+            if
+                sources.Length = 0
+                || (getOptionalString "generatorSourceSha256" generator <> Some aggregate
+                    && not (
+                        sources.Length = 1
+                        && getOptionalString "generatorSourceSha256" generator = Some(snd sources[0])
+                    ))
+            then
+                addError
+                    findings
+                    "ASSET_GENERATOR_SOURCE_BINDING_INVALID"
+                    (Some manifestRelative)
+                    "/generator/generatorSourceSha256"
+                    "Prozedurale Generatorquellen muessen ihren geordneten lokalen Aggregathash binden."
 
         let status = getString "status" manifestRoot
 
@@ -2077,10 +2105,9 @@ module AssetStore =
         | :? FormatException
         | :? OverflowException -> Internal.fail "GenerationReceipt verletzt den portablen Eventkettenvertrag."
 
-    let exportGenerationReceipt root runId manifestPath outputPath =
+    let prepareGenerationReceipt root runId manifestPath =
         let locations = Workspace.requireInitialized root
         let manifestAbsolute = safeManifestPath locations "Assetmanifest" false manifestPath
-        let outputAbsolute = safeManifestPath locations "GenerationReceipt" true outputPath
         let schemas = loadSchemas locations
         let manifestSchemaErrors = schemaErrors schemas.Manifest manifestAbsolute
 
@@ -2099,14 +2126,8 @@ module AssetStore =
         let assetId = getString "assetId" manifest
         let expectedReceipt = $"assets/receipts/{assetId}/{runId}.json"
 
-        if
-            Workspace.relativePath locations outputAbsolute <> declaredReceipt
-            || declaredReceipt <> expectedReceipt
-        then
+        if declaredReceipt <> expectedReceipt then
             Internal.fail "Ausgabepfad widerspricht generationReceipt im Assetmanifest."
-
-        if File.Exists(outputAbsolute) then
-            Internal.fail "GenerationReceipt existiert bereits und wird nicht ueberschrieben."
 
         let snapshot = RunStore.completedSnapshot root runId
         let event = findGenerationEvent (getString "assetId" manifest) snapshot
@@ -2213,13 +2234,30 @@ module AssetStore =
                 writer.WriteString("receiptSha256", receiptHash)
                 writer.WriteEndObject())
 
-        Directory.CreateDirectory(Path.GetDirectoryName(outputAbsolute)) |> ignore
-        Internal.atomicWrite outputAbsolute finalBytes
-
         { RunId = runId
           AssetId = getString "assetId" manifest
-          ReceiptPath = Workspace.relativePath locations outputAbsolute
-          ReceiptSha256 = receiptHash }
+          ReceiptPath = expectedReceipt
+          ReceiptSha256 = receiptHash
+          Bytes = finalBytes }
+
+    let exportGenerationReceipt root runId manifestPath outputPath =
+        let prepared = prepareGenerationReceipt root runId manifestPath
+        let locations = Workspace.requireInitialized root
+        let outputAbsolute = safeManifestPath locations "GenerationReceipt" true outputPath
+
+        if Workspace.relativePath locations outputAbsolute <> prepared.ReceiptPath then
+            Internal.fail "Ausgabepfad widerspricht generationReceipt im Assetmanifest."
+
+        if File.Exists(outputAbsolute) || Directory.Exists(outputAbsolute) then
+            Internal.fail "GenerationReceipt existiert bereits und wird nicht ueberschrieben."
+
+        Directory.CreateDirectory(Path.GetDirectoryName(outputAbsolute)) |> ignore
+        Internal.atomicWrite outputAbsolute prepared.Bytes
+
+        { RunId = prepared.RunId
+          AssetId = prepared.AssetId
+          ReceiptPath = prepared.ReceiptPath
+          ReceiptSha256 = prepared.ReceiptSha256 }
 
     let private validateReceipt
         locations
@@ -2543,19 +2581,28 @@ module AssetStore =
         let policy = validatePolicySchema locations schemas.CleanRoomPolicy findings
         let models = validateModelLock locations schemas.ModelsLock findings
 
-        let gitBoundaryValid =
-            try
-                validateRepositoryBoundary locations findings
-                true
-            with HarnessException _ ->
-                addError
-                    findings
-                    "ASSET_GIT_CHECK_FAILED"
-                    None
-                    "git"
-                    "Git-/LFS-Lebenszyklus konnte nicht sicher geprueft werden."
+        // A targeted quarantine check is deliberately process-free. Git/LFS is
+        // relevant only to the global repository inventory or an approval
+        // decision; local receipt/output/run validation remains fully in-process.
+        let requiresRepositoryBoundary =
+            options.ManifestPath.IsNone || options.RequireApproved
 
-                false
+        let gitBoundaryValid =
+            if not requiresRepositoryBoundary then
+                true
+            else
+                try
+                    validateRepositoryBoundary locations findings
+                    true
+                with HarnessException _ ->
+                    addError
+                        findings
+                        "ASSET_GIT_CHECK_FAILED"
+                        None
+                        "git"
+                        "Git-/LFS-Lebenszyklus konnte nicht sicher geprueft werden."
+
+                    false
 
         let mutable approved = 0
         let mutable quarantine = 0
