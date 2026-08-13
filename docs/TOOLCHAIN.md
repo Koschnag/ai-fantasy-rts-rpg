@@ -10,7 +10,7 @@
 
 Die aktuell bekannten exakten Pins und Hashes stehen in `toolchain.lock.json`. Agent-Plugins und Skills gelten als Prompt-Supply-Chain und werden dort ebenfalls gehasht; Updates sind keine beiläufige Aktualisierung.
 
-`NuGet.config` löscht geerbte Paketquellen, erlaubt ausschließlich die offizielle NuGet-v3-Quelle und verwendet Source Mapping; Projekt- und Tool-Restore bleiben lockfilegebunden und mit NuGet-Audit aktiviert.
+`NuGet.config` löscht geerbte Paketquellen, erlaubt ausschließlich die offizielle NuGet-v3-Quelle und verwendet Source Mapping; Projekt- und Tool-Restore bleiben lockfilegebunden und mit NuGet-Audit aktiviert. `Directory.Build.props` deaktiviert zusätzlich den vom F#-SDK injizierten lokalen Library-Pack-Feed und verwendet den ignorierten Repository-Cache `.ai/runtime/cache/nuget`. Damit stammt `FSharp.Core` auf Entwicklerrechnern und CI aus derselben Quelle und besitzt denselben Lockfile-Hash.
 
 ## Installiert
 
