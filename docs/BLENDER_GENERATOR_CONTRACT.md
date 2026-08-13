@@ -1,6 +1,6 @@
 # Vertrag für den Blender-Kalibrierungsgenerator
 
-Status: **verbindlicher Planungsvertrag für T-005, T-006 und T-007; die drei Tasks bleiben bis zur getrennten Abnahme ihrer Voraussetzungen `DRAFT`**
+Status: **verbindlicher Vertrag für T-005, T-006 und T-007; T-005 ist unabhängig abgenommen, T-006 ist `READY`, T-007 bleibt bis zur Abnahme von T-006 `DRAFT`**
 
 Dieser Vertrag schließt den ersten 3D-Spike technisch, ohne eine Welt-, Kultur-, Architektur- oder Art-Bible-Entscheidung zu treffen. Die Familie ist ein neutrales, nicht shipping-fähiges Kalibrierungsobjekt. Sie darf weder als visuelle Vorlage für die Welt noch als Nachweis für Originalität, Lizenzfreigabe, Laufzeitintegration oder Zielhardwareleistung behandelt werden.
 
@@ -37,7 +37,7 @@ Die spätere Implementierung erweitert den gemeinsamen Einstiegspunkt um diese e
 ./scripts/rift.sh blender-calibration recover --job-id <ULID>
 ```
 
-Argumente sind case-sensitive, dürfen genau einmal vorkommen und werden nicht positionsabhängig interpretiert. Unbekannte Argumente und zusätzliche Positionsargumente sind Fehler. `generate` ist Linux-x64-only. `validate-spec` und `inspect` sind reine .NET-Verben und starten keinen Unterprozess.
+Argumente sind case-sensitive und dürfen genau einmal vorkommen. Das Subverb ist das erste Positionsargument; allein `--workspace <pfad>` darf davor oder danach stehen. Die Optionen des jeweiligen Subverbs dürfen danach in beliebiger Reihenfolge stehen. Unbekannte Optionen und zusätzliche Positionsargumente sind Fehler. `generate` ist Linux-x64-only. `validate-spec` und `inspect` sind reine .NET-Verben und starten keinen Unterprozess.
 
 ### 2.1 Ausgabe
 
@@ -47,6 +47,16 @@ Jeder Aufruf schreibt genau ein UTF-8-JSON-Objekt ohne BOM, ohne Einrückung und
 {"command":"validate-spec","ok":true,"result":{},"schemaVersion":1}
 {"command":"validate-spec","error":{"code":"INVALID_SPEC","message":"validation failed"},"ok":false,"schemaVersion":1}
 ```
+
+`validate-spec.result` besitzt exakt die Felder
+`familyDecodedGeometryBytes`, `familyId`, `moduleCount`, `profile`,
+`renderPrimitiveCount`, `specPath` und `specSha256`. `inspect.result` besitzt
+exakt `familyDecodedGeometryBytes`, `familyId`, `glbBytes`, `glbPath`,
+`glbSha256`, `materialCount`, `moduleCount`, `previewBytes`, `previewPath`,
+`previewSha256`, `renderPrimitiveCount`, `reportBytes`, `reportPath`,
+`reportSha256`, `specPath` und `specSha256`. Diese geschlossenen Hüllen sind
+Teil des CLI-Vertrags; weitere Diagnose-, Claim- oder volatile Felder sind
+verboten.
 
 `message` ist eine feste, nicht von Eingabeinhalten abgeleitete Kurzmeldung. `result` enthält nur IDs, Zähler, SHA-256 und workspace-relative POSIX-Pfade. Absolute Pfade, Hostname, Benutzername, Umgebungswerte, rohe Speczeilen und Blender-Ausgabe sind auf stdout und stderr verboten. stderr ist UTF-8, auf 1 MiB begrenzt und darf nur bereinigte Diagnosecodes enthalten.
 
@@ -138,7 +148,7 @@ Die mehrzeilige Darstellung dient nur der Lesbarkeit. Die später versionierte S
 | `wallThicknessMm` | `300..600` |
 | `openingWidthMm` | gerade Zahl, `1200..2000` |
 | `openingHeightMm` | `1800..2400` |
-| `lintelHeightMm` | `200..400` |
+| `lintelHeightMm` | `250..400` |
 | `stoneCourseHeightMm` | `250..400` |
 | `mortarGapMm` | `10..40` |
 | `timberWidthMm` | `120..240` |
@@ -167,6 +177,14 @@ TD <= T
 ```
 
 Zusätzlich berechnet der Validator vorab die Boxobergrenzen aus Abschnitt 6 und lehnt jedes Spec ab, dessen theoretische LOD-/Kollisionswerte ein Budget aus Abschnitt 9 überschreiten würden. Es gibt keine Defaults oder automatische Korrektur.
+
+`TD<=T`, `4*G<=C`, `2*JD<=T` und `2*JO+JL+G<=C` sind bewusste
+Defense-in-depth-Invarianten: Die strengeren v1-Einzelgrenzen implizieren sie
+bereits. Ihre isolierten Negativtests rufen daher den reinen Formelauswerter
+mit internen, außerhalb der Parserdomäne liegenden Zahlen auf; Parserfixtures
+belegen zusätzlich die jeweils stärkere Einzelgrenze. Ein Test darf nicht
+fälschlich behaupten, nur eine Cross-Field-Regel verletzt zu haben, wenn
+zugleich eine öffentliche Einzelgrenze verletzt ist.
 
 ## 5. Kanonisierung, Hashes und PRNG
 
@@ -229,12 +247,24 @@ centerMax = clipMax - G/2 - stoneLength/2
 stoneCenter = clamp(clippedCenter + tangentOffsetMm, centerMin, centerMax)
 ```
 
-Nichtpositive Längen sind ein Validatorfehler. Die Tiefe bleibt um die Wandmittelebene zentriert. LOD0 verwendet je Kandidat eine geschlossene Box. Jede Box besitzt 24 getrennte Vertices, harte Normalen, UV0 je Fläche im Bereich `0..1` und 36 `UNSIGNED_SHORT`-Indizes für 12 Dreiecke.
+Nichtpositive Längen sind ein Validatorfehler. Bei `WALL-STRAIGHT` und
+`WALL-OPENING` bleibt die Tiefe um die Wandmittelebene zentriert. Beim
+`WALL-CORNER` bleibt dagegen die nahtseitige Fläche jedes Beins trotz
+`depthDeltaMm` exakt auf `T/2`; der Tiefenjitter wirkt ausschließlich von der
+Naht weg. Für das X-Bein gilt deshalb in seiner normalen Y-Richtung
+`maxY=T/2`, `minY=T/2-(T+depthDeltaMm)` und
+`centerY=-depthDeltaMm/2`. Für das Y-Bein gelten dieselben Formeln in der
+normalen X-Richtung. Der Zufallswert wird unverändert gezogen und die
+Zugreihenfolge ändert sich nicht. Dadurch berühren sich beide Volumen nur an
+der Nahtfläche und überlappen sich auch bei positivem Tiefenjitter nicht.
+LOD0 verwendet je Kandidat eine geschlossene Box. Jede Box besitzt 24
+getrennte Vertices, harte Normalen, UV0 je Fläche im Bereich `0..1` und 36
+`UNSIGNED_SHORT`-Indizes für 12 Dreiecke.
 
 Opaque Steinsegmente:
 
 - `WALL-STRAIGHT`: X von `-W/2` bis `W/2` in jedem Kurs.
-- `WALL-CORNER`: X-Bein mit axialem X-Intervall `[0,W]`; Y-Bein mit axialem Y-Intervall `[T/2,W]`. Beide haben Tiefe `T`. Ihre Volumen berühren sich an `Y=T/2`, überlappen sich aber nicht; damit wird die Ecke nur einmal belegt.
+- `WALL-CORNER`: X-Bein mit axialem X-Intervall `[0,W]`; Y-Bein mit axialem Y-Intervall `[T/2,W]`. Beide haben die nominale Tiefe `T`; LOD0 variiert ihre tatsächliche Tiefe nach der einseitigen Jitterregel oben. Ihre Volumen berühren sich an der Nahtfläche `T/2`, überlappen sich aber nicht; damit wird die Ecke nur einmal belegt.
 - `WALL-OPENING`: unterhalb `OH+LH` nur X-Segmente `[-W/2,-O/2]` und `[O/2,W/2]`, ab `OH+LH` das volle X-Segment. Da `OH` und `LH` Vielfache von `C` sind, gibt es keinen angeschnittenen Kurs.
 
 Holzboxen verwenden keine Zufallswerte:
@@ -243,7 +273,18 @@ Holzboxen verwenden keine Zufallswerte:
 - `WALL-CORNER`: ein Eckpfosten `TW x TW`, zwei Endpfosten `TW x TD`; Zentren liegen bei `(TW/2,TW/2)`, `(W-TW/2,0)` und `(0,W-TW/2)`.
 - `WALL-OPENING`: zwei Pfosten mit Höhe `OH` bei `x=±(O/2+TW/2)` und ein Sturz mit Länge `O+2*TW`, Tiefe `TD`, Höhe `LH`, Zentrum bei `z=OH+LH/2`.
 
-LOD1 gruppiert innerhalb desselben Kurses, Beins und opaken Segments jeweils höchstens acht aufeinanderfolgende LOD0-Steinboxen und ersetzt sie durch ihre ganzzahlige umschließende Box. LOD2 ignoriert Einzelsteine und verwendet eine Steinbox für `WALL-STRAIGHT`, zwei überlappungsfrei gekürzte Steinboxen für `WALL-CORNER` und drei Steinboxen für linke Seite, rechte Seite und Oberfeld von `WALL-OPENING`. Die Holzboxen sind in allen drei Render-LODs gleich. Die Kollision entspricht ausschließlich den LOD2-Steinboxen und enthält kein Render-Material.
+LOD1 gruppiert innerhalb desselben Kurses, Beins und opaken Segments jeweils
+höchstens acht aufeinanderfolgende LOD0-Steinboxen und ersetzt sie durch ihre
+ganzzahlige umschließende Box. LOD2 ignoriert Einzelsteine und verwendet eine
+Steinbox für `WALL-STRAIGHT`, zwei überlappungsfrei gekürzte Steinboxen für
+`WALL-CORNER` und drei Steinboxen für linke Seite, rechte Seite und Oberfeld
+von `WALL-OPENING`. Die beiden Corner-Steinboxen haben im Blender-Raum exakt
+diese ganzzahligen Millimetergrenzen: X-Bein `min=(0,-T/2,0)`,
+`max=(W,T/2,H)`; Y-Bein `min=(-T/2,T/2,0)`, `max=(T/2,W,H)`. Die normative
+Mikrometerrechnung verwendet für jede halbe Dicke `T*1000/2`; sie ist für
+jeden ganzzahligen Millimeterwert verlustfrei. Die Holzboxen sind in allen drei
+Render-LODs gleich. Die Kollision entspricht ausschließlich den
+LOD2-Steinboxen und enthält kein Render-Material.
 
 Für die Vorabbudgetierung sei `cells(L,p)=ceil((L+p*2*C)/(4*C))` mit Kursparität `p` gleich `0` für gerade und `1` für ungerade Kurse, `N=H/C`, `S=(W-O)/2` und `K=(OH+LH)/C`. Die LOD0-Steinboxzahlen sind exakt:
 
@@ -260,11 +301,23 @@ Für das Referenzspec ergeben sich damit diese festen Inspectorwerte; Indizes si
 
 | Modul | LOD0 V/T | LOD1 V/T | LOD2 V/T | Kollision T | dekodierte Geometrie gesamt |
 |---|---:|---:|---:|---:|---:|
-| `WALL-STRAIGHT` | 1.344 / 672 | 336 / 168 | 72 / 36 | 12 | 61.680 Bytes |
-| `WALL-CORNER` | 2.664 / 1.332 | 648 / 324 | 120 / 60 | 24 | 120.840 Bytes |
-| `WALL-OPENING` | 1.272 / 636 | 576 / 288 | 144 / 72 | 36 | 70.800 Bytes |
+| `WALL-STRAIGHT` | 1.344 / 672 | 336 / 168 | 72 / 36 | 12 | 61.968 Bytes |
+| `WALL-CORNER` | 2.664 / 1.332 | 648 / 324 | 120 / 60 | 24 | 121.416 Bytes |
+| `WALL-OPENING` | 1.272 / 636 | 576 / 288 | 144 / 72 | 36 | 71.664 Bytes |
 
-Die Familie belegt nach der Formel aus Abschnitt 9 insgesamt 253.320 dekodierte Geometriebytes und 18 Renderprimitives. Jitter verändert Positionen und Bounds, nicht diese Zähler.
+Die Familie belegt nach der Formel aus Abschnitt 9 insgesamt 255.048 dekodierte Geometriebytes und 18 Renderprimitives. Jitter verändert Positionen und Bounds, nicht diese Zähler.
+
+`boundsMicrometres` bezeichnet immer die Union sämtlicher `POSITION`-Werte
+aller drei Render-LODs und der Kollision eines Moduls. Für Referenz- und
+Alternativseed gilt damit die folgende zusätzliche Testvektortabelle im
+Blender-Raum; die GLB-Werte entstehen anschließend ausschließlich durch die
+Achsenkonvertierung aus Abschnitt 7:
+
+| Modul | Referenzseed min / max in µm | Alternativseed min / max in µm |
+|---|---|---|
+| `WALL-STRAIGHT` | `(-2000000,-215000,0)` / `(2000000,215000,3000000)` | `(-2000000,-214500,0)` / `(2000000,214500,3000000)` |
+| `WALL-CORNER` | `(-230000,-229000,0)` / `(4000000,4000000,3000000)` | `(-230000,-230000,0)` / `(4000000,4000000,3000000)` |
+| `WALL-OPENING` | `(-2000000,-214000,0)` / `(2000000,214000,3000000)` | `(-2000000,-214500,0)` / `(2000000,214500,3000000)` |
 
 ## 7. Achsen, Pivots, Snap-Punkte und Namen
 
@@ -295,7 +348,13 @@ MAT_CAL_STONE, MAT_CAL_WOOD
 
 ### 8.1 Materialien
 
-Es existieren familienweit genau zwei glTF-PBR-Materialien. Alpha ist `1`, `alphaMode=OPAQUE`, `doubleSided=false`; Emission, Texturen und Extensions fehlen. Metallic und Roughness sind `permille/1000`. Jeder sRGB8-Kanal `c` wird vor Übergabe an den BSDF zu linear konvertiert:
+Es existieren familienweit genau zwei glTF-PBR-Materialien. Alpha ist als
+vierter Wert von `baseColorFactor` exakt `1`; die semantischen glTF-Defaults
+`alphaMode=OPAQUE` und `doubleSided=false` werden vom gepinnten Exporter als
+fehlende Felder geschrieben und müssen in v1 fehlen. Emission, Texturen und
+Extensions fehlen. `baseColorFactor`, `metallicFactor` und `roughnessFactor`
+sind vorhanden; Metallic und Roughness sind `permille/1000`. Jeder
+sRGB8-Kanal `c` wird vor Übergabe an den BSDF zu linear konvertiert:
 
 ```text
 s = c / 255
@@ -309,17 +368,19 @@ Der Inspector vergleicht exportierte float32-Werte mit absoluter Toleranz `1e-6`
 
 Das Familienartefakt heißt `family.glb`, ist glTF 2.0 und enthält genau einen JSON- und danach genau einen BIN-Chunk. Es enthält genau eine Szene mit den drei Modulroots in der Reihenfolge aus Abschnitt 6. Jeder LOD-Mesh besitzt höchstens zwei Primitives in der Reihenfolge Stein, Holz; die beiden Materialindizes verweisen familienweit auf dieselben Objekte. Kollisionsmeshes besitzen genau ein materialloses Primitive.
 
-Die Szene besitzt exakt 21 Nodes und 12 Meshes. Ihre drei Rootnodes stehen in der Modulreihenfolge und tragen kein Mesh. Jeder Root hat exakt sechs Kinder in dieser Reihenfolge: LOD0, LOD1, LOD2, Collision, Snap A, Snap B. Die ersten vier Kinder tragen je ein gleichnamiges Mesh; Snapnodes tragen keines. Root-, Render- und Collision-Transforms sind Identität. Es gibt keine weiteren Nodes oder Meshes. Pro Render-LOD werden alle Steinboxen zu einem Steinprimitive und alle Holzboxen zu einem Holzprimitive zusammengeführt; leere Renderprimitives sind verboten.
+Die Szene besitzt exakt 21 Nodes und 12 Meshes. Ihre drei Rootnodes stehen in der Modulreihenfolge und tragen kein Mesh. Jeder Root hat exakt sechs Kinder in dieser Reihenfolge: LOD0, LOD1, LOD2, Collision, Snap A, Snap B. Die ersten vier Kinder tragen je ein gleichnamiges Mesh; Snapnodes tragen keines. Scene, Modulroots, Kindnodes, Meshes und Materialien müssen jeweils exakt den geschlossenen Namen aus Abschnitt 7 tragen. Buffer, BufferViews, Accessors und Primitives besitzen kein `name`-Feld; auch sonstige glTF-Objekte dürfen keine weiteren Namen einführen. Root-, Render- und Collisionnodes besitzen weder `matrix` noch TRS-Felder; ihre fehlende Transformation ist normativ die Identität. Snapnodes besitzen immer die exakte `translation`, niemals `matrix` oder `scale`; `rotation` fehlt genau bei Vierteldrehung 0 und ist für Vierteldrehung 1 oder 2 exakt vorhanden. Die fehlende Skalierung ist normativ `[1,1,1]`, die fehlende Rotation normativ die Identität. Es gibt keine weiteren Nodes oder Meshes. Pro Render-LOD werden alle Steinboxen zu einem Steinprimitive und alle Holzboxen zu einem Holzprimitive zusammengeführt; leere Renderprimitives sind verboten.
 
-Jedes Renderprimitive besitzt genau `POSITION` und `NORMAL` als nicht normalisierte `FLOAT VEC3` sowie `TEXCOORD_0` als nicht normalisierte `FLOAT VEC2`. Ein Collisionprimitive besitzt ausschließlich `POSITION` als nicht normalisierte `FLOAT VEC3`. Indizes sind `UNSIGNED_SHORT`, Modus ist `TRIANGLES`; Sparse Accessors, Morph Targets, Draco/Meshopt, Interleaving und geteilte Accessors zwischen Primitives sind in v1 verboten. Es gibt keine Images, Textures, Samplers, Cameras, Lights, Skins, Animations, externe Buffer-URI, Copyrightangabe oder freien Extras. Buffer-, BufferView- und Accessorbereiche dürfen weder überlappen noch Padding als Daten referenzieren; alle Zahlen sind endlich.
+Jedes Renderprimitive besitzt genau `POSITION` und `NORMAL` als nicht normalisierte `FLOAT VEC3` sowie `TEXCOORD_0` als nicht normalisierte `FLOAT VEC2`. Ein Collisionprimitive besitzt genau `POSITION` und `NORMAL` als nicht normalisierte `FLOAT VEC3`, aber kein UV-Attribut und kein Material. Indizes sind `UNSIGNED_SHORT`, semantischer Modus ist `TRIANGLES`. Entsprechend dem gepinnten Exporter fehlen die Defaultfelder `primitive.mode`, `accessor.normalized` und `accessor.byteOffset`; der Inspector behandelt ihre Abwesenheit normativ als 4, `false` und 0 und lehnt explizite Varianten in v1 ab. Sparse Accessors, Morph Targets, Draco/Meshopt, Interleaving und geteilte Accessors zwischen Primitives sind in v1 verboten. Top-Level `scene` ist exakt 0, genau eine benannte Szene besitzt in `nodes` die drei Modulrootindizes in fester Reihenfolge und jede `children`-Liste löst in die vorgeschriebene Namensreihenfolge auf. Der einzige Buffer besitzt kein `uri`; jeder Primitive besitzt `indices`. `asset` enthält exakt `version="2.0"` und `generator="Khronos glTF Blender I/O v5.2.39"`; `minVersion`, Copyright und weitere Assetfelder fehlen. Der Generatorwert ist eine Eigenschaft des gepinnten Blender-5.2.0-Archivs und keine freie Eingabe. `extensionsUsed` und `extensionsRequired` fehlen ebenso. Es gibt keine Images, Textures, Samplers, Cameras, Lights, Skins, Animations, externe Buffer-URI, Copyrightangabe oder freien Extras. Buffer-, BufferView- und Accessorbereiche dürfen weder überlappen noch Padding als Daten referenzieren; alle Zahlen sind endlich.
 
-Der Inspector liest vor Allokation den 12-Byte-Header und jedes Chunklimit. Zusätzlich zum 2-MiB-Gesamtlimit gelten höchstens 1 MiB JSON-Chunk, JSON-Tiefe 32, 64 Nodes, 16 Meshes, 32 Primitives, 128 Accessors, 128 BufferViews, zwei Materialien und ein Buffer. Überschreitung, Integerüberlauf, ungerichteter Nodezyklus, mehrfacher Parent oder ein Bereich außerhalb des BIN-Chunks ist `INVALID_ARTIFACT`.
+Der Inspector liest vor Allokation den 12-Byte-Header und jedes Chunklimit. Zusätzlich zum 2-MiB-Gesamtlimit gelten höchstens 1 MiB JSON-Chunk, JSON-Tiefe 32, 64 Nodes, 16 Meshes, 32 Primitives, 128 Accessors, 128 BufferViews, zwei Materialien und ein Buffer. Überschreitung, Integerüberlauf, ungerichteter Nodezyklus, mehrfacher Parent oder ein Bereich außerhalb des BIN-Chunks ist `INVALID_ARTIFACT`. T-005 prüft im Technikreport die geschlossene Generatorquellen-Pfadliste, jeden syntaktisch gültigen SHA-256 sowie den daraus berechneten Aggregathash gegeneinander. Da vier der fünf Quellen erst T-006 gehören und bei T-005 absichtlich noch nicht existieren, bindet T-005 diese Hashwerte nicht an lokale Dateien. Die lokale Bytebindung aller fünf Quellen ist zwingend Teil von T-006.
 
 ### 8.3 Preview-PNG
 
 Die Preview heißt `preview.png`. Sie zeigt nur Instanzen der drei Module mit identischen Meshdaten: Straight bei `(-5,0,0)`, Corner bei `(0,0,0)`, Opening bei `(5,0,0)`, jeweils ohne Rotation oder Skalierung. Sie verwendet `BLENDER_EEVEE_NEXT`, 64 Samples, 960x540 Pixel, 100 %, RGBA8, PNG-Kompressionsstufe 9, undurchsichtigen Film und genau Frame 1. Kamera: Position `(10,-14,9)` Meter im Blender-Raum, Ziel `(1,1,1.4)`, lokale `-Z`-Achse zum Ziel, lokale `+Y`-Achse möglichst zu Welt-`+Z`, Brennweite 50 mm, Sensorbreite 36 mm, Clipping `0.1..100`. Weltfarbe ist linear `(0.035,0.035,0.035)`. Ein Area-Light steht bei `(2,-4,10)`, Leistung 1200 W, Größe 8 m; ein zweites Area-Light bei `(-6,3,5)`, Leistung 500 W, Größe 6 m. Farbmanagement: `AgX`, Look `AgX - Medium High Contrast`, Exposure `0`, Gamma `1`.
 
-`render.use_stamp` und alle einzelnen Stampfelder für Datum, Uhrzeit, Renderdauer, Host, Frame, Kamera, Szene, Marker, Speicher, Notiz, Lens, Label, Filename und Sequencer werden explizit deaktiviert. Der PNG-Inspector verlangt Signatur, genau einen IHDR vor IDAT, mindestens einen IDAT, genau einen IEND, gültige CRCs, Breite 960, Höhe 540, Bittiefe 8, Farbart 6, Kompression/Filter/Interlace jeweils 0 und lehnt `tIME`, `eXIf`, `tEXt`, `zTXt` und `iTXt` ab. Andere sicherheitsgeprüfte Standardchunks sind erlaubt; Byteidentität wird separat durch Wiederholung bewiesen.
+`render.use_stamp` und alle einzelnen Stampfelder für Datum, Uhrzeit, Renderdauer, Host, Frame, Kamera, Szene, Marker, Speicher, Notiz, Lens, Label, Filename und Sequencer werden explizit deaktiviert. Der gepinnte Blender schreibt dennoch konstante ancillary Metadatenchunks einschließlich EXIF. Deshalb normalisiert das versionierte Generatorskript den Render anschließend deterministisch mit Python-Standardbibliothek: Es prüft Signatur, CRC und Chunkgrenzen, parst die Eingabe vollständig bis genau einem leeren `IEND`, verbietet nachlaufende Bytes und verlangt mindestens einen zusammenhängenden `IDAT`. Erst dann übernimmt es genau `IHDR` und die unveränderten `IDAT`-Payloads, schreibt ein neues leeres `IEND` und berechnet alle CRCs neu. Diese explizite `png-normalize-v1`-Transformation ist Teil der Provenienz; der rohe Blender-PNG ist nur Jobstaging und wird nie als Artefakt gehasht oder publiziert.
+
+Der unabhängige PNG-Inspector verlangt Signatur, genau einen IHDR vor IDAT, mindestens einen IDAT, genau einen IEND, gültige CRCs, Breite 960, Höhe 540, Bittiefe 8, Farbart 6, Kompression/Filter/Interlace jeweils 0. Die geschlossene publizierte v1-Chunkfolge ist ausschließlich `IHDR`, ein oder mehrere unmittelbar zusammenhängende `IDAT`, `IEND`; alle anderen kritischen, ancillary, bekannten oder unbekannten Chunks sind verboten. Der Inspector dekomprimiert die verketteten IDAT-Daten begrenzt als zlib, verlangt exakt 540 Scanlines aus je einem Filterbyte `0..4` und 3840 RGBA-Nutzbytes und lehnt zu kurze, zu lange, nachlaufende oder ungültige Deflate-Daten ab. Byteidentität wird separat durch Wiederholung bewiesen.
 
 ### 8.4 Technikreport
 
@@ -349,7 +410,7 @@ limits             = {collisionTriangles,decodedGeometryBytes,glbBytes,lod0Trian
                       materials,renderPrimitivesPerLod}
 ```
 
-`generatorSources` ist ordinal nach Pfad, `materials` nach Abschnitt 7, `modules` nach Abschnitt 6 und `snapPoints` A vor B sortiert. `artifacts.glb.path` und `artifacts.preview.path` sind die endgültigen logischen repo-relativen Zielpfade aus Abschnitt 12. Die physischen `--glb`-/`--preview`-Argumente dürfen für Staging und Tests unter den Safe-Path-Wurzeln abweichen; Bytezahl und Hash müssen dennoch mit den tatsächlich gelesenen Dateien übereinstimmen. `boundsMicrometres` wird aus allen POSITION-Werten des jeweiligen Moduls zurückgerechnet und muss die Referenzgeometrie exakt umschließen; eine Float32-Rückrechnung darf höchstens 1 Mikrometer abweichen. `translationMm` und `rotationQuarterTurns` müssen Abschnitt 7 entsprechen.
+`generatorSources` ist ordinal nach Pfad, `materials` nach Abschnitt 7, `modules` nach Abschnitt 6 und `snapPoints` A vor B sortiert. T-005 prüft ihre geschlossene Pfad-/Hashliste und den Aggregathash intern; die lokale Bytebindung aller fünf Quellen folgt in T-006, weil vier Dateien vorher absichtlich noch nicht existieren. `toolchainPinSha256` ist dagegen bereits in T-005 lokal gebunden: Der Inspector liest `toolchain.lock.json` sicher und begrenzt, verlangt genau einen Blender-Eintrag mit den fünf geschlossenen Feldern `id`, `license`, `platform`, `sha256`, `version`, kanonisiert dieses Objekt mit LF und vergleicht SHA-256. Für den aktuellen Pin sind das 163 Bytes mit Hash `697aadbbbf7125884bf1910c5d02bc694118f676c714a28bd3ae26c17d03abf4`. `artifacts.glb.path` und `artifacts.preview.path` sind die endgültigen logischen repo-relativen Zielpfade aus Abschnitt 12. Die physischen `--glb`-/`--preview`-Argumente dürfen für Staging und Tests unter den Safe-Path-Wurzeln abweichen; Bytezahl und Hash müssen dennoch mit den tatsächlich gelesenen Dateien übereinstimmen. `boundsMicrometres` wird im Blender-Raum berichtet: Der Inspector konvertiert jeden glTF-`POSITION`-Wert vor der Mikrometer-Union mit der inversen Abbildung `Blender(x,y,z)=(glTF.x,-glTF.z,glTF.y)` zurück. Die Union umfasst alle Render-LODs und die Kollision des jeweiligen Moduls und muss die Referenzgeometrie exakt umschließen; eine Float32-Rückrechnung darf höchstens 1 Mikrometer abweichen. `translationMm` und `rotationQuarterTurns` sind ebenfalls Blender-Raum-Werte und müssen Abschnitt 7 entsprechen.
 
 ## 9. Proxybudgets und Formeln
 
@@ -362,6 +423,15 @@ limits             = {collisionTriangles,decodedGeometryBytes,glbBytes,lod0Trian
 
 Zusätzlich gelten genau zwei familienweit geteilte Render-Materialien, höchstens zwei Render-Primitives je Modul und Render-LOD, Familien-GLB höchstens 2.097.152 Bytes und geschätzte dekodierte Familiengeometrie höchstens 2.097.152 Bytes.
 
+Da v1 nur nicht überlappende, nicht interleavte und ungeteilte
+Accessorranges zulässt, ist die dekodierte Geometriesumme bei gleichem
+2-MiB-Limit bereits durch die kleinere GLB-Datei begrenzt und bleibt stets
+geradzahlig. Dieses zweite Limit ist bewusst Defense-in-depth: Tests prüfen
+die unabhängige Accessorformel, die Referenzsummen und abweichende
+Reportwerte, statt einen physisch unmöglichen isolierten `Limit+1`-GLB zu
+konstruieren. Erreichbare Zähl- und Dateigrenzen werden weiterhin jeweils um
+genau eins verletzt.
+
 Für jedes Primitive gilt `triangles=indexAccessor.count/3`; nicht durch drei teilbare Indizes sind ungültig. `vertices=POSITION.count`; bei Renderprimitives müssen NORMAL/UV0 dieselbe Anzahl besitzen. Da Attribute und Indizes v1-fest sind, gilt:
 
 ```text
@@ -369,7 +439,11 @@ decodedGeometryBytes je Primitive = vertices*(3*4 + 3*4 + 2*4) + indices*2
 decodedGeometryBytes Familie = Summe über alle Render- und Kollisions-Primitives
 ```
 
-Kollisionsvertices besitzen nur POSITION; dort gilt `vertices*12 + indices*2`. Kein Accessor darf von zwei Primitives geteilt werden. Diese Zahlen sind konservative Strukturproxies für kleine, instanzierbare Module. Sie sind weder eine Antwort auf Q-AST-004 noch ein FPS-, Drawcall-, RAM- oder VRAM-Nachweis für GTX-660-, M1- oder RX-580-Klassen.
+Kollisionsvertices besitzen POSITION und NORMAL; dort gilt
+`vertices*(3*4 + 3*4) + indices*2`. Kein Accessor darf von zwei Primitives
+geteilt werden. Diese Zahlen sind konservative Strukturproxies für kleine,
+instanzierbare Module. Sie sind weder eine Antwort auf Q-AST-004 noch ein
+FPS-, Drawcall-, RAM- oder VRAM-Nachweis für GTX-660-, M1- oder RX-580-Klassen.
 
 ## 10. Toolchainpin und nicht gatender Smoke
 
@@ -437,13 +511,14 @@ licenseBasis.reviewedAtUtc=null
 licenseBasis.termsEvidenceArtifact=null
 ```
 
-Die drei `outputs` stehen in der Reihenfolge `family.glb` (`model/gltf-binary`), `preview.png` (`image/png`), `technique.json` (`application/json`); Pfad, SHA-256 und Bytezahl müssen mit Report und lokalen Dateien übereinstimmen. `transformations` steht in der Reihenfolge `calibration-v1-geometry`, `glb-export`, `eevee-preview`. Operation, Werkzeug/Version und Parameterbindung sind exakt:
+Die drei `outputs` stehen in der Reihenfolge `family.glb` (`model/gltf-binary`), `preview.png` (`image/png`), `technique.json` (`application/json`); Pfad, SHA-256 und Bytezahl müssen mit Report und lokalen Dateien übereinstimmen. `transformations` steht in der Reihenfolge `calibration-v1-geometry`, `glb-export`, `eevee-preview`, `png-normalize-v1`. Operation, Werkzeug/Version und Parameterbindung sind exakt:
 
 | `operation` | `tool` / `version` | Bytes für `parametersSha256` |
 |---|---|---|
 | `calibration-v1-geometry` | `rift-blender-calibration` / `1` | kanonische Specbytes aus Abschnitt 5 |
 | `glb-export` | `Blender` / `5.2.0` | das folgende kanonische `glb-export-v1`-Objekt plus LF |
 | `eevee-preview` | `Blender` / `5.2.0` | das folgende kanonische `preview-v1`-Objekt plus LF |
+| `png-normalize-v1` | `rift-blender-calibration` / `1` | das folgende kanonische `png-normalize-v1`-Objekt plus LF |
 
 ```json
 {"animations":false,"applyModifiers":true,"cameras":false,"exportFormat":"GLB","exportNormals":true,"exportTangents":false,"exportTexcoords":true,"exportYup":true,"images":false,"lights":false,"materials":"EXPORT","profile":"calibration-v1","schemaVersion":1,"skins":false,"useSelection":true,"vertexColors":false}
@@ -451,6 +526,10 @@ Die drei `outputs` stehen in der Reihenfolge `family.glb` (`model/gltf-binary`),
 
 ```json
 {"camera":{"clipEndMicrometres":100000000,"clipStartMicrometres":100000,"lensMillimetres":50,"locationMicrometres":[10000000,-14000000,9000000],"sensorWidthMillimetres":36,"targetMicrometres":[1000000,1000000,1400000]},"colorManagement":{"exposureMilliStops":0,"gammaPermille":1000,"look":"AgX - Medium High Contrast","viewTransform":"AgX"},"engine":"BLENDER_EEVEE_NEXT","filmTransparent":false,"frame":1,"lights":[{"locationMicrometres":[2000000,-4000000,10000000],"powerMilliwatts":1200000,"sizeMillimetres":8000,"type":"AREA"},{"locationMicrometres":[-6000000,3000000,5000000],"powerMilliwatts":500000,"sizeMillimetres":6000,"type":"AREA"}],"moduleLocationsMicrometres":[[-5000000,0,0],[0,0,0],[5000000,0,0]],"output":{"colorDepth":8,"colorMode":"RGBA","compression":9,"format":"PNG","height":540,"interlace":0,"percentage":100,"width":960},"samples":64,"schemaVersion":1,"stamps":{"camera":false,"date":false,"enabled":false,"filename":false,"frame":false,"hostname":false,"label":false,"lens":false,"marker":false,"memory":false,"note":false,"renderTime":false,"scene":false,"sequencerStrip":false,"time":false},"worldColorLinearMillionths":[35000,35000,35000]}
+```
+
+```json
+{"allowedChunks":["IHDR","IDAT","IEND"],"preserveIdatPayloads":true,"profile":"png-normalize-v1","recomputeCrc":true,"schemaVersion":1}
 ```
 
 T-003-Schemafelder, die nicht hier weiter eingeschränkt werden, behalten unverändert ihren T-003-Vertrag.

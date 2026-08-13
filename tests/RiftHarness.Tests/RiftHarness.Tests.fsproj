@@ -13,6 +13,10 @@
   <ItemGroup>
     <Compile Include="AssetCanonicalTests.fs" />
     <Compile Include="AssetRegression.fs" />
+    <Compile Include="BlenderCalibrationSpecTests.fs" Condition="Exists('BlenderCalibrationSpecTests.fs')" />
+    <Compile Include="Asset3dInspectorTests.fs" Condition="Exists('Asset3dInspectorTests.fs')" />
+    <Compile Include="BlenderCalibrationCliTests.fs" />
+    <Compile Include="BlenderCalibrationWrapperTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

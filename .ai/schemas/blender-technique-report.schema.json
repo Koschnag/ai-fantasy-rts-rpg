@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/blender-technique-report.schema.json",
+  "title": "Project Riftward Blender calibration-v1 technique report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifacts", "familyId", "familyMetrics", "generatorSourceSha256", "generatorSources", "limits", "materials", "modules", "profile", "schemaVersion", "seed", "specSha256", "toolchainPinSha256"],
+  "properties": {
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["glb", "preview"],
+      "properties": {
+        "glb": { "$ref": "#/$defs/glbArtifact" },
+        "preview": { "$ref": "#/$defs/previewArtifact" }
+      }
+    },
+    "familyId": { "const": "CAL-STONEWOOD-V1" },
+    "familyMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decodedGeometryBytes", "glbBytes", "materialCount", "renderPrimitiveCount"],
+      "properties": {
+        "decodedGeometryBytes": { "type": "integer", "minimum": 0, "maximum": 2097152 },
+        "glbBytes": { "type": "integer", "minimum": 1, "maximum": 2097152 },
+        "materialCount": { "const": 2 },
+        "renderPrimitiveCount": { "type": "integer", "minimum": 0, "maximum": 18 }
+      }
+    },
+    "generatorSourceSha256": { "$ref": "#/$defs/sha256" },
+    "generatorSources": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "prefixItems": [
+        { "$ref": "#/$defs/sourceGeneratePy" },
+        { "$ref": "#/$defs/sourceAssetJobJournal" },
+        { "$ref": "#/$defs/sourceBlenderCalibration" },
+        { "$ref": "#/$defs/sourceBlenderGenerator" },
+        { "$ref": "#/$defs/sourceLinuxSandbox" }
+      ],
+      "items": false
+    },
+    "limits": { "$ref": "#/$defs/limits" },
+    "materials": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        { "$ref": "#/$defs/stoneMaterial" },
+        { "$ref": "#/$defs/woodMaterial" }
+      ],
+      "items": false
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        { "$ref": "#/$defs/straightModule" },
+        { "$ref": "#/$defs/cornerModule" },
+        { "$ref": "#/$defs/openingModule" }
+      ],
+      "items": false
+    },
+    "profile": { "const": "calibration-v1" },
+    "schemaVersion": { "const": 1 },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+    "specSha256": { "$ref": "#/$defs/sha256" },
+    "toolchainPinSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "assetId": { "type": "string", "pattern": "^CAL-STONEWOOD-V1-[0-9A-F]{12}$" },
+    "glbArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "path", "sha256"],
+      "properties": {
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 2097152 },
+        "path": { "type": "string", "pattern": "^assets/quarantine/3d/CAL-STONEWOOD-V1-[0-9A-F]{12}/family\\.glb$" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "previewArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "path", "sha256"],
+      "properties": {
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 8388608 },
+        "path": { "type": "string", "pattern": "^assets/quarantine/3d/CAL-STONEWOOD-V1-[0-9A-F]{12}/preview\\.png$" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "sourceAssetJobJournal": {
+      "allOf": [
+        { "$ref": "#/$defs/source" },
+        { "properties": { "path": { "const": "tools/RiftHarness/AssetJobJournal.fs" } } }
+      ]
+    },
+    "sourceGeneratePy": {
+      "allOf": [
+        { "$ref": "#/$defs/source" },
+        { "properties": { "path": { "const": "tools/BlenderCalibration/generate.py" } } }
+      ]
+    },
+    "sourceBlenderCalibration": {
+      "allOf": [
+        { "$ref": "#/$defs/source" },
+        { "properties": { "path": { "const": "tools/RiftHarness/BlenderCalibration.fs" } } }
+      ]
+    },
+    "sourceBlenderGenerator": {
+      "allOf": [
+        { "$ref": "#/$defs/source" },
+        { "properties": { "path": { "const": "tools/RiftHarness/BlenderGenerator.fs" } } }
+      ]
+    },
+    "sourceLinuxSandbox": {
+      "allOf": [
+        { "$ref": "#/$defs/source" },
+        { "properties": { "path": { "const": "tools/RiftHarness/LinuxSandbox.fs" } } }
+      ]
+    },
+    "srgb8": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "integer", "minimum": 0, "maximum": 255 }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseColorSrgb8", "metallicPermille", "name", "roughnessPermille"],
+      "properties": {
+        "baseColorSrgb8": { "$ref": "#/$defs/srgb8" },
+        "metallicPermille": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "name": { "type": "string" },
+        "roughnessPermille": { "type": "integer", "minimum": 500, "maximum": 1000 }
+      }
+    },
+    "stoneMaterial": {
+      "allOf": [
+        { "$ref": "#/$defs/material" },
+        { "properties": { "name": { "const": "MAT_CAL_STONE" } } }
+      ]
+    },
+    "woodMaterial": {
+      "allOf": [
+        { "$ref": "#/$defs/material" },
+        { "properties": { "name": { "const": "MAT_CAL_WOOD" } } }
+      ]
+    },
+    "vec3Integer": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "integer", "minimum": -9223372036854775808, "maximum": 9223372036854775807 }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max", "min"],
+      "properties": {
+        "max": { "$ref": "#/$defs/vec3Integer" },
+        "min": { "$ref": "#/$defs/vec3Integer" }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decodedGeometryBytes", "indices", "primitives", "triangles", "vertices"],
+      "properties": {
+        "decodedGeometryBytes": { "type": "integer", "minimum": 0, "maximum": 2097152 },
+        "indices": { "type": "integer", "minimum": 0, "maximum": 12288 },
+        "primitives": { "type": "integer", "minimum": 1, "maximum": 2 },
+        "triangles": { "type": "integer", "minimum": 0, "maximum": 4096 },
+        "vertices": { "type": "integer", "minimum": 0, "maximum": 3072 }
+      }
+    },
+    "snap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rotationQuarterTurns", "translationMm"],
+      "properties": {
+        "id": { "type": "string" },
+        "rotationQuarterTurns": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "translationMm": { "$ref": "#/$defs/vec3Integer" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundsMicrometres", "collision", "id", "lod0", "lod1", "lod2", "snapPoints"],
+      "properties": {
+        "boundsMicrometres": { "$ref": "#/$defs/bounds" },
+        "collision": { "$ref": "#/$defs/metric" },
+        "id": { "type": "string" },
+        "lod0": { "$ref": "#/$defs/metric" },
+        "lod1": { "$ref": "#/$defs/metric" },
+        "lod2": { "$ref": "#/$defs/metric" },
+        "snapPoints": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/snap" }
+        }
+      }
+    },
+    "straightModule": {
+      "allOf": [
+        { "$ref": "#/$defs/module" },
+        {
+          "properties": {
+            "id": { "const": "WALL-STRAIGHT" },
+            "snapPoints": {
+              "prefixItems": [
+                { "allOf": [{ "$ref": "#/$defs/snap" }, { "properties": { "id": { "const": "SNAP_WALL_STRAIGHT_A" } } }] },
+                { "allOf": [{ "$ref": "#/$defs/snap" }, { "properties": { "id": { "const": "SNAP_WALL_STRAIGHT_B" } } }] }
+              ],
+              "items": false
+            }
+          }
+        }
+      ]
+    },
+    "cornerModule": {
+      "allOf": [
+        { "$ref": "#/$defs/module" },
+        {
+          "properties": {
+            "id": { "const": "WALL-CORNER" },
+            "snapPoints": {
+              "prefixItems": [
+                { "allOf": [{ "$ref": "#/$defs/snap" }, { "properties": { "id": { "const": "SNAP_WALL_CORNER_A" } } }] },
+                { "allOf": [{ "$ref": "#/$defs/snap" }, { "properties": { "id": { "const": "SNAP_WALL_CORNER_B" } } }] }
+              ],
+              "items": false
+            }
+          }
+        }
+      ]
+    },
+    "openingModule": {
+      "allOf": [
+        { "$ref": "#/$defs/module" },
+        {
+          "properties": {
+            "id": { "const": "WALL-OPENING" },
+            "snapPoints": {
+              "prefixItems": [
+                { "allOf": [{ "$ref": "#/$defs/snap" }, { "properties": { "id": { "const": "SNAP_WALL_OPENING_A" } } }] },
+                { "allOf": [{ "$ref": "#/$defs/snap" }, { "properties": { "id": { "const": "SNAP_WALL_OPENING_B" } } }] }
+              ],
+              "items": false
+            }
+          }
+        }
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collisionTriangles", "decodedGeometryBytes", "glbBytes", "lod0Triangles", "lod0Vertices", "lod1Triangles", "lod1Vertices", "lod2Triangles", "lod2Vertices", "materials", "renderPrimitivesPerLod"],
+      "properties": {
+        "collisionTriangles": { "const": 48 },
+        "decodedGeometryBytes": { "const": 2097152 },
+        "glbBytes": { "const": 2097152 },
+        "lod0Triangles": { "const": 4096 },
+        "lod0Vertices": { "const": 3072 },
+        "lod1Triangles": { "const": 1024 },
+        "lod1Vertices": { "const": 1024 },
+        "lod2Triangles": { "const": 192 },
+        "lod2Vertices": { "const": 256 },
+        "materials": { "const": 2 },
+        "renderPrimitivesPerLod": { "const": 2 }
+      }
+    }
+  }
+}

@@ -60,8 +60,20 @@ dotnet run --project tools/RiftHarness -- query-rag \
 dotnet run --project tools/RiftHarness -- assets-check
 dotnet run --project tools/RiftHarness -- assets-check \
   --require-local --require-approved
+dotnet run --project tools/RiftHarness -- blender-calibration validate-spec \
+  --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json
+dotnet run --project tools/RiftHarness -- blender-calibration inspect \
+  --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json \
+  --glb tests/Fixtures/Asset3d/positive/family.glb \
+  --preview tests/Fixtures/Asset3d/positive/preview.png \
+  --report tests/Fixtures/Asset3d/positive/technique.json
 dotnet run --project tools/RiftHarness -- verify
 ```
+
+Die `blender-calibration`-Pfade im `inspect`-Beispiel sind nur die erlaubten
+logischen Fixturepfade; die Tests erzeugen die synthetischen Bytes in einem
+temporären Workspace. T-005 startet Blender nie und checkt keine GLB-/PNG-
+Binärfixtures ein. Der echte Generator folgt separat in T-006.
 
 `query-rag` akzeptiert aus Kompatibilitaetsgruenden auch eine positionale Query.
 Eine feste, versionierte Liste allgemeiner deutscher und englischer Stopwoerter

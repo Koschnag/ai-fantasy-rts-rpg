@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/blender-calibration-v1.schema.json",
+  "title": "Project Riftward Blender calibration-v1 specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["familyId", "geometry", "materials", "profile", "schemaVersion", "seed"],
+  "properties": {
+    "familyId": { "const": "CAL-STONEWOOD-V1" },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lintelHeightMm", "moduleHeightMm", "moduleWidthMm", "mortarGapMm", "openingHeightMm", "openingWidthMm", "stoneCourseHeightMm", "stoneDepthJitterMm", "stoneLengthJitterMm", "stoneOffsetJitterMm", "timberDepthMm", "timberWidthMm", "wallThicknessMm"],
+      "properties": {
+        "lintelHeightMm": { "type": "integer", "minimum": 250, "maximum": 400 },
+        "moduleHeightMm": { "type": "integer", "minimum": 2400, "maximum": 3600 },
+        "moduleWidthMm": { "const": 4000 },
+        "mortarGapMm": { "type": "integer", "minimum": 10, "maximum": 40 },
+        "openingHeightMm": { "type": "integer", "minimum": 1800, "maximum": 2400 },
+        "openingWidthMm": { "type": "integer", "minimum": 1200, "maximum": 2000, "multipleOf": 2 },
+        "stoneCourseHeightMm": { "type": "integer", "minimum": 250, "maximum": 400 },
+        "stoneDepthJitterMm": { "type": "integer", "minimum": 0, "maximum": 60 },
+        "stoneLengthJitterMm": { "type": "integer", "minimum": 0, "maximum": 80 },
+        "stoneOffsetJitterMm": { "type": "integer", "minimum": 0, "maximum": 40 },
+        "timberDepthMm": { "type": "integer", "minimum": 100, "maximum": 240 },
+        "timberWidthMm": { "type": "integer", "minimum": 120, "maximum": 240 },
+        "wallThicknessMm": { "type": "integer", "minimum": 300, "maximum": 600 }
+      }
+    },
+    "materials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stoneBaseColorSrgb8", "stoneMetallicPermille", "stoneRoughnessPermille", "woodBaseColorSrgb8", "woodMetallicPermille", "woodRoughnessPermille"],
+      "properties": {
+        "stoneBaseColorSrgb8": { "$ref": "#/$defs/srgb8" },
+        "stoneMetallicPermille": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "stoneRoughnessPermille": { "type": "integer", "minimum": 500, "maximum": 1000 },
+        "woodBaseColorSrgb8": { "$ref": "#/$defs/srgb8" },
+        "woodMetallicPermille": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "woodRoughnessPermille": { "type": "integer", "minimum": 500, "maximum": 1000 }
+      }
+    },
+    "profile": { "const": "calibration-v1" },
+    "schemaVersion": { "const": 1 },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+  },
+  "$defs": {
+    "srgb8": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "integer", "minimum": 0, "maximum": 255 }
+    }
+  }
+}

@@ -50,11 +50,10 @@ Die Vorproduktion ist abgeschlossen, wenn:
 - Datenschutz, Sicherheit und technische Randbedingungen geklärt sind,
 - die erste Umsetzungseinheit den Status `READY` hat.
 
-`T-002` und das Asset-Provenienz-/Quarantänegate `T-003` sind unabhängig
-abgenommen. Als nächster Auftrag ist `T-005` `READY`: ein strikt numerischer
-`calibration-v1`-Vertrag mit Blender-unabhängigem GLB-/PNG-/Report-Inspector,
-noch ohne Assetgenerierung. Erst danach werden der isolierte Blender-Worker
-(`T-006`) und sein Fresh-Checkout-/CI-Nachweis (`T-007`) freigegeben.
+`T-002`, das Asset-Provenienz-/Quarantänegate `T-003` und der unabhängige
+`calibration-v1`-Inspector `T-005` sind abgenommen. Als nächster Auftrag ist
+der isolierte Blender-Worker `T-006` `READY`; sein Fresh-Checkout-/CI-Nachweis
+`T-007` bleibt bis zur getrennten Abnahme des Workers `DRAFT`.
 Vollständige allgemeine Run-Provenienz/Evidenz (`T-004`) und das native
 SDL3-/bgfx-Walking-Skeleton (`T-010`) folgen, sobald der jeweilige Auftrag
 `READY` ist. Nur `READY`-Aufträge dürfen ohne weitere fachliche Klärung
@@ -80,6 +79,7 @@ gestartet werden.
 ./scripts/rift.sh lint
 ./scripts/rift.sh test
 ./scripts/rift.sh security
+./scripts/rift.sh blender-calibration validate-spec --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json
 ./scripts/rift.sh rag-build
 ./scripts/rift.sh rag-query --query "Atmosphäre und RPG RTS Übergang" --top 5
 ./scripts/rift.sh harness memory status

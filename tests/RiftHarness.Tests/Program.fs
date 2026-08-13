@@ -1680,7 +1680,62 @@ module Program =
     [<EntryPoint>]
     let main _ =
         let tests =
-            [ "Asset repository quarantine fixtures are valid", Tests.assetRepositoryQuarantineFixturesAreValid
+            [ "Blender calibration schemas are offline, strict and accept the reference",
+              BlenderCalibrationSpecTests.schemasAreOfflineStrictAndReferenceValid
+              "Blender calibration canonical reference spec is accepted",
+              BlenderCalibrationSpecTests.canonicalReferenceSpecIsAccepted
+              "Blender calibration malformed and noncanonical specs are rejected",
+              BlenderCalibrationSpecTests.malformedNoncanonicalAndClosedShapeMatrixIsRejected
+              "Blender calibration field boundaries are enforced",
+              BlenderCalibrationSpecTests.fieldBoundaryMatrixIsEnforced
+              "Blender calibration cross-field formulas are enforced",
+              BlenderCalibrationSpecTests.crossFieldFormulaMatrixIsEnforced
+              "Blender calibration PCG32 matches published vectors",
+              BlenderCalibrationSpecTests.pcg32MatchesPublishedVectors
+              "Blender calibration metrics, candidates and bounds match contract",
+              BlenderCalibrationSpecTests.referenceMetricsCandidatesAndBoundsMatchContract
+              "Blender calibration snaps, axes, quaternions and colors match contract",
+              BlenderCalibrationSpecTests.snapAxisQuaternionAndColorMathMatchContract
+              "Blender calibration safe file boundary is enforced",
+              BlenderCalibrationSpecTests.safeSpecFileBoundaryIsEnforced
+              "Blender calibration validate-spec CLI envelope is canonical",
+              BlenderCalibrationCliTests.validateSpecEnvelopeIsCanonicalAndPositionIndependent
+              "Blender calibration invalid CLI and paths are redacted",
+              BlenderCalibrationCliTests.invalidCliAndPathMatrixIsRedacted
+              "Blender calibration CLI rejects leaf and parent symlinks",
+              BlenderCalibrationCliTests.validateSpecRejectsLeafAndParentSymlinks
+              "Blender calibration CLI rejects a symlink workspace root",
+              BlenderCalibrationCliTests.validateSpecRejectsSymlinkWorkspaceRoot
+              "Blender calibration CLI rejects a symlink workspace ancestor",
+              BlenderCalibrationCliTests.validateSpecRejectsSymlinkWorkspaceAncestor
+              "Blender calibration nested wrong types map to invalid spec",
+              BlenderCalibrationCliTests.validateSpecMapsNestedWrongTypesToInvalidSpec
+              "Blender calibration path-length boundaries are enforced",
+              BlenderCalibrationCliTests.validateSpecPathLengthBoundariesAreEnforced
+              "Blender calibration NFC paths use minimal UTF-8 JSON",
+              BlenderCalibrationCliTests.validateSpecEnvelopeUsesMinimalUtf8ForNfcPaths
+              "Blender calibration inspect CLI envelope and exit mapping are canonical",
+              BlenderCalibrationCliTests.inspectEnvelopeAndExitMappingAreCanonical
+              "Blender calibration wrapper is closed and ignores host injection environment",
+              BlenderCalibrationWrapperTests.validateSpecWrapperIsClosedAndIgnoresHostInjectionEnvironment
+              "Blender calibration GLB reference fixture is accepted",
+              Asset3dInspectorTests.glbReferenceFixtureIsAccepted
+              "Blender calibration GLB topology tampering is rejected",
+              Asset3dInspectorTests.glbTopologyTamperingIsRejected
+              "Blender calibration GLB alignment and JSON types are rejected",
+              Asset3dInspectorTests.glbAlignmentAndJsonTypesAreRejected
+              "Blender calibration normalized PNG is accepted", Asset3dInspectorTests.normalizedPngIsAccepted
+              "Blender calibration trailing Deflate data is rejected",
+              Asset3dInspectorTests.pngTrailingDeflateDataIsRejected
+              "Blender calibration complete inspection round-trip is accepted",
+              Asset3dInspectorTests.completeInspectionRoundTripIsAccepted
+              "Blender calibration technique-report cross-field matrix is rejected",
+              Asset3dInspectorTests.techniqueReportCrossFieldMatrixIsRejected
+              "Blender calibration unsafe Unicode artifact paths are rejected",
+              Asset3dInspectorTests.unsafeUnicodeArtifactPathsAreRejected
+              "Blender calibration malformed toolchain pin is an artifact failure",
+              Asset3dInspectorTests.malformedToolchainPinIsArtifactFailure
+              "Asset repository quarantine fixtures are valid", Tests.assetRepositoryQuarantineFixturesAreValid
               "Asset schema is strict, offline and short-circuits cross-fields",
               Tests.assetSchemaIsStrictOfflineAndShortCircuitsCrossFields
               "Asset clean-room findings are redacted and require flags work",

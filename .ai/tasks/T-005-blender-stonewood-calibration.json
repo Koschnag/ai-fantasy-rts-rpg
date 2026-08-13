@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "T-005",
   "title": "Calibration-v1-Spec und unabhängiger 3D-Inspector",
-  "status": "ready",
+  "status": "accepted",
   "objective": "Ein Blender-unabhängiges F#/.NET-Werkzeug validiert den vollständig geschlossenen calibration-v1-Eingabevertrag und prüft GLB, PNG und Technikreport unabhängig gegen Struktur-, Sicherheits- und Proxybudgets.",
   "inScope": [
     "strikter calibration-v1-Parser mit vollständiger Feld-, Bereichs-, Beziehungs-, Größen- und Additional-Properties-Prüfung aus docs/BLENDER_GENERATOR_CONTRACT.md",
@@ -26,11 +26,11 @@
     {
       "id": "AC-T005-01",
       "statement": "validate-spec akzeptiert ausschließlich das in BLENDER_GENERATOR_CONTRACT definierte calibration-v1-Objekt: höchstens 16 KiB, ganze Zahlen in den exakten Grenzen, feste IDs, keine Pfade oder Freitexte, keine unbekannten oder fehlenden Felder und alle dort genannten Cross-Field-Formeln erfüllt.",
-      "verification": "Tabellengetriebene Unit-Fixtures decken jeden Feldrand, jedes fehlende und zusätzliche Feld, falsche JSON-Typen, Tiefe, Größe sowie jede Beziehungsformel einzeln ab; ungültige Eingaben liefern Exit 2 und starten nachweislich keinen Unterprozess"
+      "verification": "Tabellengetriebene Unit-Fixtures decken jeden erreichbaren Feldrand, jedes fehlende und zusätzliche Feld, falsche JSON-Typen, Tiefe, Größe sowie jede Beziehungsformel ab; durch strengere Einzelgrenzen implizierte Defense-in-depth-Formeln werden isoliert am reinen Formelauswerter geprüft. Ungültige Eingaben liefern Exit 2 und starten nachweislich keinen Unterprozess"
     },
     {
       "id": "AC-T005-02",
-      "statement": "Die Referenzimplementierung für PCG32, begrenzte Zufallswerte, Modulanordnung, ganzzahlige Millimetergeometrie, LOD-Ableitung, Achsen, Pivots, Snap-Transforms und feste Namen entspricht bitgenau den Formeln und Testvektoren des Vertrags.",
+      "statement": "Die Referenzimplementierung für PCG32, begrenzte Zufallswerte, Modulanordnung, ganzzahlige Millimetergeometrie einschließlich fester überlappungsfreier Corner-Naht, LOD-Ableitung, Achsen, Pivots, Snap-Transforms und feste Namen entspricht bitgenau den Formeln und Testvektoren des Vertrags.",
       "verification": "Pure Tests prüfen die veröffentlichten PRNG-Testvektoren, den festen Seed 1592594996, Kandidaten- und Boxzählungen, Bounds und Snap-Matrizen; kein Test verwendet Uhr, Betriebssystemzufall oder Dateisystemreihenfolge"
     },
     {
@@ -46,7 +46,7 @@
     {
       "id": "AC-T005-05",
       "statement": "Der Inspector erzwingt je Modul LOD0 höchstens 4096 Dreiecke und 3072 Vertices, LOD1 höchstens 1024 und 1024, LOD2 höchstens 192 und 256, Kollision höchstens 48 Dreiecke, familienweit genau zwei gemeinsam genutzte Render-Materialien, höchstens zwei Render-Primitives je LOD sowie für GLB und dekodierte Geometrie jeweils höchstens 2097152 Bytes nach der exakten Vertragsformel.",
-      "verification": "Budgetfixtures überschreiten jeden Grenzwert um genau eins und prüfen getrennt die Accessor-basierte decodedGeometryBytes-Formel; Erfolg wird ausschließlich als Strukturproxy und nie als Zielhardware- oder FPS-Nachweis bezeichnet"
+      "verification": "Budgetfixtures überschreiten jeden erreichbaren Zähl- und GLB-Grenzwert um genau eins. Die durch GLB-Größe und gerade Accessorbreiten implizierte decodedGeometryBytes-Grenze wird als Defense-in-depth über unabhängige Referenzsummen, Formeltests und Reportmutation geprüft; Erfolg wird ausschließlich als Strukturproxy und nie als Zielhardware- oder FPS-Nachweis bezeichnet"
     },
     {
       "id": "AC-T005-06",

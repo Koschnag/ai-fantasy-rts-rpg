@@ -74,8 +74,8 @@ Der vollständige maschinenprüfbare Vertrag steht in `BLENDER_GENERATOR_CONTRAC
 
 | Task | kleinster überprüfbarer Liefergegenstand | Abhängigkeiten | Status |
 |---|---|---|---|
-| T-005 | strikter Spec-Parser, Referenzmathematik und unabhängiger .NET-Inspector mit rein synthetischen Fixtures; startet Blender nie | T-003 | READY |
-| T-006 | gepinnter Blender-Generator, harte Linux-Isolation und transaktionaler T-003-Quarantäne-Lifecycle mit Recovery | T-003, T-005 | DRAFT |
+| T-005 | strikter Spec-Parser, Referenzmathematik und unabhängiger .NET-Inspector mit rein synthetischen Fixtures; startet Blender nie | T-003 | DONE |
+| T-006 | gepinnter Blender-Generator, harte Linux-Isolation und transaktionaler T-003-Quarantäne-Lifecycle mit Recovery | T-003, T-005 | READY |
 | T-007 | pfadgefilterter Fresh-Checkout-CI-Nachweis für Archivepin, Offlinebetrieb, Byteidentität, Fehler- und Crashpfade | T-003, T-005, T-006 | DRAFT |
 
 Die Familie enthält ausschließlich drei kultur- und regionsneutrale technische Formen: gerade Wand, 90-Grad-Ecke und Wandöffnung mit Holzsturz. Kreative Eingabe ist nur das strikt numerische Spec; Prompts, Negativprompts, Fremdmodelle, Referenzbilder, Texturen, pip-Pakete, Add-ons und generative 3D-Modelle sind ausgeschlossen. T-005 kann deshalb zunächst alle Parser-, Inspector-, Budget- und Korruptionsregeln ohne DCC und ohne Binärfixture fremder Herkunft implementieren.
@@ -93,8 +93,8 @@ T-006-Ergebnisse bleiben unter `assets/quarantine/3d/`. Ein gültiger T-003-Rece
 ## Nächste ausführbare Schritte
 
 1. T-003 ist separat abgenommen; alle vorhandenen Keyframes bleiben dennoch Quarantäne.
-2. T-005 ist `READY` und implementiert Spec, Referenzmathematik und unabhängigen Inspector ohne Blender.
-3. T-006 implementiert isolierte Generierung, T-003-Bindung, Journal und Recovery.
+2. T-005 ist unabhängig abgenommen; seine Proxybudgets sind kein Hardware- oder Shipping-Nachweis.
+3. T-006 ist `READY` und implementiert isolierte Generierung, T-003-Bindung, Journal und Recovery.
 4. T-007 beweist den vollständigen Pfad in einem frischen Linux-x64-Checkout.
 5. T-050 misst akzeptierte Varianten, Dreiecke, LOD, UV, Texturspeicher, Exportzeit und visuelle Konsistenz und erprobt getrennte Freigabe, Source-Promotion sowie Cooking.
 6. Erst danach wird der Assetumfang vervielfacht.

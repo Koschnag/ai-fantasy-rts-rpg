@@ -2,6 +2,9 @@ namespace RiftHarness
 
 open System
 open System.Globalization
+open System.IO
+open System.Text.Encodings.Web
+open System.Text.Json
 
 module Cli =
     let takeFlag (name: string) (arguments: string list) =
@@ -44,6 +47,156 @@ module Cli =
             writer.WriteEndObject())
         |> Constants.Utf8NoBom.GetString
 
+    let private writeCalibrationEnvelope (command: string) writeBody =
+        use stream = new MemoryStream()
+
+        use writer =
+            new Utf8JsonWriter(
+                stream,
+                JsonWriterOptions(Indented = false, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping)
+            )
+
+        writer.WriteStartObject()
+        writer.WriteString("command", command)
+        writeBody writer
+        writer.WriteNumber("schemaVersion", Constants.SchemaVersion)
+        writer.WriteEndObject()
+        writer.Flush()
+
+        stream.ToArray()
+        |> Constants.Utf8NoBom.GetString
+        |> fun value ->
+            Console.Out.Write(value)
+            Console.Out.Write('\n')
+
+    let private calibrationError (command: string) (code: string) (message: string) exitCode =
+        writeCalibrationEnvelope command (fun writer ->
+            writer.WritePropertyName("error")
+            writer.WriteStartObject()
+            writer.WriteString("code", code)
+            writer.WriteString("message", message)
+            writer.WriteEndObject()
+            writer.WriteBoolean("ok", false))
+
+        exitCode
+
+    let private workspaceRootIsSafe root =
+        try
+            let mutable current = DirectoryInfo(Path.GetFullPath(root))
+            let mutable safe = current.Exists
+
+            while safe && not (isNull current) do
+                safe <-
+                    isNull current.LinkTarget
+                    && not (current.Attributes.HasFlag(FileAttributes.ReparsePoint))
+
+                current <- current.Parent
+
+            safe
+        with
+        | :? IOException
+        | :? UnauthorizedAccessException
+        | :? ArgumentException
+        | :? NotSupportedException
+        | :? System.Security.SecurityException -> false
+
+    let private executeBlenderCalibration arguments =
+        let rec inferCommand remaining =
+            match remaining with
+            | "--workspace" :: _ :: tail -> inferCommand tail
+            | "validate-spec" :: _ -> "validate-spec"
+            | "inspect" :: _ -> "inspect"
+            | _ -> "blender-calibration"
+
+        let command = inferCommand arguments
+
+        try
+            let optionNames = [ "--workspace"; "--spec"; "--glb"; "--preview"; "--report" ]
+
+            for optionName in optionNames do
+                if arguments |> List.filter ((=) optionName) |> List.length > 1 then
+                    Internal.fail "Option wurde mehrfach angegeben."
+
+            arguments
+            |> List.pairwise
+            |> List.iter (fun (optionName, value) ->
+                if
+                    List.contains optionName optionNames
+                    && value.StartsWith("--", StringComparison.Ordinal)
+                then
+                    Internal.fail "Option benoetigt einen Wert.")
+
+            let workspace, remaining = takeOption "--workspace" arguments
+            let root = workspace |> Option.defaultValue Environment.CurrentDirectory
+
+            if not (workspaceRootIsSafe root) then
+                raise (CalibrationSpecError "UNSAFE_PATH")
+
+            match remaining with
+            | "validate-spec" :: options ->
+                let specPath, rest = requireOption "--spec" options
+                noArguments "blender-calibration validate-spec" rest
+                let validated = BlenderCalibration.validateSpecFile root specPath
+
+                writeCalibrationEnvelope command (fun writer ->
+                    writer.WriteBoolean("ok", true)
+                    writer.WritePropertyName("result")
+                    writer.WriteStartObject()
+                    writer.WriteNumber("familyDecodedGeometryBytes", validated.FamilyDecodedGeometryBytes)
+                    writer.WriteString("familyId", validated.Spec.FamilyId)
+                    writer.WriteNumber("moduleCount", validated.Modules.Length)
+                    writer.WriteString("profile", validated.Spec.Profile)
+                    writer.WriteNumber("renderPrimitiveCount", validated.RenderPrimitiveCount)
+                    writer.WriteString("specPath", specPath)
+                    writer.WriteString("specSha256", validated.SpecSha256)
+                    writer.WriteEndObject())
+
+                0
+            | "inspect" :: options ->
+                let specPath, rest = requireOption "--spec" options
+                let glbPath, rest = requireOption "--glb" rest
+                let previewPath, rest = requireOption "--preview" rest
+                let reportPath, rest = requireOption "--report" rest
+                noArguments "blender-calibration inspect" rest
+                let validated = BlenderCalibration.validateSpecFile root specPath
+
+                let inspected =
+                    Asset3dInspector.inspect root validated glbPath previewPath reportPath
+
+                writeCalibrationEnvelope command (fun writer ->
+                    writer.WriteBoolean("ok", true)
+                    writer.WritePropertyName("result")
+                    writer.WriteStartObject()
+                    writer.WriteNumber("familyDecodedGeometryBytes", inspected.DecodedGeometryBytes)
+                    writer.WriteString("familyId", inspected.FamilyId)
+                    writer.WriteNumber("glbBytes", inspected.GlbBytes)
+                    writer.WriteString("glbPath", inspected.GlbPath)
+                    writer.WriteString("glbSha256", inspected.GlbSha256)
+                    writer.WriteNumber("materialCount", inspected.MaterialCount)
+                    writer.WriteNumber("moduleCount", validated.Modules.Length)
+                    writer.WriteNumber("previewBytes", inspected.PreviewBytes)
+                    writer.WriteString("previewPath", inspected.PreviewPath)
+                    writer.WriteString("previewSha256", inspected.PreviewSha256)
+                    writer.WriteNumber("renderPrimitiveCount", inspected.RenderPrimitiveCount)
+                    writer.WriteNumber("reportBytes", inspected.ReportBytes)
+                    writer.WriteString("reportPath", inspected.ReportPath)
+                    writer.WriteString("reportSha256", inspected.ReportSha256)
+                    writer.WriteString("specPath", specPath)
+                    writer.WriteString("specSha256", inspected.SpecSha256)
+                    writer.WriteEndObject())
+
+                0
+            | _ -> calibrationError command "INVALID_ARGUMENT" "invalid arguments" 2
+        with
+        | CalibrationSpecError code when code = "UNSAFE_PATH" -> calibrationError command "UNSAFE_PATH" "unsafe path" 2
+        | CalibrationSpecError _ -> calibrationError command "INVALID_SPEC" "validation failed" 2
+        | AssetInspectionPathError _ -> calibrationError command "UNSAFE_PATH" "unsafe path" 2
+        | AssetInspectionError code when code = "BUDGET_EXCEEDED" ->
+            calibrationError command "BUDGET_EXCEEDED" "budget exceeded" 5
+        | AssetInspectionError _ -> calibrationError command "INVALID_ARTIFACT" "artifact validation failed" 5
+        | HarnessException _ -> calibrationError command "INVALID_ARGUMENT" "invalid arguments" 2
+        | _ -> calibrationError command "INTERNAL_ERROR" "internal error" 8
+
     let usage =
         """RiftHarness - lokales Agent-Gedaechtnis und BM25-RAG
 
@@ -62,10 +215,12 @@ Aufruf:
   riftharness query-rag --query TEXT [--top N] [--run RUN_ID] [--workspace PATH]
   riftharness assets-check [--manifest FILE] [--require-local] [--require-approved] [--workspace PATH]
   riftharness export-generation-receipt RUN_ID --manifest FILE --output FILE [--workspace PATH]
+  riftharness blender-calibration validate-spec --spec FILE [--workspace PATH]
+  riftharness blender-calibration inspect --spec FILE --glb FILE --preview FILE --report FILE [--workspace PATH]
   riftharness verify [--run RUN_ID] [--workspace PATH]
 """
 
-    let execute arguments =
+    let private executeStandard arguments =
         let workspace, withoutWorkspace = takeOption "--workspace" arguments
         let root = workspace |> Option.defaultValue Environment.CurrentDirectory
 
@@ -274,6 +429,11 @@ Aufruf:
             report |> Verification.reportJson |> Console.Out.WriteLine
             if report.Valid then 0 else 2
         | command :: _ -> Internal.fail $"Unbekannter oder unvollstaendiger Befehl: {command}"
+
+    let execute arguments =
+        match arguments with
+        | "blender-calibration" :: remaining -> executeBlenderCalibration remaining
+        | _ -> executeStandard arguments
 
 module Program =
     [<EntryPoint>]

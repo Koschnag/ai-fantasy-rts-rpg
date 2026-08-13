@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "T-006",
   "title": "Isolierter Blender-Generator mit transaktionaler Quarantäne",
-  "status": "draft",
+  "status": "ready",
   "objective": "Der gepinnte Linux-x64-Blender erzeugt aus einem validierten calibration-v1-Spec deterministische Stein-/Holz-Kalibrierungsartefakte und veröffentlicht sie über einen absturzsicheren, T-003-konformen Quarantäne-Lifecycle.",
   "inScope": [
     "Blender-5.2.0-Headless-Generator ohne pip-Pakete, Add-ons, Fremdmedien, Texturen oder externe kreative Eingaben",

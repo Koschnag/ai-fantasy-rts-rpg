@@ -29,6 +29,96 @@ rift_need_build_outputs() {
   fi
 }
 
+rift_need_blender_calibration_runtime() {
+  rift_calibration_command=blender-calibration
+  rift_calibration_previous=
+
+  for rift_calibration_argument in "$@"; do
+    if [ "$rift_calibration_previous" = --workspace ]; then
+      rift_calibration_previous=
+      continue
+    fi
+
+    case "$rift_calibration_argument" in
+      --workspace)
+        rift_calibration_previous=--workspace
+        ;;
+      validate-spec|inspect|generate|recover)
+        rift_calibration_command=$rift_calibration_argument
+        break
+        ;;
+      --*)
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  if ! command -v dotnet >/dev/null 2>&1 \
+    || [ ! -f "$rift_root/tools/RiftHarness/bin/Release/net10.0/RiftHarness.dll" ]; then
+    printf '{"command":"%s","error":{"code":"INTERNAL_ERROR","message":"internal error"},"ok":false,"schemaVersion":1}\n' \
+      "$rift_calibration_command"
+    exit 8
+  fi
+}
+
+rift_blender_calibration() {
+  rift_need_blender_calibration_runtime "$@"
+  if rift_calibration_temp=$(mktemp -d /tmp/riftward-calibration.XXXXXX 2>/dev/null); then
+    :
+  else
+    printf '{"command":"%s","error":{"code":"INTERNAL_ERROR","message":"internal error"},"ok":false,"schemaVersion":1}\n' \
+      "$rift_calibration_command"
+    return 8
+  fi
+  rift_calibration_stdout=$rift_calibration_temp/stdout
+  rift_calibration_stderr=$rift_calibration_temp/stderr
+  rift_calibration_dotnet=$(command -v dotnet)
+
+  trap 'rm -rf -- "$rift_calibration_temp"' EXIT HUP INT TERM
+
+  if (
+    env -i \
+      PATH=/usr/bin:/bin \
+      LANG=C.UTF-8 \
+      LC_ALL=C.UTF-8 \
+      TZ=UTC \
+      DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+      DOTNET_NOLOGO=1 \
+      "$rift_calibration_dotnet" "$rift_root/tools/RiftHarness/bin/Release/net10.0/RiftHarness.dll" \
+      blender-calibration "$@"
+  ) >"$rift_calibration_stdout" 2>"$rift_calibration_stderr"; then
+    rift_calibration_status=0
+  else
+    rift_calibration_status=$?
+  fi
+
+  rift_calibration_bytes=$(wc -c <"$rift_calibration_stdout" | tr -d ' ')
+  rift_calibration_lines=$(wc -l <"$rift_calibration_stdout" | tr -d ' ')
+
+  case "$rift_calibration_status" in
+    0|2|3|4|5|6|7|8)
+      if [ ! -s "$rift_calibration_stderr" ] \
+        && [ "$rift_calibration_bytes" -le 1048576 ] \
+        && [ "$rift_calibration_lines" -eq 1 ] \
+        && jq -e 'type == "object"' "$rift_calibration_stdout" >/dev/null 2>&1; then
+        cat "$rift_calibration_stdout"
+        rm -rf -- "$rift_calibration_temp"
+        trap - EXIT HUP INT TERM
+        return "$rift_calibration_status"
+      fi
+      ;;
+  esac
+
+  printf '{"command":"%s","error":{"code":"INTERNAL_ERROR","message":"internal error"},"ok":false,"schemaVersion":1}\n' \
+    "$rift_calibration_command"
+  rm -rf -- "$rift_calibration_temp"
+  trap - EXIT HUP INT TERM
+  return 8
+}
+
 rift_need_harness_state() {
   if [ ! -d "$rift_root/.ai/runtime/runs" ] || [ ! -d "$rift_root/.ai/runtime/index" ]; then
     printf 'Harness ist nicht initialisiert. Führe zuerst ./scripts/rift.sh bootstrap aus.\n' >&2
@@ -109,6 +199,9 @@ case "$rift_command" in
     rift_need_build_outputs
     rift_harness assets-check "$@"
     ;;
+  blender-calibration)
+    rift_blender_calibration "$@"
+    ;;
   security)
     "$rift_root/scripts/security.sh" "$@"
     ;;
@@ -140,6 +233,7 @@ case "$rift_command" in
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \
+      '  blender-calibration ...  Kalibrierungsspec und 3D-Artefakte offline prüfen' \
       '  security      lokalen Secret-/NuGet-/JSON-/LFS-Baseline-Gate ausführen' \
       '  fresh-checkout-test  isolierten Bootstrap-, Build-, Lint-, Test-, RAG- und Verify-Lauf ausführen' \
       '  verify        nach bootstrap Build, Tests, Harness- und JSON-Integrität prüfen' \

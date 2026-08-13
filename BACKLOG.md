@@ -28,8 +28,8 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-002 | E-001 | Memory-Promotion, Konflikt-/Stalenessprüfung und Retrieval-Traces | Z-004, NF-003 | M | MUST | DONE |
 | T-003 | E-001 | Clean-Room-, Asset-Provenienz-, Quarantäne- und technische Validatorhülle | Z-004, Z-005 | M | MUST | DONE |
 | T-004 | E-001 | vollständige Run-Provenienz, Evidenzzuordnung, Trace-/Span-Felder, RAG-Buildmanifest und sichere Retention | Z-004, NF-003, NF-008 | M | MUST | DRAFT |
-| T-005 | E-001 | striktes calibration-v1-Spec und unabhängiger .NET-Inspector prüfen GLB, PNG, Report und Proxybudgets ohne Blender | Z-002, Z-004, Z-005, F-008, F-009 | M | MUST | READY |
-| T-006 | E-001 | gepinnter Blender-Worker erzeugt die neutrale Kalibrierungsfamilie offline isoliert und publiziert sie transaktional über T-003 in Quarantäne | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DRAFT |
+| T-005 | E-001 | striktes calibration-v1-Spec und unabhängiger .NET-Inspector prüfen GLB, PNG, Report und Proxybudgets ohne Blender | Z-002, Z-004, Z-005, F-008, F-009 | M | MUST | DONE |
+| T-006 | E-001 | gepinnter Blender-Worker erzeugt die neutrale Kalibrierungsfamilie offline isoliert und publiziert sie transaktional über T-003 in Quarantäne | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | READY |
 | T-007 | E-001 | Fresh-Checkout-CI beweist Pin, Isolation, Determinismus, Recovery und T-003-Crosschecks der Blender-Kalibrierung | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DRAFT |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck auf allen Ziel-RIDs | Z-002, Z-003 | L | MUST | DRAFT |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
@@ -43,12 +43,11 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
 | T-051 | E-006 | gemessene Karten-/Quest-/Audio-Pipeline erzeugt konsistente Inhalte mit vollständiger Provenienz | Z-001, Z-004, Z-005 | XL | MUST | DRAFT |
 
-`T-003` ist unabhängig abgenommen. `T-005` ist als nächster kleiner Auftrag
-`READY`; er implementiert ausschließlich Spec, Referenzmathematik und
-Blender-unabhängigen Inspector. `T-006` und `T-007` bleiben `DRAFT` und werden
-erst nach der jeweiligen Vorgängerstufe freigegeben. Alle drei hängen direkt
-von `T-003` ab; zusätzlich hängt `T-006` von `T-005` und `T-007` von
-`T-005`/`T-006` ab. Der geschlossene Vertrag steht in
+`T-003` und `T-005` sind unabhängig abgenommen. `T-006` ist der nächste
+`READY`-Auftrag und implementiert den gepinnten, isolierten Blender-Generator
+samt transaktionalem Quarantäne-Lifecycle. `T-007` bleibt bis zur Abnahme von
+`T-006` `DRAFT`. Alle drei hängen direkt von `T-003` ab; zusätzlich hängt
+`T-006` von `T-005` und `T-007` von `T-005`/`T-006` ab. Der geschlossene Vertrag steht in
 `docs/BLENDER_GENERATOR_CONTRACT.md`. `T-050` bleibt `DRAFT` und setzt alle
 drei voraus; erst T-050 verantwortet getrennte visuelle/rechtliche Reviews,
 Source-Promotion, LFS, Backup, Cooking und produktionsnahe Messung.
