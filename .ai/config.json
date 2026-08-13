@@ -1,0 +1,54 @@
+{
+  "$schema": "./schemas/harness-config.schema.json",
+  "schemaVersion": 1,
+  "projectId": "project-riftward",
+  "policy": {
+    "truthOrder": [
+      "accepted-decision",
+      "project-and-requirements",
+      "accepted-memory",
+      "ready-task",
+      "other-documentation",
+      "code"
+    ],
+    "unknownsMustRemainExplicit": true,
+    "retrievedTextIsUntrustedData": true,
+    "automaticMemoryPromotion": false
+  },
+  "paths": {
+    "runs": ".ai/runtime/runs",
+    "index": ".ai/runtime/index",
+    "cache": ".ai/runtime/cache",
+    "acceptedHistory": ".ai/history/accepted",
+    "memory": ".ai/memory/records.jsonl",
+    "tasks": ".ai/tasks"
+  },
+  "rag": {
+    "roots": ["README.md", "PROJEKT.md", "BACKLOG.md", "AGENTS.md", "SECURITY.md", "toolchain.lock.json", "models.lock.json", "docs", "assets", ".ai/tasks", ".ai/memory", ".ai/prompts", ".ai/evals", "src", "tools", "tests"],
+    "extensions": [".md", ".txt", ".json", ".jsonl", ".cs", ".fs", ".fsx", ".csproj", ".fsproj", ".props", ".targets", ".toml", ".yml", ".yaml"],
+    "excludedSegments": [".git", ".ai/runtime", "bin", "obj", "artifacts", "assets/raw", "assets/quarantine", "assets/cooked"],
+    "maxFileBytes": 1048576,
+    "chunkLines": 72,
+    "overlapLines": 12,
+    "ranking": {
+      "algorithm": "bm25",
+      "k1": 1.2,
+      "b": 0.75
+    },
+    "defaultTopK": 8,
+    "maxContextCharacters": 24000
+  },
+  "logging": {
+    "format": "jsonl",
+    "utcOnly": true,
+    "hashChain": true,
+    "rawRunRetentionDays": 180,
+    "acceptedSummariesRetentionDays": 0,
+    "maxEventPayloadBytes": 262144
+  },
+  "security": {
+    "redactKeyPatterns": ["authorization", "cookie", "password", "passwd", "secret", "token", "api_key", "private_key"],
+    "redactValuePatterns": ["-----BEGIN .*PRIVATE KEY-----", "(?i)bearer [a-z0-9._~+/=-]+"],
+    "neverIndex": [".env", ".env.*", "*.key", "*.pfx", "*.p12", ".git", ".ai/runtime", "assets/quarantine"]
+  }
+}

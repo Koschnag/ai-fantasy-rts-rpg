@@ -1,0 +1,47 @@
+# Build outputs
+**/bin/
+**/obj/
+artifacts/
+dist/
+
+# Local IDE and operating-system state
+.idea/
+.vs/
+.vscode/*.log
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.pem
+id_ed25519
+id_ed25519.pub
+id_rsa
+id_rsa.pub
+secrets.json
+appsettings.Development.json
+
+# Local model weights and inference artifacts require an explicit artifact store
+*.gguf
+*.safetensors
+*.ckpt
+*.onnx
+
+# Blender recovery files are local working state, not accepted source assets
+*.blend1
+*.blend2
+
+# Agent harness: persistent locally, reproducible from tracked sources where noted
+.ai/runtime/*
+!.ai/runtime/.gitkeep
+
+# Unreviewed generator output and cooked build products never enter Git
+assets/quarantine/
+assets/cooked/

@@ -1,0 +1,68 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-004",
+  "title": "Vollständige Run-Provenienz, Evidenz und Retention",
+  "status": "draft",
+  "objective": "RiftHarness ordnet jeden autonomen Lauf eindeutig Task, Git-/Konfig-/Prompt-/Modellstand, Retrievals, Tool-Traces und kriterienspezifischer Evidenz zu und bewahrt beziehungsweise entfernt lokale Rohdaten nach einer sicheren, prüfbaren Retention-Policy.",
+  "inScope": [
+    "erweitertes Run-Manifest mit Agent-, Modell-, Prompt-, Git-, Toolchain- und Konfigurationshashes",
+    "Trace-/Span-IDs und strukturierte Evidenzreferenzen je Abnahmekriterium",
+    "deterministisches RAG-Buildmanifest mit Konfigurations- und Quellenhashes",
+    "Work-/Evidence-Verzeichnisse und hashadressierte Referenzen auf große lokale Artefakte",
+    "Retention-Dry-Run und Löschung nur nach Policy- und History-Nachweis",
+    "Schemas, Integritätsprüfung, Fehlerfixtures und Dokumentation"
+  ],
+  "outOfScope": [
+    "Cloud-Telemetriedienst oder verpflichtendes OpenTelemetry-Backend",
+    "Speicherung von verborgenem Chain-of-Thought",
+    "Memory-Promotion und Konfliktentscheidung aus T-002",
+    "Assetquarantäne und Assetfreigabe aus T-003",
+    "unbeaufsichtigtes Löschen ohne Vorschau und bestätigten bereinigten Abschlussnachweis"
+  ],
+  "requirements": ["Z-004", "F-007", "NF-003", "NF-008"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T004-01",
+      "statement": "Ein neuer Run hält Task-, Git-, Prompt-, Modell-, Toolchain- und Harness-Konfigurationsstand mit expliziter Vollständigkeitskennzeichnung fest.",
+      "verification": "Integrationstest prüft Manifest und Hashes mit und ohne verfügbaren Git-Commit"
+    },
+    {
+      "id": "AC-T004-02",
+      "statement": "Retrieval-, Tool- und Evidenzereignisse lassen sich über Trace-/Span-IDs bis zu genau einem Abnahmekriterium verfolgen.",
+      "verification": "Fixture prüft vollständige Referenzkette und lehnt fehlende oder fremde IDs ab"
+    },
+    {
+      "id": "AC-T004-03",
+      "statement": "Das RAG-Buildmanifest bindet Index, Konfiguration und alle Quellen deterministisch per Hash.",
+      "verification": "Zwei identische Builds erzeugen dasselbe Manifest; eine Konfig- oder Quellenänderung invalidiert verify"
+    },
+    {
+      "id": "AC-T004-04",
+      "statement": "Retention zeigt Kandidaten zunächst read-only an und entfernt keinen Run ohne abgelaufene Frist, gültigen Abschluss und akzeptierten bereinigten History-Nachweis.",
+      "verification": "Zeitinjizierter Integrationstest deckt behaltene, löschbare und blockierte Runs ab"
+    },
+    {
+      "id": "AC-T004-05",
+      "statement": "Secrets, Rohmodellantworten und verborgenes Chain-of-Thought werden weder durch neue Manifest- noch Evidenzfelder erforderlich oder unredigiert gespeichert.",
+      "verification": "Schema-, Redaction- und Negativfixtures plus Security-Baseline"
+    }
+  ],
+  "dependencies": ["T-002"],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "interne Trace-/Span-ID-Darstellung",
+      "lokales Evidence-Verzeichnislayout",
+      "deterministische Manifestserialisierung",
+      "Retention-Dry-Run-Ausgabe"
+    ],
+    "mustEscalate": [
+      "externer Telemetrie- oder Artefaktdienst",
+      "Verkürzung der 180-Tage-Retention",
+      "automatische Löschung ohne akzeptierte History",
+      "Erfassung personenbezogener Daten oder Secrets",
+      "Änderung der Quellenhierarchie oder Reviewhoheit"
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/event.schema.json",
+  "title": "RiftHarness append-only run event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "sequence", "timestampUtc", "type", "previousEventHash", "payload", "eventHash"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "timestampUtc": { "type": "string", "format": "date-time" },
+    "type": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "previousEventHash": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      ]
+    },
+    "payload": { "type": "object" },
+    "eventHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

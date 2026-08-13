@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/RiftHarness.Tests/RiftHarness.Tests.fsproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/RiftHarness/RiftHarness.fsproj" />
+  </Folder>
+</Solution>

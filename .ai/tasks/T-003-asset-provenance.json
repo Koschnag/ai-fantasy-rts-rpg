@@ -1,0 +1,69 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-003",
+  "title": "Clean-Room-Assetprovenienz und Quarantänegate",
+  "status": "draft",
+  "objective": "Nur technisch gültige, nachvollziehbar berechtigte und unabhängig gestaltete Assets können aus der Quarantäne in freigegebene Quellen wechseln.",
+  "inScope": [
+    "Assetmanifest gegen das versionierte Schema validieren",
+    "interne Spezifikation, Generierungslauf, Erzeugeridentität, Generator, Modell, Inputs, Rechtebelege, Prompts, Transformationen und Outputs binden",
+    "Prompts, Negativprompts, Dateinamen und Metadaten gegen Clean-Room-Regeln prüfen",
+    "nicht intern freigegebene Eigennamen und namentliche Stilabkürzungen blockieren",
+    "technische, visuelle, Performance-, Originalitäts- und Lizenzreviews als eindeutige aktive Revisionen getrennt erzwingen",
+    "Erzeugeragent und abschließenden Originalitäts-/Lizenzreview per Cross-Field-Validierung trennen",
+    "Quarantäne-, Source-, LFS- und Cooked-Lebenszyklus prüfen",
+    "Fixtures, Sicherheitsgrenzen und Dokumentation"
+  ],
+  "outOfScope": [
+    "Auswahl eines Produktionsmodells",
+    "automatische rechtliche Freigabe",
+    "vollständiger Malware-Scanner für beliebige Binärformate",
+    "öffentliche Titel- oder Markenfreigabe",
+    "Umgehung eines unabhängigen menschlichen IP-Reviews vor Veröffentlichung"
+  ],
+  "requirements": ["Z-004", "Z-005", "F-008", "NF-003"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T003-01",
+      "statement": "Ein Asset ohne Spezifikationshash, gültige Generierungslauf-ID, Erzeugeridentität, Inputrechtebeleg, erlaubte Nutzungsrolle oder vollständige Outputhashes bleibt in Quarantäne.",
+      "verification": "Schema- und Integrationsfixtures lehnen jedes einzeln fehlende Pflichtfeld sowie eine unbekannte oder nicht zum Erzeuger passende Generierungslauf-ID ab"
+    },
+    {
+      "id": "AC-T003-02",
+      "statement": "Namentliche Fremdwerk-/Stilvorgaben und nicht intern freigegebene Eigennamen in Prompt, Negativprompt, Pfad oder Metadaten blockieren die Freigabe, ohne den problematischen Inhalt in Logs zu vervielfältigen.",
+      "verification": "Künstliche Deny-/Allow-Fixtures prüfen Treffer, Redaction und Exitcode"
+    },
+    {
+      "id": "AC-T003-03",
+      "statement": "Nur ein Manifest mit genau einer aktiven bestandenen Revision je technischem, visuellem, Performance-, Originalitäts- und Lizenzreview sowie bestätigter kommerzieller Nutzungsprüfung kann approved werden; inaktive ältere Revisionen bleiben als Historie erhalten.",
+      "verification": "Schema- und Statusübergangstests decken fehlende Reviews, doppelte aktive Revisionen, aktive fail/needs-work-Ergebnisse, zulässige inaktive Historie und die vollständige Pass-Kombination ab"
+    },
+    {
+      "id": "AC-T003-04",
+      "statement": "Der Cross-Field-Validator löst generationRunId und createdBy auf und weist ein aktives Originalitäts- oder Lizenzreview zurück, wenn dessen reviewerId mit der Erzeugeridentität übereinstimmt; diese Trennung ist nicht durch reine Schema-Validierung ersetzbar.",
+      "verification": "Rollenfixtures weisen fehlende beziehungsweise nicht passende Run-/Erzeugerprovenienz und Selbstfreigabe ab und akzeptieren getrennte Revieweridentitäten"
+    },
+    {
+      "id": "AC-T003-05",
+      "statement": "Quarantäne- und Cooked-Dateien gelangen nicht in Git/RAG; angenommene Binärquellen besitzen gültige LFS-Pointer und referenzierte Manifeste.",
+      "verification": "Repositoryfixture prüft Ignore-, RAG-, LFS- und Manifestbeziehungen"
+    }
+  ],
+  "dependencies": ["T-002"],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-PROVENANCE", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "interne Validator-Modulgrenzen",
+      "maschinenlesbares Fehlerformat ohne problematische Inhaltskopie",
+      "Fixture-Namen und künstliche Testmarker"
+    ],
+    "mustEscalate": [
+      "Zulassung eines Modells oder externen Generatordienstes",
+      "Auslegung unbekannter Lizenz- oder Outputbedingungen",
+      "Freigabe eines zweifelhaft ähnlichen Assets",
+      "Änderung der Clean-Room-Regeln",
+      "öffentliche Titel-, Marken- oder Releasefreigabe"
+    ]
+  }
+}

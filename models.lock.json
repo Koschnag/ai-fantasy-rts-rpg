@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "status": "no-production-model-approved",
+  "models": [],
+  "admissionRules": [
+    "Record exact model and tokenizer/decoder revision plus artifact SHA-256.",
+    "Record code license, weight license, output terms, training-data disclosure level and commercial-use review separately.",
+    "Benchmark quality, acceptance rate, peak production memory, deterministic controls and failure modes on a fixed eval set.",
+    "Do not call a model FOSS solely because its inference code is open source.",
+    "Reject franchise-, character-, artist- or soundtrack-specific LoRAs, adapters and fine-tunes.",
+    "Reject models with unclear commercial output terms or without an acceptable near-duplicate and similarity evaluation.",
+    "Generated output remains quarantined until technical, visual, originality, performance and license gates pass."
+  ]
+}

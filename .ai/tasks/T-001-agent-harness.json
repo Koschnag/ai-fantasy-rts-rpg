@@ -1,0 +1,37 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-001",
+  "title": "Lokales Agent-Harness als Walking Skeleton",
+  "status": "accepted",
+  "objective": "Ein dependency-freies F#-CLI stellt persistente Runs, hashverkettete Ereignisse, einen rebuildbaren lokalen BM25-RAG-Index mit Zitaten und grundlegende Integritätsprüfung bereit.",
+  "inScope": [
+    "Harness-Konfiguration und JSON-Schemas",
+    "Run starten, Ereignis anhängen und Run abschließen",
+    "deterministischen Textindex bauen und abfragen",
+    "Integrität und Quellen-Hashes prüfen",
+    "Dokumentation und automatisierte Harness-Tests"
+  ],
+  "outOfScope": [
+    "externe Vektordatenbank oder Cloud-Embeddings",
+    "vollständige Orchestrierung mehrerer Modellanbieter",
+    "automatische Annahme von Memory-Vorschlägen",
+    "Weboberfläche",
+    "Produktions-Artefaktspeicher"
+  ],
+  "requirements": ["Z-004", "NF-008", "ADR-003"],
+  "acceptanceCriteria": [
+    { "id": "AC-T001-01", "statement": "Ein Run erhält eine sortierbare eindeutige ID, Manifest und sequenzielle Ereignisdatei.", "verification": "Integrationstest in temporärem Projektverzeichnis" },
+    { "id": "AC-T001-02", "statement": "Änderung oder Umsortierung eines verketteten Ereignisses wird erkannt.", "verification": "Manipulationstest erwartet ungleich null" },
+    { "id": "AC-T001-03", "statement": "Identische Quellen erzeugen identische Chunk-IDs und Query-Rangfolge.", "verification": "Index zweimal bauen und Hash/Rangfolge vergleichen" },
+    { "id": "AC-T001-04", "statement": "Retrievaltreffer enthalten relativen Pfad, Zeilenbereich und Inhalts-Hash.", "verification": "Query-Integrationstest validiert alle Zitatfelder" },
+    { "id": "AC-T001-05", "statement": "Konfigurierte Secret-, Runtime-, Build- und Binärpfade werden nicht indexiert.", "verification": "Fixture mit Locktext und ausgeschlossenen Pfaden" },
+    { "id": "AC-T001-06", "statement": "Das CLI baut mit dem gepinnten .NET-10-SDK ohne externe Runtime-NuGet-Abhängigkeiten.", "verification": "./scripts/rift.sh build, ./scripts/rift.sh lint und ./scripts/rift.sh test" }
+  ],
+  "dependencies": [],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": ["interne F#-Modulgrenzen", "dependency-freie Datenstrukturen", "Fehlermeldungsformat"],
+    "mustEscalate": ["externer Dienst", "neue Laufzeitabhängigkeit", "automatische Memory-Promotion", "Speicherung von Secrets", "Änderung der Quellenhierarchie"]
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "gates": [
+    {
+      "id": "G-SPEC",
+      "purpose": "Auftrag, Anforderungen und Abnahmekriterien sind nachverfolgbar",
+      "requiredFor": ["code", "content", "asset"],
+      "command": null,
+      "status": "manual-baseline",
+      "passCondition": "Task ist schemakonform, quellenverknüpft und besitzt testbare Kriterien sowie Entscheidungshoheit"
+    },
+    {
+      "id": "G-FORMAT",
+      "purpose": "Formatierung ist deterministisch und unverändert",
+      "requiredFor": ["code", "data"],
+      "command": "./scripts/rift.sh lint",
+      "status": "implemented-for-fsharp",
+      "passCondition": "Exit 0"
+    },
+    {
+      "id": "G-STATIC",
+      "purpose": "Compiler, Analyzer, Schema- und AOT-Warnungen bestehen",
+      "requiredFor": ["code", "data"],
+      "command": "./scripts/rift.sh build",
+      "status": "implemented-for-current-solution",
+      "passCondition": "Exit 0 und keine ungeklärten Warnungen; zusätzliche aufgabenspezifische Validatoren bestehen"
+    },
+    {
+      "id": "G-TEST",
+      "purpose": "Relevante Unit-, Integrations- und Replay-Tests bestehen",
+      "requiredFor": ["code", "gameplay"],
+      "command": "./scripts/rift.sh test",
+      "status": "implemented-for-harness",
+      "passCondition": "Exit 0, keine ungeklärten Skips oder Flakes"
+    },
+    {
+      "id": "G-HARNESS",
+      "purpose": "Runs, Hashketten, RAG-Quellen und Index sind integer",
+      "requiredFor": ["tooling", "memory", "autonomous-run"],
+      "command": "./scripts/rift.sh verify",
+      "status": "implemented-for-current-harness",
+      "passCondition": "Exit 0 und valid=true"
+    },
+    {
+      "id": "G-DATA",
+      "purpose": "Schemas, Referenzen, Lokalisierung und persistente Fixtures sind gültig",
+      "requiredFor": ["data", "content", "save"],
+      "command": null,
+      "status": "partial",
+      "passCondition": "Alle für den Task betroffenen Schemas und Referenzen sind validiert"
+    },
+    {
+      "id": "G-PERF",
+      "purpose": "Betroffene Performancebudgets sind gemessen und eingehalten",
+      "requiredFor": ["runtime", "asset", "content"],
+      "command": "./scripts/rift.sh bench",
+      "status": "unavailable",
+      "passCondition": "Alle betroffenen Pflichtszenen erfüllen ihre p99-, Peak- und Stabilitätsgrenzen"
+    },
+    {
+      "id": "G-VISUAL",
+      "purpose": "Golden-Szenen, Lesbarkeit, Atmosphäre und Originalität bestehen",
+      "requiredFor": ["rendering", "ui", "asset", "content"],
+      "command": null,
+      "status": "rubric-only",
+      "passCondition": "ATMOSPHAERE.md-Rubrik mindestens 80/100, kein Bereich unter 7 und Originalitätsgate bestanden"
+    },
+    {
+      "id": "G-PROVENANCE",
+      "purpose": "Lizenz, Ursprung, Version und Hash sind vollständig",
+      "requiredFor": ["dependency", "asset", "model"],
+      "command": "./scripts/rift.sh assets-check",
+      "status": "unavailable",
+      "passCondition": "Alle betroffenen Manifeste und unabhängigen Freigaben sind vollständig"
+    },
+    {
+      "id": "G-SECURITY",
+      "purpose": "Secrets, Eingabegrenzen und relevante Bedrohungen sind geprüft",
+      "requiredFor": ["code", "tooling", "release"],
+      "command": "./scripts/rift.sh security",
+      "status": "baseline-implemented",
+      "coverage": ["secret-heuristics", "nuget-audit", "json-syntax", "git-lfs-pointer-fsck"],
+      "passCondition": "Exit 0; aufgabenspezifische Threat-, Lizenz- und Releaseprüfungen zusätzlich erfüllt",
+      "releaseSufficient": false
+    },
+    {
+      "id": "G-PLATFORM",
+      "purpose": "Betroffene RIDs bauen nativ und bestehen ABI-/Gameplay-Smokes",
+      "requiredFor": ["runtime", "interop", "release"],
+      "command": null,
+      "status": "unavailable",
+      "passCondition": "Jeder betroffene RID besitzt einen nativen grünen Build- und Smoke-Nachweis"
+    },
+    {
+      "id": "G-PACKAGE",
+      "purpose": "Releasepakete sind reproduzierbar, vollständig und startfähig",
+      "requiredFor": ["release"],
+      "command": "./scripts/rift.sh package",
+      "status": "unavailable",
+      "passCondition": "Artefakt, Manifest, Hash, Lizenztexte, Signierung und Installationssmoke sind grün"
+    }
+  ]
+}

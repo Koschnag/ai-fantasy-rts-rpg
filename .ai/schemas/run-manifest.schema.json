@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/run-manifest.schema.json",
+  "title": "RiftHarness run metadata v1",
+  "description": "Kleines kanonisches Laufzeitmanifest. Task-, Agent-, Prompt- und Git-Provenienz wird im ersten run.started-Ereignis referenziert, bis ein erweitertes Manifest als eigene Schema-Version implementiert ist.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "startedAtUtc", "status"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "runId": { "$ref": "#/$defs/runId" },
+    "startedAtUtc": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["running", "succeeded", "failed", "cancelled"] },
+    "finishedAtUtc": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "running" } } },
+      "then": { "not": { "required": ["finishedAtUtc"] } },
+      "else": { "required": ["finishedAtUtc"] }
+    }
+  ],
+  "$defs": {
+    "runId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" }
+  }
+}

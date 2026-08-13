@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-13T12:16:27.000Z",
+  "note": "Maschinenprüfbare Produktions-Pins entstehen schrittweise. OS-Pakete bleiben Entwicklungsbaseline der Distribution; Shipping-Native-Libs erhalten vor T-010 vollständige Commit-/Artefaktpins.",
+  "tools": [
+    {
+      "id": "dotnet-sdk",
+      "version": "10.0.110",
+      "install": "scripts/bootstrap-dotnet.sh",
+      "integrity": "platform-specific SHA-512 values embedded in bootstrap script",
+      "license": "MIT"
+    },
+    {
+      "id": "blender",
+      "version": "5.2.0",
+      "platform": "linux-x64",
+      "sha256": "96f6c181a30f4950607839dc84d42a354b250d8a0231b098b59b7bc69c351c48",
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "id": "git-lfs",
+      "version": "3.7.1",
+      "platform": "linux-amd64",
+      "sha256": "1c0b6ee5200ca708c5cebebb18fdeb0e1c98f1af5c1a9cba205a4c0ab5a5ec08",
+      "license": "MIT; bundled components include BSD/third-party notices"
+    },
+    {
+      "id": "github-cli",
+      "version": "2.94.0",
+      "platform": "linux-amd64",
+      "sha256": "a757f1ba6db18f4de8cbadb244843a5f89bc75b5e7c6fc127d2bd77fbd12ed62",
+      "license": "MIT"
+    },
+    {
+      "id": "fantomas",
+      "version": "7.0.5",
+      "lock": ".config/dotnet-tools.json",
+      "license": "Apache-2.0"
+    }
+  ],
+  "agentExtensions": [
+    {
+      "id": "superpowers@openai-curated",
+      "version": "5.1.3",
+      "marketplaceCommit": "11c74d6ba24d3a6d48f54a194cd00ef3beea18f9",
+      "manifestSha256": "700bf13c92bbadecfe094ce7b8e9f2ba921e21da3ef616cf58bdd9e1e309c739",
+      "license": "MIT",
+      "risk": "Plugin instructions are executable agent policy input; update only after review."
+    },
+    {
+      "id": "security-best-practices",
+      "skillSha256": "7b3dae1ffc5434d890f3c65c8f552af52d0307fab3b35dec13013c9ca3844c4f",
+      "installedAt": "2026-08-13",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "security-threat-model",
+      "skillSha256": "1283c0dd62a8104d9edda4583569b5d8510b4ddaa45120687c999250fd96bad2",
+      "installedAt": "2026-08-13",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "playwright",
+      "skillSha256": "0ffaabcc8e0990627c4725f18bf1c7955534a796c1c199e872909de2013ce6a8",
+      "installedAt": "2026-08-13",
+      "license": "Apache-2.0",
+      "note": "Nur bei browserbasierten Projekttools; nicht Bestandteil der Spielruntime."
+    }
+  ]
+}

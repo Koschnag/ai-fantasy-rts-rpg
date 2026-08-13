@@ -1,0 +1,49 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-gates:
+    name: Repository gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install pinned local toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          ./scripts/bootstrap-dotnet.sh
+          ./scripts/bootstrap-git-lfs-linux.sh
+          printf '%s\n' "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap deterministic workspace
+        run: ./scripts/rift.sh bootstrap
+
+      - name: Check formatting
+        run: ./scripts/rift.sh lint
+
+      - name: Build, test and verify harness
+        run: ./scripts/rift.sh verify
+
+      - name: Run security baseline
+        run: ./scripts/rift.sh security

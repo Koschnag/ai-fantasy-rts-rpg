@@ -1,0 +1,36 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-002",
+  "title": "Kuratierte Memory-Promotion und Retrieval-Traces",
+  "status": "ready",
+  "objective": "Das Harness verwaltet vorgeschlagene und angenommene Erinnerungen ohne stille Wahrheitsübernahme, erkennt geänderte Quellen und zeichnet jede RAG-Abfrage reproduzierbar als redigierten Retrieval-Trace auf.",
+  "inScope": [
+    "Memory propose, validate, accept, supersede und status commands",
+    "Quellenhash-Staleness und sichtbare Konflikte ohne Last-Write-Wins",
+    "append-only Retrieval-Trace mit Query-/Index-/Trefferhashes und Zitaten",
+    "Golden-, Manipulations-, Redaction- und Fresh-Checkout-Tests",
+    "Aktualisierung von HARNESS, CLI-Hilfe und Abnahmebericht"
+  ],
+  "outOfScope": [
+    "automatische fachliche Annahme von Memory-Vorschlägen",
+    "Cloud-Embeddings oder Vektordatenbank",
+    "Asset-Provenienz und Binärquarantäne",
+    "allgemeine Multi-Agenten-Orchestrierung",
+    "Spielruntime"
+  ],
+  "requirements": ["Z-004", "F-007", "NF-003", "NF-008", "ADR-003"],
+  "acceptanceCriteria": [
+    { "id": "AC-T002-01", "statement": "Nur angenommene, quellenfrische Memory-Records gelangen in normales Retrieval; proposed, rejected, stale und widersprüchliche Records werden ausgeschlossen oder explizit gemeldet.", "verification": "Integrationstest mit Records aller Status und geändertem Quellenhash" },
+    { "id": "AC-T002-02", "statement": "Annahme oder Ersetzung eines Memory-Records ist ein expliziter Befehl mit Akteur, Zeitpunkt, Quelle und vorheriger ID; stille Überschreibung ist unmöglich.", "verification": "CLI-Lebenszyklus- und Manipulationstest" },
+    { "id": "AC-T002-03", "statement": "Jede RAG-Abfrage kann Query-Hash, Index-Hash, Rankingparameter, Treffer-IDs, Zitate und erzeugten Kontext in einem redigierten append-only Trace festhalten.", "verification": "Golden Query zweimal ausführen und deterministische Felder sowie Hashkette vergleichen" },
+    { "id": "AC-T002-04", "statement": "Retrieval-Traces und Memory-Befehle persistieren weder konfigurierte Secret-Felder noch passende Secret-Werte und respektieren Größen-/Kontextlimits.", "verification": "Bearer-, Private-Key-, Custom-Key- und Oversize-Fixtures" },
+    { "id": "AC-T002-05", "statement": "Ein frischer Checkout wird durch bootstrap initialisiert und kann Build, Lint, Tests, RAG-Build und Verify ohne vorab vorhandene Runtime-Verzeichnisse ausführen.", "verification": "Integrationstest in temporärer Kopie ohne .ai/runtime-Inhalt" }
+  ],
+  "dependencies": ["T-001"],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": ["interne F#-Datentypen", "CLI-Unterbefehlsnamen", "deterministisches Trace-JSONL-Layout", "kleine modulare Refactorings im Harness"],
+    "mustEscalate": ["automatische Memory-Annahme", "externer Dienst oder neue Runtime-Abhängigkeit", "Änderung der Quellenhierarchie", "Speicherung unredigierter Geheimnisse", "Löschung bestehender Run-Historie"]
+  }
+}

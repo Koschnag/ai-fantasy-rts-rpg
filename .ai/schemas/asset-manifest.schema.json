@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/asset-manifest.schema.json",
+  "title": "Generated asset provenance manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "assetId", "purpose", "specSha256", "generationRunId", "createdBy", "status", "generator", "inputs", "prompts", "outputs", "licenseBasis", "reviews", "createdAtUtc"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "generator": {
+            "properties": { "kind": { "const": "ai" } },
+            "required": ["kind"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "generator": {
+            "properties": {
+              "model": { "type": "string", "minLength": 1 },
+              "modelVersion": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "generator": {
+            "properties": {
+              "kind": { "const": "ai" },
+              "executionMode": { "const": "local" }
+            },
+            "required": ["kind", "executionMode"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "generator": {
+            "properties": {
+              "modelArtifactSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            },
+            "required": ["modelArtifactSha256"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "approved" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "licenseBasis": {
+            "properties": {
+              "commercialUseReviewed": { "const": true },
+              "reviewedAtUtc": { "type": "string", "format": "date-time" }
+            },
+            "required": ["reviewedAtUtc"]
+          },
+          "reviews": {
+            "allOf": [
+              { "contains": { "properties": { "kind": { "const": "technical" }, "active": { "const": true }, "result": { "const": "pass" } }, "required": ["kind", "active", "result"] }, "minContains": 1, "maxContains": 1 },
+              { "contains": { "properties": { "kind": { "const": "visual" }, "active": { "const": true }, "result": { "const": "pass" } }, "required": ["kind", "active", "result"] }, "minContains": 1, "maxContains": 1 },
+              { "contains": { "properties": { "kind": { "const": "performance" }, "active": { "const": true }, "result": { "const": "pass" } }, "required": ["kind", "active", "result"] }, "minContains": 1, "maxContains": 1 },
+              { "contains": { "properties": { "kind": { "const": "originality" }, "active": { "const": true }, "result": { "const": "pass" } }, "required": ["kind", "active", "result"] }, "minContains": 1, "maxContains": 1 },
+              { "contains": { "properties": { "kind": { "const": "license" }, "active": { "const": true }, "result": { "const": "pass" } }, "required": ["kind", "active", "result"] }, "minContains": 1, "maxContains": 1 }
+            ],
+            "not": {
+              "contains": {
+                "properties": {
+                  "active": { "const": true },
+                  "result": { "enum": ["fail", "needs-work"] }
+                },
+                "required": ["active", "result"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "assetId": { "type": "string", "pattern": "^[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)+$" },
+    "purpose": { "type": "string", "minLength": 10 },
+    "specSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "generationRunId": { "$ref": "#/$defs/runId" },
+    "createdBy": { "$ref": "#/$defs/actorId" },
+    "status": { "enum": ["quarantine", "technical-review", "visual-review", "approved", "rejected", "superseded"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "tool", "version", "model", "modelVersion", "executionMode"],
+      "properties": {
+        "kind": { "enum": ["ai", "procedural", "manual"] },
+        "tool": { "type": "string" },
+        "version": { "type": "string" },
+        "model": { "type": ["string", "null"] },
+        "modelVersion": { "type": ["string", "null"] },
+        "modelArtifactSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "executionMode": { "enum": ["local", "remote"] },
+        "seed": { "type": ["string", "integer", "null"] }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "sha256", "origin", "license", "rightsEvidence", "allowedUse", "referenceUseReviewed"],
+        "properties": {
+          "id": { "type": "string" },
+          "path": { "type": ["string", "null"] },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "origin": { "type": "string" },
+          "license": { "type": "string" },
+          "rightsEvidence": { "type": "string", "minLength": 1 },
+          "allowedUse": { "enum": ["generation-input", "technical-calibration", "internal-specification"] },
+          "referenceUseReviewed": { "const": true }
+        }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prompt", "negativePrompt", "promptSha256"],
+      "properties": {
+        "prompt": { "type": "string" },
+        "negativePrompt": { "type": ["string", "null"] },
+        "promptSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "mediaType", "bytes"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "mediaType": { "type": "string" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "technicalMetrics": { "type": "object" }
+        }
+      }
+    },
+    "transformations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tool", "version", "operation", "parametersSha256"],
+        "properties": {
+          "tool": { "type": "string" },
+          "version": { "type": "string" },
+          "operation": { "type": "string" },
+          "parametersSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "licenseBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelTerms", "inputRights", "outputPolicy", "commercialUseReviewed"],
+      "properties": {
+        "modelTerms": { "type": "string" },
+        "inputRights": { "type": "string" },
+        "outputPolicy": { "type": "string" },
+        "commercialUseReviewed": { "type": "boolean" },
+        "reviewedAtUtc": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "reviews": {
+      "type": "array",
+      "uniqueItems": true,
+      "allOf": [
+        { "contains": { "properties": { "kind": { "const": "technical" }, "active": { "const": true } }, "required": ["kind", "active"] }, "minContains": 0, "maxContains": 1 },
+        { "contains": { "properties": { "kind": { "const": "visual" }, "active": { "const": true } }, "required": ["kind", "active"] }, "minContains": 0, "maxContains": 1 },
+        { "contains": { "properties": { "kind": { "const": "performance" }, "active": { "const": true } }, "required": ["kind", "active"] }, "minContains": 0, "maxContains": 1 },
+        { "contains": { "properties": { "kind": { "const": "originality" }, "active": { "const": true } }, "required": ["kind", "active"] }, "minContains": 0, "maxContains": 1 },
+        { "contains": { "properties": { "kind": { "const": "license" }, "active": { "const": true } }, "required": ["kind", "active"] }, "minContains": 0, "maxContains": 1 }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reviewId", "revision", "active", "kind", "reviewerId", "atUtc", "result", "evidence"],
+        "properties": {
+          "reviewId": { "type": "string", "minLength": 1 },
+          "revision": { "type": "integer", "minimum": 1 },
+          "active": { "type": "boolean" },
+          "kind": { "enum": ["technical", "visual", "performance", "originality", "license"] },
+          "reviewerId": { "$ref": "#/$defs/actorId" },
+          "atUtc": { "type": "string", "format": "date-time" },
+          "result": { "enum": ["pass", "fail", "needs-work"] },
+          "evidence": { "type": "string" },
+          "supersedesReviewId": { "type": ["string", "null"], "minLength": 1 }
+        }
+      }
+    },
+    "supersedes": { "type": "array", "items": { "type": "string" } },
+    "createdAtUtc": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "runId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "actorId": { "type": "string", "minLength": 1, "maxLength": 128 }
+  }
+}

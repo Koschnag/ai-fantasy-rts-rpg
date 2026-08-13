@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "EVAL-ATMOSPHERE-001",
+  "source": "docs/ATMOSPHAERE.md",
+  "minimumTotal": 80,
+  "minimumPerDimension": 7,
+  "protocol": {
+    "minimumIndependentParticipantsVerticalSlice": 12,
+    "minimumIndependentParticipantsRepresentativeMission": 8,
+    "fixedEvidence": ["build-commit", "hardware-profile", "graphics-preset", "scenario-seed", "questionnaire", "aggregate-results", "evidence-hashes"],
+    "scoring": "Score thresholds by fulfillment ratio: 10=100%, 9=95%, 8=90%, 7=80%, 6=70%, 5=60%, 4=50%, 3=40%, 2=30%, 1=measurable below 30%, 0=missing evidence or fundamental failure; use the lowest subscore and round down."
+  },
+  "dimensions": [
+    { "id": "tone", "weight": 10, "perfectEvidence": "Mindestens 70 Prozent blinder Tester wählen drei der vier Zieladjektive." },
+    { "id": "original-world", "weight": 10, "perfectEvidence": "Mindestens 70 Prozent erinnern drei Riftward-spezifische Weltprinzipien." },
+    { "id": "emotional-curve", "weight": 10, "perfectEvidence": "Mindestens fünf von sieben Spannungsmesspunkten entsprechen der Sollkurve." },
+    { "id": "lived-environment", "weight": 10, "perfectEvidence": "60 Prozent erschließen ohne Text zwei von drei Umweltgeschichten." },
+    { "id": "visual-readability", "weight": 10, "perfectEvidence": "Held, Hauptziel und größte Gefahr werden bei 1080p binnen zwei Sekunden zu mindestens 90 Prozent erkannt." },
+    { "id": "light-and-color", "weight": 10, "perfectEvidence": "Schutzraum, Bruchzone und Alarmzustand werden in Screenshottests zu mindestens 80 Prozent korrekt erkannt." },
+    { "id": "audio", "weight": 10, "perfectEvidence": "Gefahrenrichtung und Ereignistyp werden zu mindestens 85 Prozent erkannt; Musikfreiheit liegt zwischen 35 und 45 Prozent." },
+    { "id": "pacing", "weight": 10, "perfectEvidence": "Kein unbeabsichtigter Leerlauf über 90 Sekunden; mindestens 80 Prozent bewerten das Tempo passend." },
+    { "id": "mode-transition", "weight": 10, "perfectEvidence": "90 Prozent verstehen den Übergang vorab; erste strategische Entscheidung binnen 60 Sekunden." },
+    { "id": "cross-mode-causality", "weight": 10, "perfectEvidence": "Mindestens zwei messbare Folgen je Richtung und keine erfolgreiche Ein-Modus-Dominanz." }
+  ],
+  "hardOriginalityGate": [
+    "Keine übernommenen geschützten Begriffe oder Assets.",
+    "Keine eins-zu-eins gemappten Fraktionen, Einheiten oder Karten.",
+    "Vollständige Provenienz für jedes generierte Asset.",
+    "Dokumentiertes Ähnlichkeitsreview.",
+    "Konkrete spontane Zuordnung zu einem fremden Asset führt zur Quarantäne."
+  ]
+}
