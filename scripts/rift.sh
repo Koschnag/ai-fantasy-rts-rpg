@@ -104,18 +104,27 @@ case "$rift_command" in
     rift_need_rag_index
     rift_harness query-rag "$@"
     ;;
+  assets-check)
+    rift_need_dotnet
+    rift_need_build_outputs
+    rift_harness assets-check "$@"
+    ;;
   security)
     "$rift_root/scripts/security.sh" "$@"
+    ;;
+  fresh-checkout-test)
+    "$rift_root/scripts/fresh-checkout-test.sh" "$@"
     ;;
   verify)
     rift_need_rag_index
     rift_restore
     dotnet build Riftward.slnx --configuration Release --no-restore
     dotnet run --project tests/RiftHarness.Tests/RiftHarness.Tests.fsproj --configuration Release --no-restore
+    rift_harness assets-check
     rift_harness verify
     find .ai -type f -name '*.json' -not -path '.ai/runtime/*' -exec jq empty {} +
     ;;
-  assets-check|bench|check|package)
+  bench|check|package)
     rift_unavailable "$rift_command"
     ;;
   help|-h|--help)
@@ -126,11 +135,13 @@ case "$rift_command" in
       '  build         Tool-/Test-Solution im Release-Modus bauen' \
       '  fmt           F#-Quellen mit gepinntem Fantomas formatieren' \
       '  lint          F#-Formatierung unverändernd prüfen' \
-      '  test          dependency-freie Harness-Tests ausführen' \
+      '  test          Harness-Tests ausführen' \
       '  harness ...   RiftHarness CLI aufrufen' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
+      '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \
       '  security      lokalen Secret-/NuGet-/JSON-/LFS-Baseline-Gate ausführen' \
+      '  fresh-checkout-test  isolierten Bootstrap-, Build-, Lint-, Test-, RAG- und Verify-Lauf ausführen' \
       '  verify        nach bootstrap Build, Tests, Harness- und JSON-Integrität prüfen' \
       '  check         noch nicht verfügbarer vollständiger Gate-Satz' \
       '' \

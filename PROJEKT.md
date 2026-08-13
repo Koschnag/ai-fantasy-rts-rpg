@@ -41,7 +41,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 | Z-002 | Zielhardware liefert mindestens eine stabile Full-HD-Darstellung | automatisierte Benchmarks und Frame-Telemetrie | 30 FPS Minimum, 60 FPS bevorzugt; siehe `docs/PERFORMANCE_BUDGET.md` | ENTSCHIEDEN |
 | Z-003 | Windows, Linux und macOS bleiben lieferbar | Build- und Smoke-Test-Matrix | grüne Artefakte für alle Ziel-RIDs | ANGENOMMEN |
 | Z-004 | KI-Produktion bleibt kontrollierbar | Nachverfolgbarkeit und Qualitätsgates | jeder Build verweist auf Anforderungen, Tests und Asset-Provenienz | ANGENOMMEN |
-| Z-005 | Eigenständige kreative Identität | Review gegen Art Bible und Provenienzregeln | keine übernommenen geschützten Inhalte | ANGENOMMEN |
+| Z-005 | Eigenständige kreative Identität | Review gegen Art Bible und Provenienzregeln | keine im dokumentierten Review festgestellte unautorisierte Übernahme; vollständige Provenienz | ANGENOMMEN |
 
 ## 6. MVP-Umfang
 

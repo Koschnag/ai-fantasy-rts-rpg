@@ -14,6 +14,7 @@ Jede Anforderung ist einzeln identifizierbar, testbar und mit einem fachlichen Z
 | F-006 | Grafik, Audio, Sprache und Eingaben sind im Spiel konfigurierbar; Kernaktionen sind frei belegbar. | Plattform- und Zugänglichkeitsbedarf | MUST | Z-002, Z-003 | ANGENOMMEN |
 | F-007 | Jeder autonome KI-Auftrag erzeugt nachvollziehbare Runs, Quellenzitate, Änderungen und Prüfevidenz. | kontrollierbare Vollautomation | MUST | Z-004 | ANGENOMMEN |
 | F-008 | Jedes Shipping-Asset besitzt technische Metadaten, Hashes, Generator-/Bearbeitungsverlauf und geklärte Nutzungsgrundlage. | reproduzierbare, rechtlich nachvollziehbare Assetproduktion | MUST | Z-004, Z-005 | ANGENOMMEN |
+| F-009 | Jeder agentische Assetgenerator nimmt ausschließlich ein strikt versioniertes, begrenztes internes Spec an, arbeitet ohne nicht inventarisierte kreative Inputs und liefert unabhängig prüfbare Artefakte, deterministische Metadaten sowie einen fail-closed Quarantäne-Lifecycle. | autonome Synthese darf weder Herkunft, Fehler noch technische Abweichungen verbergen | MUST | Z-004, Z-005 | ANGENOMMEN |
 
 ### Vorlage
 
@@ -61,6 +62,6 @@ Nicht zutreffende Bereiche werden bewusst als „nicht relevant“ markiert, nic
 | Z-002 | NF-001, NF-002, NF-007 | UF-006 | T-020, T-021, T-022 | Hardwarebenchmarks, maschinenlesbare Telemetrie und 8-Stunden-Soak |
 | Z-003 | NF-006 | UF-001 | T-010, T-011 | native CI-Smokes |
 | Z-004 | F-007, NF-003, NF-008 | UF-004 | T-001, T-002, T-004 | Harness-, Security-, Provenienz- und Integritätstests |
-| Z-004, Z-005 | F-008 | UF-005 | T-003, T-050 | Assetmanifest, technische Prüfung, Provenienz- und Originalitätsgate |
+| Z-004, Z-005 | F-008, F-009 | UF-005 | T-003, T-005, T-006, T-007, T-050 | Spec-/Artefaktinspektion, Assetmanifest, technische Prüfung, Provenienz- und Originalitätsgate |
 | Z-005 | F-002, F-004 | UF-001 | T-040 | Atmosphärenrubrik, Cross-Mode-Folgen und Originalitätsgate |
 | Z-002, Z-003 | F-006, NF-005 | UF-003 | T-010, T-041 | Einstellungs-/Eingabe-Smoke und Barrierefreiheitsabnahme |

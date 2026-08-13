@@ -45,5 +45,11 @@ jobs:
       - name: Build, test and verify harness
         run: ./scripts/rift.sh verify
 
+      - name: Verify offline asset provenance
+        run: ./scripts/rift.sh assets-check
+
       - name: Run security baseline
         run: ./scripts/rift.sh security
+
+      - name: Verify fresh-checkout bootstrap contract
+        run: ./scripts/rift.sh fresh-checkout-test

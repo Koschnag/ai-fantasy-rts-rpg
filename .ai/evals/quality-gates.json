@@ -70,8 +70,8 @@
       "purpose": "Lizenz, Ursprung, Version und Hash sind vollständig",
       "requiredFor": ["dependency", "asset", "model"],
       "command": "./scripts/rift.sh assets-check",
-      "status": "unavailable",
-      "passCondition": "Alle betroffenen Manifeste und unabhängigen Freigaben sind vollständig"
+      "status": "implemented-for-assets",
+      "passCondition": "Exit 0; für Shipping zusätzlich globaler Lauf mit --require-local --require-approved und shippingReady=true"
     },
     {
       "id": "G-SECURITY",

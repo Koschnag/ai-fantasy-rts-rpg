@@ -39,7 +39,9 @@ type RedactionPolicy =
 
 type HarnessRuntimeConfig =
     { MaxEventPayloadBytes: int64
-      Redaction: RedactionPolicy }
+      MaxSourceFileBytes: int64
+      Redaction: RedactionPolicy
+      MemoryPath: string }
 
 [<RequireQualifiedAccess>]
 module Internal =
@@ -136,6 +138,39 @@ module Internal =
         not (isNull value)
         && matchesRegex "redactValuePatterns" policy.ValuePatterns value
 
+    let private assignmentPattern =
+        Regex(
+            "(?<key>[A-Za-z0-9_.-]{1,128})(?<separator>\\s*[:=]\\s*)(?<value>\\\"[^\\\"]*\\\"|'[^']*'|[^\\s,;]+)",
+            RegexOptions.CultureInvariant ||| RegexOptions.NonBacktracking,
+            TimeSpan.FromMilliseconds(100.0)
+        )
+
+    let redactText (policy: RedactionPolicy) (value: string) =
+        if isNull value then
+            value
+        elif isSensitiveValue policy value then
+            "[REDACTED]"
+        else
+            try
+                assignmentPattern.Replace(
+                    value,
+                    MatchEvaluator(fun assignment ->
+                        let key = assignment.Groups["key"].Value
+
+                        if isSensitivePropertyWithPolicy policy key then
+                            key + assignment.Groups["separator"].Value + "[REDACTED]"
+                        else
+                            assignment.Value)
+                )
+            with :? RegexMatchTimeoutException ->
+                fail "Regex-Timeout bei der Freitext-Redaction. Eingabe abgelehnt."
+
+    let isSha256 (value: string) =
+        not (isNull value)
+        && value.Length = 64
+        && value
+           |> Seq.forall (fun character -> Char.IsAsciiHexDigit(character) && not (Char.IsUpper(character)))
+
     let rec private writeCanonicalElementWithPolicy
         (redaction: RedactionPolicy option)
         (writer: Utf8JsonWriter)
@@ -169,10 +204,9 @@ module Internal =
         | JsonValueKind.String ->
             let value = element.GetString()
 
-            if redaction |> Option.exists (fun policy -> isSensitiveValue policy value) then
-                writer.WriteStringValue("[REDACTED]")
-            else
-                writer.WriteStringValue(value)
+            match redaction with
+            | Some policy -> writer.WriteStringValue(redactText policy value)
+            | None -> writer.WriteStringValue(value)
         | JsonValueKind.Number -> writer.WriteRawValue(element.GetRawText(), true)
         | JsonValueKind.True -> writer.WriteBooleanValue(true)
         | JsonValueKind.False -> writer.WriteBooleanValue(false)
@@ -405,6 +439,50 @@ module Workspace =
         candidate.Equals(locations.Root, comparison)
         || candidate.StartsWith(rootWithSeparator, comparison)
 
+    let requireSafePath locations description allowMissingSuffix path =
+        let candidate = Path.GetFullPath(path)
+
+        if not (isInside locations candidate) then
+            Internal.fail $"{description} liegt ausserhalb des Workspace."
+
+        let relative = Path.GetRelativePath(locations.Root, candidate)
+
+        if relative = "." then
+            Internal.fail $"{description} muss eine Datei innerhalb des Workspace bezeichnen."
+
+        let segments =
+            relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+
+        let mutable current = locations.Root
+        let mutable missingSuffix = false
+
+        for index = 0 to segments.Length - 1 do
+            current <- Path.Combine(current, segments[index])
+            let fileLink = FileInfo(current).LinkTarget
+            let directoryLink = DirectoryInfo(current).LinkTarget
+
+            if not (isNull fileLink) || not (isNull directoryLink) then
+                Internal.fail
+                    $"{description} darf keinen Symlink, Junction oder ReparsePoint enthalten: {relative.Replace('\\', '/')}"
+
+            if not missingSuffix then
+                let exists = File.Exists(current) || Directory.Exists(current)
+
+                if not exists then
+                    if not allowMissingSuffix then
+                        Internal.fail
+                            $"{description} existiert nicht innerhalb des Workspace: {relative.Replace('\\', '/')}"
+
+                    missingSuffix <- true
+                else
+                    let attributes = File.GetAttributes(current)
+
+                    if attributes.HasFlag(FileAttributes.ReparsePoint) then
+                        Internal.fail
+                            $"{description} darf keinen Symlink, Junction oder ReparsePoint enthalten: {relative.Replace('\\', '/')}"
+
+        candidate
+
 [<RequireQualifiedAccess>]
 module HarnessConfig =
     let private regexTimeout = TimeSpan.FromMilliseconds(100.0)
@@ -582,6 +660,17 @@ module HarnessConfig =
                         Internal.fail
                             $"logging.maxEventPayloadBytes muss zwischen 1024 und {Constants.MaxConfigurablePayloadBytes} liegen."
 
+            let maxSourceFileBytes =
+                match root.TryGetProperty("rag") with
+                | false, _ -> Constants.MaxConfigurablePayloadBytes
+                | true, rag ->
+                    match rag.TryGetProperty("maxFileBytes") with
+                    | false, _ -> Constants.MaxConfigurablePayloadBytes
+                    | true, value ->
+                        match value.TryGetInt64() with
+                        | true, parsed when parsed >= 1024L -> parsed
+                        | _ -> Internal.fail "rag.maxFileBytes muss mindestens 1024 sein."
+
             let redaction =
                 match root.TryGetProperty("security") with
                 | false, _ ->
@@ -591,8 +680,23 @@ module HarnessConfig =
                     { KeyPatterns = readPatternArray "redactKeyPatterns" security
                       ValuePatterns = readPatternArray "redactValuePatterns" security }
 
+            let memoryPath =
+                match root.TryGetProperty("paths") with
+                | false, _ -> ".ai/memory/records.jsonl"
+                | true, paths -> Internal.requiredString "memory" paths |> fun value -> value.Replace('\\', '/')
+
+            if
+                Path.IsPathRooted(memoryPath)
+                || memoryPath.Split('/') |> Array.exists ((=) "..")
+                || memoryPath.Contains('*')
+                || memoryPath.Contains('?')
+            then
+                Internal.fail "paths.memory muss ein relativer Dateipfad ohne Globs oder '..' sein."
+
             { MaxEventPayloadBytes = maxEventPayloadBytes
-              Redaction = redaction }
+              MaxSourceFileBytes = maxSourceFileBytes
+              Redaction = redaction
+              MemoryPath = memoryPath.TrimStart('/') }
         with
         | :? JsonException as error -> Internal.fail $"Ungueltige config.json: {error.Message}"
         | :? IOException as error -> Internal.fail $"config.json konnte nicht gelesen werden: {error.Message}"

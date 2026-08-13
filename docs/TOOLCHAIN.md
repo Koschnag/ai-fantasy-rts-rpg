@@ -8,9 +8,14 @@
 - keine große Game Engine und kein Cloud-Zwang
 - globale Werkzeuge nur, wenn sie mehrere Projektaufgaben tatsächlich verbessern
 
-Die aktuell bekannten exakten Pins und Hashes stehen in `toolchain.lock.json`. Agent-Plugins und Skills gelten als Prompt-Supply-Chain und werden dort ebenfalls gehasht; Updates sind keine beiläufige Aktualisierung.
+Die aktuell bekannten Werkzeugpins und Hashes stehen in `toolchain.lock.json`.
+NuGet-Bibliotheken sind zusätzlich durch die eingecheckten
+`packages.lock.json`-Dateien samt Content-Hash gebunden; direkte
+PackageReferences verwenden geschlossene Versionsintervalle. Agent-Plugins und
+Skills gelten als Prompt-Supply-Chain und werden ebenfalls gehasht; Updates
+sind keine beiläufige Aktualisierung.
 
-`NuGet.config` löscht geerbte Paketquellen, erlaubt ausschließlich die offizielle NuGet-v3-Quelle und verwendet Source Mapping; Projekt- und Tool-Restore bleiben lockfilegebunden und mit NuGet-Audit aktiviert. `Directory.Build.props` deaktiviert zusätzlich den vom F#-SDK injizierten lokalen Library-Pack-Feed und verwendet den ignorierten Repository-Cache `.ai/runtime/cache/nuget`. Damit stammt `FSharp.Core` auf Entwicklerrechnern und CI aus derselben Quelle und besitzt denselben Lockfile-Hash.
+`NuGet.Config` löscht geerbte Paketquellen, erlaubt ausschließlich die offizielle NuGet-v3-Quelle und verwendet Source Mapping; Projekt- und Tool-Restore bleiben lockfilegebunden und mit NuGet-Audit aktiviert. `Directory.Build.props` deaktiviert zusätzlich den vom F#-SDK injizierten lokalen Library-Pack-Feed und verwendet den ignorierten Repository-Cache `.ai/runtime/cache/nuget`. Damit stammt `FSharp.Core` auf Entwicklerrechnern und CI aus derselben Quelle und besitzt denselben Lockfile-Hash.
 
 ## Installiert
 
@@ -22,12 +27,53 @@ Die aktuell bekannten exakten Pins und Hashes stehen in `toolchain.lock.json`. A
 | Git LFS | 3.7.1 | `~/.local/bin/git-lfs` | MIT mit BSD-/Third-Party-Hinweisen, offizieller Git-LFS-Build | große binäre Produktionsassets außerhalb normaler Git-Blobs |
 | GitHub CLI | 2.94.0 | `~/.local/bin/gh` | MIT, offizieller checksummengeprüfter GitHub-Build | privates Remote anlegen, Sichtbarkeit prüfen und pushen |
 | Fantomas | 7.0.5 | repo-lokales .NET-Tool | Apache-2.0, NuGet/Upstream | deterministische F#-Formatierung für `fmt` und `lint` |
+| JsonSchema.Net | 8.0.5, exakt | RiftHarness-NuGet-Lockfile | MIT, `json-everything` | lokale Draft-2020-12-Prüfung der Asset-, Receipt-, Modell- und Reviewverträge |
 | Superpowers Plugin | Marketplace-Revision `11c74d6b` | Codex Plugin-Cache | MIT | Planung, TDD, Debugging und Reviews |
 | `security-best-practices` Skill | aktueller Installationsstand 2026-08-13 | Codex Skills | Apache-2.0 | sichere Implementierungsregeln |
 | `security-threat-model` Skill | aktueller Installationsstand 2026-08-13 | Codex Skills | Apache-2.0 | Bedrohungsmodellierung |
 | `playwright` Skill | aktueller Installationsstand 2026-08-13 | Codex Skills | Apache-2.0 | spätere UI-/Tooltests, falls passend |
 
 Neue Skills werden erst in einem neuen Agent-Turn erkannt. Anbieter-, Cloud-, Figma-, Datenbank- und Deploymentplugins wurden bewusst nicht installiert.
+
+### JSON-Schema-Validator im Produktionswerkzeug
+
+`RiftHarness` verwendet ausschließlich für das offline laufende
+Asset-Provenienzgate `JsonSchema.Net` 8.0.5. Die direkte Version ist als
+`[8.0.5]` festgelegt. Der gelockte rein verwaltete Abhängigkeitsgraph lautet:
+
+| Paket | Version | SPDX | Rolle |
+|---|---:|---|---|
+| JsonSchema.Net | 8.0.5 | MIT | Draft-2020-12-Auswertung |
+| JsonPointer.Net | 6.0.1 | MIT | transitive JSON-Pointer-Auflösung |
+| Json.More.Net | 2.2.0 | MIT | transitive `System.Text.Json`-Hilfen |
+| Humanizer.Core | 3.0.1 | MIT | transitive String-/Namenshilfen von JsonPointer.Net |
+
+Es gibt keine transitive native Bibliothek. Das Gate registriert nur die
+versionierten lokalen Projektschemas, löst keine Netzreferenzen auf und kapselt
+die Bibliothek hinter einer kleinen Schemaauswertungsfunktion in `Assets.fs`;
+fachliche Querfeld-, Pfad-, Hash-, Rollen-, LFS- und Clean-Room-Regeln bleiben
+eigener Code. Dadurch ist ein Wechsel auf einen anderen vollständigen
+Draft-2020-12-Validator begrenzt, aber wegen unterschiedlicher
+Auswertungsdetails mit einer erneuten Negativfixture-Abnahme verbunden.
+
+Der vollständig verwaltete Paketgraph ist für den `net10.0`-CoreCLR-Harness
+unter Windows, Linux und macOS vorgesehen; in diesem Projektstand ist er nur
+unter Linux tatsächlich gebaut und getestet. Diese Pakete gehören nur zum
+F#-Harness auf CoreCLR und weder zum Spielclient
+noch zum C#-Native-AOT-Host. Sie erweitern daher nicht die Shipping-Größe oder
+Trimming-/AOT-Fläche der Runtime; für das Produktionswerkzeug wird keine
+Native-AOT-Kompatibilität behauptet. Eine mögliche Alternative ist ein
+source-generierter Validator oder ein enger BCL-Validator, letzterer wäre für
+den vollständigen Draftvertrag jedoch erheblich wartungsintensiver.
+
+Die Version 8.0.5 und ihre Paketlizenz wurden vor Aufnahme geprüft. Upstream
+führte ab der 9er-Linie zusätzliche Bedingungen für Binärpakete ein; deshalb
+sind Major-Upgrades ausdrücklich gesperrt und dürfen weder Renovate noch ein
+Agent automatisch durchführen. Die Kehrseite des 8er-Pins ist ein mögliches
+Wartungs-/Security-Ende. Advisories werden über den gelockten NuGet-Audit
+geprüft; bei einem relevanten Fund wird entweder eine neue Lizenzentscheidung
+getroffen oder die Adaptergrenze auf einen anderen Validator umgestellt.
+Hinweise für diesen NuGet-Graphen stehen in `THIRD_PARTY_NOTICES.md`.
 
 ## Systempakete für Ubuntu
 
@@ -93,4 +139,16 @@ Der öffentliche Vertrag umfasst folgende Aufgaben:
 
 `bootstrap`, `build`, `fmt`, `lint`, `test`, `assets-check`, `bench`, `security`, `check`, `package` und `harness`.
 
-Aktuell implementiert sind `bootstrap`, `build`, `fmt`, `lint`, `test`, `harness`, `rag-build`, `rag-query`, `security` und der technische Teilsatz `verify`. `assets-check`, `bench`, `check` und `package` melden ausdrücklich `NICHT VERFÜGBAR` und liefern Fehlercode 3, bis ihre jeweilige `READY`-Aufgabe umgesetzt wurde. `security` ist ein lokaler Baseline-Gate und ausdrücklich noch keine vollständige Release-Sicherheits- oder Lizenzfreigabe.
+Aktuell implementiert sind `bootstrap`, `build`, `fmt`, `lint`, `test`,
+`harness`, `rag-build`, `rag-query`, `assets-check`, `security` und der
+technische Teilsatz `verify`. `assets-check` prüft Assetmanifeste, lokale
+Generation-Receipts, Modellpins, Clean-Room-Regeln und den
+Quarantäne-/Freigabestatus offline. Ein valides Quarantäneasset ist dabei noch
+kein Shipping-Asset; Promotion und Packaging müssen zusätzlich den globalen
+Repo-Scan ohne `--manifest` als `assets-check --require-local
+--require-approved` verwenden. Eine gezielte Einzelmanifestprüfung ersetzt die
+repo-weite Source-Inventur nicht. `bench`, `check` und `package`
+melden ausdrücklich `NICHT VERFÜGBAR` und liefern Fehlercode 3, bis ihre
+jeweilige `READY`-Aufgabe umgesetzt wurde. `security` ist ein lokaler
+Baseline-Gate und ausdrücklich noch keine vollständige Release-Sicherheits-
+oder Lizenzfreigabe.

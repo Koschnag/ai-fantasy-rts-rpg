@@ -27,11 +27,23 @@ type RunFinishReceipt =
       FinalEventHash: string
       SummaryHash: string }
 
+type CompletedRunSnapshot =
+    { RunId: string
+      ActorId: string option
+      StartedAtUtc: string
+      FinishedAtUtc: string
+      Status: string
+      FinalEventHash: string
+      SummaryHash: string
+      Events: StoredEvent list }
+
 type private RunMetadata =
     { RunId: string
+      ActorId: string option
       StartedAtUtc: string
       Status: string
-      FinishedAtUtc: string option }
+      FinishedAtUtc: string option
+      RetrievalTraceVersion: int option }
 
 [<RequireQualifiedAccess>]
 module RunStore =
@@ -72,12 +84,29 @@ module RunStore =
 
         payload
 
+    let rec private ensureNoNestedDuplicateKeys description (element: JsonElement) =
+        match element.ValueKind with
+        | JsonValueKind.Object ->
+            let names = HashSet<string>(StringComparer.Ordinal)
+
+            for property in element.EnumerateObject() do
+                if not (names.Add(property.Name)) then
+                    Internal.fail $"{description} enthaelt einen JSON-Schluessel mehrfach."
+
+                ensureNoNestedDuplicateKeys description property.Value
+        | JsonValueKind.Array ->
+            for item in element.EnumerateArray() do
+                ensureNoNestedDuplicateKeys description item
+        | _ -> ()
+
     let private ensureEventPayloadObject (payload: byte array) =
         try
             use document = JsonDocument.Parse(payload)
 
             if document.RootElement.ValueKind <> JsonValueKind.Object then
                 Internal.fail "Event-Payload muss ein JSON-Objekt sein."
+
+            ensureNoNestedDuplicateKeys "Event-Payload" document.RootElement
 
             payload
         with :? JsonException as error ->
@@ -94,11 +123,20 @@ module RunStore =
             writer.WriteStartObject()
             writer.WriteNumber("schemaVersion", Constants.SchemaVersion)
             writer.WriteString("runId", metadata.RunId)
+
+            match metadata.ActorId with
+            | Some actorId -> writer.WriteString("actorId", actorId)
+            | None -> ()
+
             writer.WriteString("startedAtUtc", metadata.StartedAtUtc)
             writer.WriteString("status", metadata.Status)
 
             match metadata.FinishedAtUtc with
             | Some timestamp -> writer.WriteString("finishedAtUtc", timestamp)
+            | None -> ()
+
+            match metadata.RetrievalTraceVersion with
+            | Some version -> writer.WriteNumber("retrievalTraceVersion", version)
             | None -> ()
 
             writer.WriteEndObject())
@@ -112,6 +150,7 @@ module RunStore =
         try
             use document = JsonDocument.Parse(File.ReadAllBytes(path))
             let root = document.RootElement
+            ensureNoNestedDuplicateKeys "run.json" root
 
             validateObjectFields
                 "run.json"
@@ -119,9 +158,11 @@ module RunStore =
                     [ "$schema"
                       "schemaVersion"
                       "runId"
+                      "actorId"
                       "startedAtUtc"
                       "status"
-                      "finishedAtUtc" ])
+                      "finishedAtUtc"
+                      "retrievalTraceVersion" ])
                 (set [ "schemaVersion"; "runId"; "startedAtUtc"; "status" ])
                 root
 
@@ -136,10 +177,35 @@ module RunStore =
                 | true, _ -> Internal.fail "Run-Feld 'finishedAtUtc' muss eine Zeichenfolge sein."
                 | _ -> None
 
+            let actorId =
+                match root.TryGetProperty("actorId") with
+                | false, _ -> None
+                | true, value when value.ValueKind = JsonValueKind.String ->
+                    let actor = value.GetString()
+
+                    if
+                        String.IsNullOrWhiteSpace(actor)
+                        || actor <> actor.Trim()
+                        || actor.Length > 128
+                        || actor |> Seq.exists Char.IsControl
+                    then
+                        Internal.fail "run.json.actorId ist ungueltig."
+
+                    Some actor
+                | _ -> Internal.fail "run.json.actorId muss eine Zeichenfolge sein."
+
             { RunId = Internal.requiredString "runId" root
+              ActorId = actorId
               StartedAtUtc = Internal.requiredString "startedAtUtc" root
               Status = Internal.requiredString "status" root
-              FinishedAtUtc = finished }
+              FinishedAtUtc = finished
+              RetrievalTraceVersion =
+                match root.TryGetProperty("retrievalTraceVersion") with
+                | false, _ -> None
+                | true, value ->
+                    match value.TryGetInt32() with
+                    | true, version when version = 1 || version = 2 -> Some version
+                    | _ -> Internal.fail "Run-Feld 'retrievalTraceVersion' muss 1 oder 2 sein." }
         with :? JsonException as error ->
             Internal.fail $"Ungueltige Run-Metadaten: {error.Message}"
 
@@ -188,6 +254,7 @@ module RunStore =
         try
             use document = JsonDocument.Parse(line)
             let root = document.RootElement
+            ensureNoNestedDuplicateKeys "Event" root
 
             let eventFields =
                 set
@@ -373,7 +440,15 @@ module RunStore =
         with :? IOException as error ->
             Internal.fail $"Run ist bereits fuer einen Schreibvorgang gesperrt: {error.Message}"
 
-    let start root =
+    let startForActor root actorId =
+        if
+            String.IsNullOrWhiteSpace(actorId)
+            || actorId <> actorId.Trim()
+            || actorId.Length > 128
+            || actorId |> Seq.exists Char.IsControl
+        then
+            Internal.fail "Run-Akteur muss eine nichtleere normalisierte ID ohne Steuerzeichen sein."
+
         let locations = Workspace.requireInitialized root
         HarnessConfig.load locations |> ignore
         let now = DateTimeOffset.UtcNow
@@ -395,13 +470,18 @@ module RunStore =
 
         let metadata =
             { RunId = runId
+              ActorId = Some actorId
               StartedAtUtc = Internal.utcText now
               Status = "running"
-              FinishedAtUtc = None }
+              FinishedAtUtc = None
+              RetrievalTraceVersion = Some 2 }
 
         Internal.atomicWrite (Path.Combine(runPath, "run.json")) (metadataBytes metadata)
         Internal.atomicWrite (Path.Combine(runPath, "events.jsonl")) Array.empty
+        Internal.atomicWrite (Path.Combine(runPath, "retrieval.jsonl")) Array.empty
         runId
+
+    let start root = startForActor root "unspecified-agent"
 
     let append root runId eventType payloadFile =
         let locations = Workspace.requireInitialized root
@@ -429,10 +509,54 @@ module RunStore =
               Sequence = event.Sequence
               EventHash = event.EventHash })
 
-    let private finishPayload (status: string) (summary: byte array) =
+    let private writeRetrievalAnchor (writer: Utf8JsonWriter) (anchor: RetrievalAnchor) =
+        writer.WriteNumber("retrievalTraceCount", anchor.TraceCount)
+
+        match anchor.FinalTraceHash with
+        | Some hash -> writer.WriteString("finalRetrievalTraceHash", hash)
+        | None -> writer.WriteNull("finalRetrievalTraceHash")
+
+    let private optionalRetrievalAnchor description (element: JsonElement) =
+        match element.TryGetProperty("retrievalTraceCount"), element.TryGetProperty("finalRetrievalTraceHash") with
+        | (false, _), (false, _) -> None
+        | (true, _), (false, _)
+        | (false, _), (true, _) ->
+            Internal.fail $"{description} muss retrievalTraceCount und finalRetrievalTraceHash gemeinsam enthalten."
+        | (true, countElement), (true, hashElement) ->
+            let count =
+                match countElement.TryGetInt64() with
+                | true, value when value >= 0L -> value
+                | _ -> Internal.fail $"{description}.retrievalTraceCount ist ungueltig."
+
+            let finalHash =
+                match hashElement.ValueKind with
+                | JsonValueKind.Null -> None
+                | JsonValueKind.String when Internal.isSha256 (hashElement.GetString()) -> Some(hashElement.GetString())
+                | _ -> Internal.fail $"{description}.finalRetrievalTraceHash ist ungueltig."
+
+            if (count = 0L) <> finalHash.IsNone then
+                Internal.fail
+                    $"{description}: Leerer Trace benoetigt null; ein nichtleerer Trace benoetigt einen finalen Hash."
+
+            Some
+                { TraceCount = count
+                  FinalTraceHash = finalHash }
+
+    let private finishPayload
+        (actorId: string option)
+        (status: string)
+        (summary: byte array)
+        (anchor: RetrievalAnchor)
+        =
         Internal.jsonBytes false (fun writer ->
             writer.WriteStartObject()
+
+            match actorId with
+            | Some actor -> writer.WriteString("actorId", actor)
+            | None -> ()
+
             writer.WriteString("status", status)
+            writeRetrievalAnchor writer anchor
             Internal.rawJson writer "summary" summary
             writer.WriteEndObject())
         |> Constants.Utf8NoBom.GetString
@@ -440,22 +564,32 @@ module RunStore =
 
     let private summaryCoreBytes
         (runId: string)
+        (actorId: string option)
         (startedAtUtc: string)
         (finishedAtUtc: string)
         (status: string)
         (eventCount: int64)
         (finalEventHash: string)
+        (anchor: RetrievalAnchor option)
         (summary: byte array)
         =
         Internal.jsonBytes false (fun writer ->
             writer.WriteStartObject()
             writer.WriteNumber("schemaVersion", Constants.SchemaVersion)
             writer.WriteString("runId", runId)
+
+            match actorId with
+            | Some actor -> writer.WriteString("actorId", actor)
+            | None -> ()
+
             writer.WriteString("startedAtUtc", startedAtUtc)
             writer.WriteString("finishedAtUtc", finishedAtUtc)
             writer.WriteString("status", status)
             writer.WriteNumber("eventCount", eventCount)
             writer.WriteString("finalEventHash", finalEventHash)
+
+            anchor |> Option.iter (writeRetrievalAnchor writer)
+
             Internal.rawJson writer "summary" summary
             writer.WriteEndObject())
 
@@ -489,9 +623,6 @@ module RunStore =
                 |> Internal.canonicalJsonWithRedaction config.Redaction
             | None -> Constants.Utf8NoBom.GetBytes("{}")
 
-        let finishEventPayload =
-            finishPayload status summary |> ensurePayloadLimit config.MaxEventPayloadBytes
-
         withRunLock runPath (fun () ->
             let metadata = loadMetadata runPath
 
@@ -501,29 +632,43 @@ module RunStore =
             if metadata.RunId <> runId then
                 Internal.fail "Run-ID in run.json stimmt nicht mit dem Verzeichnis ueberein."
 
-            let event =
-                appendLocked config.Redaction runPath runId "run.finished" finishEventPayload
+            RetrievalStore.withStableAnchor root runId metadata.RetrievalTraceVersion.IsSome (fun anchor ->
+                let finishEventPayload =
+                    finishPayload metadata.ActorId status summary anchor
+                    |> ensurePayloadLimit config.MaxEventPayloadBytes
 
-            let finishedAt = event.TimestampUtc
+                let event =
+                    appendLocked config.Redaction runPath runId "run.finished" finishEventPayload
 
-            let core =
-                summaryCoreBytes runId metadata.StartedAtUtc finishedAt status event.Sequence event.EventHash summary
+                let finishedAt = event.TimestampUtc
 
-            let summaryHash = Internal.sha256Hex core
-            Internal.atomicWrite (Path.Combine(runPath, "summary.json")) (summaryBytes core summaryHash)
+                let core =
+                    summaryCoreBytes
+                        runId
+                        metadata.ActorId
+                        metadata.StartedAtUtc
+                        finishedAt
+                        status
+                        event.Sequence
+                        event.EventHash
+                        (Some anchor)
+                        summary
 
-            let completedMetadata =
-                { metadata with
-                    Status = status
-                    FinishedAtUtc = Some finishedAt }
+                let summaryHash = Internal.sha256Hex core
+                Internal.atomicWrite (Path.Combine(runPath, "summary.json")) (summaryBytes core summaryHash)
 
-            Internal.atomicWrite (Path.Combine(runPath, "run.json")) (metadataBytes completedMetadata)
+                let completedMetadata =
+                    { metadata with
+                        Status = status
+                        FinishedAtUtc = Some finishedAt }
 
-            { RunId = runId
-              Status = status
-              EventCount = event.Sequence
-              FinalEventHash = event.EventHash
-              SummaryHash = summaryHash })
+                Internal.atomicWrite (Path.Combine(runPath, "run.json")) (metadataBytes completedMetadata)
+
+                { RunId = runId
+                  Status = status
+                  EventCount = event.Sequence
+                  FinalEventHash = event.EventHash
+                  SummaryHash = summaryHash }))
 
     let verifyRun root runId =
         let errors = ResizeArray<string>()
@@ -558,6 +703,12 @@ module RunStore =
 
                 if metadata.RunId <> runId then
                     Internal.fail "run.json enthaelt eine abweichende Run-ID."
+
+                if
+                    metadata.RetrievalTraceVersion.IsSome
+                    && not (File.Exists(Path.Combine(runPath, "retrieval.jsonl")))
+                then
+                    Internal.fail "Run mit Retrieval-Trace-Vertrag hat keine retrieval.jsonl."
 
                 let started =
                     match Internal.tryParseUtc metadata.StartedAtUtc with
@@ -595,25 +746,42 @@ module RunStore =
 
                     use document = JsonDocument.Parse(File.ReadAllBytes(summaryPath))
                     let root = document.RootElement
+                    ensureNoNestedDuplicateKeys "summary.json" root
 
                     let summaryFields =
                         set
                             [ "schemaVersion"
                               "runId"
+                              "actorId"
                               "startedAtUtc"
                               "finishedAtUtc"
                               "status"
                               "eventCount"
                               "finalEventHash"
+                              "retrievalTraceCount"
+                              "finalRetrievalTraceHash"
                               "summary"
                               "summaryHash" ]
 
-                    validateObjectFields "summary.json" summaryFields summaryFields root
+                    let requiredSummaryFields =
+                        summaryFields
+                        |> Set.remove "actorId"
+                        |> Set.remove "retrievalTraceCount"
+                        |> Set.remove "finalRetrievalTraceHash"
+
+                    validateObjectFields "summary.json" summaryFields requiredSummaryFields root
 
                     if Internal.requiredInt "schemaVersion" root <> Constants.SchemaVersion then
                         Internal.fail "summary.json hat eine falsche Schema-Version."
 
                     let summaryRunId = Internal.requiredString "runId" root
+
+                    let summaryActor =
+                        match root.TryGetProperty("actorId") with
+                        | false, _ -> None
+                        | true, value when value.ValueKind = JsonValueKind.String -> Some(value.GetString())
+                        | _ -> Internal.fail "summary.json.actorId ist ungueltig."
+
                     let summaryStarted = Internal.requiredString "startedAtUtc" root
                     let summaryFinished = Internal.requiredString "finishedAtUtc" root
                     let summaryStatus = Internal.requiredString "status" root
@@ -621,15 +789,21 @@ module RunStore =
                     let finalHash = Internal.requiredString "finalEventHash" root
                     let payload = Internal.requiredProperty "summary" root |> Internal.canonicalElement
                     let storedSummaryHash = Internal.requiredString "summaryHash" root
+                    let retrievalAnchor = optionalRetrievalAnchor "summary.json" root
+
+                    if metadata.RetrievalTraceVersion = Some 2 && retrievalAnchor.IsNone then
+                        Internal.fail "Abgeschlossener Retrieval-Trace-v2-Run hat keinen Tail-Anker."
 
                     let expectedSummaryHash =
                         summaryCoreBytes
                             summaryRunId
+                            summaryActor
                             summaryStarted
                             summaryFinished
                             summaryStatus
                             eventCount
                             finalHash
+                            retrievalAnchor
                             payload
                         |> Internal.sha256Hex
 
@@ -638,6 +812,7 @@ module RunStore =
 
                     if
                         summaryRunId <> runId
+                        || summaryActor <> metadata.ActorId
                         || summaryStarted <> metadata.StartedAtUtc
                         || summaryFinished <> metadataFinished
                         || summaryStatus <> metadata.Status
@@ -660,6 +835,30 @@ module RunStore =
                         if Internal.requiredString "status" payloadDocument.RootElement <> summaryStatus then
                             Internal.fail "Status im Abschluss-Event ist inkonsistent."
 
+                        let finishActor =
+                            match payloadDocument.RootElement.TryGetProperty("actorId") with
+                            | false, _ -> None
+                            | true, value when value.ValueKind = JsonValueKind.String -> Some(value.GetString())
+                            | _ -> Internal.fail "Akteur im Abschluss-Event ist ungueltig."
+
+                        if finishActor <> summaryActor then
+                            Internal.fail "Akteur im Abschluss-Event und summary.json widerspricht sich."
+
+                        if
+                            optionalRetrievalAnchor "run.finished-Payload" payloadDocument.RootElement
+                            <> retrievalAnchor
+                        then
+                            Internal.fail "Retrieval-Anker in Abschluss-Event und summary.json widersprechen sich."
+
+                    match retrievalAnchor with
+                    | Some expectedAnchor ->
+                        let actualAnchor = RetrievalStore.withStableAnchor locations.Root runId true id
+
+                        if actualAnchor <> expectedAnchor then
+                            Internal.fail
+                                $"Retrieval-Tail stimmt nicht mit dem Abschlussanker ueberein (erwartet {expectedAnchor.TraceCount}/{expectedAnchor.FinalTraceHash}; gefunden {actualAnchor.TraceCount}/{actualAnchor.FinalTraceHash})."
+                    | None -> ()
+
                     match validatePayloadRedaction config.Value.Redaction payload with
                     | [] -> ()
                     | paths ->
@@ -678,3 +877,36 @@ module RunStore =
             |> Seq.toList
         else
             []
+
+    let completedSnapshot root runId =
+        let errors = verifyRun root runId
+
+        if not (List.isEmpty errors) then
+            let joinedErrors = String.concat "; " errors
+            Internal.fail $"Generierungslauf {runId} ist ungueltig: {joinedErrors}"
+
+        let locations = Workspace.requireInitialized root
+        let config = HarnessConfig.load locations
+        let runPath = runDirectory locations runId
+        let metadata = loadMetadata runPath
+
+        if metadata.Status <> "succeeded" then
+            Internal.fail $"Generierungslauf {runId} muss succeeded sein, ist aber '{metadata.Status}'."
+
+        let finishedAt =
+            metadata.FinishedAtUtc
+            |> Option.defaultWith (fun () -> Internal.fail $"Generierungslauf {runId} hat keinen Abschlusszeitpunkt.")
+
+        use summaryDocument =
+            JsonDocument.Parse(File.ReadAllBytes(Path.Combine(runPath, "summary.json")))
+
+        ensureNoNestedDuplicateKeys "summary.json" summaryDocument.RootElement
+
+        { RunId = runId
+          ActorId = metadata.ActorId
+          StartedAtUtc = metadata.StartedAtUtc
+          FinishedAtUtc = finishedAt
+          Status = metadata.Status
+          FinalEventHash = Internal.requiredString "finalEventHash" summaryDocument.RootElement
+          SummaryHash = Internal.requiredString "summaryHash" summaryDocument.RootElement
+          Events = loadEventsStrict config.Redaction (Path.Combine(runPath, "events.jsonl")) runId }

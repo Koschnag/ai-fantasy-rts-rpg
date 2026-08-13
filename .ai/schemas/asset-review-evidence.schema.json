@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/asset-review-evidence.schema.json",
+  "title": "Bound asset review evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "assetId", "specSha256", "generationReceiptSha256", "licenseTermsSha256", "reviewId", "kind", "revision", "result", "reviewerId", "runId", "reviewedAtUtc", "criteriaVersion", "checkedScopes", "limitations", "reportSha256"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "assetId": { "type": "string", "pattern": "^[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)+$" },
+    "specSha256": { "$ref": "#/$defs/sha256" },
+    "generationReceiptSha256": { "$ref": "#/$defs/sha256" },
+    "licenseTermsSha256": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "reviewId": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "kind": { "enum": ["technical", "visual", "performance", "originality", "license"] },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+    "result": { "enum": ["pass", "fail", "needs-work"] },
+    "reviewerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^(?=.*\\S)[^\\u0000-\\u001f\\u007f]+$" },
+    "runId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "reviewedAtUtc": { "type": "string", "format": "date-time" },
+    "criteriaVersion": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "checkedScopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
+    "limitations": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+    },
+    "reportSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

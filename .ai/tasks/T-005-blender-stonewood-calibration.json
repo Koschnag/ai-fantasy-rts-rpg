@@ -1,0 +1,72 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-005",
+  "title": "Calibration-v1-Spec und unabhängiger 3D-Inspector",
+  "status": "ready",
+  "objective": "Ein Blender-unabhängiges F#/.NET-Werkzeug validiert den vollständig geschlossenen calibration-v1-Eingabevertrag und prüft GLB, PNG und Technikreport unabhängig gegen Struktur-, Sicherheits- und Proxybudgets.",
+  "inScope": [
+    "strikter calibration-v1-Parser mit vollständiger Feld-, Bereichs-, Beziehungs-, Größen- und Additional-Properties-Prüfung aus docs/BLENDER_GENERATOR_CONTRACT.md",
+    "kanonische Spec- und Report-JSON-Serialisierung sowie SHA-256-Bindung ohne Zeit-, Host- oder absolute Pfadangaben",
+    "Blender-unabhängiger F#/.NET-Inspector für GLB-2.0-Container, glTF-Struktur, Accessors, Namen, Bounds, Snap-Transforms, LODs, Kollision, Materialien und Proxybudgets",
+    "Blender-unabhängiger PNG-Inspector für Format, Abmessungen und verbotene variable Metadaten sowie Report-Crosschecks",
+    "öffentliche validate-spec- und inspect-CLI-Verben mit genau einem JSON-Ergebnis auf stdout, stabilen Exitcodes und bereinigtem stderr",
+    "kleine synthetische Positiv-, Grenzwert-, Korruptions-, Traversal-, Symlink-, Ressourcenlimit- und Cross-Field-Fixtures ohne fremde Medien und ohne Blender-Aufruf"
+  ],
+  "outOfScope": [
+    "Installation oder Start von Blender und Erzeugung eines GLB oder PNG",
+    "Blender-Python-Generator, Prozessisolation, Netzwerk-Namespace oder Ressourcensteuerung",
+    "Harness-Run, Generation Receipt, Assetmanifest, Quarantäne-Publikation oder Recovery-Journal",
+    "CI-/Fresh-Checkout-Integration und Reproduzierbarkeitslauf",
+    "visuelles, originäres, lizenzrechtliches oder Shipping-Review und jede Art-Bible-Entscheidung",
+    "Runtime-Importer, Cooking, LFS, Texturen, UV-Atlas-Werkzeuge oder Hardware-FPS-Nachweis"
+  ],
+  "requirements": ["Z-002", "Z-004", "Z-005", "F-008", "F-009", "NF-001", "NF-003", "NF-008", "ADR-004"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T005-01",
+      "statement": "validate-spec akzeptiert ausschließlich das in BLENDER_GENERATOR_CONTRACT definierte calibration-v1-Objekt: höchstens 16 KiB, ganze Zahlen in den exakten Grenzen, feste IDs, keine Pfade oder Freitexte, keine unbekannten oder fehlenden Felder und alle dort genannten Cross-Field-Formeln erfüllt.",
+      "verification": "Tabellengetriebene Unit-Fixtures decken jeden Feldrand, jedes fehlende und zusätzliche Feld, falsche JSON-Typen, Tiefe, Größe sowie jede Beziehungsformel einzeln ab; ungültige Eingaben liefern Exit 2 und starten nachweislich keinen Unterprozess"
+    },
+    {
+      "id": "AC-T005-02",
+      "statement": "Die Referenzimplementierung für PCG32, begrenzte Zufallswerte, Modulanordnung, ganzzahlige Millimetergeometrie, LOD-Ableitung, Achsen, Pivots, Snap-Transforms und feste Namen entspricht bitgenau den Formeln und Testvektoren des Vertrags.",
+      "verification": "Pure Tests prüfen die veröffentlichten PRNG-Testvektoren, den festen Seed 1592594996, Kandidaten- und Boxzählungen, Bounds und Snap-Matrizen; kein Test verwendet Uhr, Betriebssystemzufall oder Dateisystemreihenfolge"
+    },
+    {
+      "id": "AC-T005-03",
+      "statement": "inspect liest genau einen GLB-2.0-JSON- und einen BIN-Chunk ohne externe URI und prüft die feste Szenen-/Node-/LOD-/Material-/Primitive-Struktur, Accessorgrenzen, Dreiecksindizes, finite Werte, Bounds, Normalen, UVs, Pivots und Snap-Transforms ohne Blender oder Drittanbieterpaket.",
+      "verification": "Handgebaute Minimal-GLB-Fixtures bestehen; je ein beschädigter Header, Chunk, Offset, Index, NaN, URI, unbekannter Name, falscher Transform, fehlendes LOD, Material oder Bounds-Crosscheck scheitert deterministisch mit Exit 5"
+    },
+    {
+      "id": "AC-T005-04",
+      "statement": "inspect prüft eine höchstens 8 MiB große 960x540-RGBA8-PNG mit genau einem IHDR und IEND, mindestens einem IDAT, gültigem CRC und ohne tIME, eXIf oder Text-Chunks sowie einen höchstens 1 MiB großen kanonischen Technikreport gegen Spec-, GLB- und Previewhashes.",
+      "verification": "PNG-/Report-Fixtures verletzen Dimension, Farbart, Bittiefe, CRC, Chunkreihenfolge, variable Metadaten, kanonische JSON-Bytes und jeden Cross-Hash einzeln; Pfade oder volatile Felder im Report werden abgelehnt"
+    },
+    {
+      "id": "AC-T005-05",
+      "statement": "Der Inspector erzwingt je Modul LOD0 höchstens 4096 Dreiecke und 3072 Vertices, LOD1 höchstens 1024 und 1024, LOD2 höchstens 192 und 256, Kollision höchstens 48 Dreiecke, familienweit genau zwei gemeinsam genutzte Render-Materialien, höchstens zwei Render-Primitives je LOD sowie für GLB und dekodierte Geometrie jeweils höchstens 2097152 Bytes nach der exakten Vertragsformel.",
+      "verification": "Budgetfixtures überschreiten jeden Grenzwert um genau eins und prüfen getrennt die Accessor-basierte decodedGeometryBytes-Formel; Erfolg wird ausschließlich als Strukturproxy und nie als Zielhardware- oder FPS-Nachweis bezeichnet"
+    },
+    {
+      "id": "AC-T005-06",
+      "statement": "validate-spec und inspect folgen dem gemeinsamen CLI-Vertrag: sichere workspace-relative POSIX-Pfade unter den erlaubten Wurzeln, keine Symlinkdurchquerung, genau ein kanonisches LF-terminiertes JSON-Objekt auf stdout, bereinigtes begrenztes stderr und die Exitcodes 0, 2, 5 oder 8 ohne rohe Eingabeinhalte.",
+      "verification": "CLI-Integrationstests prüfen unbekannte Optionen, doppelte Optionen, absolute Pfade, Traversal, Backslash, Steuerzeichen, Symlinkkomponenten, überlange Pfade, stdout-Zeilenanzahl, Schlüsselsortierung, stderr-Limit und stabile Exitcodes"
+    }
+  ],
+  "dependencies": ["T-003"],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-DATA", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "interne F#-Modulgrenzen für Parser, Canonical JSON, GLB, PNG und Budgetprüfung",
+      "kleinste handgebaute Fixture-Repräsentation ohne neue Abhängigkeit",
+      "Fehlertext innerhalb des festgelegten Exitcode- und Redaktionsvertrags"
+    ],
+    "mustEscalate": [
+      "Abweichung von calibration-v1-Feldern, Formeln, Namen, Budgets oder CLI-Vertrag",
+      "neue externe Bibliothek, DCC, Binärfixture fremder Herkunft oder Netzwerkzugriff",
+      "finale Kultur-, Architektur-, Material- oder Art-Bible-Entscheidung",
+      "Behauptung eines visuellen, lizenzrechtlichen, Originalitäts-, Shipping- oder Hardware-FPS-Nachweises"
+    ]
+  }
+}

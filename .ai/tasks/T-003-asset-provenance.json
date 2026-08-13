@@ -3,13 +3,13 @@
   "schemaVersion": 1,
   "id": "T-003",
   "title": "Clean-Room-Assetprovenienz und Quarantänegate",
-  "status": "draft",
+  "status": "accepted",
   "objective": "Nur technisch gültige, nachvollziehbar berechtigte und unabhängig gestaltete Assets können aus der Quarantäne in freigegebene Quellen wechseln.",
   "inScope": [
     "Assetmanifest gegen das versionierte Schema validieren",
     "interne Spezifikation, Generierungslauf, Erzeugeridentität, Generator, Modell, Inputs, Rechtebelege, Prompts, Transformationen und Outputs binden",
     "Prompts, Negativprompts, Dateinamen und Metadaten gegen Clean-Room-Regeln prüfen",
-    "nicht intern freigegebene Eigennamen und namentliche Stilabkürzungen blockieren",
+    "bekannte Fremdwerk-, Eigennamen- und Stilvorgaben über versionierte Deny-Hashes blockieren, interne Namen nur über das Allow-Register behandeln und stets unabhängigen Review verlangen; kein globaler Eigennamen- oder Rechtsdetektor",
     "technische, visuelle, Performance-, Originalitäts- und Lizenzreviews als eindeutige aktive Revisionen getrennt erzwingen",
     "Erzeugeragent und abschließenden Originalitäts-/Lizenzreview per Cross-Field-Validierung trennen",
     "Quarantäne-, Source-, LFS- und Cooked-Lebenszyklus prüfen",
@@ -17,6 +17,7 @@
   ],
   "outOfScope": [
     "Auswahl eines Produktionsmodells",
+    "externes Backup und Restore grosser freigegebener Quellassets",
     "automatische rechtliche Freigabe",
     "vollständiger Malware-Scanner für beliebige Binärformate",
     "öffentliche Titel- oder Markenfreigabe",
@@ -31,7 +32,7 @@
     },
     {
       "id": "AC-T003-02",
-      "statement": "Namentliche Fremdwerk-/Stilvorgaben und nicht intern freigegebene Eigennamen in Prompt, Negativprompt, Pfad oder Metadaten blockieren die Freigabe, ohne den problematischen Inhalt in Logs zu vervielfältigen.",
+      "statement": "In der versionierten Deny-Policy registrierte Fremdwerk-, Stil- und Eigennamenvorgaben in Prompt, Negativprompt, Pfad oder Metadaten blockieren die Freigabe; interne Namen benötigen das Allow-Register und unabhängigen Review, ohne Anspruch auf einen globalen Eigennamen- oder Rechtsdetektor und ohne den problematischen Inhalt in Logs zu vervielfältigen.",
       "verification": "Künstliche Deny-/Allow-Fixtures prüfen Treffer, Redaction und Exitcode"
     },
     {

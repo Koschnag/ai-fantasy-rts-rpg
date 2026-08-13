@@ -17,6 +17,7 @@ Diese Punkte nicht erneut als offen behandeln:
 | KI-Nachvollziehbarkeit | lokales Harness, hashverkettete Runs, kuratiertes Memory, BM25-RAG und Evidenz | ADR 003, `HARNESS.md` |
 | Memory-Freigabe | der erzeugende Agent darf nicht selbst annehmen; ein separater Reviewlauf darf technisch objektive, quellenidentische Records annehmen, kreative/produktbezogene/lizenzielle Entscheidungen nur die Projektleitung | `HARNESS.md`, T-002 |
 | Memory-Lebenszyklus | append-only Revisionen; Quelle/Hash, Status, Konflikt und Staleness bleiben sichtbar; keine automatische Annahme oder stille Löschung | `HARNESS.md`, ADR 003 |
+| Assetursprung und Arbeitsmodus | 100 % der kreativen Shipping-Assets entstehen KI- beziehungsweise agentisch synthetisch aus eigenen Spezifikationen; die Projektleitung testet integrierte Builds und gibt Feedback statt Assets manuell zu produzieren | ADR 004 |
 | OS-Baseline | gewartete .NET-10-Betriebssysteme gemäß `PLATTFORMMATRIX.md`; Hardwarejahr und OS-Support sind getrennt | `PLATTFORMMATRIX.md` |
 | M1-Speichergrenze | Ziel ≤ 3,5 GB; hart ≤ 4,0 GB im Spiel und ≤ 4,5 GB kurzer Ladepeak | `PERFORMANCE_BUDGET.md` |
 | Tool-/Komponentenwahl | FOSS-first; neue Abhängigkeiten nur mit Version, Lizenz, Zweck und Austauschstrategie | `IP_UND_LIZENZEN.md` |
@@ -26,7 +27,8 @@ Diese Punkte nicht erneut als offen behandeln:
 | Nächster Schritt | Vor `READY` mindestens zu klären |
 |---|---|
 | T-002 Memory-Promotion | keine offene Produktentscheidung; implementiert die oben festgelegte getrennte Freigabe und append-only Lebenszyklusregeln |
-| T-003 Asset-Provenienz | Q-AST-001, Q-AST-002, Q-AST-003 |
+| T-003 Asset-Provenienz | keine offene Produktentscheidung: unbekannte Modelle bleiben Quarantäne; Backup/Restore ist erst vor erster Source-Promotion Pflicht; Q-AST-003 ist durch ADR 004 entschieden |
+| T-005/T-006/T-007 Blender-Kalibrierung | keine offene Produktentscheidung: `BLENDER_GENERATOR_CONTRACT.md` fixiert Spec, Inspector, Pin, Isolation, Proxybudgets, Journal und Fresh-Checkout-Nachweis; T-003 und die jeweilige Vorgängerstufe bleiben technische Abhängigkeiten. Q-AST-001/002/004 blockieren weder den rein prozeduralen Quarantänespike noch seine Strukturproxies; fehlende Linux-Namespace-Fähigkeit ist eine messbare Runner-Inkompatibilität und erlaubt keinen unsandboxed Fallback |
 | T-004 Run-Provenienz/Evidenz | keine offene Produktentscheidung; nach T-002 gegen den festgelegten lokalen Evidenz-, Redaction- und 180-Tage-Retention-Vertrag schneiden |
 | T-010 Plattform-Walking-Skeleton | Q-TEC-001, Q-TEC-003; Audio darf als getrennter Spike offen bleiben; konkrete Treiberminima entstehen aus dem Smoke-Test |
 | T-020/T-021 Performancekern | Q-TEC-004, Q-TEC-005, Q-OPS-001 |
@@ -91,9 +93,9 @@ Diese Punkte nicht erneut als offen behandeln:
 
 | ID | Frage / notwendige Entscheidung | Arbeitsannahme bis zur Entscheidung | Benötigt vor | Verantwortlich | Status |
 |---|---|---|---|---|---|
-| Q-AST-001 | Welche lokalen oder externen Generatoren sind je Assettyp zugelassen, mit welcher Lizenz-/Outputgrundlage, Version und Reproduzierbarkeit? | kein Generatoroutput ohne manifestierte Prüfung; lokale FOSS-Option bevorzugt | T-003 / erste Generierung | Projektleitung / Lizenzreview | OFFEN |
-| Q-AST-002 | Wo liegen große Rohassets, Varianten, Benchmarks und Traces; wie funktionieren Hashadressierung, Backup und Retention? | nicht ins normale Git; kleine Manifeste/Hashes werden versioniert | T-003 | Technical/Production Lead | OFFEN |
-| Q-AST-003 | Wer darf Assets aus Quarantäne in `visuell geprüft`, `lizenzgeprüft` und `freigegeben` überführen? | getrennte maschinelle Gates und bewusste Freigabe; kein Selbst-Promote des Erzeugeragenten | T-003 | Projektleitung | OFFEN |
+| Q-AST-001 | Welche lokalen oder externen Generatoren sind je Assettyp zugelassen, mit welcher Lizenz-/Outputgrundlage, Version und Reproduzierbarkeit? | `models.lock.json` bleibt fail-closed: unbekannter Output darf kalibrieren, aber nicht `approved` werden | erste Assetfreigabe; nicht T-003-Validator | Projektleitung / Lizenzreview | OFFEN |
+| Q-AST-002 | Wo liegen große Rohassets, Varianten, Benchmarks und Traces; wie funktionieren Hashadressierung, Backup und Retention? | Quarantäne und Cooked Output bleiben lokal/regenerierbar; kleine Manifeste, Receipts und Hashes werden versioniert | erste Promotion wichtiger Binärquellen / Produktionsskalierung | Technical/Production Lead | OFFEN |
+| Q-AST-003 | Wer darf Assets aus Quarantäne in `visuell geprüft`, `lizenzgeprüft` und `freigegeben` überführen? | Erzeuger und Originalitäts-/Lizenzreviewer sind getrennte Agentidentitäten; unklare Rechte, zweifelhafte Ähnlichkeit und Meilensteinfreigaben eskalieren an die Projektleitung | T-003 | Projektleitung | ENTSCHIEDEN durch ADR 004 |
 | Q-AST-004 | Welche messbaren Polygon-, LOD-, UV-, Kollision-, Animations-, Audio- und VFX-Gates gelten pro Assetklasse zusätzlich zu den Szenenbudgets? | Ausgangswerte aus `PERFORMANCE_BUDGET.md`; Details je Asset-Spezifikation | finalitätsnahe Assetproduktion | Art/Technical Lead | OFFEN |
 | Q-HAR-003 | Welches Retrieval-Eval und welcher Mindestgewinn rechtfertigen lokale Embeddings zusätzlich zu BM25? | keine Embeddings, bis ein gepinntes Eval messbaren Recall-Nutzen zeigt | semantische RAG-Erweiterung | Harness Lead | OFFEN |
 | Q-HAR-004 | Welche Modell-/Agentanbieter sind für autonome Produktion zugelassen, welche Daten dürfen sie erhalten und wie werden Kostenlimits durchgesetzt? | lokale/offline Werkzeuge bevorzugen; keine Secrets/fremden Daten; kein Anbieterzwang | externer KI-Einsatz | Projektleitung | OFFEN |
@@ -114,4 +116,5 @@ Eine Entscheidung wird aus der obigen Tabelle entfernt oder auf `ENTSCHIEDEN` ge
 
 | Datum | ID | Entscheidung / Ergebnis | Quelle | Verantwortlich |
 |---|---|---|---|---|
-| – | – | Noch keine der oben gelisteten Fragen wurde bestätigt. | – | – |
+| 2026-08-13 | Q-AST-003 | Routineproduktion nutzt getrennte Erzeuger- und Originalitäts-/Lizenzreviewer; unklare Fälle eskalieren. | ADR 004 | Projektleitung |
+| 2026-08-13 | T-003-READINESS | Q-AST-001 und Q-AST-002 blockieren Freigabe/Promotion, nicht den fail-closed Validator. | T-003 Readiness Notes | Harness Lead |

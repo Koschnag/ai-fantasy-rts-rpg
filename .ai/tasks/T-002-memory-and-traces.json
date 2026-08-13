@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "T-002",
   "title": "Kuratierte Memory-Promotion und Retrieval-Traces",
-  "status": "ready",
+  "status": "accepted",
   "objective": "Das Harness verwaltet vorgeschlagene und angenommene Erinnerungen ohne stille Wahrheitsübernahme, erkennt geänderte Quellen und zeichnet jede RAG-Abfrage reproduzierbar als redigierten Retrieval-Trace auf.",
   "inScope": [
     "Memory propose, validate, accept, supersede und status commands",

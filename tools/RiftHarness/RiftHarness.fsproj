@@ -9,9 +9,16 @@
 
   <ItemGroup>
     <Compile Include="Core.fs" />
-    <Compile Include="Runs.fs" />
+    <Compile Include="Memory.fs" />
     <Compile Include="Rag.fs" />
+    <Compile Include="Retrieval.fs" />
+    <Compile Include="Runs.fs" />
+    <Compile Include="Assets.fs" />
     <Compile Include="Verification.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" Version="[8.0.5]" />
   </ItemGroup>
 </Project>

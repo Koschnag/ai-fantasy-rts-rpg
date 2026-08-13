@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/models-lock.schema.json",
+  "title": "Approved generation model lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "models", "admissionRules"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "enum": ["no-production-model-approved", "production-models-approved"] },
+    "models": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "model", "modelVersion", "executionMode", "modelArtifactSha256", "codeLicense", "weightsLicense", "outputTerms", "trainingDataDisclosure", "commercialUseReviewed", "status", "reviewedAtUtc"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "model": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "modelVersion": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "executionMode": { "enum": ["local", "remote"] },
+          "modelArtifactSha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+          "codeLicense": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "(?s)^(?=.*\\S).+$" },
+          "weightsLicense": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "(?s)^(?=.*\\S).+$" },
+          "outputTerms": { "type": "string", "minLength": 1, "maxLength": 2048, "pattern": "(?s)^(?=.*\\S).+$" },
+          "trainingDataDisclosure": { "type": "string", "minLength": 1, "maxLength": 2048, "pattern": "(?s)^(?=.*\\S).+$" },
+          "commercialUseReviewed": { "type": "boolean" },
+          "status": { "enum": ["approved", "blocked"] },
+          "reviewedAtUtc": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+    "admissionRules": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 2048 }
+    }
+  }
+}

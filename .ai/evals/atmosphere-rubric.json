@@ -23,10 +23,10 @@
     { "id": "cross-mode-causality", "weight": 10, "perfectEvidence": "Mindestens zwei messbare Folgen je Richtung und keine erfolgreiche Ein-Modus-Dominanz." }
   ],
   "hardOriginalityGate": [
-    "Keine übernommenen geschützten Begriffe oder Assets.",
-    "Keine eins-zu-eins gemappten Fraktionen, Einheiten oder Karten.",
+    "Keine im dokumentierten Review festgestellten unautorisierten Übernahmen geschützter Begriffe oder Assets.",
+    "Keine im dokumentierten Review festgestellten Eins-zu-eins-Zuordnungen von Fraktionen, Einheiten oder Karten.",
     "Vollständige Provenienz für jedes generierte Asset.",
     "Dokumentiertes Ähnlichkeitsreview.",
-    "Konkrete spontane Zuordnung zu einem fremden Asset führt zur Quarantäne."
+    "Konkrete spontane Zuordnung zu einem fremden Asset führt zur Quarantäne; der automatisierte Scan behauptet weder Rechtssicherheit noch weltweite Einzigartigkeit."
   ]
 }

@@ -146,7 +146,7 @@ Gerätespezifische Scancodes dürfen gespeichert werden, aber die Gameplaylogik 
 | `HarnessEvent` | append-only Ablaufbeleg | Sequenz, UTC, Akteur, Typ, bereinigte Payload, Vorgänger- und Ereignishash |
 | `RetrievalRecord` | tatsächlich verwendeter RAG-Kontext | Query, Indexhash, Treffer-IDs, Pfade, Zeilen und Quellhashes |
 | `EvidenceRecord` | Zuordnung von Prüfung zu Kriterium | Kriteriums-ID, Befehl/Umgebung, Ergebnis, Artefakthash und Zeitpunkt |
-| `MemoryRecord` | atomare kuratierte Erkenntnis | ID, Behauptung, Status, Quelle+Hash, Gültigkeit, optional `supersedes`/`expiresAtUtc` |
+| `MemoryRecord` | atomare kuratierte Erkenntnis | ID, Behauptung, Status, Quelle+Hash, Gültigkeit, optional `conflictKey`/`supersedes`/`expiresAtUtc`, für neue Revisionen Ledger-Hashes |
 
 Roh-Runlogs sind Verlauf, keine fachliche Wahrheit. Nur separat angenommene, nicht veraltete Memory-Records dürfen als Gedächtnis abgerufen werden.
 

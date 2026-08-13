@@ -1,0 +1,13 @@
+{
+  "$schema": "../schemas/asset-clean-room-policy.schema.json",
+  "schemaVersion": 1,
+  "normalization": "unicode-nfkc-lower-alphanumeric-words-v1",
+  "maxNGramWords": 6,
+  "entries": [
+    { "policyEntryId": "CR-DENIED-NAME-001", "kind": "denied-name", "valueSha256": "1abde37aeb47d6f045e69d1317c6fac1051176ecad7b3e5248155a547b503a59" },
+    { "policyEntryId": "CR-ALLOWED-NAME-001", "kind": "allowed-name", "valueSha256": "85bf42cf8573ff5d1905b2a92b39860edbe45993de426e45c7ee955c5b3dff70" },
+    { "policyEntryId": "CR-DENIED-STYLE-001", "kind": "denied-style", "valueSha256": "9cb72d245b3115fc77cd2cd86bdb262998d99c0c722b2b2fc778fc952df8235d" },
+    { "policyEntryId": "CR-DENIED-STYLE-002", "kind": "denied-style", "valueSha256": "48e4fcbcddf670b90d97b75c6f7ac74c754ad1caa3fcc63232616d82a661bda9" },
+    { "policyEntryId": "CR-DENIED-STYLE-003", "kind": "denied-style", "valueSha256": "f2db94ccacf8bb172ce77927836034c751c03ee959c20788d69dd8e14cd8d143" }
+  ]
+}

@@ -48,7 +48,7 @@ Eine Umsetzungseinheit ist erst `DONE`, wenn:
 | G-TEST Tests | deterministische automatisierte Tests | `./scripts/rift.sh test` | Harness-Tests implementiert; Runtime-Suite wächst pro Task | Exit 0, keine ungeklärten Skips/Flakes |
 | G-HARNESS Harness | Eventhashkette, Runabschluss, RAG-/Konfigintegrität | `./scripts/rift.sh verify` | implementiert für aktuellen Harnessumfang | Exit 0; Kette, Quellen und Index gültig |
 | G-DATA Daten | JSON-/Content-Schemas, Referenzen, Lokalisierung, Save-Fixtures | künftig `lint`/spezifische Compiler | JSON-Syntax und Harness-Schemas teilweise implementiert; Runtime-Content noch NICHT VERFÜGBAR | alle betroffenen Dateien validiert; keine fehlende Pflichtreferenz |
-| G-PROVENANCE Assets/Modelle | Provenienz, Lizenz, Ähnlichkeit, Technik und Cook | `assets-check` | NICHT VERFÜGBAR | jedes referenzierte Shipping-Asset und Modell freigegeben |
+| G-PROVENANCE Assets/Modelle | Provenienz, Lizenz, Ähnlichkeit, Technik und Cook | `./scripts/rift.sh assets-check`; für Shipping zusätzlich `--require-local --require-approved` | Manifest-/Receipt-/Modell-/Clean-Room- und Lifecycle-Prüfung implementiert; Cook- und Gesamtspielreview wachsen in späteren Tasks | jedes referenzierte Shipping-Asset und Modell freigegeben; Quarantäne zählt niemals als Shipping-Freigabe |
 | G-PERF Performance | Pflichtszenen, Telemetrie, Baselinevergleich | `bench` | NICHT VERFÜGBAR | alle relevanten Profilgrenzen eingehalten |
 | G-VISUAL Bild/Atmosphäre | Golden-Szenen, Lesbarkeit, Originalität und Atmosphärenrubrik | Reviewprotokoll; später Evaluator | Rubrik spezifiziert, ausführbarer Evaluator noch NICHT VERFÜGBAR | Rubrik und harte Originalitätsbedingungen erfüllt |
 | G-SECURITY Sicherheit/Lizenzen | Secrets, Abhängigkeiten, native Lizenzen und untrusted inputs | `./scripts/rift.sh security` | lokaler Baseline-Gate implementiert; native Lizenzen, Threat Model und Releaseprüfung noch NICHT VERFÜGBAR | Baseline Exit 0 und alle aufgabenspezifisch benötigten Nachweise vorhanden; Baseline allein ist keine Releasefreigabe |
@@ -108,7 +108,7 @@ Ein als `NICHT VERFÜGBAR` markiertes Gate ist keine bestandene Prüfung. Ein Ta
 - Die Rubrik in `ATMOSPHAERE.md` erreicht mindestens 80/100 Punkte; kein Bereich liegt unter 7/10.
 - In Blindtests wählen mindestens 70 % drei der vier Zieladjektive und erinnern mindestens 70 % drei freigegebene Riftward-Weltprinzipien.
 - Held, Hauptziel und größte Gefahr werden bei 1080p binnen zwei Sekunden von mindestens 90 % erkannt; Audio-/Pacing-/Modusübergangswerte folgen der Bible.
-- Das Originalitäts-Gate ist binär: keine übernommenen geschützten Begriffe/Assets, keine Eins-zu-eins-Fraktionen/-Einheiten/-Karten, vollständige Asset-Provenienz und dokumentiertes Ähnlichkeitsreview.
+- Das Originalitäts-Gate ist binär: keine im dokumentierten Review festgestellten unautorisierten Übernahmen oder Eins-zu-eins-Zuordnungen, vollständige Asset-Provenienz und ein dokumentiertes Ähnlichkeitsreview. Ein bestandener automatischer Policy-Scan ist nur Evidenz und keine Aussage über Rechtssicherheit oder weltweite Einzigartigkeit.
 - Spontane Zuordnung eines zentralen Assets zu einer konkreten fremden Figur, einem Ort, UI-Element oder Track führt zur Quarantäne und Neugestaltung; ein hoher Atmosphärenwert hebt das nicht auf.
 
 ### Zugänglichkeit und Bedienung

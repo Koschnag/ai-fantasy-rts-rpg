@@ -1,35 +1,97 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://project-riftward.invalid/schemas/retrieval-record.schema.json",
-  "title": "Recorded RAG query and citations",
+  "title": "Redacted append-only RAG retrieval trace",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "queryId", "runId", "timestampUtc", "query", "indexSha256", "configSha256", "results"],
+  "required": [
+    "schemaVersion",
+    "runId",
+    "sequence",
+    "queryId",
+    "timestampUtc",
+    "query",
+    "querySha256",
+    "indexSha256",
+    "configSha256",
+    "ranking",
+    "results",
+    "context",
+    "contextSha256",
+    "previousTraceHash",
+    "traceHash"
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "queryId": { "type": "string" },
-    "runId": { "type": "string" },
+    "runId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "queryId": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "timestampUtc": { "type": "string", "format": "date-time" },
     "query": { "type": "string", "minLength": 1 },
+    "querySha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "indexSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "configSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "ranking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "k1", "b", "top", "maxContextCharacters"],
+      "properties": {
+        "algorithm": { "const": "bm25" },
+        "k1": { "type": "number", "exclusiveMinimum": 0 },
+        "b": { "type": "number", "minimum": 0, "maximum": 1 },
+        "top": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "maxContextCharacters": { "type": "integer", "minimum": 1000 }
+      }
+    },
     "results": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["rank", "score", "chunkId", "path", "startLine", "endLine", "contentSha256", "trustClass"],
+        "required": [
+          "rank",
+          "score",
+          "chunkId",
+          "path",
+          "startLine",
+          "endLine",
+          "sourceSha256",
+          "contentSha256",
+          "textSha256",
+          "trustClass"
+        ],
         "properties": {
           "rank": { "type": "integer", "minimum": 1 },
-          "score": { "type": "number" },
-          "chunkId": { "type": "string" },
-          "path": { "type": "string" },
+          "score": { "type": "number", "minimum": 0 },
+          "chunkId": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "path": { "type": "string", "minLength": 1 },
           "startLine": { "type": "integer", "minimum": 1 },
           "endLine": { "type": "integer", "minimum": 1 },
+          "sourceSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "trustClass": { "enum": ["accepted-decision", "specification", "accepted-memory", "ready-task", "documentation", "code", "untrusted"] }
+          "textSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "trustClass": {
+            "enum": [
+              "accepted-decision",
+              "specification",
+              "accepted-memory",
+              "ready-task",
+              "documentation",
+              "code",
+              "untrusted"
+            ]
+          }
         }
       }
-    }
+    },
+    "context": { "type": "string" },
+    "contextSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "previousTraceHash": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      ]
+    },
+    "traceHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   }
 }

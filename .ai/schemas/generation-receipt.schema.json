@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/generation-receipt.schema.json",
+  "title": "Generation receipt exported from a verified succeeded run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "status", "startedAtUtc", "finishedAtUtc", "actorId", "assetId", "generationBindingMode", "eventCount", "events", "generationEvent", "finalEventHash", "summary", "summaryHash", "spec", "generator", "inputs", "prompts", "transformations", "outputs", "receiptSha256"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "runId": { "$ref": "#/$defs/runId" },
+    "status": { "const": "succeeded" },
+    "startedAtUtc": { "type": "string", "format": "date-time" },
+    "finishedAtUtc": { "type": "string", "format": "date-time" },
+    "actorId": { "$ref": "#/$defs/actorId" },
+    "assetId": { "$ref": "#/$defs/assetId" },
+    "generationBindingMode": { "enum": ["canonical-event-v1", "legacy-event-v0"] },
+    "eventCount": { "type": "integer", "minimum": 2, "maximum": 10000 },
+    "events": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "generationEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "eventHash", "payloadSha256"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "eventHash": { "$ref": "#/$defs/sha256" },
+        "payloadSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "finalEventHash": { "$ref": "#/$defs/sha256" },
+    "retrievalTraceCount": { "type": "integer", "minimum": 0, "maximum": 10000000 },
+    "finalRetrievalTraceHash": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "summary": { "type": "object" },
+    "summaryHash": { "$ref": "#/$defs/sha256" },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "generator": { "$ref": "asset-manifest.schema.json#/$defs/generator" },
+    "inputs": { "$ref": "asset-manifest.schema.json#/$defs/inputs" },
+    "prompts": { "oneOf": [{ "$ref": "asset-manifest.schema.json#/$defs/prompts" }, { "type": "null" }] },
+    "transformations": { "$ref": "asset-manifest.schema.json#/$defs/transformations" },
+    "outputs": { "$ref": "asset-manifest.schema.json#/$defs/outputs" },
+    "receiptSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "runId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+    "actorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "assetId": { "type": "string", "pattern": "^[A-Z][A-Z0-9]+(?:-[A-Z0-9]+)+$" },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "timestampUtc", "type", "previousEventHash", "payload", "eventHash"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "timestampUtc": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "previousEventHash": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "payload": { "type": "object" },
+        "eventHash": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  },
+  "dependentRequired": {
+    "retrievalTraceCount": ["finalRetrievalTraceHash"],
+    "finalRetrievalTraceHash": ["retrievalTraceCount"]
+  }
+}

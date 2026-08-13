@@ -138,6 +138,8 @@ Landschaft ist nie nur Dekoration. Wasser bedeutet Logistik, Hochland bedeutet S
 
 Grundverhältnis je Region:
 
+Das Verhältnis ist eine vorläufige Kalibrierungshilfe für Lesbarkeits- und Stimmungstests, keine starre Stilidentität.
+
 - 60 % gedämpfte Erd- und Materialfarben
 - 30 % charakteristische Biomefarbe
 - 10 % übernatürlicher oder narrativer Akzent
@@ -166,7 +168,10 @@ Keine Produktionsprompts verwenden den Namen eines konkreten Spiels, Soundtracks
 
 ## Negativliste
 
-- keine übernommenen Eigennamen, Lore, Texte, Karten, Symbole, UI-Kompositionen, Musikmotive oder Silhouetten
+- keine als kreative Eingabe übernommenen fremden Eigennamen, Lore, Texte,
+  Karten, Symbole, UI-Kompositionen, Musikmotive oder Silhouetten; die
+  nachgelagerte Prüfung dokumentiert festgestellte Risiken, ohne globale
+  Einzigartigkeit zu behaupten
 - keine Eins-zu-eins-Entsprechung von Völkern, Einheiten, Ressourcen, Bauwerken oder Weltenreise
 - keine bekannte Handlung mit lediglich ausgetauschten Namen
 - keine moralisch biologisierten hellen/dunklen Völker
@@ -213,8 +218,8 @@ Bereiche mit mehreren Bedingungen verwenden den niedrigsten Teilscore; harte Neg
 
 Originalitäts-Gate:
 
-- null übernommene geschützte Begriffe oder Assets
-- null eins-zu-eins gemappte Fraktionen, Einheiten oder Karten
+- keine im dokumentierten Review festgestellten unautorisierten Übernahmen geschützter Begriffe oder Assets
+- keine im dokumentierten Review festgestellten Eins-zu-eins-Zuordnungen von Fraktionen, Einheiten oder Karten
 - vollständige Provenienz jedes generierten Assets
 - dokumentiertes Ähnlichkeitsreview
 - spontane Zuordnung zu einer konkreten fremden Figur, einem Ort oder Track führt zur Quarantäne und Neugestaltung

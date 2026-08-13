@@ -35,9 +35,18 @@ module Verification =
                 for error in RunStore.verifyRun root runId do
                     errors.Add($"Run {runId}: {error}")
 
+                for error in RetrievalStore.verifyRun root runId do
+                    errors.Add($"Run {runId} Retrieval: {error}")
+
         let indexChecked = requestedRun.IsNone && File.Exists(locations.IndexFile)
 
         if requestedRun.IsNone && File.Exists(locations.Config) then
+            try
+                MemoryStore.validate root |> ignore
+            with
+            | HarnessException message -> errors.Add($"Memory: {message}")
+            | error -> errors.Add($"Memory: {error.Message}")
+
             for error in RagIndex.verify root do
                 errors.Add($"RAG: {error}")
 

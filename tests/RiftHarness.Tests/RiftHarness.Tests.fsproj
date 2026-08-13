@@ -11,6 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="AssetCanonicalTests.fs" />
+    <Compile Include="AssetRegression.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

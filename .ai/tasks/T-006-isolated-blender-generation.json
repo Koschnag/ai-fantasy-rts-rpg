@@ -1,0 +1,85 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-006",
+  "title": "Isolierter Blender-Generator mit transaktionaler Quarantäne",
+  "status": "draft",
+  "objective": "Der gepinnte Linux-x64-Blender erzeugt aus einem validierten calibration-v1-Spec deterministische Stein-/Holz-Kalibrierungsartefakte und veröffentlicht sie über einen absturzsicheren, T-003-konformen Quarantäne-Lifecycle.",
+  "inScope": [
+    "Blender-5.2.0-Headless-Generator ohne pip-Pakete, Add-ons, Fremdmedien, Texturen oder externe kreative Eingaben",
+    "genau drei neutrale Module mit festem Geometrie-, LOD-, Kollisions-, Snap-, Material-, Namens-, PRNG-, Preview- und Exportvertrag",
+    "Pinprüfung gegen den Blender-Eintrag aus toolchain.lock.json vor dem Generatorstart",
+    "Linux-Prozessisolation in neuen User-, Mount-, PID- und Netzwerk-Namespaces mit geschlossenem Netzwerk, minimaler Umgebung, schreibgeschütztem Workspace und begrenztem Jobverzeichnis",
+    "harte Zeit-, Prozess-, Datei-, Speicher-, stdout- und stderr-Grenzen sowie vollständiges Prozessbaum-Terminate/Kill-Verhalten",
+    "generate- und recover-CLI-Verben mit stabilem JSON-/Exitcode-Vertrag",
+    "append-only hashverkettetes Jobjournal, idempotente Crash-Recovery und atomische Veröffentlichung von Quarantäneoutput, Receipt und Manifest",
+    "vollständiger T-003-Run-, Event-, Receipt-, Manifest- und Hash-Crosscheck mit Status quarantine"
+  ],
+  "outOfScope": [
+    "CI-/Fresh-Checkout-Workflow, Cachepolitik oder plattformweite Reproduzierbarkeitsbehauptung",
+    "Windows- oder macOS-DCC-Worker; die erzeugten GLB bleiben plattformneutrale Daten",
+    "Source-Promotion, LFS, Backup, Cooking, Runtime-Import, Packaging oder Shipping-Freigabe",
+    "Textur-, Bake-, KTX2-, Atlas-, Rig-, Animations-, Audio-, VFX- oder generatives 3D-Modellverfahren",
+    "finale Architektur-, Kultur-, Welt-, Art-Bible- oder Materialentscheidung",
+    "Zielhardware-FPS-, RAM- oder VRAM-Messung und Änderung globaler Performancebudgets"
+  ],
+  "requirements": ["Z-002", "Z-004", "Z-005", "F-007", "F-008", "F-009", "NF-001", "NF-003", "NF-008", "ADR-004"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T006-01",
+      "statement": "generate liest den Blender-Pin ausschließlich aus toolchain.lock.json, verlangt id blender, Version 5.2.0, Plattform linux-x64 und Archive-SHA-256 96f6c181a30f4950607839dc84d42a354b250d8a0231b098b59b7bc69c351c48, bestätigt Linux/x86_64 und Blender 5.2.0 vor jedem Job und behandelt den beobachteten Smoke-Buildhash ausdrücklich nicht als Freigabepin.",
+      "verification": "Integrationstests manipulieren ID, Version, Plattform, SHA, Hostarchitektur, ausführbaren Pfad und Versionsausgabe einzeln; jeder Fall endet vor Blender-Python mit Exit 3 und ohne Joboutput"
+    },
+    {
+      "id": "AC-T006-02",
+      "statement": "Der Generator implementiert ausschließlich die calibration-v1-Formeln, PCG32-Zugreihenfolge, festen ASCII-Namen, Achsen, Pivots, Snap-Transforms, Module, LODs, Kollisionen und zwei numerischen PBR-Materialien aus BLENDER_GENERATOR_CONTRACT; alle Ableitungen entstehen aus ganzzahligen Millimeterwerten verlustfrei in Mikrometern und werden erst beim Meshbau in Meter konvertiert.",
+      "verification": "Der unabhängige T-005-Inspector besteht GLB, PNG und Technikreport des Referenzspecs; ein Generator-Inputinventar weist nur kanonisches Spec, versionierte Generatorquellen und Toolchainpin aus, keine Bilder, Texturen, Modelle, Freitexte, URIs oder Add-ons"
+    },
+    {
+      "id": "AC-T006-03",
+      "statement": "Zwei Jobs mit demselben kanonischen Spec erzeugen auf demselben gepinnten Linux-x64-Worker byteidentische GLB-, PNG- und Technikreportbytes; der feste Alternativseed 1592594997 ändert mindestens GLB und Preview, ohne Struktur-, Namens- oder Budgetvertrag zu ändern.",
+      "verification": "Zwei getrennte temporäre Repository-/Publikationswurzeln auf demselben Worker vergleichen SHA-256 aller drei Artefakte; ein dritter Lauf prüft den Alternativseed und der Inspector prüft alle drei Ausgaben. Cross-Host- oder Cross-Architektur-Byteidentität wird nicht behauptet"
+    },
+    {
+      "id": "AC-T006-04",
+      "statement": "Blender läuft ohne Fallback in frischen User-, Mount-, PID- und Netzwerk-Namespaces, ohne Route oder aktiviertes Loopback, mit read-only Workspace, ausschließlich einem schreibbaren Jobroot, leerem stdin, allowgelisteter Umgebung und den Vertragsgrenzen 300 s Walltime, 240 s CPU, 8 GiB Address Space, 64 Prozesse, 128 offene Dateien, 16 MiB je Datei, 64 Ausgabedateien, 24 MiB Gesamtausgabe und je 1 MiB stdout/stderr.",
+      "verification": "Ein Namespace-Probeprozess weist unterschiedliche Namespace-IDs, fehlende Nicht-Loopback-Interfaces und Routen sowie verweigerte Workspace-Schreib- und Netzversuche nach; Timeout-, Fork-, Speicher-, Dateigrößen-, Dateianzahl- und Logflut-Fixtures enden mit Exit 4 und töten den gesamten Prozessbaum"
+    },
+    {
+      "id": "AC-T006-05",
+      "statement": "generate akzeptiert nur ein kanonisches Spec unter assets/specs/3d/, eine ULID als job-id und einen validierten absoluten Blender-Pfad; alle übrigen Arbeits- und Zielpfade werden nach dem Safe-Path-Vertrag abgeleitet, Symlinks und bestehende Zielkollisionen werden vor dem Lauf abgelehnt und stdout enthält genau ein bereinigtes kanonisches Ergebnisobjekt.",
+      "verification": "CLI-Fixtures prüfen unbekannte, fehlende und doppelte Argumente, falsche ULIDs, Traversal, Symlinks, Race-Rechecks, bestehende Ziele, nicht reguläre Blender-Dateien sowie Exitcodes 0, 2, 3, 4, 5, 6, 7 und 8"
+    },
+    {
+      "id": "AC-T006-06",
+      "statement": "Jeder Job führt das append-only hashverkettete journal.jsonl durch die festgelegten Zustände CREATED, GENERATED, INSPECTED, PROVENANCE_PREPARED, QUARANTINE_PUBLISHED, METADATA_PUBLISHED, VERIFIED und COMMITTED; Quarantäneverzeichnis, Receipt und Manifest werden aus demselben vorbereiteten Hashinventar atomisch einzeln veröffentlicht, das Manifest zuletzt.",
+      "verification": "Crash-Injection nach jedem Zustandsübergang und jedem Rename/Write führt beim anschließenden recover entweder idempotent zu exakt COMMITTED oder ROLLED_BACK; nie bleibt ein Manifest zurück, das auf fehlende beziehungsweise hashabweichende Dateien oder Receipts verweist"
+    },
+    {
+      "id": "AC-T006-07",
+      "statement": "Recovery entfernt oder ersetzt ausschließlich Pfade, deren kanonischer Pfad, Typ und SHA-256 dem eigenen Journal entsprechen; unbekannte, symlinkende oder inzwischen geänderte Pfade bleiben unangetastet, erzeugen Exit 7 und erhalten das Journal als Diagnoseevidenz.",
+      "verification": "Recovery-Fixtures für Teilpublikation, Wiederholung, konkurrierende Sperre, beschädigte Hashkette, fremde Datei, Hashänderung, Symlinktausch und Cross-Device-Rename prüfen Datenverlustfreiheit und genau einen Job-Lock"
+    },
+    {
+      "id": "AC-T006-08",
+      "statement": "COMMITTED setzt einen erfolgreichen T-003-Harness-Run mit asset.generation.completed-Event, Generation Receipt, Manifest status quarantine und assets-check --require-local voraus; derselbe Manifestpfad muss mit --require-approved scheitern und kein Output darf source, cooked, RAG, Memory oder Git-Index erreichen.",
+      "verification": "Temporärer Repository-Integrationstest kreuzprüft runId, finalEventHash, actorId, assetId, Spec-, Generatorquellen-, Toolchain- und Outputhashes sowie prompts=null zwischen Event, Receipt, Manifest und Dateien; negative Fixtures für jede Abweichung enden mit Exit 6 und Recovery"
+    }
+  ],
+  "dependencies": ["T-003", "T-005"],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-DATA", "G-PROVENANCE", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "interne Aufteilung zwischen F#-Orchestrator, Linux-Isolationshelfer und Blender-Python innerhalb des festgelegten beobachtbaren Vertrags",
+      "Implementierungsdetails atomarer Writes, Locks, fsync und Prozessbaumüberwachung ohne neue Abhängigkeit",
+      "bereinigte diagnostische Fehlertexte innerhalb des festgelegten JSON- und Exitcodevertrags"
+    ],
+    "mustEscalate": [
+      "jede Abschwächung von Namespace-, Netzwerk-, Ressourcen-, Safe-Path-, Pin-, Journal- oder T-003-Crosschecks",
+      "neue externe Abhängigkeit, DCC, Add-on, generatives Modell oder nicht gepinnte Binärquelle",
+      "Fremdmedien, namentliche Fremdstilreferenz, Textur, Modell, Zeichen oder URI als Produktionseingabe",
+      "Promotion, visuelle oder rechtliche Freigabe, unklare Lizenz oder zweifelhafte Ähnlichkeit",
+      "Änderung der globalen Performancebudgets oder Behauptung eines Hardware-FPS-Nachweises"
+    ]
+  }
+}

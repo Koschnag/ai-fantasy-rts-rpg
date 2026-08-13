@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.ai/schemas/asset-manifest.schema.json",
+  "schemaVersion": 1,
+  "assetId": "ENV-QUARRY-REFUGE-KEYFRAME-001",
+  "purpose": "Kalibrierungs-Keyframe für Kameradistanz, Landschaftslesbarkeit, Materialverteilung und Atmosphäre.",
+  "specSha256": "134e3a3e60c9be3de3ac842eab5682571d4274f783705702a484444e07d0f100",
+  "generationRunId": "01KZXQ0YTWFWP8MQAKG2560PE1",
+  "generationBindingMode": "legacy-event-v0",
+  "generationReceipt": "assets/receipts/ENV-QUARRY-REFUGE-KEYFRAME-001/01KZXQ0YTWFWP8MQAKG2560PE1.json",
+  "generationReceiptSha256": "eb0e60cc11061154588cb513f61442f4d4e8932ab7266e52cba3c11526e5faff",
+  "createdBy": "codex-imagegen-service",
+  "status": "quarantine",
+  "generator": {
+    "kind": "ai",
+    "tool": "Codex built-in image_gen",
+    "version": "2026-08-13-service-contract",
+    "model": "OpenAI built-in image generation",
+    "modelVersion": "not-exposed-by-tool",
+    "modelArtifactSha256": null,
+    "executionMode": "remote",
+    "seed": null,
+    "generatorSourceSha256": null,
+    "toolchainPin": null
+  },
+  "inputs": [
+    {
+      "id": "SPEC-ENV-QUARRY-REFUGE-KEYFRAME-001",
+      "path": "assets/specs/ENV-QUARRY-REFUGE-KEYFRAME-001.md",
+      "sha256": "134e3a3e60c9be3de3ac842eab5682571d4274f783705702a484444e07d0f100",
+      "origin": "Project-authored clean-room specification",
+      "originClass": "internal-specification",
+      "creativeInfluence": true,
+      "license": "Project-private; no public license asserted",
+      "rightsEvidence": "Created from the repository's internal art and atmosphere requirements without external media inputs.",
+      "allowedUse": "internal-specification",
+      "referenceUseReviewed": true
+    }
+  ],
+  "prompts": {
+    "prompt": "Use case: stylized-concept\nAsset type: original art-bible calibration keyframe for a cross-platform fantasy RTS/RPG, viewed from the playable strategy camera\nPrimary request: create a completely original game-environment keyframe showing a weary field engineer and two companions arriving at a small inhabited refuge built into an ancient terraced stone quarry at blue-hour dusk; workers repair rope bridges and timber retaining walls while a subtle geological anomaly bends one distant shadow and reveals a thin amber mineral seam; the place feels lived-in, vulnerable, useful, and worth protecting\nScene/backdrop: broad readable valley bowl, weathered stone terraces, sparse wind-bent pines, practical gardens, water channel, repair yard, one distant landmark tower made from mismatched local masonry; two visible exploration paths and a defensible central basin\nSubject: human-scale refuge and landscape are primary; three small traveler silhouettes provide scale, not character-design detail\nStyle/medium: polished stylized-realistic 3D game concept art with painterly color grading, believable PBR-like stone, timber, cloth and earth, deliberately simplified large forms, production-feasible geometry\nComposition/framing: wide elevated three-quarter isometric strategy-game camera, landscape navigation and silhouettes immediately readable at 1080p, calm foreground approach leading toward warm inhabited center, distant landmark visible\nLighting/mood: wistful, earthy, wondrous, determined; cool desaturated blue-gray wilderness contrasted with restrained warm window and forge islands; one dominant low sun/sky direction, baked-light feeling, light localized haze only\nColor palette: roughly 60 percent muted earth and stone, 30 percent cool pine and dusk blue, 10 percent amber anomaly and inhabited warmth\nMaterials/textures: worn local stone, repaired timber, patched canvas, packed soil, moss used sparingly; visible signs of labor and maintenance\nConstraints: entirely original world and design; strong RTS readability; no text, no logo, no interface, no watermark; no ornate heroic palace, no giant character close-up, no neon magic fog, no ray-traced spectacle, no photobash artifacts; no recognizable borrowed imagery, iconic pre-existing characters, copied architecture, copied maps, or familiar emblems",
+    "negativePrompt": null,
+    "promptSha256": "5533bd30da25fef7b2c1bf8dca15b1f13dd33a4b5388df62d6f85e678f7fead4",
+    "promptEnvelopeSha256": "e2fca68ba7e75dbc48f3ee14df0e98d13c04f3eed162863be60c00c77875be46",
+    "bindingMode": "legacy-prompt-only"
+  },
+  "outputs": [
+    {
+      "path": "assets/quarantine/concepts/ENV-QUARRY-REFUGE-KEYFRAME-001-v2.png",
+      "sha256": "2d4b805e338ea799c52611662dca5edcadd13fb01d2514967b1a8c5b0c801e1a",
+      "mediaType": "image/png",
+      "bytes": 2846895,
+      "technicalMetrics": {
+        "width": 1536,
+        "height": 1024,
+        "channels": 3,
+        "alpha": false
+      }
+    }
+  ],
+  "transformations": [],
+  "licenseBasis": {
+    "modelTerms": "Not yet reviewed for production approval.",
+    "inputRights": "Only the project-authored text specification was supplied; no image reference was used.",
+    "outputPolicy": "Quarantine-only calibration output pending independent license and originality review.",
+    "commercialUseReviewed": false,
+    "reviewedAtUtc": null,
+    "termsEvidenceArtifact": null
+  },
+  "reviews": [
+    {
+      "reviewId": "REV-ENV-QUARRY-REFUGE-KEYFRAME-001-TECH-001",
+      "revision": 1,
+      "active": true,
+      "kind": "technical",
+      "reviewerId": "codex-root-validator",
+      "atUtc": "2026-08-13T14:07:00Z",
+      "result": "pass",
+      "evidence": "PNG 1536x1024 RGB, 2846895 bytes; output SHA-256 matches manifest.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    },
+    {
+      "reviewId": "REV-ENV-QUARRY-REFUGE-KEYFRAME-001-VIS-001",
+      "revision": 1,
+      "active": true,
+      "kind": "visual",
+      "reviewerId": "codex-root-visual-review",
+      "atUtc": "2026-08-13T14:07:00Z",
+      "result": "pass",
+      "evidence": "Elevated readable camera, three traveler silhouettes, inhabited warm center, repair traces, multiple routes, distant landmark and restrained anomaly are all present.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    }
+  ],
+  "supersedes": [],
+  "createdAtUtc": "2026-08-13T14:07:00Z"
+}

@@ -3,7 +3,15 @@ namespace RiftHarness
 open System
 open System.Globalization
 
-module private Cli =
+module Cli =
+    let takeFlag (name: string) (arguments: string list) =
+        let occurrences = arguments |> List.filter ((=) name) |> List.length
+
+        if occurrences > 1 then
+            Internal.fail $"Flag '{name}' wurde mehrfach angegeben."
+
+        occurrences = 1, arguments |> List.filter ((<>) name)
+
     let takeOption (name: string) (arguments: string list) =
         let rec loop (found: string option) (collected: string list) (remaining: string list) =
             match remaining with
@@ -41,11 +49,19 @@ module private Cli =
 
 Aufruf:
   riftharness init [--workspace PATH]
-  riftharness start-run [--workspace PATH]
+  riftharness start-run [--actor ACTOR] [--workspace PATH]
   riftharness append-event RUN_ID --type TYPE --payload-file FILE [--workspace PATH]
   riftharness finish-run RUN_ID [--status succeeded|failed|cancelled] [--summary-file FILE] [--workspace PATH]
+  riftharness memory propose --record-file FILE [--workspace PATH]
+  riftharness memory validate [--workspace PATH]
+  riftharness memory accept RECORD_ID --new-id ID --actor ACTOR [--workspace PATH]
+  riftharness memory supersede RECORD_ID --with PROPOSAL_ID --new-id ID --actor ACTOR [--workspace PATH]
+  riftharness memory set-status RECORD_ID --status stale|rejected --new-id ID --actor ACTOR [--workspace PATH]
+  riftharness memory status [--workspace PATH]
   riftharness build-rag [--workspace PATH]
-  riftharness query-rag --query TEXT [--top N] [--workspace PATH]
+  riftharness query-rag --query TEXT [--top N] [--run RUN_ID] [--workspace PATH]
+  riftharness assets-check [--manifest FILE] [--require-local] [--require-approved] [--workspace PATH]
+  riftharness export-generation-receipt RUN_ID --manifest FILE --output FILE [--workspace PATH]
   riftharness verify [--run RUN_ID] [--workspace PATH]
 """
 
@@ -69,8 +85,14 @@ Aufruf:
 
             0
         | command :: rest when command = "start-run" ->
+            let actorId, rest = takeOption "--actor" rest
             noArguments command rest
-            RunStore.start root |> Console.Out.WriteLine
+
+            match actorId with
+            | Some actor -> RunStore.startForActor root actor
+            | None -> RunStore.start root
+            |> Console.Out.WriteLine
+
             0
         | command :: runId :: rest when command = "append-event" ->
             let eventType, rest = requireOption "--type" rest
@@ -102,6 +124,79 @@ Aufruf:
             |> Console.Out.WriteLine
 
             0
+        | [ command; subcommand ] when command = "memory" && subcommand = "validate" ->
+            let receipt = MemoryStore.validate root
+
+            jsonResult (fun writer ->
+                writer.WriteNumber("recordCount", receipt.RecordCount)
+                writer.WriteNumber("chainedRecordCount", receipt.ChainedRecordCount)
+
+                match receipt.LastRecordHash with
+                | Some hash -> writer.WriteString("lastRecordHash", hash)
+                | None -> writer.WriteNull("lastRecordHash"))
+            |> Console.Out.WriteLine
+
+            0
+        | [ command; subcommand ] when command = "memory" && subcommand = "status" ->
+            MemoryStore.status root |> MemoryStore.statusJson |> Console.Out.WriteLine
+            0
+        | command :: subcommand :: rest when command = "memory" && subcommand = "propose" ->
+            let recordFile, rest = requireOption "--record-file" rest
+            noArguments "memory propose" rest
+            let receipt = MemoryStore.propose root recordFile
+
+            jsonResult (fun writer ->
+                writer.WriteString("id", receipt.Id)
+                writer.WriteString("status", receipt.Status)
+                writer.WriteString("recordHash", receipt.RecordHash))
+            |> Console.Out.WriteLine
+
+            0
+        | command :: subcommand :: recordId :: rest when command = "memory" && subcommand = "accept" ->
+            let newId, rest = requireOption "--new-id" rest
+            let actor, rest = requireOption "--actor" rest
+            noArguments "memory accept" rest
+            let receipt = MemoryStore.accept root recordId newId actor
+
+            jsonResult (fun writer ->
+                writer.WriteString("id", receipt.Id)
+                writer.WriteString("status", receipt.Status)
+                writer.WriteString("previousId", recordId)
+                writer.WriteString("recordHash", receipt.RecordHash))
+            |> Console.Out.WriteLine
+
+            0
+        | command :: subcommand :: recordId :: rest when command = "memory" && subcommand = "supersede" ->
+            let proposalId, rest = requireOption "--with" rest
+            let newId, rest = requireOption "--new-id" rest
+            let actor, rest = requireOption "--actor" rest
+            noArguments "memory supersede" rest
+            let receipt = MemoryStore.supersede root recordId proposalId newId actor
+
+            jsonResult (fun writer ->
+                writer.WriteString("id", receipt.Id)
+                writer.WriteString("status", receipt.Status)
+                writer.WriteString("previousId", recordId)
+                writer.WriteString("proposalId", proposalId)
+                writer.WriteString("recordHash", receipt.RecordHash))
+            |> Console.Out.WriteLine
+
+            0
+        | command :: subcommand :: recordId :: rest when command = "memory" && subcommand = "set-status" ->
+            let status, rest = requireOption "--status" rest
+            let newId, rest = requireOption "--new-id" rest
+            let actor, rest = requireOption "--actor" rest
+            noArguments "memory set-status" rest
+            let receipt = MemoryStore.setStatus root recordId newId status actor
+
+            jsonResult (fun writer ->
+                writer.WriteString("id", receipt.Id)
+                writer.WriteString("status", receipt.Status)
+                writer.WriteString("previousId", recordId)
+                writer.WriteString("recordHash", receipt.RecordHash))
+            |> Console.Out.WriteLine
+
+            0
         | command :: rest when command = "build-rag" ->
             noArguments command rest
             let receipt = RagIndex.build root
@@ -115,6 +210,7 @@ Aufruf:
 
             0
         | command :: rest when command = "query-rag" ->
+            let traceRun, rest = takeOption "--run" rest
             let topText, queryParts = takeOption "--top" rest
             let queryOption, positionalQuery = takeOption "--query" queryParts
 
@@ -132,7 +228,44 @@ Aufruf:
                 | Some _, _ -> Internal.fail "Query entweder mit --query oder positional angeben, nicht beides."
                 | None, values -> String.concat " " values
 
-            RagIndex.query root query top |> RagIndex.queryJson |> Console.Out.WriteLine
+            let response = RagIndex.query root query top
+
+            let recorded =
+                traceRun |> Option.map (fun runId -> RetrievalStore.record root runId response)
+
+            { response with Trace = recorded }
+            |> RagIndex.queryJson
+            |> Console.Out.WriteLine
+
+            0
+        | command :: rest when command = "assets-check" ->
+            let manifest, rest = takeOption "--manifest" rest
+            let requireLocal, rest = takeFlag "--require-local" rest
+            let requireApproved, rest = takeFlag "--require-approved" rest
+            noArguments command rest
+
+            let report =
+                AssetStore.check
+                    root
+                    { ManifestPath = manifest
+                      RequireLocal = requireLocal
+                      RequireApproved = requireApproved }
+
+            report |> AssetStore.reportJson |> Console.Out.WriteLine
+            if report.Valid then 0 else 2
+        | command :: runId :: rest when command = "export-generation-receipt" ->
+            let manifest, rest = requireOption "--manifest" rest
+            let output, rest = requireOption "--output" rest
+            noArguments command rest
+            let receipt = AssetStore.exportGenerationReceipt root runId manifest output
+
+            jsonResult (fun writer ->
+                writer.WriteString("runId", receipt.RunId)
+                writer.WriteString("assetId", receipt.AssetId)
+                writer.WriteString("receiptPath", receipt.ReceiptPath)
+                writer.WriteString("receiptSha256", receipt.ReceiptSha256))
+            |> Console.Out.WriteLine
+
             0
         | command :: rest when command = "verify" ->
             let requestedRun, rest = takeOption "--run" rest

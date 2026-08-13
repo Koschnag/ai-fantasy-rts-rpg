@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.ai/schemas/asset-manifest.schema.json",
+  "schemaVersion": 1,
+  "assetId": "ENV-FLOODED-CAUSEWAY-KEYFRAME-002",
+  "purpose": "Kalibrierungs-Keyframe für leise RPG-Erkundung, Umweltgeschichte, Wegwahl und spielnahe Kameradistanz.",
+  "specSha256": "5afd25b4fc0e0fb065ca9c3f10638ec6a5db2dad36cb8e6a5c21d6979fafd910",
+  "generationRunId": "01KZXPTT9WR4PHQQSS2NNT16XY",
+  "generationBindingMode": "legacy-event-v0",
+  "generationReceipt": "assets/receipts/ENV-FLOODED-CAUSEWAY-KEYFRAME-002/01KZXPTT9WR4PHQQSS2NNT16XY.json",
+  "generationReceiptSha256": "c34470f9aea9a18c789d9ae89d650b44d7057b48995302c631476db2f98105c7",
+  "createdBy": "codex-imagegen-service",
+  "status": "quarantine",
+  "generator": {
+    "kind": "ai",
+    "tool": "Codex built-in image_gen",
+    "version": "2026-08-13-service-contract",
+    "model": "OpenAI built-in image generation",
+    "modelVersion": "not-exposed-by-tool",
+    "modelArtifactSha256": null,
+    "executionMode": "remote",
+    "seed": null,
+    "generatorSourceSha256": null,
+    "toolchainPin": null
+  },
+  "inputs": [
+    {
+      "id": "SPEC-ENV-FLOODED-CAUSEWAY-KEYFRAME-002",
+      "path": "assets/specs/ENV-FLOODED-CAUSEWAY-KEYFRAME-002.md",
+      "sha256": "5afd25b4fc0e0fb065ca9c3f10638ec6a5db2dad36cb8e6a5c21d6979fafd910",
+      "origin": "Project-authored clean-room specification",
+      "originClass": "internal-specification",
+      "creativeInfluence": true,
+      "license": "Project-private; no public license asserted",
+      "rightsEvidence": "Created from the repository's internal art and atmosphere requirements without external media inputs.",
+      "allowedUse": "internal-specification",
+      "referenceUseReviewed": true
+    }
+  ],
+  "prompts": {
+    "prompt": "Use case: stylized-concept\nAsset type: original art-bible calibration keyframe for the quiet exploration phase of a cross-platform fantasy RTS/RPG\nPrimary request: create a completely original game-environment keyframe in which a mortal field engineer and two practical companions pause on a flooded old causeway to study a strange natural resonance; shallow water trembles in concentric lines around three fractured standing stones while abandoned repair tools, a tied empty ferry and fresh boot tracks imply that local workers disappeared only recently\nScene/backdrop: narrow valley wetland after rain, half-sunken masonry causeway, wind-bent alder trees, reed beds, distant inhabited smoke beyond a low ridge, one fork toward a dry overlook and one route through ankle-deep water\nSubject: the small traveling group and the environmental clue share focus; no heroic posing and no oversized monster\nStyle/medium: polished stylized-realistic 3D game concept art with painterly color grading, believable but simplified stone, wet timber, cloth, leather, water and vegetation, production-feasible forms\nComposition/framing: elevated three-quarter playable-camera view, closer than the strategy view but still clearly navigable; readable path fork, silhouettes separated from terrain, environmental clues legible without text\nLighting/mood: wistful, earthy, wondrous and quietly determined; overcast cool daylight breaking into one restrained warm shaft near the far inhabited smoke; localized silver-blue resonance with no neon fog\nColor palette: muted peat brown, wet gray stone and desaturated green; small warm ochre on tools and clothing; very limited silver-blue anomaly accent\nMaterials/textures: rain-darkened stone, repaired rope, worn field equipment, rippled shallow water, sparse reeds, mud tracks and chipped hand-built masonry\nConstraints: entirely original world and design; no text, no logo, no interface, no watermark; no glamorous portrait, no elaborate royal armor, no giant glowing portal, no excessive particles, no photobash artifacts; no recognizable borrowed imagery, iconic pre-existing characters, copied architecture, copied maps or familiar emblems",
+    "negativePrompt": null,
+    "promptSha256": "e11ec813aa2ffb23aa222797eba2c77a4b116af9adce93538d3a38b865bd1a48",
+    "promptEnvelopeSha256": "4ddb9712048d508bbbb40df33ba6d207f19af54b33a557eecd5125b1e9db768d",
+    "bindingMode": "legacy-prompt-only"
+  },
+  "outputs": [
+    {
+      "path": "assets/quarantine/concepts/ENV-FLOODED-CAUSEWAY-KEYFRAME-002.png",
+      "sha256": "9002b81ddf65a8d3c5804b7fd4f1de751a22752e36ad2848e5642f27b006c201",
+      "mediaType": "image/png",
+      "bytes": 3130161,
+      "technicalMetrics": {
+        "width": 1536,
+        "height": 1024,
+        "channels": 3,
+        "alpha": false
+      }
+    }
+  ],
+  "transformations": [],
+  "licenseBasis": {
+    "modelTerms": "Not yet reviewed for production approval.",
+    "inputRights": "Only the project-authored text specification was supplied; no image reference was used.",
+    "outputPolicy": "Quarantine-only calibration output pending independent license and originality review.",
+    "commercialUseReviewed": false,
+    "reviewedAtUtc": null,
+    "termsEvidenceArtifact": null
+  },
+  "reviews": [
+    {
+      "reviewId": "REV-ENV-FLOODED-CAUSEWAY-KEYFRAME-002-TECH-001",
+      "revision": 1,
+      "active": true,
+      "kind": "technical",
+      "reviewerId": "codex-root-validator",
+      "atUtc": "2026-08-13T14:01:00Z",
+      "result": "pass",
+      "evidence": "PNG 1536x1024 RGB, 3130161 bytes; output SHA-256 matches manifest.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    },
+    {
+      "reviewId": "REV-ENV-FLOODED-CAUSEWAY-KEYFRAME-002-VIS-001",
+      "revision": 1,
+      "active": true,
+      "kind": "visual",
+      "reviewerId": "codex-root-visual-review",
+      "atUtc": "2026-08-13T14:01:00Z",
+      "result": "needs-work",
+      "evidence": "Atmosphere, material readability, route and environmental storytelling are useful; the output shows four prominent resonance stones instead of three and needs a later single-change iteration before Bible approval.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    }
+  ],
+  "supersedes": [],
+  "createdAtUtc": "2026-08-13T14:01:00Z"
+}

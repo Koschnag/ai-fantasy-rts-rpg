@@ -30,6 +30,7 @@ Das Repository wird zunächst als ausführbare Projektspezifikation und reproduz
 18. [docs/HARNESS.md](docs/HARNESS.md) – KI-Verlauf, Gedächtnis, RAG und Evidenz
 19. [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md) – installierte und geplante FOSS-Werkzeuge
 20. [docs/PLATTFORMMATRIX.md](docs/PLATTFORMMATRIX.md) – OS-, Backend-, Paket- und Smoke-Baselines
+21. [docs/ASSET_PIPELINE.md](docs/ASSET_PIPELINE.md) – synthetische Asseterzeugung, FOSS-Werkzeuge und Modellzulassung
 
 ## Statusbegriffe
 
@@ -49,7 +50,15 @@ Die Vorproduktion ist abgeschlossen, wenn:
 - Datenschutz, Sicherheit und technische Randbedingungen geklärt sind,
 - die erste Umsetzungseinheit den Status `READY` hat.
 
-Der nächste autonome Auftrag ist derzeit `T-002`: kuratierte Memory-Promotion, Staleness-/Konfliktprüfung und Retrieval-Traces. Danach folgen vollständige Run-Provenienz/Evidenz (`T-004`), Asset-Provenienz (`T-003`) und das native SDL3-/bgfx-Walking-Skeleton (`T-010`). Nur `READY`-Aufträge dürfen ohne weitere fachliche Klärung gestartet werden.
+`T-002` und das Asset-Provenienz-/Quarantänegate `T-003` sind unabhängig
+abgenommen. Als nächster Auftrag ist `T-005` `READY`: ein strikt numerischer
+`calibration-v1`-Vertrag mit Blender-unabhängigem GLB-/PNG-/Report-Inspector,
+noch ohne Assetgenerierung. Erst danach werden der isolierte Blender-Worker
+(`T-006`) und sein Fresh-Checkout-/CI-Nachweis (`T-007`) freigegeben.
+Vollständige allgemeine Run-Provenienz/Evidenz (`T-004`) und das native
+SDL3-/bgfx-Walking-Skeleton (`T-010`) folgen, sobald der jeweilige Auftrag
+`READY` ist. Nur `READY`-Aufträge dürfen ohne weitere fachliche Klärung
+gestartet werden.
 
 ## Leitentscheidungen
 
@@ -59,7 +68,7 @@ Der nächste autonome Auftrag ist derzeit `T-002`: kuratierte Memory-Promotion, 
 - Windows, Linux und macOS; plattformspezifische Builds und Tests
 - mindestens 1920×1080/30 FPS auf i7-3770-/GTX-660-Klasse oder MacBook Air M1 mit 8 GB; 60 FPS werden bevorzugt
 - die höchste geplante Grafikstufe ist für RX-580-Klasse ausgelegt; keine Raytracing- oder Echtzeit-GI-Pfade
-- KI erzeugt Code, Tests, Dokumentation und Originalassets; maschinelle Gates entscheiden über technische Qualität
+- 100 % der kreativen Shipping-Assets entstehen KI- beziehungsweise agentisch synthetisch aus eigenen Spezifikationen; DCC-Verarbeitung, Gates und Nutzerfeedback liefern technische Qualität sowie dokumentierte Eigenständigkeitsnachweise, aber keine automatische Rechtsgarantie
 - FOSS-first: externe Komponenten nur mit dokumentierter Lizenz, Version und Austauschstrategie
 
 ## Aktuelle Befehle
@@ -73,7 +82,11 @@ Der nächste autonome Auftrag ist derzeit `T-002`: kuratierte Memory-Promotion, 
 ./scripts/rift.sh security
 ./scripts/rift.sh rag-build
 ./scripts/rift.sh rag-query --query "Atmosphäre und RPG RTS Übergang" --top 5
+./scripts/rift.sh harness memory status
+RUN_ID="$(./scripts/rift.sh harness start-run)"
+./scripts/rift.sh rag-query --query "Performancebudget" --top 5 --run "$RUN_ID"
 ./scripts/rift.sh verify
+./scripts/rift.sh fresh-checkout-test
 ```
 
 Noch nicht implementierte Produktionsgates schlagen ausdrücklich fehl, bis eine passende `READY`-Aufgabe sie umsetzt.

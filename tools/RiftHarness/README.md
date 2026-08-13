@@ -1,8 +1,10 @@
 # RiftHarness
 
-Kleines, lokales F#/.NET-10-Harness fuer nachvollziehbare KI-Laeufe und eine
-dependency-freie BM25-Suche. Es verwendet ausschliesslich die .NET-BCL und
-benoetigt im Betrieb kein Netzwerk.
+Kleines, lokales F#/.NET-10-Harness fuer nachvollziehbare KI-Laeufe, eine
+BCL-basierte BM25-Suche und ein offline arbeitendes Asset-Provenienzgate. Der
+Asset-Schemadapter verwendet die exakt gelockte MIT-Bibliothek
+`JsonSchema.Net` 8.0.5 mit drei verwalteten Transitiven; der restliche Harness
+bleibt BCL-basiert. Es benoetigt im Betrieb kein Netzwerk.
 
 ## Zustandslayout
 
@@ -16,6 +18,7 @@ werden nicht ueberschrieben):
     runs/<26-stellige-run-id>/
       run.json
       events.jsonl
+      retrieval.jsonl     # leer oder redigierte, hashverkettete RAG-Abfragen
       summary.json       # nach finish-run
     index/bm25.json
 ```
@@ -28,11 +31,14 @@ von Quelle und Chunk. Identische Eingaben erzeugen byte-identische Indizes.
 `rag.maxContextCharacters` begrenzt die Summe der ausgegebenen Chunktexte;
 der letzte Treffer kann dafuer am Zeichenlimit gekuerzt werden.
 
-Die konfigurierte Memory-JSONL-Datei ist eine Sonderquelle: Nur Records mit
-`status: accepted`, deren lokale Quellen alle vorhanden und noch hashgleich sind,
-werden indexiert. `proposed`, `rejected` und andere Status sowie accepted
-Records mit fehlender/geaenderter Quelle werden als Leerzeile projiziert. Ihre
-Originaldatei bleibt unveraendert; der Index ist nie die Wahrheit.
+Die konfigurierte Memory-JSONL-Datei ist eine Sonderquelle: Nur effektiv
+`accepted`, quellenfrische, nicht abgelaufene, nicht ersetzte und konfliktfreie
+Records werden indexiert. Andere Records werden als Leerzeile projiziert und
+durch `memory status` beziehungsweise `memoryFindings` sichtbar. Neue
+Vorschlaege benennen ihre fachliche Eindeutigkeitsstelle mit `conflictKey` und
+koennen genau einmal konsumiert werden. `rag.maxFileBytes` gilt auch fuer ihre
+Quellen. Ledger- und Sourcepfade mit Symlink-, Junction- oder
+ReparsePoint-Komponenten werden fail-closed abgelehnt.
 
 ## Befehle
 
@@ -43,8 +49,17 @@ dotnet run --project tools/RiftHarness -- append-event "$RUN_ID" \
   --type agent.step --payload-file /tmp/event.json
 dotnet run --project tools/RiftHarness -- finish-run "$RUN_ID" \
   --status succeeded --summary-file /tmp/summary.json
+dotnet run --project tools/RiftHarness -- memory propose --record-file /tmp/memory.json
+dotnet run --project tools/RiftHarness -- memory validate
+dotnet run --project tools/RiftHarness -- memory accept MEM-1000 \
+  --new-id MEM-1001 --actor independent-reviewer
+dotnet run --project tools/RiftHarness -- memory status
 dotnet run --project tools/RiftHarness -- build-rag
-dotnet run --project tools/RiftHarness -- query-rag --query "performance budget" --top 5
+dotnet run --project tools/RiftHarness -- query-rag \
+  --query "performance budget" --top 5 --run "$RUN_ID"
+dotnet run --project tools/RiftHarness -- assets-check
+dotnet run --project tools/RiftHarness -- assets-check \
+  --require-local --require-approved
 dotnet run --project tools/RiftHarness -- verify
 ```
 
@@ -55,7 +70,7 @@ ist fuer jeden Befehl verfuegbar. `verify --run ID` prueft
 nur einen Lauf. `start-run` schreibt ausschliesslich die sortierbare Run-ID auf
 stdout; die anderen Befehle liefern JSON.
 
-Payload und Abschlussnotiz werden absichtlich nur ueber Dateien angenommen,
+Payload, Abschlussnotiz und Memory-Vorschlag werden absichtlich nur ueber Dateien angenommen,
 damit Inhalte nicht in Shell-History und Prozessliste gelangen. Vor dem
 Speichern ersetzt das Harness Werte gaengiger Geheimnisfelder sowie Treffer
 aus `security.redactKeyPatterns` und `security.redactValuePatterns` rekursiv
@@ -84,9 +99,44 @@ Jedes JSONL-Ereignis besitzt Sequenz, UTC-Zeit, Schema-Version,
 relevanten Felder. `verify` prueft diese Kette, Abschlusszusammenfassungen,
 Indexhash, Quellen/Chunks und die grundlegenden Schema-Invarianten.
 
+Jeder mit `query-rag --run` persistierte Retrieval-Trace besitzt eine eigene
+Sequenz und Hashkette. Er enthaelt den Hash der redigierten Query, Index- und
+Konfigurationshash, BM25-Parameter, Treffer-IDs, Vertrauensklassen, Zitate und
+den redigierten erzeugten Kontext. Query-/Kontextlimit und
+`logging.maxEventPayloadBytes` werden vor dem atomaren Append erzwungen. Neue
+Runs verwenden Retrieval-Vertrag v2: Beim Abschluss werden Trace-Anzahl und
+finaler Trace-Hash in Summary und Abschluss-Event verankert, sodass `verify`
+auch eine entfernte letzte Zeile oder komplette Leerung erkennt.
+
+Memory-Aktionen sind ebenfalls append-only: `accept` und `supersede` benoetigen
+eine neue ID, einen getrennten Akteur und explizite vorherige IDs. Der
+Erzeuger darf den eigenen Vorschlag nicht annehmen. `set-status` persistiert
+`stale` beziehungsweise `rejected` nur als neue Revision; `status` selbst
+mutiert nicht. Neue Revisionen sind hashverkettet und `verify` prueft Ledger,
+Quellenstaleness, Konfliktausschluss und Retrievalketten.
+
+## Asset-Provenienz
+
+`assets-check` wertet die versionierten Draft-2020-12-Schemas offline aus und
+prueft zusaetzlich Querfeld-, Hash-, Run-/Akteur-, Modell-, Pfad-,
+Clean-Room-, LFS- und Lebenszyklusinvarianten. Ein strukturell gueltiges
+Quarantaenemanifest darf den Standardaufruf bestehen, ist aber niemals
+shipping-faehig. Der Releasepfad muss `--require-local --require-approved`
+als globalen Scan ohne `--manifest` setzen; dabei sind lokale,
+integritaetsgueltige Generation-/Reviewlaeufe, freigegebene Sourceassets und
+die vollstaendige repo-weite Source-Inventur Pflicht. `--manifest` dient nur
+der gezielten Diagnose und ist kein Releasegate.
+
+Die Schema-Bibliothek ist in `Assets.fs` hinter einer kleinen Adapterfunktion
+gekapselt. Sie ist nur eine CoreCLR-Abhaengigkeit dieses Produktionswerkzeugs,
+nicht des Native-AOT-Spielclients. Paketgraph, Lizenz-, Wartungs- und
+Austauschentscheidung sind in `docs/TOOLCHAIN.md`,
+`docs/IP_UND_LIZENZEN.md` und `THIRD_PARTY_NOTICES.md` dokumentiert.
+
 ## Tests
 
-Die Tests sind ebenfalls dependency-frei und laufen als Konsolenprogramm:
+Die Tests laufen als Konsolenprogramm und verwenden ueber den Harness denselben
+exakt gelockten Schema-Validator:
 
 ```bash
 dotnet run --project tests/RiftHarness.Tests
@@ -102,12 +152,9 @@ implizite, versteckte Restore-Schritte. Direkte CLI-Aufrufe setzen weiterhin
 
 ## Noch nicht implementiert
 
-Memory-Promotion, Revisionen, Konfliktberichte und explizite
-Staleness-Uebergaenge sind Gegenstand von T-002. Der Erzeugeragent darf einen
-Record dabei nie selbst annehmen. Ein separater Reviewlauf darf spaeter nur
-objektiv technische, quellenidentische Records freigeben; kreative,
-produktbezogene und lizenzielle Entscheidungen bleiben der Projektleitung
-vorbehalten. T-002 ergaenzt außerdem persistierte Retrieval-Ereignisse; T-004
-erweitert die vollstaendige Run-/Prompt-/Modellprovenienz, Evidenzzuordnung und
-Retention. Bis dahin filtert der Index vorhandene Records defensiv, promotet,
-aendert oder loescht sie aber nicht.
+T-004 erweitert die vollstaendige Run-/Prompt-/Modellprovenienz,
+kriterienspezifische Evidenz, das RAG-Buildmanifest und sichere Retention.
+Memory-Annahmen bleiben trotz der T-002-CLI fachliche Reviewentscheidungen:
+Objektiv technische, quellenidentische Records duerfen getrennte Reviewlaeufe
+annehmen; kreative, produktbezogene und lizenzielle Entscheidungen bleiben der
+Projektleitung vorbehalten.

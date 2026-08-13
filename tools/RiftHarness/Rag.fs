@@ -22,13 +22,34 @@ type RagCitation =
       ChunkSha256: string }
 
 type RagSearchResult =
-    { Score: float
+    { ChunkId: string
+      Score: float
+      TrustClass: string
       Citation: RagCitation
       Text: string }
 
+type RagRanking =
+    { Algorithm: string
+      K1: float
+      B: float
+      Top: int
+      MaxContextCharacters: int }
+
+type RagTraceReference =
+    { QueryId: string
+      Sequence: int64
+      TraceHash: string }
+
 type RagQueryResponse =
     { Query: string
-      Results: RagSearchResult list }
+      QuerySha256: string
+      IndexSha256: string
+      ConfigSha256: string
+      Ranking: RagRanking
+      Results: RagSearchResult list
+      Context: string
+      MemoryFindings: MemoryFinding list
+      Trace: RagTraceReference option }
 
 type private RagSourceSelection =
     | Patterns of string list
@@ -56,6 +77,7 @@ type private IndexedSource =
 type private IndexedChunk =
     { Id: string
       Path: string
+      TrustClass: string
       StartLine: int
       EndLine: int
       SourceSha256: string
@@ -447,68 +469,6 @@ module RagIndex =
 
         String.Equals(configured, relative, comparison)
 
-    let private currentMemorySource (locations: WorkspacePaths) maxSourceBytes lineNumber (source: JsonElement) =
-        let path =
-            Internal.requiredString "path" source |> fun value -> value.Replace('\\', '/')
-
-        let expectedHash = Internal.requiredString "sha256" source
-
-        if
-            Path.IsPathRooted(path)
-            || path.Split('/') |> Array.exists ((=) "..")
-            || path.Contains('*')
-            || path.Contains('?')
-        then
-            Internal.fail $"Memory-Zeile {lineNumber}: Quellenpfad muss relativ und konkret sein: {path}"
-
-        if
-            expectedHash.Length <> 64
-            || expectedHash
-               |> Seq.exists (fun character -> not (Char.IsAsciiHexDigit(character)) || Char.IsUpper(character))
-        then
-            Internal.fail $"Memory-Zeile {lineNumber}: sha256 muss aus 64 kleinen Hex-Zeichen bestehen."
-
-        let absolute =
-            Path.Combine(locations.Root, path.Replace('/', Path.DirectorySeparatorChar))
-
-        Workspace.isInside locations absolute
-        && File.Exists(absolute)
-        && FileInfo(absolute).Length <= maxSourceBytes
-        && Internal.sha256File absolute = expectedHash
-
-    let private filterMemoryLines (locations: WorkspacePaths) maxSourceBytes (lines: string array) =
-        lines
-        |> Array.mapi (fun index line ->
-            let lineNumber = index + 1
-
-            if String.IsNullOrWhiteSpace(line) then
-                ""
-            else
-                try
-                    use document = JsonDocument.Parse(line)
-                    let record = document.RootElement
-
-                    if Internal.requiredInt "schemaVersion" record <> Constants.SchemaVersion then
-                        Internal.fail $"Memory-Zeile {lineNumber}: nicht unterstuetzte Schema-Version."
-
-                    let status = Internal.requiredString "status" record
-
-                    if status <> "accepted" then
-                        ""
-                    else
-                        let sources = Internal.requiredProperty "sources" record
-
-                        if sources.ValueKind <> JsonValueKind.Array || sources.GetArrayLength() = 0 then
-                            Internal.fail $"Memory-Zeile {lineNumber}: accepted Record benoetigt Quellen."
-
-                        let isCurrent =
-                            sources.EnumerateArray()
-                            |> Seq.forall (currentMemorySource locations maxSourceBytes lineNumber)
-
-                        if isCurrent then line else ""
-                with :? JsonException as error ->
-                    Internal.fail $"Memory-Zeile {lineNumber} ist ungueltiges JSON: {error.Message}")
-
     let private sourceLines (locations: WorkspacePaths) (config: RagConfig) relative (bytes: byte array) =
         let text =
             try
@@ -519,9 +479,43 @@ module RagIndex =
         let lines = normalizedLines text
 
         if memoryPathEquals config.MemoryPath relative then
-            filterMemoryLines locations config.MaxFileBytes lines
+            MemoryStore.projectForRetrieval locations config.MaxFileBytes lines |> fst
         else
             lines
+
+    let private trustClass (config: RagConfig) relative (lines: string array) =
+        if memoryPathEquals config.MemoryPath relative then
+            "accepted-memory"
+        elif relative = "PROJEKT.md" || relative = "docs/ANFORDERUNGEN.md" then
+            "specification"
+        elif
+            relative.StartsWith("docs/entscheidungen/", StringComparison.Ordinal)
+            && relative <> "docs/entscheidungen/README.md"
+            && not (relative.EndsWith("/000-vorlage.md", StringComparison.Ordinal))
+        then
+            "accepted-decision"
+        elif relative.StartsWith(".ai/tasks/", StringComparison.Ordinal) then
+            let content = String.Join("\n", lines)
+
+            try
+                use document = JsonDocument.Parse(content)
+
+                if Internal.requiredString "status" document.RootElement = "ready" then
+                    "ready-task"
+                else
+                    "documentation"
+            with :? JsonException ->
+                "untrusted"
+        else
+            match Path.GetExtension(relative).ToLowerInvariant() with
+            | ".cs"
+            | ".fs"
+            | ".fsx"
+            | ".csproj"
+            | ".fsproj"
+            | ".props"
+            | ".targets" -> "code"
+            | _ -> "documentation"
 
     let tokenize (text: string) =
         let tokens = ResizeArray<string>()
@@ -550,7 +544,7 @@ module RagIndex =
         |> Seq.sortWith (fun (left, _) (right, _) -> StringComparer.Ordinal.Compare(left, right))
         |> Map.ofSeq
 
-    let private createChunks chunkLines overlapLines (source: IndexedSource) (lines: string array) =
+    let private createChunks chunkLines overlapLines trust (source: IndexedSource) (lines: string array) =
         let chunks = ResizeArray<IndexedChunk>()
         let step = chunkLines - overlapLines
         let mutable first = 0
@@ -569,6 +563,7 @@ module RagIndex =
                 chunks.Add(
                     { Id = Internal.sha256Text idMaterial
                       Path = source.Path
+                      TrustClass = trust
                       StartLine = startLine
                       EndLine = endLine
                       SourceSha256 = source.Sha256
@@ -585,7 +580,7 @@ module RagIndex =
 
         chunks |> Seq.toList
 
-    let private createMemoryRecordChunks (source: IndexedSource) (lines: string array) =
+    let private createMemoryRecordChunks trust (source: IndexedSource) (lines: string array) =
         lines
         |> Array.indexed
         |> Array.choose (fun (index, content) ->
@@ -600,6 +595,7 @@ module RagIndex =
                 Some
                     { Id = Internal.sha256Text idMaterial
                       Path = source.Path
+                      TrustClass = trust
                       StartLine = lineNumber
                       EndLine = lineNumber
                       SourceSha256 = source.Sha256
@@ -636,6 +632,7 @@ module RagIndex =
                 writer.WriteStartObject()
                 writer.WriteString("id", chunk.Id)
                 writer.WriteString("path", chunk.Path)
+                writer.WriteString("trustClass", chunk.TrustClass)
                 writer.WriteNumber("startLine", chunk.StartLine)
                 writer.WriteNumber("endLine", chunk.EndLine)
                 writer.WriteString("sourceSha256", chunk.SourceSha256)
@@ -732,6 +729,7 @@ module RagIndex =
                 |> Seq.map (fun chunk ->
                     { Id = Internal.requiredString "id" chunk
                       Path = Internal.requiredString "path" chunk
+                      TrustClass = Internal.requiredString "trustClass" chunk
                       StartLine = Internal.requiredInt "startLine" chunk
                       EndLine = Internal.requiredInt "endLine" chunk
                       SourceSha256 = Internal.requiredString "sourceSha256" chunk
@@ -788,10 +786,12 @@ module RagIndex =
         let chunks =
             sourcesAndLines
             |> List.collect (fun (source, lines) ->
+                let trust = trustClass config source.Path lines
+
                 if memoryPathEquals config.MemoryPath source.Path then
-                    createMemoryRecordChunks source lines
+                    createMemoryRecordChunks trust source lines
                 else
-                    createChunks config.ChunkLines config.OverlapLines source lines)
+                    createChunks config.ChunkLines config.OverlapLines trust source lines)
 
         let documentFrequency =
             chunks
@@ -835,7 +835,7 @@ module RagIndex =
         let locations = Workspace.requireInitialized root
         HarnessConfig.load locations |> ignore
         let config = loadConfig locations
-        let index, _ = parseIndex locations
+        let index, indexHash = parseIndex locations
         let queryTerms = tokenize queryText |> Seq.countBy id |> Map.ofSeq
         let documentCount = float index.Chunks.Length
         let averageLength = index.AverageDocumentLength
@@ -878,7 +878,9 @@ module RagIndex =
                         compare left.StartLine right.StartLine)
             |> List.truncate top
             |> List.map (fun (score, chunk) ->
-                { Score = score
+                { ChunkId = chunk.Id
+                  Score = score
+                  TrustClass = chunk.TrustClass
                   Citation =
                     { Path = chunk.Path
                       StartLine = chunk.StartLine
@@ -913,8 +915,23 @@ module RagIndex =
                     applyContextBudget (remaining - text.Length) ({ result with Text = text } :: accumulated) tail
 
         let results = applyContextBudget config.MaxContextCharacters [] rankedResults
+        let context = results |> List.map (fun result -> result.Text) |> String.concat ""
+        let memoryFindings = MemoryStore.status root |> fun report -> report.Findings
 
-        { Query = queryText; Results = results }
+        { Query = queryText
+          QuerySha256 = Internal.sha256Text queryText
+          IndexSha256 = indexHash
+          ConfigSha256 = Internal.sha256File locations.Config
+          Ranking =
+            { Algorithm = "bm25"
+              K1 = index.K1
+              B = index.B
+              Top = top
+              MaxContextCharacters = config.MaxContextCharacters }
+          Results = results
+          Context = context
+          MemoryFindings = memoryFindings
+          Trace = None }
 
     let defaultTop root =
         let locations = Workspace.requireInitialized root
@@ -926,11 +943,23 @@ module RagIndex =
             writer.WriteStartObject()
             writer.WriteNumber("schemaVersion", Constants.SchemaVersion)
             writer.WriteString("query", response.Query)
+            writer.WriteString("querySha256", response.QuerySha256)
+            writer.WriteString("indexSha256", response.IndexSha256)
+            writer.WriteString("configSha256", response.ConfigSha256)
+            writer.WriteStartObject("ranking")
+            writer.WriteString("algorithm", response.Ranking.Algorithm)
+            writer.WriteNumber("k1", response.Ranking.K1)
+            writer.WriteNumber("b", response.Ranking.B)
+            writer.WriteNumber("top", response.Ranking.Top)
+            writer.WriteNumber("maxContextCharacters", response.Ranking.MaxContextCharacters)
+            writer.WriteEndObject()
             writer.WriteStartArray("results")
 
             for result in response.Results do
                 writer.WriteStartObject()
+                writer.WriteString("chunkId", result.ChunkId)
                 writer.WriteNumber("score", result.Score)
+                writer.WriteString("trustClass", result.TrustClass)
                 writer.WriteStartObject("citation")
                 writer.WriteString("path", result.Citation.Path)
                 writer.WriteNumber("startLine", result.Citation.StartLine)
@@ -942,6 +971,29 @@ module RagIndex =
                 writer.WriteEndObject()
 
             writer.WriteEndArray()
+            writer.WriteString("context", response.Context)
+            writer.WriteStartArray("memoryFindings")
+
+            for finding in response.MemoryFindings do
+                writer.WriteStartObject()
+                writer.WriteString("code", finding.Code)
+                writer.WriteStartArray("recordIds")
+                finding.RecordIds |> List.iter writer.WriteStringValue
+                writer.WriteEndArray()
+                writer.WriteString("message", finding.Message)
+                writer.WriteEndObject()
+
+            writer.WriteEndArray()
+
+            match response.Trace with
+            | Some trace ->
+                writer.WriteStartObject("trace")
+                writer.WriteString("queryId", trace.QueryId)
+                writer.WriteNumber("sequence", trace.Sequence)
+                writer.WriteString("traceHash", trace.TraceHash)
+                writer.WriteEndObject()
+            | None -> writer.WriteNull("trace")
+
             writer.WriteEndObject())
         |> Constants.Utf8NoBom.GetString
 
@@ -1022,6 +1074,19 @@ module RagIndex =
 
                 let expectedId =
                     Internal.sha256Text $"{chunk.Path}\n{chunk.StartLine}\n{chunk.EndLine}\n{expectedChunkHash}"
+
+                let allowedTrust =
+                    set
+                        [ "accepted-decision"
+                          "specification"
+                          "accepted-memory"
+                          "ready-task"
+                          "documentation"
+                          "code"
+                          "untrusted" ]
+
+                if not (allowedTrust.Contains(chunk.TrustClass)) then
+                    errors.Add($"Ungueltige Vertrauensklasse fuer Chunk: {chunk.Id}")
 
                 if
                     chunk.TermFrequencies <> expectedFrequencies

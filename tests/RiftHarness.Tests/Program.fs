@@ -1,6 +1,7 @@
 namespace RiftHarness.Tests
 
 open System
+open System.Diagnostics
 open System.IO
 open System.Text.Json
 open RiftHarness
@@ -41,6 +42,260 @@ module private TestWorkspace =
                 Directory.Delete(root, true)
 
 module private Tests =
+    let private repositoryRoot =
+        let rec findRoot path =
+            if File.Exists(Path.Combine(path, "Riftward.slnx")) then
+                path
+            else
+                let parent = Directory.GetParent(path)
+
+                if isNull parent then
+                    failwith "Repository-Wurzel nicht gefunden."
+
+                findRoot parent.FullName
+
+        findRoot Environment.CurrentDirectory
+
+    let private copyAssetContract targetRoot =
+        let copyFile relative =
+            let source = Path.Combine(repositoryRoot, relative)
+            let target = Path.Combine(targetRoot, relative)
+            Directory.CreateDirectory(Path.GetDirectoryName(target)) |> ignore
+            File.Copy(source, target, true)
+
+        for relative in
+            [ ".gitattributes"
+              ".gitignore"
+              ".ai/config.json"
+              ".ai/policies/asset-clean-room.json"
+              ".ai/schemas/asset-clean-room-policy.schema.json"
+              ".ai/schemas/asset-manifest.schema.json"
+              ".ai/schemas/generation-receipt.schema.json"
+              ".ai/schemas/asset-review-evidence.schema.json"
+              ".ai/schemas/models-lock.schema.json"
+              "models.lock.json" ] do
+            copyFile relative
+
+        let sourceManifest =
+            Path.Combine(repositoryRoot, "assets/manifests/ENV-FLOODED-CAUSEWAY-KEYFRAME-002.json")
+
+        let manifestText = File.ReadAllText(sourceManifest, Constants.Utf8NoBom)
+        use manifest = JsonDocument.Parse(manifestText)
+        let root = manifest.RootElement
+
+        for input in root.GetProperty("inputs").EnumerateArray() do
+            if input.GetProperty("path").ValueKind = JsonValueKind.String then
+                copyFile (input.GetProperty("path").GetString())
+
+        let receipt = root.GetProperty("generationReceipt").GetString()
+        copyFile receipt
+
+        let output =
+            root.GetProperty("outputs").EnumerateArray()
+            |> Seq.head
+            |> fun item -> item.GetProperty("path").GetString()
+
+        let sourceOutput = Path.Combine(repositoryRoot, output)
+
+        if File.Exists(sourceOutput) then
+            copyFile output
+
+
+        Directory.CreateDirectory(Path.Combine(targetRoot, "assets", "manifests"))
+        |> ignore
+
+        File.WriteAllText(
+            Path.Combine(targetRoot, "assets", "manifests", "fixture.json"),
+            manifestText,
+            Constants.Utf8NoBom
+        )
+
+        let startInfo = ProcessStartInfo("git")
+        startInfo.WorkingDirectory <- targetRoot
+        startInfo.UseShellExecute <- false
+        startInfo.RedirectStandardOutput <- true
+        startInfo.RedirectStandardError <- true
+        startInfo.ArgumentList.Add("init")
+        startInfo.ArgumentList.Add("--quiet")
+        use child = Process.Start(startInfo)
+        child.WaitForExit()
+
+        if child.ExitCode <> 0 then
+            failwith "Temporäres Assetfixture-Git konnte nicht initialisiert werden."
+
+    let assetRepositoryQuarantineFixturesAreValid () =
+        let report =
+            AssetStore.check
+                repositoryRoot
+                { ManifestPath = None
+                  RequireLocal = false
+                  RequireApproved = false }
+
+        Assert.isTrue report.Valid $"Repository-Assetfixtures ungueltig: {AssetStore.reportJson report}"
+        Assert.equal 3 report.ManifestsChecked "Repository-Assetfixturezahl ist falsch."
+        Assert.equal 3 report.QuarantineCount "Repository-Keyframes bleiben nicht geschlossen in Quarantaene."
+        Assert.isTrue (not report.ShippingReady) "Quarantaene-Keyframes wurden shipping-faehig gemeldet."
+
+    let assetSchemaIsStrictOfflineAndShortCircuitsCrossFields () =
+        TestWorkspace.run (fun root ->
+            Workspace.initialize root |> ignore
+            copyAssetContract root
+            let manifestPath = Path.Combine(root, "assets", "manifests", "fixture.json")
+
+            let valid =
+                AssetStore.check
+                    root
+                    { ManifestPath = Some "assets/manifests/fixture.json"
+                      RequireLocal = false
+                      RequireApproved = false }
+
+            Assert.isTrue valid.Valid $"Gueltiges kopiertes Manifest wurde abgelehnt: {AssetStore.reportJson valid}"
+
+            let text = File.ReadAllText(manifestPath, Constants.Utf8NoBom)
+
+            let duplicate =
+                text.Replace(
+                    "\"schemaVersion\": 1,",
+                    "\"schemaVersion\": 1,\n  \"schemaVersion\": 1,",
+                    StringComparison.Ordinal
+                )
+
+            File.WriteAllText(manifestPath, duplicate, Constants.Utf8NoBom)
+
+            let duplicateReport =
+                AssetStore.check
+                    root
+                    { ManifestPath = Some "assets/manifests/fixture.json"
+                      RequireLocal = false
+                      RequireApproved = false }
+
+            Assert.isTrue (not duplicateReport.Valid) "Doppelter JSON-Key wurde akzeptiert."
+
+            File.WriteAllText(
+                manifestPath,
+                text.Replace("2026-08-13T14:01:00Z", "not-a-date", StringComparison.Ordinal),
+                Constants.Utf8NoBom
+            )
+
+            let dateReport =
+                AssetStore.check
+                    root
+                    { ManifestPath = Some "assets/manifests/fixture.json"
+                      RequireLocal = false
+                      RequireApproved = false }
+
+            Assert.isTrue
+                (not dateReport.Valid
+                 && dateReport.Findings
+                    |> List.exists (fun finding -> finding.Code = "ASSET_SCHEMA_INVALID"))
+                "Ungültiges date-time-Format wurde akzeptiert oder Cross-Field-Parser crashte.")
+
+    let assetCleanRoomFindingsAreRedactedAndRequireFlagsWork () =
+        TestWorkspace.run (fun root ->
+            Workspace.initialize root |> ignore
+            copyAssetContract root
+            let manifestPath = Path.Combine(root, "assets", "manifests", "fixture.json")
+            let marker = String.Join(" ", [ "synthetic"; "forbidden"; "proper"; "noun" ])
+            let text = File.ReadAllText(manifestPath, Constants.Utf8NoBom)
+
+            File.WriteAllText(
+                manifestPath,
+                text.Replace("quiet exploration", marker, StringComparison.Ordinal),
+                Constants.Utf8NoBom
+            )
+
+            let denied =
+                AssetStore.check
+                    root
+                    { ManifestPath = Some "assets/manifests/fixture.json"
+                      RequireLocal = false
+                      RequireApproved = false }
+
+            let deniedJson = AssetStore.reportJson denied
+
+            Assert.isTrue
+                (not denied.Valid
+                 && denied.Findings
+                    |> List.exists (fun finding -> finding.Code = "CLEAN_ROOM_DENIED_NAME"))
+                "Künstlicher Deny-Marker wurde nicht blockiert."
+
+            Assert.isTrue
+                (not (deniedJson.Contains(marker, StringComparison.Ordinal)))
+                "Deny-Inhalt wurde in Finding-JSON vervielfaeltigt."
+
+            File.WriteAllText(manifestPath, text, Constants.Utf8NoBom)
+
+            let local =
+                AssetStore.check
+                    root
+                    { ManifestPath = Some "assets/manifests/fixture.json"
+                      RequireLocal = true
+                      RequireApproved = false }
+
+            Assert.isTrue
+                (not local.Valid
+                 && local.Findings
+                    |> List.exists (fun finding ->
+                        finding.Code = "ASSET_OUTPUT_MISSING"
+                        || finding.Code = "ASSET_GENERATION_RUN_MISSING"))
+                "--require-local hatte keine Wirkung."
+
+            let approved =
+                AssetStore.check
+                    root
+                    { ManifestPath = Some "assets/manifests/fixture.json"
+                      RequireLocal = false
+                      RequireApproved = true }
+
+            Assert.isTrue
+                (not approved.Valid
+                 && approved.Findings
+                    |> List.exists (fun finding -> finding.Code = "ASSET_APPROVAL_REQUIRED"))
+                "--require-approved hatte keine Wirkung.")
+
+    let assetReceiptBindsAllCoreAnchors () =
+        TestWorkspace.run (fun root ->
+            Workspace.initialize root |> ignore
+            copyAssetContract root
+
+            let receiptPath =
+                Directory.EnumerateFiles(
+                    Path.Combine(root, "assets", "receipts"),
+                    "*.json",
+                    SearchOption.AllDirectories
+                )
+                |> Seq.exactlyOne
+
+            let original = File.ReadAllText(receiptPath, Constants.Utf8NoBom)
+
+            for before, after in
+                [ "\"sequence\":1", "\"sequence\":2"
+                  "\"status\": \"succeeded\"", "\"status\": \"failed\""
+                  "\"summaryHash\": \"", "\"summaryHash\": \"0"
+                  "assets/specs/", "assets/specs/tampered-" ] do
+                File.WriteAllText(
+                    receiptPath,
+                    original.Replace(before, after, StringComparison.Ordinal),
+                    Constants.Utf8NoBom
+                )
+
+                let report =
+                    AssetStore.check
+                        root
+                        { ManifestPath = Some "assets/manifests/fixture.json"
+                          RequireLocal = false
+                          RequireApproved = false }
+
+                Assert.isTrue
+                    (not report.Valid
+                     && report.Findings
+                        |> List.exists (fun finding ->
+                            finding.Code = "ASSET_RECEIPT_HASH_INVALID"
+                            || finding.Code = "ASSET_RECEIPT_SCHEMA_INVALID"))
+                    $"Receipt-Kernanker blieb ungebunden: {before}"
+
+            File.WriteAllText(receiptPath, original, Constants.Utf8NoBom))
+
     let runIdsAreTimeSortable () =
         let first =
             Internal.createRunId (DateTimeOffset.FromUnixTimeMilliseconds(1_700_000_000_000L))
@@ -313,6 +568,7 @@ module private Tests =
     let hardwareQuestionRanksPerformanceBudgetFirst () =
         TestWorkspace.run (fun root ->
             let locations = Workspace.initialize root
+
             let docs = Path.Combine(root, "docs")
             Directory.CreateDirectory(docs) |> ignore
 
@@ -408,25 +664,39 @@ module private Tests =
             let sourceHash = File.ReadAllBytes(sourcePath) |> Internal.sha256Hex
 
             let memoryRecord id status statement hash =
+                let review = status <> "proposed"
+
                 JsonSerializer.Serialize(
                     {| schemaVersion = 1
                        id = id
-                       status = status
+                       kind = "fact"
                        statement = statement
+                       status = status
+                       confidence = 1.0
+                       scope = "test/retrieval"
                        sources =
                         [| {| path = "docs/truth.md"
-                              sha256 = hash |} |] |}
+                              sha256 = hash
+                              locator = "test source"
+                              runId = null |} |]
+                       createdAtUtc = "2026-08-13T00:00:00.000Z"
+                       createdBy = "test-producer"
+                       reviewedAtUtc = if review then "2026-08-13T00:01:00.000Z" else null
+                       reviewedBy = if review then "test-reviewer" else null
+                       supersedes = Array.empty<string>
+                       expiresAtUtc = null
+                       tags = [| "test" |] |}
                 )
 
             let recordsPath = Path.Combine(memory, "records.jsonl")
 
             File.WriteAllLines(
                 recordsPath,
-                [| memoryRecord "MEM-TEST-1" "accepted" "firstcurrentmarker" sourceHash
-                   memoryRecord "MEM-TEST-2" "proposed" "proposedneedle" sourceHash
-                   memoryRecord "MEM-TEST-3" "accepted" "othercurrentmarker" sourceHash
-                   memoryRecord "MEM-TEST-4" "rejected" "rejectedneedle" sourceHash
-                   memoryRecord "MEM-TEST-5" "accepted" "staleneedle" (String('0', 64)) |],
+                [| memoryRecord "MEM-1001" "accepted" "firstcurrentmarker" sourceHash
+                   memoryRecord "MEM-1002" "proposed" "proposedneedle" sourceHash
+                   memoryRecord "MEM-1003" "accepted" "othercurrentmarker" sourceHash
+                   memoryRecord "MEM-1004" "rejected" "rejectedneedle" sourceHash
+                   memoryRecord "MEM-1005" "accepted" "staleneedle" (String('0', 64)) |],
                 Constants.Utf8NoBom
             )
 
@@ -502,6 +772,702 @@ module private Tests =
             Assert.isTrue
                 (not staleReport.Valid)
                 "Nachtraeglich veraltetes accepted Memory wurde bei verify nicht erkannt.")
+
+    let memoryLifecycleIsExplicitAppendOnlyAndTamperEvident () =
+        TestWorkspace.run (fun root ->
+            let locations = Workspace.initialize root
+
+            File.WriteAllText(
+                locations.Config,
+                """{
+  "schemaVersion": 1,
+  "rag": { "sources": ["docs/*.md"], "chunkLines": 1, "overlapLines": 0 },
+  "logging": {
+    "format": "jsonl",
+    "utcOnly": true,
+    "hashChain": true,
+    "rawRunRetentionDays": 180,
+    "acceptedSummariesRetentionDays": 0,
+    "maxEventPayloadBytes": 1024
+  },
+  "security": {
+    "redactKeyPatterns": ["^customCredential$"],
+    "redactValuePatterns": ["(?i)bearer [a-z0-9._~+/=-]+", "-----BEGIN .*PRIVATE KEY-----"]
+  }
+}
+""",
+                Constants.Utf8NoBom
+            )
+
+            let docs = Path.Combine(root, "docs")
+            Directory.CreateDirectory(docs) |> ignore
+            let sourcePath = Path.Combine(docs, "source.md")
+            File.WriteAllText(sourcePath, "authoritative memory source\n", Constants.Utf8NoBom)
+            let sourceHash = Internal.sha256File sourcePath
+            let proposalPath = Path.Combine(root, "proposal.json")
+
+            let writeProposal id statement createdBy =
+                let json =
+                    JsonSerializer.Serialize(
+                        {| schemaVersion = 1
+                           id = id
+                           kind = "constraint"
+                           statement = statement
+                           status = "proposed"
+                           confidence = 0.9
+                           scope = "test/simulation"
+                           conflictKey = "simulation.tick-rate"
+                           sources =
+                            [| {| path = "docs/source.md"
+                                  sha256 = sourceHash
+                                  locator = "whole fixture"
+                                  runId = null |} |]
+                           createdAtUtc = "2026-08-13T00:00:00.000Z"
+                           createdBy = createdBy
+                           reviewedAtUtc = null
+                           reviewedBy = null
+                           supersedes = Array.empty<string>
+                           expiresAtUtc = null
+                           tags = [| "simulation" |] |}
+                    )
+
+                File.WriteAllText(proposalPath, json, Constants.Utf8NoBom)
+
+                Assert.equal
+                    0
+                    (Cli.execute [ "memory"; "propose"; "--record-file"; proposalPath; "--workspace"; root ])
+                    "memory propose CLI ist fehlgeschlagen."
+
+            writeProposal
+                "MEM-2000"
+                "Simulation tick rate is explicitly fixed; customCredential=memory-secret."
+                "producer-agent"
+
+            let recordsPath = Path.Combine(root, ".ai", "memory", "records.jsonl")
+            let redactedMemory = File.ReadAllText(recordsPath)
+
+            Assert.isTrue
+                (not (redactedMemory.Contains("memory-secret", StringComparison.Ordinal))
+                 && redactedMemory.Contains("[REDACTED]", StringComparison.Ordinal))
+                "Konfiguriertes Secret wurde durch memory propose persistiert."
+
+            File.WriteAllText(proposalPath, "{\"statement\":\"" + String('x', 1500) + "\"}", Constants.Utf8NoBom)
+
+            Assert.harnessFailureContains
+                "1024 Bytes"
+                (fun () -> MemoryStore.propose root proposalPath |> ignore)
+                "Oversize-Memory-Vorschlag wurde angenommen."
+
+            Assert.harnessFailureContains
+                "eigenen Memory-Vorschlag"
+                (fun () -> MemoryStore.accept root "MEM-2000" "MEM-2001" "producer-agent" |> ignore)
+                "Erzeuger konnte eigenen Vorschlag annehmen."
+
+            Assert.harnessFailureContains
+                "Secretmuster"
+                (fun () ->
+                    MemoryStore.accept root "MEM-2000" "MEM-2001" ("Bearer " + "abcdefghijklmnopqrstuvwxyz")
+                    |> ignore)
+                "Secret im Memory-Review-Akteur wurde gespeichert."
+
+            Assert.equal
+                0
+                (Cli.execute
+                    [ "memory"
+                      "accept"
+                      "MEM-2000"
+                      "--new-id"
+                      "MEM-2001"
+                      "--actor"
+                      "review-agent"
+                      "--workspace"
+                      root ])
+                "memory accept CLI ist fehlgeschlagen."
+
+            let acceptedStatus = MemoryStore.status root
+
+            Assert.isTrue
+                (acceptedStatus.Records
+                 |> List.exists (fun status -> status.Id = "MEM-2001" && status.Retrievable))
+                "Explizit angenommener Record ist nicht abrufbar."
+
+            Assert.isTrue
+                (acceptedStatus.Records
+                 |> List.exists (fun status -> status.Id = "MEM-2000" && status.EffectiveStatus = "superseded"))
+                "Konsumierter Vorschlag blieb effektiv proposed."
+
+            Assert.harnessFailureContains
+                "Memory MEM-2000 ist kein aktiver proposed Record (effektiver Status: 'superseded')."
+                (fun () -> MemoryStore.accept root "MEM-2000" "MEM-2005" "second-review-agent" |> ignore)
+                "Derselbe Vorschlag konnte ein zweites Mal angenommen werden."
+
+            let statusAfterDuplicateAttempt = MemoryStore.status root
+
+            Assert.equal
+                2
+                statusAfterDuplicateAttempt.RecordCount
+                "Abgelehnte Doppelannahme hat das append-only Ledger veraendert."
+
+            Assert.equal
+                1
+                statusAfterDuplicateAttempt.RetrievableCount
+                "Abgelehnte Doppelannahme hat den einzigen gueltigen Retrieval-Record verdraengt."
+
+            Assert.isTrue
+                (statusAfterDuplicateAttempt.Findings
+                 |> List.forall (fun finding -> finding.Code <> "MEMORY_CONFLICT"))
+                "Abgelehnte Doppelannahme erzeugte einen kuenstlichen Memory-Konflikt."
+
+            writeProposal "MEM-2002" "Simulation tick rate is replaced after measurement." "producer-agent"
+
+            Assert.equal
+                0
+                (Cli.execute
+                    [ "memory"
+                      "supersede"
+                      "MEM-2001"
+                      "--with"
+                      "MEM-2002"
+                      "--new-id"
+                      "MEM-2003"
+                      "--actor"
+                      "review-agent"
+                      "--workspace"
+                      root ])
+                "memory supersede CLI ist fehlgeschlagen."
+
+            let replacedStatus = MemoryStore.status root
+
+            Assert.isTrue
+                (replacedStatus.Records
+                 |> List.exists (fun status -> status.Id = "MEM-2001" && status.EffectiveStatus = "superseded"))
+                "Ersetzter accepted Record blieb aktiv."
+
+            Assert.isTrue
+                (replacedStatus.Records
+                 |> List.exists (fun status -> status.Id = "MEM-2003" && status.Retrievable))
+                "Expliziter Ersatz ist nicht aktiv."
+
+            File.WriteAllText(sourcePath, "changed source invalidates memory\n", Constants.Utf8NoBom)
+            let staleStatus = MemoryStore.status root
+
+            Assert.isTrue
+                (staleStatus.Findings
+                 |> List.exists (fun finding -> finding.Code = "MEMORY_STALE" && finding.RecordIds = [ "MEM-2003" ]))
+                "Geaenderte Quelle wird nicht sichtbar als stale gemeldet."
+
+            Assert.equal
+                0
+                (Cli.execute
+                    [ "memory"
+                      "set-status"
+                      "MEM-2003"
+                      "--status"
+                      "stale"
+                      "--new-id"
+                      "MEM-2004"
+                      "--actor"
+                      "review-agent"
+                      "--workspace"
+                      root ])
+                "memory set-status CLI ist fehlgeschlagen."
+
+            Assert.equal
+                0
+                (Cli.execute [ "memory"; "status"; "--workspace"; root ])
+                "memory status CLI ist fehlgeschlagen."
+
+            let validation = MemoryStore.validate root
+            Assert.equal 5 validation.RecordCount "Memory-Lebenszyklus hat unerwartete Revisionszahl."
+
+            Assert.equal
+                5
+                validation.ChainedRecordCount
+                "Neue Memory-Revisionen sind nicht vollstaendig hashverkettet."
+
+            let original = File.ReadAllText(recordsPath)
+
+            let tampered =
+                original.Replace("explicitly fixed", "silently changed", StringComparison.Ordinal)
+
+            File.WriteAllText(recordsPath, tampered, Constants.Utf8NoBom)
+
+            Assert.harnessFailureContains
+                "recordHash"
+                (fun () -> MemoryStore.validate root |> ignore)
+                "Manipulierte Memory-Revision wurde akzeptiert."
+
+            File.WriteAllText(recordsPath, original, Constants.Utf8NoBom)
+            Assert.equal 5 (MemoryStore.validate root).RecordCount "Wiederhergestellte Memory-Kette ist ungueltig.")
+
+    let memoryConflictsAndStatusesAreExcludedAndReported () =
+        TestWorkspace.run (fun root ->
+            let locations = Workspace.initialize root
+            let docs = Path.Combine(root, "docs")
+            let memory = Path.Combine(root, ".ai", "memory")
+            Directory.CreateDirectory(docs) |> ignore
+            Directory.CreateDirectory(memory) |> ignore
+            let sourcePath = Path.Combine(docs, "truth.md")
+            File.WriteAllText(sourcePath, "stable source\n", Constants.Utf8NoBom)
+            let sourceHash = Internal.sha256File sourcePath
+
+            let record id status statement conflictKey hash =
+                JsonSerializer.Serialize(
+                    {| schemaVersion = 1
+                       id = id
+                       kind = "fact"
+                       statement = statement
+                       status = status
+                       confidence = 1.0
+                       scope = "test/conflict"
+                       conflictKey = conflictKey
+                       sources =
+                        [| {| path = "docs/truth.md"
+                              sha256 = hash
+                              locator = "fixture"
+                              runId = null |} |]
+                       createdAtUtc = "2026-08-13T00:00:00.000Z"
+                       createdBy = "producer"
+                       reviewedAtUtc =
+                        if status = "proposed" then
+                            null
+                        else
+                            "2026-08-13T00:01:00.000Z"
+                       reviewedBy = if status = "proposed" then null else "reviewer"
+                       supersedes = Array.empty<string>
+                       expiresAtUtc = null
+                       tags = [| "test" |] |}
+                )
+
+            File.WriteAllLines(
+                Path.Combine(memory, "records.jsonl"),
+                [| record "MEM-3000" "accepted" "conflictmarker says alpha is active." "world.active-rule" sourceHash
+                   record "MEM-3001" "accepted" "conflictmarker says beta is active." "world.active-rule" sourceHash
+                   record "MEM-3002" "proposed" "proposedmarker remains unreviewed." "world.proposal" sourceHash
+                   record "MEM-3003" "rejected" "rejectedmarker remains rejected." "world.rejected" sourceHash
+                   record "MEM-3004" "stale" "stalemarker remains explicitly stale." "world.stale" sourceHash |],
+                Constants.Utf8NoBom
+            )
+
+            File.WriteAllText(
+                locations.Config,
+                """{
+  "schemaVersion": 1,
+  "paths": {
+    "runs": ".ai/runtime/runs",
+    "index": ".ai/runtime/index",
+    "cache": ".ai/runtime/cache",
+    "acceptedHistory": ".ai/history/accepted",
+    "memory": ".ai/memory/records.jsonl",
+    "tasks": ".ai/tasks"
+  },
+  "rag": { "sources": [".ai/memory/records.jsonl"], "chunkLines": 72, "overlapLines": 12 }
+}
+""",
+                Constants.Utf8NoBom
+            )
+
+            let status = MemoryStore.status root
+
+            Assert.isTrue
+                (status.Findings
+                 |> List.exists (fun finding ->
+                     finding.Code = "MEMORY_CONFLICT"
+                     && finding.RecordIds = [ "MEM-3000"; "MEM-3001" ]))
+                "Widerspruechliche accepted Records werden nicht gemeldet."
+
+            RagIndex.build root |> ignore
+
+            for excluded in [ "conflictmarker"; "proposedmarker"; "rejectedmarker"; "stalemarker" ] do
+                Assert.isTrue
+                    (List.isEmpty (RagIndex.query root excluded 5).Results)
+                    $"Ausgeschlossener Memory-Status gelangte ins Retrieval: {excluded}"
+
+            let response = RagIndex.query root "conflictmarker" 5
+
+            Assert.isTrue
+                (response.MemoryFindings
+                 |> List.exists (fun finding -> finding.Code = "MEMORY_CONFLICT"))
+                "RAG-Antwort macht Memory-Konflikt nicht sichtbar.")
+
+    let memoryFreshnessLimitAndPathsAreFailClosed () =
+        TestWorkspace.run (fun root ->
+            let locations = Workspace.initialize root
+            let docs = Path.Combine(root, "docs")
+            let memory = Path.Combine(root, ".ai", "memory")
+            Directory.CreateDirectory(docs) |> ignore
+            Directory.CreateDirectory(memory) |> ignore
+            let sourcePath = Path.Combine(docs, "oversized.md")
+            File.WriteAllText(sourcePath, String('x', 5020), Constants.Utf8NoBom)
+            Assert.equal 5020L (FileInfo(sourcePath).Length) "Oversize-Fixture hat eine falsche Bytegroesse."
+            let sourceHash = Internal.sha256File sourcePath
+
+            File.WriteAllText(
+                locations.Config,
+                """{
+  "schemaVersion": 1,
+  "paths": {
+    "runs": ".ai/runtime/runs",
+    "index": ".ai/runtime/index",
+    "cache": ".ai/runtime/cache",
+    "acceptedHistory": ".ai/history/accepted",
+    "memory": ".ai/memory/records.jsonl",
+    "tasks": ".ai/tasks"
+  },
+  "rag": {
+    "sources": [".ai/memory/records.jsonl"],
+    "maxFileBytes": 4096,
+    "chunkLines": 20,
+    "overlapLines": 0
+  }
+}
+""",
+                Constants.Utf8NoBom
+            )
+
+            let accepted =
+                JsonSerializer.Serialize(
+                    {| schemaVersion = 1
+                       id = "MEM-4100"
+                       kind = "fact"
+                       statement = "oversizemark must never become retrievable."
+                       status = "accepted"
+                       confidence = 1.0
+                       scope = "test/source-limit"
+                       conflictKey = "test.source-limit"
+                       sources =
+                        [| {| path = "docs/oversized.md"
+                              sha256 = sourceHash
+                              locator = "5020-byte fixture"
+                              runId = null |} |]
+                       createdAtUtc = "2026-08-13T00:00:00.000Z"
+                       createdBy = "producer"
+                       reviewedAtUtc = "2026-08-13T00:01:00.000Z"
+                       reviewedBy = "reviewer"
+                       supersedes = Array.empty<string>
+                       expiresAtUtc = null
+                       tags = [| "test" |] |}
+                )
+
+            File.WriteAllText(Path.Combine(memory, "records.jsonl"), accepted + "\n", Constants.Utf8NoBom)
+            let status = MemoryStore.status root
+
+            Assert.isTrue
+                (status.Records
+                 |> List.exists (fun item -> item.Id = "MEM-4100" && item.EffectiveStatus = "stale"))
+                "Quelle oberhalb rag.maxFileBytes blieb im Memory-Status aktuell."
+
+            Assert.isTrue
+                (status.Findings
+                 |> List.exists (fun finding -> finding.Code = "MEMORY_STALE" && finding.RecordIds = [ "MEM-4100" ]))
+                "Quelle oberhalb rag.maxFileBytes erzeugte kein sichtbares MEMORY_STALE."
+
+            RagIndex.build root |> ignore
+            let response = RagIndex.query root "oversizemark" 5
+            Assert.isTrue (List.isEmpty response.Results) "Oversize-Memory gelangte in RAG-Chunks."
+
+            Assert.isTrue
+                (response.MemoryFindings
+                 |> List.exists (fun finding -> finding.Code = "MEMORY_STALE"))
+                "RAG meldete die Oversize-Quelle nicht als stale."
+
+            let proposalPath = Path.Combine(root, "oversized-proposal.json")
+
+            File.WriteAllText(
+                proposalPath,
+                accepted
+                    .Replace("MEM-4100", "MEM-4101", StringComparison.Ordinal)
+                    .Replace("\"accepted\"", "\"proposed\"", StringComparison.Ordinal)
+                    .Replace("\"2026-08-13T00:01:00.000Z\"", "null", StringComparison.Ordinal)
+                    .Replace("\"reviewer\"", "null", StringComparison.Ordinal),
+                Constants.Utf8NoBom
+            )
+
+            Assert.harnessFailureContains
+                "fehlende, zu grosse oder hashabweichende Quelle"
+                (fun () -> MemoryStore.propose root proposalPath |> ignore)
+                "memory propose ignorierte rag.maxFileBytes."
+
+            Assert.equal 1 (MemoryStore.validate root).RecordCount "Oversize-Proposal veraenderte das Ledger.")
+
+        TestWorkspace.run (fun root ->
+            let locations = Workspace.initialize root
+
+            let outside =
+                Path.Combine(Path.GetTempPath(), "RiftHarness.Outside-" + Guid.NewGuid().ToString("N"))
+
+            Directory.CreateDirectory(outside) |> ignore
+
+            try
+                let docs = Path.Combine(root, "docs")
+                Directory.CreateDirectory(docs) |> ignore
+                let sourcePath = Path.Combine(docs, "source.md")
+                File.WriteAllText(sourcePath, "workspace source\n", Constants.Utf8NoBom)
+                let sourceHash = Internal.sha256File sourcePath
+                let proposalPath = Path.Combine(root, "proposal.json")
+
+                let writeProposal id path hash =
+                    File.WriteAllText(
+                        proposalPath,
+                        JsonSerializer.Serialize(
+                            {| schemaVersion = 1
+                               id = id
+                               kind = "fact"
+                               statement = "Symlink boundaries must remain fail closed."
+                               status = "proposed"
+                               confidence = 1.0
+                               scope = "test/path-safety"
+                               conflictKey = "test.path-safety"
+                               sources =
+                                [| {| path = path
+                                      sha256 = hash
+                                      locator = "symlink fixture"
+                                      runId = null |} |]
+                               createdAtUtc = "2026-08-13T00:00:00.000Z"
+                               createdBy = "producer"
+                               reviewedAtUtc = null
+                               reviewedBy = null
+                               supersedes = Array.empty<string>
+                               expiresAtUtc = null
+                               tags = [| "test" |] |}
+                        ),
+                        Constants.Utf8NoBom
+                    )
+
+                let memoryLink = Path.Combine(root, ".ai", "memory")
+                let mutable linksSupported = true
+
+                try
+                    Directory.CreateSymbolicLink(memoryLink, outside) |> ignore
+                with
+                | :? PlatformNotSupportedException
+                | :? UnauthorizedAccessException
+                | :? IOException -> linksSupported <- false
+
+                if not linksSupported && not (OperatingSystem.IsWindows()) then
+                    failwith "Linux-Test konnte den Memory-Symlink nicht erzeugen."
+
+                if linksSupported then
+                    writeProposal "MEM-4200" "docs/source.md" sourceHash
+
+                    Assert.harnessFailureContains
+                        "Symlink, Junction oder ReparsePoint"
+                        (fun () -> MemoryStore.propose root proposalPath |> ignore)
+                        "Memory-Ledger folgte einem externen Verzeichnis-Symlink."
+
+                    Assert.isTrue
+                        (not (File.Exists(Path.Combine(outside, "records.jsonl"))))
+                        "Memory-Ledger schrieb ausserhalb des Workspace."
+
+                    Directory.Delete(memoryLink)
+                    Directory.CreateDirectory(memoryLink) |> ignore
+                    let outsideSource = Path.Combine(outside, "outside.md")
+                    File.WriteAllText(outsideSource, "outside source\n", Constants.Utf8NoBom)
+                    let sourceLink = Path.Combine(docs, "linked.md")
+                    File.CreateSymbolicLink(sourceLink, outsideSource) |> ignore
+                    writeProposal "MEM-4201" "docs/linked.md" (Internal.sha256File outsideSource)
+
+                    Assert.harnessFailureContains
+                        "fehlende, zu grosse oder hashabweichende Quelle"
+                        (fun () -> MemoryStore.propose root proposalPath |> ignore)
+                        "Memory-Quelle folgte einem externen Datei-Symlink."
+
+                    Assert.isTrue
+                        (not (File.Exists(Path.Combine(memoryLink, "records.jsonl"))))
+                        "Abgelehnte Symlink-Quelle veraenderte das Memory-Ledger."
+            finally
+                if Directory.Exists(outside) then
+                    Directory.Delete(outside, true))
+
+    let retrievalTracesAreDeterministicChainedRedactedAndBounded () =
+        TestWorkspace.run (fun root ->
+            let locations = Workspace.initialize root
+            let knowledge = Path.Combine(root, "knowledge")
+            Directory.CreateDirectory(knowledge) |> ignore
+
+            File.WriteAllText(
+                Path.Combine(knowledge, "fixture.txt"),
+                "traceneedle public text\n-----BEGIN RSA PRIVATE KEY-----\\nprivate-key-material\n",
+                Constants.Utf8NoBom
+            )
+
+            File.WriteAllText(
+                locations.Config,
+                """{
+  "schemaVersion": 1,
+  "paths": {
+    "runs": ".ai/runtime/runs",
+    "index": ".ai/runtime/index",
+    "cache": ".ai/runtime/cache",
+    "acceptedHistory": ".ai/history/accepted",
+    "memory": ".ai/memory/records.jsonl",
+    "tasks": ".ai/tasks"
+  },
+  "rag": {
+    "sources": ["knowledge/*.txt"],
+    "chunkLines": 2,
+    "overlapLines": 0,
+    "maxContextCharacters": 4000
+  },
+  "logging": {
+    "format": "jsonl",
+    "utcOnly": true,
+    "hashChain": true,
+    "rawRunRetentionDays": 180,
+    "acceptedSummariesRetentionDays": 0,
+    "maxEventPayloadBytes": 16384
+  },
+  "security": {
+    "redactKeyPatterns": ["^customCredential$"],
+    "redactValuePatterns": ["(?i)bearer [a-z0-9._~+/=-]+", "-----BEGIN .*PRIVATE KEY-----"]
+  }
+}
+""",
+                Constants.Utf8NoBom
+            )
+
+            RagIndex.build root |> ignore
+            let runId = RunStore.start root
+            let firstResponse = RagIndex.query root "traceneedle" 3
+            let first = RetrievalStore.record root runId firstResponse
+            let secondResponse = RagIndex.query root "traceneedle" 3
+            let second = RetrievalStore.record root runId secondResponse
+
+            Assert.equal firstResponse.QuerySha256 secondResponse.QuerySha256 "Golden Query-Hash ist instabil."
+            Assert.equal firstResponse.IndexSha256 secondResponse.IndexSha256 "Golden Index-Hash ist instabil."
+            Assert.equal firstResponse.Ranking secondResponse.Ranking "Golden Rankingparameter sind instabil."
+
+            Assert.equal
+                (firstResponse.Results |> List.map (fun result -> result.ChunkId, result.Score))
+                (secondResponse.Results |> List.map (fun result -> result.ChunkId, result.Score))
+                "Golden Treffer-IDs oder Scores sind instabil."
+
+            Assert.equal 1L first.Sequence "Erster Retrieval-Trace hat falsche Sequenz."
+            Assert.equal 2L second.Sequence "Zweiter Retrieval-Trace hat falsche Sequenz."
+
+            let custom = RagIndex.query root "customCredential=custom-value traceneedle" 3
+            RetrievalStore.record root runId custom |> ignore
+
+            let bearer =
+                RagIndex.query root ("Bearer " + "abcdefghijklmnopqrstuvwxyz traceneedle") 3
+
+            RetrievalStore.record root runId bearer |> ignore
+
+            let tracePath = Path.Combine(locations.Runs, runId, "retrieval.jsonl")
+            let traceText = File.ReadAllText(tracePath)
+
+            for secret in [ "private-key-material"; "custom-value"; "abcdefghijklmnopqrstuvwxyz" ] do
+                Assert.isTrue
+                    (not (traceText.Contains(secret, StringComparison.Ordinal)))
+                    $"Secret gelangte in Retrieval-Trace: {secret}"
+
+            Assert.isTrue (traceText.Contains("[REDACTED]", StringComparison.Ordinal)) "Trace-Redaction fehlt."
+            let lines = File.ReadAllLines(tracePath)
+            use secondDocument = JsonDocument.Parse(lines[1])
+
+            Assert.equal
+                first.TraceHash
+                (secondDocument.RootElement.GetProperty("previousTraceHash").GetString())
+                "Retrieval-Hashkette ist falsch."
+
+            let valid = Verification.verify root (Some runId)
+            let validErrors = String.concat "; " valid.Errors
+            Assert.isTrue valid.Valid $"Gueltige Retrieval-Kette wurde abgelehnt: {validErrors}"
+
+            let tampered =
+                lines[0].Replace("traceneedle", "tracechanged", StringComparison.Ordinal)
+
+            File.WriteAllText(tracePath, tampered + "\n" + String.Join("\n", lines[1..]) + "\n", Constants.Utf8NoBom)
+            let invalid = Verification.verify root (Some runId)
+            Assert.isTrue (not invalid.Valid) "Manipulierter Retrieval-Trace wurde akzeptiert."
+
+            let missingTraceRun = RunStore.start root
+            File.Delete(Path.Combine(locations.Runs, missingTraceRun, "retrieval.jsonl"))
+            let missingTrace = Verification.verify root (Some missingTraceRun)
+            Assert.isTrue (not missingTrace.Valid) "Pflicht-Retrievaldatei durfte spurlos geloescht werden."
+
+            let tailRun = RunStore.start root
+            RetrievalStore.record root tailRun firstResponse |> ignore
+            let tailFinal = RetrievalStore.record root tailRun secondResponse
+            RunStore.finish root tailRun "succeeded" None |> ignore
+            let tailRunPath = Path.Combine(locations.Runs, tailRun)
+            let tailTracePath = Path.Combine(tailRunPath, "retrieval.jsonl")
+            let tailLines = File.ReadAllLines(tailTracePath)
+
+            use tailSummary =
+                JsonDocument.Parse(File.ReadAllBytes(Path.Combine(tailRunPath, "summary.json")))
+
+            Assert.equal
+                2L
+                (tailSummary.RootElement.GetProperty("retrievalTraceCount").GetInt64())
+                "Abschluss-Summary hat eine falsche Retrieval-Anzahl."
+
+            Assert.equal
+                tailFinal.TraceHash
+                (tailSummary.RootElement.GetProperty("finalRetrievalTraceHash").GetString())
+                "Abschluss-Summary verankert nicht den finalen Retrieval-Hash."
+
+            let completedValid = Verification.verify root (Some tailRun)
+            Assert.isTrue completedValid.Valid "Abgeschlossener Run mit Retrieval-Anker ist ungueltig."
+            File.WriteAllText(tailTracePath, tailLines[0] + "\n", Constants.Utf8NoBom)
+            let truncatedTail = Verification.verify root (Some tailRun)
+
+            Assert.isTrue
+                (not truncatedTail.Valid
+                 && (truncatedTail.Errors
+                     |> List.exists (fun error -> error.Contains("Retrieval-Tail", StringComparison.Ordinal))))
+                "Entfernte letzte Retrieval-Zeile wurde nach Run-Abschluss nicht erkannt."
+
+            let emptiedRun = RunStore.start root
+            RetrievalStore.record root emptiedRun firstResponse |> ignore
+            RunStore.finish root emptiedRun "succeeded" None |> ignore
+            let emptiedTracePath = Path.Combine(locations.Runs, emptiedRun, "retrieval.jsonl")
+            File.WriteAllText(emptiedTracePath, "", Constants.Utf8NoBom)
+            let emptiedTrace = Verification.verify root (Some emptiedRun)
+
+            Assert.isTrue
+                (not emptiedTrace.Valid
+                 && (emptiedTrace.Errors
+                     |> List.exists (fun error -> error.Contains("Retrieval-Tail", StringComparison.Ordinal))))
+                "Vollstaendig geleerter Retrieval-Trace wurde nach Run-Abschluss nicht erkannt.")
+
+        TestWorkspace.run (fun root ->
+            let locations = Workspace.initialize root
+            let knowledge = Path.Combine(root, "knowledge")
+            Directory.CreateDirectory(knowledge) |> ignore
+            File.WriteAllText(Path.Combine(knowledge, "small.txt"), "small fixture\n", Constants.Utf8NoBom)
+
+            File.WriteAllText(
+                locations.Config,
+                """{
+  "schemaVersion": 1,
+  "rag": { "sources": ["knowledge/*.txt"], "chunkLines": 1, "overlapLines": 0 },
+  "logging": {
+    "format": "jsonl",
+    "utcOnly": true,
+    "hashChain": true,
+    "rawRunRetentionDays": 180,
+    "acceptedSummariesRetentionDays": 0,
+    "maxEventPayloadBytes": 1024
+  }
+}
+""",
+                Constants.Utf8NoBom
+            )
+
+            RagIndex.build root |> ignore
+            let runId = RunStore.start root
+            let oversized = RagIndex.query root (String('q', 1600)) 1
+
+            Assert.harnessFailureContains
+                "maxEventPayloadBytes"
+                (fun () -> RetrievalStore.record root runId oversized |> ignore)
+                "Oversize-Retrieval-Trace wurde gespeichert."
+
+            Assert.equal
+                0L
+                (FileInfo(Path.Combine(locations.Runs, runId, "retrieval.jsonl")).Length)
+                "Fehlgeschlagener Oversize-Trace hat Teildaten hinterlassen.")
 
     let ragExcludesConfiguredPathsSecretsAndSymlinks () =
         TestWorkspace.run (fun root ->
@@ -714,7 +1680,71 @@ module Program =
     [<EntryPoint>]
     let main _ =
         let tests =
-            [ "Run IDs are time-sortable", Tests.runIdsAreTimeSortable
+            [ "Asset repository quarantine fixtures are valid", Tests.assetRepositoryQuarantineFixturesAreValid
+              "Asset schema is strict, offline and short-circuits cross-fields",
+              Tests.assetSchemaIsStrictOfflineAndShortCircuitsCrossFields
+              "Asset clean-room findings are redacted and require flags work",
+              Tests.assetCleanRoomFindingsAreRedactedAndRequireFlagsWork
+              "Asset receipt binds all core anchors", Tests.assetReceiptBindsAllCoreAnchors
+              "Procedural asset export round-trip is valid", AssetCanonicalTests.proceduralExportRoundTripIsValid
+              "Portable receipt chronology is bound", AssetCanonicalTests.portableReceiptChronologyIsBound
+              "Exactly one generation event is required", AssetCanonicalTests.exactlyOneGenerationEventIsRequired
+              "Run actor metadata is immutable and verified", AssetCanonicalTests.runActorMetadataIsImmutableAndVerified
+              "Canonical prompt tamper cannot be rehashed offline",
+              AssetCanonicalTests.canonicalPromptTamperCannotBeRehashedOffline
+              "Canonical negative prompt tamper cannot be rehashed offline",
+              AssetCanonicalTests.canonicalNegativePromptTamperCannotBeRehashedOffline
+              "Fake approval without bound runs and evidence fails closed",
+              AssetCanonicalTests.fakeApprovalWithoutBoundRunsAndEvidenceFailsClosed
+              "Approved procedural asset accepts five bound review runs",
+              AssetCanonicalTests.approvedProceduralAssetRequiresAndAcceptsFiveBoundReviewRuns
+              "Binary content behind text extension is rejected",
+              AssetCanonicalTests.binaryContentBehindTextExtensionIsRejected
+              "Text source is bound to raw Git-index bytes", AssetCanonicalTests.textSourceIsBoundToRawGitIndexBytes
+              "Procedural Python source is clean-room scanned",
+              AssetCanonicalTests.proceduralPythonSourceIsCleanRoomScanned
+              "Targeted approved scan is never shipping-ready",
+              AssetCanonicalTests.targetedApprovedScanIsNeverShippingReady
+              "Review evidence directory fails controlled", AssetCanonicalTests.reviewEvidenceDirectoryFailsControlled
+              "Review timestamp is bound to evidence and run",
+              AssetCanonicalTests.reviewTimestampIsBoundToEvidenceAndRun
+              "Review cannot predate generation completion", AssetCanonicalTests.reviewCannotPredateGenerationCompletion
+              "License-basis time matches active license review",
+              AssetCanonicalTests.licenseBasisTimeMustMatchActiveLicenseReview
+              "Approved review state matrix is enforced", AssetCanonicalTests.approvedReviewStateMatrixIsEnforced
+              "Nested duplicate run payload is rejected", AssetCanonicalTests.nestedDuplicateRunPayloadIsRejected
+              "Persisted nested duplicate run data is rejected",
+              AssetCanonicalTests.persistedNestedDuplicateRunDataIsRejected
+              "Review evidence content is clean-room scanned",
+              AssetCanonicalTests.reviewEvidenceContentIsCleanRoomScanned
+              "Asset traversal output path is rejected", AssetRegression.traversalOutputPathIsRejected
+              "Asset trust-root symlinks fail closed", AssetRegression.trustRootSymlinksFailClosed
+              "Asset input symlink is rejected", AssetRegression.assetInputSymlinkIsRejected
+              "Invalid asset receipt and policy schemas fail closed",
+              AssetRegression.invalidReceiptAndPolicySchemasFailClosed
+              "Manifest required-field matrix is strict", AssetRegression.manifestRequiredFieldMatrixIsStrict
+              "Duplicate model-lock tuple is rejected", AssetRegression.duplicateModelLockTupleIsRejected
+              "Model-lock status matches approved entries", AssetRegression.modelLockStatusMustMatchApprovedEntries
+              "Approved local model requires artifact hash", AssetRegression.approvedLocalModelRequiresArtifactHash
+              "Tracked asset source orphan is rejected", AssetRegression.trackedSourceOrphanIsRejected
+              "Duplicate manifest identity and receipt are rejected",
+              AssetRegression.duplicateManifestIdentityAndReceiptAreRejected
+              "Clean-room filename and property key are redacted",
+              AssetRegression.cleanRoomFilenameAndPropertyKeyAreRedacted
+              "Clean-room deny/allow collision is rejected", AssetRegression.cleanRoomPolicyDenyAllowCollisionIsRejected
+              "Allowed-name register is recognized with deny precedence",
+              AssetRegression.allowedNameRegisterIsRecognizedWithDenyPrecedence
+              "Clean-room scans specification content", AssetRegression.cleanRoomScansSpecificationContent
+              "Unsafe asset Unicode is rejected and redacted", AssetRegression.unsafeUnicodeIsRejectedAndRedacted
+              "Hash-named metadata cannot bypass clean-room", AssetRegression.hashNamedMetadataCannotBypassCleanRoom
+              "Oversized asset integers fail controlled", AssetRegression.oversizedAssetIntegersFailControlled
+              "Oversized manifest file fails controlled", AssetRegression.oversizedManifestFileFailsControlled
+              "Whitespace rights and actors are rejected", AssetRegression.whitespaceRightsAndActorsAreRejected
+              "Asset review history must be contiguous", AssetRegression.reviewHistoryMustBeContiguous
+              "Malformed Git-LFS pointer is rejected", AssetRegression.malformedLfsPointerIsRejected
+              "Large fake-git output does not deadlock", AssetRegression.fakeGitLargeOutputDoesNotDeadlock
+              "Fake-git timeout fails controlled", AssetRegression.fakeGitTimeoutFailsControlled
+              "Run IDs are time-sortable", Tests.runIdsAreTimeSortable
               "Run lifecycle is hashed and redacted", Tests.runLifecycleIsHashedAndRedacted
               "Event envelope is strict and payload remains structured",
               Tests.eventEnvelopeIsStrictAndPayloadRemainsStructured
@@ -723,6 +1753,13 @@ module Program =
               "Hardware question ranks performance budget first", Tests.hardwareQuestionRanksPerformanceBudgetFirst
               "RAG honors context character budget", Tests.ragHonorsContextCharacterBudget
               "RAG indexes only current accepted memory", Tests.ragIndexesOnlyCurrentAcceptedMemory
+              "Memory lifecycle is explicit append-only and tamper-evident",
+              Tests.memoryLifecycleIsExplicitAppendOnlyAndTamperEvident
+              "Memory conflicts and statuses are excluded and reported",
+              Tests.memoryConflictsAndStatusesAreExcludedAndReported
+              "Memory freshness limits and paths are fail-closed", Tests.memoryFreshnessLimitAndPathsAreFailClosed
+              "Retrieval traces are deterministic, chained, redacted and bounded",
+              Tests.retrievalTracesAreDeterministicChainedRedactedAndBounded
               "RAG excludes configured paths, secrets and symlinks", Tests.ragExcludesConfiguredPathsSecretsAndSymlinks
               "Init is idempotent and validates configuration", Tests.initIsIdempotentAndValidatesConfiguration
               "Fixed v1 configuration rejects pretend options", Tests.fixedV1ConfigurationRejectsPretendOptions ]

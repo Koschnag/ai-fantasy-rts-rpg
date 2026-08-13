@@ -46,6 +46,8 @@ flowchart LR
 
 ## Vertical Slice VS-001
 
+Die folgenden Mengen und die lineare Beispielabfolge sind budgetierte, messbare Testhypothesen für einen ersten Slice. Sie sind weder eine unveränderliche kreative Identität noch eine Zuordnung zu einem fremden Werk und werden nach Graybox-, Performance- und Eigenständigkeitsreview angepasst.
+
 ### Spielerlebnis
 
 Eine 20–30-minütige Karte beginnt mit der Heldengruppe in einer fremden Ruinenlandschaft. Erkundung und ein Dialog führen zu einem taktischen Gefecht. Danach wird ein eigener Stützpunkt errichtet, eine kleine Wirtschaft aufgebaut und ein gemischter Verband für den Angriff auf eine befestigte Bedrohung vorbereitet. Eine Entscheidung verändert mindestens einen späteren Kampf oder verfügbaren Verbündeten.

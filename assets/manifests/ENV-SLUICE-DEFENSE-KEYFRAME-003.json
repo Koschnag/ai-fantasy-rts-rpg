@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.ai/schemas/asset-manifest.schema.json",
+  "schemaVersion": 1,
+  "assetId": "ENV-SLUICE-DEFENSE-KEYFRAME-003",
+  "purpose": "Kalibrierungs-Keyframe für Strategiekamera, Formationslesbarkeit, zivile Aktivität und einen Geländehebel.",
+  "specSha256": "130551f20f7fe970fb3e137619e270a31d4317cbedbdabc76742392b3880ddb7",
+  "generationRunId": "01KZXQ64PKK15YX939FB9HQWXN",
+  "generationBindingMode": "legacy-event-v0",
+  "generationReceipt": "assets/receipts/ENV-SLUICE-DEFENSE-KEYFRAME-003/01KZXQ64PKK15YX939FB9HQWXN.json",
+  "generationReceiptSha256": "1326b538d02f35873e24ae4ceeebd6e7f9d6866086f461f9c434c5c09972e273",
+  "createdBy": "codex-imagegen-service",
+  "status": "quarantine",
+  "generator": {
+    "kind": "ai",
+    "tool": "Codex built-in image_gen",
+    "version": "2026-08-13-service-contract",
+    "model": "OpenAI built-in image generation",
+    "modelVersion": "not-exposed-by-tool",
+    "modelArtifactSha256": null,
+    "executionMode": "remote",
+    "seed": null,
+    "generatorSourceSha256": null,
+    "toolchainPin": null
+  },
+  "inputs": [
+    {
+      "id": "SPEC-ENV-SLUICE-DEFENSE-KEYFRAME-003",
+      "path": "assets/specs/ENV-SLUICE-DEFENSE-KEYFRAME-003.md",
+      "sha256": "130551f20f7fe970fb3e137619e270a31d4317cbedbdabc76742392b3880ddb7",
+      "origin": "Project-authored clean-room specification",
+      "originClass": "internal-specification",
+      "creativeInfluence": true,
+      "license": "Project-private; no public license asserted",
+      "rightsEvidence": "Created from the repository's internal art, game-design and atmosphere requirements without external media inputs.",
+      "allowedUse": "internal-specification",
+      "referenceUseReviewed": true
+    }
+  ],
+  "prompts": {
+    "prompt": "Use case: stylized-concept\nAsset type: original art-bible calibration keyframe for the strategy-defense phase of a cross-platform fantasy RTS/RPG\nPrimary request: create a completely original wide game-environment keyframe of a working refuge defending its terraced waterworks at stormy dusk; a small field-engineer party has opened a timber sluice that redirects a shallow torrent across one approach while organized local shield lines and polearm groups hold two dry lanes; workers carry supplies and guide civilians toward warm shelter rather than disappearing from the battlefield context\nScene/backdrop: inhabited quarry basin with low practical workshops, gardens, water channels, repaired bridges and a modest palisade; three readable approach lanes, one temporarily flooded by the sluice; dark hills and rain front beyond\nSubject: the combined tactical landscape is primary; approximately forty small human-scale defenders and attackers appear in clearly separated groups, with the three-person engineer party identifiable by position and restrained amber task lights rather than oversized bodies\nStyle/medium: polished stylized-realistic 3D game concept art with painterly color grading, believable but deliberately simplified materials, large production-feasible forms and clean unit silhouettes\nComposition/framing: wide elevated three-quarter strategy camera close to intended gameplay; central defended basin, visible lane geometry and formation spacing; no cinematic close-up and no horizon-dominating creature\nLighting/mood: pressured but determined, earthy and bittersweet rather than triumphant spectacle; cool storm ambient light, warm shelter and work lights, short readable steel and dust accents, restrained amber water-control signal\nColor palette: muted wet earth, dark timber and blue-gray stone; limited warm inhabited light; one functional amber interaction accent and subdued desaturated unit cloth colors\nMaterials/textures: rain-darkened masonry, rough timber engineering, packed mud, canvas, shallow turbulent water, worn metal and practical cloth\nConstraints: entirely original world and design; units, formations, paths and the terrain lever must remain readable at 1080p; no text, logo, interface or watermark; no giant magical explosion, no glowing faction carpet, no ornate superweapons, no dense particle veil, no photobash artifacts; no recognizable borrowed imagery, iconic pre-existing characters, copied architecture, copied maps or familiar emblems",
+    "negativePrompt": null,
+    "promptSha256": "7e1c9d9dcb9fc784dc9b34cfd351ccef214ea64b8cff3859cdf990dfa7b3a9d5",
+    "promptEnvelopeSha256": "f06bd8d6a1586a85aea464d45f81d5ab4da2c588dbbca07250bb57f87da9baa0",
+    "bindingMode": "legacy-prompt-only"
+  },
+  "outputs": [
+    {
+      "path": "assets/quarantine/concepts/ENV-SLUICE-DEFENSE-KEYFRAME-003.png",
+      "sha256": "362b21f8752cbb231e5fedfe2882aaa5665d4ecbfc69f65448f7b1ff9c5a6c76",
+      "mediaType": "image/png",
+      "bytes": 2432833,
+      "technicalMetrics": {
+        "width": 1672,
+        "height": 941,
+        "channels": 3,
+        "alpha": false
+      }
+    }
+  ],
+  "transformations": [],
+  "licenseBasis": {
+    "modelTerms": "Not yet reviewed for production approval.",
+    "inputRights": "Only the project-authored text specification was supplied; no image reference was used.",
+    "outputPolicy": "Quarantine-only calibration output pending independent license and originality review.",
+    "commercialUseReviewed": false,
+    "reviewedAtUtc": null,
+    "termsEvidenceArtifact": null
+  },
+  "reviews": [
+    {
+      "reviewId": "REV-ENV-SLUICE-DEFENSE-KEYFRAME-003-TECH-001",
+      "revision": 1,
+      "active": true,
+      "kind": "technical",
+      "reviewerId": "codex-root-validator",
+      "atUtc": "2026-08-13T14:10:00Z",
+      "result": "pass",
+      "evidence": "PNG 1672x941 RGB, 2432833 bytes; output SHA-256 matches manifest.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    },
+    {
+      "reviewId": "REV-ENV-SLUICE-DEFENSE-KEYFRAME-003-VIS-001",
+      "revision": 1,
+      "active": true,
+      "kind": "visual",
+      "reviewerId": "codex-root-visual-review",
+      "atUtc": "2026-08-13T14:10:00Z",
+      "result": "pass",
+      "evidence": "Central sluice, three approach regions, separated shield groups, attackers, workers and civilians remain readable without an effect veil or cinematic framing.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    }
+  ],
+  "supersedes": [],
+  "createdAtUtc": "2026-08-13T14:10:00Z"
+}
