@@ -55,6 +55,7 @@ module DotnetAssetCiPolicyTests =
               "tools/RiftHarness/**"
               "tests/RiftHarness.Tests/**"
               "scripts/dotnet-asset-calibration-ci.sh"
+              "scripts/dotnet-generator-instrumentation-test.sh"
               "scripts/fresh-checkout-test.sh"
               ".gitignore"
               ".gitattributes"
@@ -128,6 +129,11 @@ module DotnetAssetCiPolicyTests =
               "git ls-files --others --exclude-standard"
               "git ls-files | grep -E"
               "git status --porcelain --ignored"
+              "rift_ci_prove_leakage_fixture"
+              "rift_ci_has_leakage"
+              "assets/quarantine/fixture/output.glb"
+              ".ai/runtime/runs/fixture/event.jsonl"
+              "dotnet-generator-instrumentation-test.sh"
               "<temporary>"
               "<workspace>"
               "artifacts/t007/dotnet-asset-calibration.json"
@@ -226,6 +232,12 @@ module DotnetAssetCiPolicyTests =
               script.Replace("1048576", "10485760", StringComparison.Ordinal)
               script.Replace("<workspace>", "${rift_ci_root}", StringComparison.Ordinal)
               script.Replace("git write-tree", "git status --short", StringComparison.Ordinal)
+              script.Replace("rift_ci_prove_leakage_fixture", "rift_ci_skip_leakage_fixture", StringComparison.Ordinal)
+              script.Replace(
+                  "dotnet-generator-instrumentation-test.sh",
+                  "skip-instrumentation.sh",
+                  StringComparison.Ordinal
+              )
               script + "\n./scripts/rift.sh rag-build\n"
               script + "\n./scripts/rift.sh bootstrap\n" ]
 

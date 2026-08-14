@@ -21,6 +21,29 @@ module DotnetAssetCiEvidenceTests =
         if not condition then
             failwith message
 
+    let private withCopiedEvidenceInputs action =
+        let temporary =
+            Path.Combine(Path.GetTempPath(), "riftward-t007-evidence-test-" + Guid.NewGuid().ToString("N"))
+
+        Directory.CreateDirectory temporary |> ignore
+
+        try
+            let paths =
+                [ "toolchain.lock.json"
+                  "assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json"
+                  yield! DotnetAssetGenerator.generatorSourcePaths ]
+
+            for relative in paths do
+                let source = Path.Combine(root, relative)
+                let target = Path.Combine(temporary, relative)
+                Directory.CreateDirectory(Path.GetDirectoryName target) |> ignore
+                File.Copy(source, target)
+
+            action temporary
+        finally
+            if Directory.Exists temporary then
+                Directory.Delete(temporary, true)
+
     /// T-007 evidence is canonical, bounded and validates without network access.
     let deterministicEvidenceIsSchemaClosedAndSanitized () =
         let first = DotnetAssetCiEvidence.generate root
@@ -71,3 +94,17 @@ module DotnetAssetCiEvidenceTests =
             failwith "A non-ASCII report hash was accepted."
         with DotnetAssetCiEvidenceError "INVALID_ARGUMENT" ->
             ()
+
+        for mutatedSource in DotnetAssetGenerator.generatorSourcePaths do
+            withCopiedEvidenceInputs (fun temporary ->
+                let source = Path.Combine(temporary, mutatedSource)
+                File.AppendAllText(source, "// post-build mutation\n", Constants.Utf8NoBom)
+                let runtimeBefore = Directory.Exists(Path.Combine(temporary, ".ai/runtime"))
+
+                try
+                    DotnetAssetCiEvidence.generate temporary |> ignore
+                    failwith $"Post-build source drift was accepted: {mutatedSource}."
+                with DotnetAssetCiEvidenceError "PIN_MISMATCH" ->
+                    assertTrue
+                        (Directory.Exists(Path.Combine(temporary, ".ai/runtime")) = runtimeBefore)
+                        "Source drift created a generation workspace before rejection.")

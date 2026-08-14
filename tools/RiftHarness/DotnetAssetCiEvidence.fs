@@ -200,9 +200,22 @@ module DotnetAssetCiEvidence =
             |> BlenderCalibration.parseSpecBytes
 
     let private sourceRecords sourceRoot =
+        let assembly = typeof<DotnetGeneratedArtifacts>.Assembly
+
         DotnetAssetGenerator.generatorSourcePaths
         |> Array.map (fun path ->
             let bytes = readBounded sourceRoot path
+            let resourceName = "RiftHarness.GeneratorSource." + Path.GetFileName(path)
+            use embedded = assembly.GetManifestResourceStream(resourceName)
+
+            if isNull embedded || embedded.Length <= 0L || embedded.Length > 1048576L then
+                fail "PIN_MISMATCH"
+
+            let embeddedBytes = Array.zeroCreate<byte> (int embedded.Length)
+            embedded.ReadExactly(embeddedBytes)
+
+            if embedded.Position <> embedded.Length || embeddedBytes <> bytes then
+                fail "PIN_MISMATCH"
 
             path, Internal.sha256Hex bytes)
 
@@ -274,6 +287,8 @@ module DotnetAssetCiEvidence =
         then
             fail "UNSUPPORTED_RUNTIME"
 
+        // Fail source/build drift before the first temporary generation root exists.
+        let sources = sourceRecords sourceRoot
         let first, firstInspection = run sourceRoot jobIds[0] referenceSeed
         let second, secondInspection = run sourceRoot jobIds[1] referenceSeed
         let alternate, alternateInspection = run sourceRoot jobIds[2] alternateSeed
@@ -307,8 +322,6 @@ module DotnetAssetCiEvidence =
                       "command", node command
                       "exitCode", node 0
                       "reportSha256", node suiteReportSha256 ])
-
-        let sources = sourceRecords sourceRoot
 
         let lockFileSha256 =
             readBounded sourceRoot "toolchain.lock.json" |> Internal.sha256Hex

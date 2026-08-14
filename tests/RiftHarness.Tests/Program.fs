@@ -1678,7 +1678,7 @@ module private Tests =
 
 module Program =
     [<EntryPoint>]
-    let main _ =
+    let main arguments =
         let tests =
             [ "Blender calibration schemas are offline, strict and accept the reference",
               BlenderCalibrationSpecTests.schemasAreOfflineStrictAndReferenceValid
@@ -1876,15 +1876,34 @@ module Program =
               "Init is idempotent and validates configuration", Tests.initIsIdempotentAndValidatesConfiguration
               "Fixed v1 configuration rejects pretend options", Tests.fixedV1ConfigurationRejectsPretendOptions ]
 
-        let mutable failures = 0
+        if arguments.Length = 2 && arguments[0] = "--generator-probe" then
+            let root = arguments[1]
+            let jobId = "01KZY44M2P2RNSA5XNGM4P9EMY"
+            let stage = $".ai/runtime/asset-jobs/{jobId}/stage/quarantine"
 
-        for name, test in tests do
             try
-                test ()
-                Console.Out.WriteLine($"PASS {name}")
-            with error ->
-                failures <- failures + 1
-                Console.Error.WriteLine($"FAIL {name}: {error.Message}")
+                let spec =
+                    File.ReadAllBytes(Path.Combine(root, "assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json"))
+                    |> BlenderCalibration.parseSpecBytes
 
-        Console.Out.WriteLine($"{tests.Length - failures}/{tests.Length} tests passed")
-        if failures = 0 then 0 else 1
+                Directory.CreateDirectory(Path.Combine(root, $".ai/runtime/asset-jobs/{jobId}/stage"))
+                |> ignore
+
+                DotnetAssetGenerator.generate root spec stage |> ignore
+                0
+            with error ->
+                Console.Error.WriteLine(error.Message)
+                1
+        else
+            let mutable failures = 0
+
+            for name, test in tests do
+                try
+                    test ()
+                    Console.Out.WriteLine($"PASS {name}")
+                with error ->
+                    failures <- failures + 1
+                    Console.Error.WriteLine($"FAIL {name}: {error.Message}")
+
+            Console.Out.WriteLine($"{tests.Length - failures}/{tests.Length} tests passed")
+            if failures = 0 then 0 else 1

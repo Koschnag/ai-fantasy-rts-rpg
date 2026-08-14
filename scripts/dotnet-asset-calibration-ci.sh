@@ -8,6 +8,53 @@ rift_ci_checkout="$rift_ci_tmp/checkout"
 rift_ci_output_relative=artifacts/t007/dotnet-asset-calibration.json
 rift_ci_log_relative=artifacts/t007/test.log
 
+rift_ci_has_leakage() {
+  if ! git diff --quiet || [[ "$rift_ci_tree_before" != "$(git write-tree)" ]]; then
+    return 0
+  fi
+
+  if [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+    return 0
+  fi
+
+  if git ls-files | grep -E '^(assets/(quarantine|cooked)/|\.ai/runtime/)' \
+    | grep -vFx '.ai/runtime/.gitkeep' >/dev/null; then
+    return 0
+  fi
+
+  if git status --porcelain --ignored \
+    | grep -Eq '^!! (assets/(quarantine|cooked)/|\.ai/runtime/(memory|index|runs|asset-jobs|.*\.json|.*\.lock))'; then
+    return 0
+  fi
+
+  return 1
+}
+
+rift_ci_prove_leakage_fixture() {
+  local fixture_root=$1
+  local fixture_source="$fixture_root/docs/DOTNET_GENERATOR_CONTRACT.md"
+
+  mkdir -p \
+    "$fixture_root/assets/quarantine/fixture" \
+    "$fixture_root/assets/cooked" \
+    "$fixture_root/.ai/runtime/runs/fixture"
+  printf 'fixture\n' >"$fixture_root/assets/quarantine/fixture/output.glb"
+  printf 'fixture\n' >"$fixture_root/assets/cooked/output.bin"
+  printf 'fixture\n' >"$fixture_root/.ai/runtime/runs/fixture/event.jsonl"
+  printf '\n' >>"$fixture_source"
+
+  if ! rift_ci_has_leakage; then
+    printf 'T-007-Leakage-Fixture wurde nicht erkannt.\n' >&2
+    exit 6
+  fi
+
+  git checkout-index --force -- "$fixture_source"
+  rm -rf -- \
+    "$fixture_root/assets/quarantine/fixture" \
+    "$fixture_root/assets/cooked" \
+    "$fixture_root/.ai/runtime/runs/fixture"
+}
+
 rift_ci_cleanup() {
   if [[ -d "$rift_ci_tmp" ]]; then
     rm -rf -- "$rift_ci_tmp"
@@ -55,6 +102,8 @@ dotnet build Riftward.slnx --configuration Release --no-restore \
 dotnet tool run fantomas . --check >"$rift_ci_tmp/logs/lint.log" 2>&1
 dotnet run --project tests/RiftHarness.Tests/RiftHarness.Tests.fsproj \
   --configuration Release --no-build >"$rift_ci_tmp/logs/test.log" 2>&1
+./scripts/dotnet-generator-instrumentation-test.sh \
+  >"$rift_ci_tmp/logs/instrumentation.log" 2>&1
 rift_ci_test_report_sha256=$(sha256sum "$rift_ci_tmp/logs/test.log" | cut -d ' ' -f 1)
 
 mkdir -p "$(dirname -- "$rift_ci_output_relative")"
@@ -62,24 +111,15 @@ dotnet tools/RiftHarness/bin/Release/net10.0/RiftHarness.dll \
   asset-ci-evidence --output "$rift_ci_output_relative" \
   --test-report-sha256 "$rift_ci_test_report_sha256" >"$rift_ci_tmp/logs/evidence.log" 2>&1
 
-if ! git diff --quiet || [[ "$rift_ci_tree_before" != "$(git write-tree)" ]]; then
-  printf 'T-007 hat versionierte Checkoutbytes oder den Git-Index verändert.\n' >&2
+if rift_ci_has_leakage; then
+  printf 'T-007 hinterließ versionierte, unversionierte oder Runtime-Leakage.\n' >&2
   exit 6
 fi
 
-if [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
-  printf 'T-007 hinterließ nicht versionierte, nicht erlaubte Checkoutdaten.\n' >&2
-  exit 6
-fi
+rift_ci_prove_leakage_fixture "$rift_ci_checkout"
 
-if git ls-files | grep -E '^(assets/(quarantine|cooked)/|\.ai/runtime/)' \
-  | grep -vFx '.ai/runtime/.gitkeep' >/dev/null; then
-  printf 'T-007 fand verbotene Binär-, Recovery- oder Runtimepfade im Git-Index.\n' >&2
-  exit 6
-fi
-
-if git status --porcelain --ignored | grep -Eq '^!! (assets/(quarantine|cooked)/|\.ai/runtime/(memory|index|runs|asset-jobs|.*\.json|.*\.lock))'; then
-  printf 'T-007 hinterließ Quarantäne-, Cooked- oder Runtimebytes im Checkout.\n' >&2
+if rift_ci_has_leakage; then
+  printf 'T-007-Leakage-Fixture wurde nicht vollständig bereinigt.\n' >&2
   exit 6
 fi
 
