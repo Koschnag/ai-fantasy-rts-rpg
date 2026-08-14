@@ -19,6 +19,8 @@
     <Compile Include="BlenderCalibrationWrapperTests.fs" />
     <Compile Include="AssetJobJournalTests.fs" Condition="Exists('AssetJobJournalTests.fs')" />
     <Compile Include="DotnetAssetGeneratorTests.fs" Condition="Exists('DotnetAssetGeneratorTests.fs')" />
+    <Compile Include="DotnetAssetCiEvidenceTests.fs" Condition="Exists('DotnetAssetCiEvidenceTests.fs')" />
+    <Compile Include="DotnetAssetCiPolicyTests.fs" Condition="Exists('DotnetAssetCiPolicyTests.fs')" />
     <Compile Include="DotnetAssetPipelineTests.fs" Condition="Exists('DotnetAssetPipelineTests.fs')" />
     <Compile Include="DotnetAssetPipelineCliTests.fs" Condition="Exists('DotnetAssetPipelineCliTests.fs')" />
     <Compile Include="Program.fs" />

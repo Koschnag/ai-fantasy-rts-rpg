@@ -54,7 +54,8 @@ Die Vorproduktion ist abgeschlossen, wenn:
 `calibration-v1`-Inspector `T-005` und der BCL-only-F#/.NET-Assetgenerator
 `T-006` sind abgenommen. Der Generator schreibt GLB direkt und rendert PNG
 deterministisch auf der CPU, ohne Unterprozess, Netzwerk oder DCC. Sein
-Fresh-Checkout-/CI-Nachweis `T-007` ist als nächster Auftrag `READY`.
+Fresh-Checkout-/CI-Nachweis `T-007` wird derzeit umgesetzt und aus einem
+committeten Linux-x64-Checkout reproduziert.
 T-006 amendiert bewusst nur Generator-Identifier, Quelleninventar und
 .NET-Toolchainbindung; T-005 bleibt historisch abgenommen und wird vollständig
 als Regression erneut ausgeführt.
@@ -91,6 +92,7 @@ RUN_ID="$(./scripts/rift.sh harness start-run)"
 ./scripts/rift.sh rag-query --query "Performancebudget" --top 5 --run "$RUN_ID"
 ./scripts/rift.sh verify
 ./scripts/rift.sh fresh-checkout-test
+./scripts/dotnet-asset-calibration-ci.sh
 ```
 
 Noch nicht implementierte Produktionsgates schlagen ausdrücklich fehl, bis eine passende `READY`-Aufgabe sie umsetzt.

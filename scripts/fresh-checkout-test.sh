@@ -3,7 +3,7 @@ set -euo pipefail
 
 rift_fresh_script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 rift_fresh_root=$(dirname -- "$rift_fresh_script_dir")
-rift_fresh_tmp=$(mktemp -d "${TMPDIR:-/tmp}/riftward-fresh-checkout.XXXXXX")
+rift_fresh_tmp=$(mktemp -d /tmp/riftward-fresh-checkout.XXXXXX)
 
 rift_fresh_cleanup() {
   if [[ -d "$rift_fresh_tmp" ]]; then
@@ -13,9 +13,14 @@ rift_fresh_cleanup() {
 trap rift_fresh_cleanup EXIT HUP INT TERM
 
 cd "$rift_fresh_root"
-git ls-files -z --cached --others --exclude-standard --deduplicate \
-  | tar --null --files-from=- --create \
-  | tar --extract --directory="$rift_fresh_tmp"
+
+if ! git diff --quiet HEAD -- || ! git diff --cached --quiet HEAD -- \
+  || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+  printf 'Fresh-Checkout-Gate verlangt einen vollständig eingecheckten Arbeitsbaum.\n' >&2
+  exit 2
+fi
+
+git archive --format=tar HEAD | tar --extract --directory="$rift_fresh_tmp"
 
 if [[ -d "$rift_fresh_tmp/.ai/runtime" ]]; then
   find "$rift_fresh_tmp/.ai/runtime" -mindepth 1 -not -name .gitkeep -delete
@@ -23,13 +28,10 @@ fi
 
 cd "$rift_fresh_tmp"
 
-# Das Archiv enthält bewusst keinen fremden .git-Zustand. Für die Checkout-
-# Semantik wird ein lokaler Index aus exakt den kopierten Dateien aufgebaut;
-# bereits versionierte, inzwischen ignorierte Pfade bleiben dabei sichtbar.
+# Das Archiv enthält ausschließlich die Bytes des aktuellen Commits und keinen
+# fremden .git-Zustand. Ein lokaler Index bildet genau diesen Commitbaum ab.
 git init --quiet
-git -C "$rift_fresh_root" ls-files -z --cached \
-  | git add -f --pathspec-from-file=- --pathspec-file-nul
-git add --all
+git add -f --all
 
 ./scripts/rift.sh bootstrap
 ./scripts/rift.sh build
@@ -39,4 +41,5 @@ git add --all
 ./scripts/rift.sh rag-build
 ./scripts/rift.sh verify
 
-printf 'Fresh-Checkout-Gate: PASS (%s)\n' "$rift_fresh_tmp"
+git diff --quiet
+printf 'Fresh-Checkout-Gate: PASS\n'

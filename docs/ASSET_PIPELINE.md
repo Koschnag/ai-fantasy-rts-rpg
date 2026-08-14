@@ -77,7 +77,7 @@ Der vollständige maschinenprüfbare Vertrag steht in `DOTNET_GENERATOR_CONTRACT
 |---|---|---|---|
 | T-005 | strikter Spec-Parser, Referenzmathematik und unabhängiger .NET-Inspector mit rein synthetischen Fixtures; startet keinen Unterprozess | T-003 | DONE |
 | T-006 | BCL-only-F#/.NET-Generator, direkter GLB-Writer, CPU-Rasterizer und transaktionaler T-003-Quarantäne-Lifecycle mit Recovery | T-003, T-005 | DONE |
-| T-007 | pfadgefilterter Fresh-Checkout-CI-Nachweis für .NET-Pin, Null-Unterprozess/-Netz, Byteidentität, T-005-Regression sowie Fehler- und Crashpfade | T-003, T-005, T-006 | READY |
+| T-007 | pfadgefilterter Fresh-Checkout-CI-Nachweis für .NET-Pin, Null-Unterprozess/-Netz, Byteidentität, T-005-Regression sowie Fehler- und Crashpfade | T-003, T-005, T-006 | IN ARBEIT |
 
 Die Familie enthält ausschließlich drei kultur- und regionsneutrale technische Formen: gerade Wand, 90-Grad-Ecke und Wandöffnung mit Holzsturz. Kreative Eingabe ist nur das strikt numerische Spec; Prompts, Negativprompts, Fremdmodelle, Referenzbilder, Texturen, Add-ons und generative 3D-Modelle sind ausgeschlossen. T-005 ist als DCC-unabhängiger Inspector abgenommen.
 
@@ -96,6 +96,6 @@ T-006-Ergebnisse bleiben unter `assets/quarantine/3d/`. Ein gültiger T-003-Rece
 1. T-003 ist separat abgenommen; alle vorhandenen Keyframes bleiben dennoch Quarantäne.
 2. T-005 ist unabhängig abgenommen; seine Proxybudgets sind kein Hardware- oder Shipping-Nachweis.
 3. T-006 ist unabhängig abgenommen; das erste rein .NET-generierte 3D-Asset bleibt technisch validiert in Quarantäne.
-4. T-007 ist `READY` und beweist den vollständigen .NET-Pfad in einem frischen Linux-x64-Checkout.
+4. T-007 ist `IN ARBEIT` und beweist den vollständigen .NET-Pfad in einem frischen Linux-x64-Checkout.
 5. T-050 misst akzeptierte Varianten, Dreiecke, LOD, UV, Texturspeicher, Exportzeit und visuelle Konsistenz und erprobt getrennte Freigabe, Source-Promotion sowie Cooking.
 6. Erst danach wird der Assetumfang vervielfacht.

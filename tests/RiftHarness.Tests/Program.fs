@@ -1740,6 +1740,15 @@ module Program =
               DotnetAssetGeneratorTests.sourceAndToolchainInputsAreRequiredAndBounded
               ".NET asset generator has no process, network or native escape hatches",
               DotnetAssetGeneratorTests.productionPathHasNoProcessNetworkOrNativeEscapeHatches
+              ".NET asset CI evidence is deterministic, closed and sanitized",
+              DotnetAssetCiEvidenceTests.deterministicEvidenceIsSchemaClosedAndSanitized
+              ".NET asset CI evidence rejects unsafe workspaces", DotnetAssetCiEvidenceTests.unsafeWorkspaceFailsClosed
+              ".NET asset CI workflow is dedicated, bounded and least-privileged",
+              DotnetAssetCiPolicyTests.workflowHasOnlyTheDedicatedBoundedLinuxJob
+              ".NET asset CI shell is commit-clean, bounded and sanitized",
+              DotnetAssetCiPolicyTests.freshCheckoutShellIsClosedAndSanitizesEvidence
+              ".NET asset CI contract uses only the active .NET identity",
+              DotnetAssetCiPolicyTests.activeContractUsesOnlyDotnetIdentitySourcesAndPin
               ".NET asset pipeline publishes a committed T-003 quarantine",
               DotnetAssetPipelineTests.happyPathPublishesCommittedT003Quarantine
               ".NET asset pipeline is byte-identical for equal inputs",

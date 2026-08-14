@@ -1,6 +1,6 @@
 # Vertrag für den .NET-Kalibrierungsgenerator
 
-Status: **verbindliches T-006-Contract-Amendment; T-005 und T-006 sind `accepted`, T-007 ist `ready`**
+Status: **verbindliches T-006-Contract-Amendment; T-005 und T-006 sind `accepted`, T-007 ist `running`**
 
 Dieser Vertrag ersetzt ab T-006 den ursprünglich geplanten DCC-Produktionspfad durch einen vollständig in-process laufenden F#/.NET-10-Generator. Er erzeugt GLB direkt und rendert die Preview mit einem deterministischen CPU-Rasterizer. Der Produktionspfad startet keinen Unterprozess, verwendet kein Netzwerk, kein DCC, kein Skript-Runtime-System, keine GPU und keine projektfremde native Bibliothek. Für Generator, Rasterizer und PNG-/GLB-Writer sind nur .NET-BCL-APIs zulässig; vorhandene Harness-Abhängigkeiten dürfen nicht in den Generatorpfad hineinwachsen.
 
@@ -275,9 +275,11 @@ Jede kanonische LF-Zeile bindet Schema, Sequence, Job-ID, Zustand, Vorgängerhas
 
 ## 13. Fresh-Checkout-CI und Abnahme
 
-T-007 liefert einen pfadgefilterten Linux-x64-Job `dotnet-asset-calibration-linux-x64` mit `contents: read`, ohne Secrets und höchstens 30 Minuten. Netzwerk ist nur für Checkout und gelocktes Restore vor der Testsuite zulässig; Generation selbst verwendet nachweislich keine Netzwerk- oder Prozess-API. Der Filter umfasst T-005/T-006/T-007, diesen Vertrag, Asset-Pipeline, Specs, Toolchainlock, Generator-/Inspector-/Journalquellen, Tests, T-003-Schemas/Policies und Workflow/Skripte.
+T-007 liefert einen pfadgefilterten Linux-x64-Job `dotnet-asset-calibration-linux-x64` mit `contents: read`, ohne Secrets und höchstens 30 Minuten. Netzwerk ist für die GitHub-Control-Plane bei Checkout, Toolchain-/Locked-Restore-Vorbereitung und dem abschließenden Upload ausschließlich der bereinigten Evidenz erlaubt; die Generierung und ihre direkten Prüffunktionen verwenden nachweislich keine Netzwerk- oder Prozess-API. Der Filter umfasst T-005/T-006/T-007, diesen Vertrag, Asset-Pipeline, Specs, Toolchainlock, Generator-/Inspector-/Journalquellen, Tests, T-003-Schemas/Policies und Workflow/Skripte.
 
 Der Job prüft mindestens: JSON/Verträge und Locked Restore; komplette T-005-Suite nach Identifier-/Quell-/Pin-Amendment; direkte GLB-/Raster-/PNG-Goldenregeln; BCL-/Null-Unterprozess-/Null-Netz-Abhängigkeit; alle Ressourcen- und Crashpunkte; zweimal Referenzseed plus Alternativseed in getrennten Wurzeln; unabhängigen Inspector; T-003 local/approved-Erwartungen; Gitstatus/Index/Diff auf Leakage. Evidenz enthält SDK-/Lockhash, Host/RID, Befehls-ID, Exitcode, AC-ID und Artefakthashes, aber keine GLB/PNG oder absoluten Pfade.
+
+Der lokale Reproduktionsbefehl ist `./scripts/dotnet-asset-calibration-ci.sh`. Er arbeitet ausschließlich aus dem archivierten aktuellen Commit, schreibt die kanonische Evidenz nach `artifacts/t007/dotnet-asset-calibration.json` und ein auf 1 MiB begrenztes, bereinigtes Testlog nach `artifacts/t007/test.log`. Der Workflow lädt genau diese beiden Dateien für sieben Tage hoch; Quarantäne-, Cooked-, Runtime- oder Binärdaten sind ausgeschlossen.
 
 | Suite | Kriterien |
 |---|---|

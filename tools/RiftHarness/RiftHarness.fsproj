@@ -18,6 +18,7 @@
     <Compile Include="Asset3dInspector.fs" Condition="Exists('Asset3dInspector.fs')" />
     <Compile Include="AssetJobJournal.fs" Condition="Exists('AssetJobJournal.fs')" />
     <Compile Include="DotnetAssetGenerator.fs" Condition="Exists('DotnetAssetGenerator.fs')" />
+    <Compile Include="DotnetAssetCiEvidence.fs" Condition="Exists('DotnetAssetCiEvidence.fs')" />
     <Compile Include="DotnetAssetPipeline.fs" Condition="Exists('DotnetAssetPipeline.fs')" />
     <Compile Include="Verification.fs" />
     <Compile Include="Program.fs" />

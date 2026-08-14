@@ -1,0 +1,131 @@
+name: .NET Asset Calibration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dotnet-asset-calibration.yml"
+      - ".gitignore"
+      - ".gitattributes"
+      - ".ai/tasks/T-003-asset-provenance.json"
+      - ".ai/tasks/T-005-blender-stonewood-calibration.json"
+      - ".ai/tasks/T-006-isolated-blender-generation.json"
+      - ".ai/tasks/T-007-blender-fresh-checkout-ci.json"
+      - ".ai/policies/asset-clean-room.json"
+      - ".ai/schemas/asset-*.json"
+      - ".ai/schemas/blender-*.json"
+      - ".ai/schemas/dotnet-asset-calibration-ci-evidence.schema.json"
+      - ".ai/schemas/generation-receipt.schema.json"
+      - ".ai/schemas/models-lock.schema.json"
+      - ".ai/schemas/event.schema.json"
+      - ".ai/schemas/run-manifest.schema.json"
+      - ".ai/schemas/retrieval-record.schema.json"
+      - ".ai/config.json"
+      - "assets/specs/3d/**"
+      - "assets/manifests/**"
+      - "assets/receipts/**"
+      - "docs/DOTNET_GENERATOR_CONTRACT.md"
+      - "docs/ASSET_PIPELINE.md"
+      - "tools/RiftHarness/**"
+      - "tests/RiftHarness.Tests/**"
+      - "scripts/rift.sh"
+      - "scripts/bootstrap-dotnet.sh"
+      - "scripts/bootstrap-git-lfs-linux.sh"
+      - "scripts/dotnet-asset-calibration-ci.sh"
+      - "scripts/fresh-checkout-test.sh"
+      - "scripts/security.sh"
+      - "Riftward.slnx"
+      - "global.json"
+      - "toolchain.lock.json"
+      - "models.lock.json"
+      - "NuGet.Config"
+      - "Directory.Build.props"
+      - "tools/RiftHarness/packages.lock.json"
+      - "tests/RiftHarness.Tests/packages.lock.json"
+      - ".config/dotnet-tools.json"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/dotnet-asset-calibration.yml"
+      - ".gitignore"
+      - ".gitattributes"
+      - ".ai/tasks/T-003-asset-provenance.json"
+      - ".ai/tasks/T-005-blender-stonewood-calibration.json"
+      - ".ai/tasks/T-006-isolated-blender-generation.json"
+      - ".ai/tasks/T-007-blender-fresh-checkout-ci.json"
+      - ".ai/policies/asset-clean-room.json"
+      - ".ai/schemas/asset-*.json"
+      - ".ai/schemas/blender-*.json"
+      - ".ai/schemas/dotnet-asset-calibration-ci-evidence.schema.json"
+      - ".ai/schemas/generation-receipt.schema.json"
+      - ".ai/schemas/models-lock.schema.json"
+      - ".ai/schemas/event.schema.json"
+      - ".ai/schemas/run-manifest.schema.json"
+      - ".ai/schemas/retrieval-record.schema.json"
+      - ".ai/config.json"
+      - "assets/specs/3d/**"
+      - "assets/manifests/**"
+      - "assets/receipts/**"
+      - "docs/DOTNET_GENERATOR_CONTRACT.md"
+      - "docs/ASSET_PIPELINE.md"
+      - "tools/RiftHarness/**"
+      - "tests/RiftHarness.Tests/**"
+      - "scripts/rift.sh"
+      - "scripts/bootstrap-dotnet.sh"
+      - "scripts/bootstrap-git-lfs-linux.sh"
+      - "scripts/dotnet-asset-calibration-ci.sh"
+      - "scripts/fresh-checkout-test.sh"
+      - "scripts/security.sh"
+      - "Riftward.slnx"
+      - "global.json"
+      - "toolchain.lock.json"
+      - "models.lock.json"
+      - "NuGet.Config"
+      - "Directory.Build.props"
+      - "tools/RiftHarness/packages.lock.json"
+      - "tests/RiftHarness.Tests/packages.lock.json"
+      - ".config/dotnet-tools.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dotnet-asset-calibration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet-asset-calibration-linux-x64:
+    name: .NET asset calibration (Linux x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out committed tree
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install pinned local toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          ./scripts/bootstrap-dotnet.sh
+          ./scripts/bootstrap-git-lfs-linux.sh
+          printf '%s\n' "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Prove .NET asset calibration contract
+        shell: bash
+        run: ./scripts/dotnet-asset-calibration-ci.sh
+
+      - name: Upload sanitized evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dotnet-asset-calibration-evidence
+          path: |
+            artifacts/t007/dotnet-asset-calibration.json
+            artifacts/t007/test.log
+          if-no-files-found: error
+          retention-days: 7

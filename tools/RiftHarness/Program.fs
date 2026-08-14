@@ -273,6 +273,7 @@ Aufruf:
   riftharness asset-calibration inspect --spec FILE --glb FILE --preview FILE --report FILE [--workspace PATH]
   riftharness asset-calibration generate --spec FILE --job-id ULID [--workspace PATH]
   riftharness asset-calibration recover --job-id ULID [--workspace PATH]
+  riftharness asset-ci-evidence --output FILE --test-report-sha256 SHA256 [--workspace PATH]
   riftharness blender-calibration validate-spec|inspect ...  (historischer Read-only-Alias)
   riftharness verify [--run RUN_ID] [--workspace PATH]
 """
@@ -465,6 +466,48 @@ Aufruf:
 
             report |> AssetStore.reportJson |> Console.Out.WriteLine
             if report.Valid then 0 else 2
+        | command :: rest when command = "asset-ci-evidence" ->
+            let output, rest = requireOption "--output" rest
+            let suiteReportSha256, rest = requireOption "--test-report-sha256" rest
+            noArguments command rest
+
+            try
+                if
+                    String.IsNullOrWhiteSpace(output)
+                    || output.Contains('\\')
+                    || Path.IsPathFullyQualified(output)
+                    || output <> "artifacts/t007/dotnet-asset-calibration.json"
+                then
+                    raise (DotnetAssetCiEvidenceError "UNSAFE_PATH")
+
+                let locations = Workspace.paths root
+
+                let outputPath =
+                    Workspace.requireSafePath locations "CI-Evidenzausgabe" true (Path.Combine(root, output))
+
+                if File.Exists(outputPath) || Directory.Exists(outputPath) then
+                    raise (DotnetAssetCiEvidenceError "TRANSACTION_CONFLICT")
+
+                let evidence =
+                    DotnetAssetCiEvidence.generateWithSuiteReport locations.Root suiteReportSha256
+
+                Internal.atomicWrite outputPath evidence.CanonicalJson
+
+                jsonResult (fun writer ->
+                    writer.WriteString("evidencePath", output)
+                    writer.WriteString("evidenceSha256", evidence.Sha256))
+                |> Console.Out.WriteLine
+
+                0
+            with DotnetAssetCiEvidenceError code ->
+                let message =
+                    if code = "UNSUPPORTED_RUNTIME" then
+                        "unsupported runtime"
+                    else
+                        "evidence failed"
+
+                Console.Error.WriteLine($"RiftHarness: {message} ({code})")
+                2
         | command :: runId :: rest when command = "export-generation-receipt" ->
             let manifest, rest = requireOption "--manifest" rest
             let output, rest = requireOption "--output" rest

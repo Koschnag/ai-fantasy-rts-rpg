@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dotnet-asset-calibration-ci-evidence.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["acceptance", "artifacts", "generatorSourceSha256", "generatorSources", "inspections", "platform", "schemaVersion", "toolchain"],
+  "properties": {
+    "acceptance": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["acId", "command", "exitCode", "reportSha256"],
+        "properties": {
+          "acId": {
+            "enum": [
+              "AC-T005-01",
+              "AC-T005-02",
+              "AC-T005-03",
+              "AC-T005-04",
+              "AC-T005-05",
+              "AC-T005-06",
+              "AC-T006-01",
+              "AC-T006-02",
+              "AC-T006-03",
+              "AC-T006-04",
+              "AC-T006-05",
+              "AC-T006-06",
+              "AC-T006-07",
+              "AC-T006-08"
+            ]
+          },
+          "command": {
+            "enum": [
+              "suite:t005-regression",
+              "suite:dotnet-asset-generator-contract",
+              "suite:asset-job-journal-recovery",
+              "suite:asset-generation-provenance"
+            ]
+          },
+          "exitCode": { "const": 0 },
+          "reportSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alternateSeed", "referenceRun1", "referenceRun2"],
+      "properties": {
+        "alternateSeed": { "$ref": "#/$defs/artifactSet" },
+        "referenceRun1": { "$ref": "#/$defs/artifactSet" },
+        "referenceRun2": { "$ref": "#/$defs/artifactSet" }
+      }
+    },
+    "generatorSources": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/journalSource" },
+        { "$ref": "#/$defs/calibrationSource" },
+        { "$ref": "#/$defs/generatorSource" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "generatorSourceSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "inspections": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["decodedGeometryBytes", "materialCount", "renderPrimitiveCount", "reportSha256"],
+        "properties": {
+          "decodedGeometryBytes": { "type": "integer", "minimum": 1 },
+          "materialCount": { "const": 2 },
+          "renderPrimitiveCount": { "const": 18 },
+          "reportSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "os", "rid"],
+      "properties": {
+        "architecture": { "const": "x64" },
+        "os": { "const": "linux" },
+        "rid": { "const": "linux-x64" }
+      }
+    },
+    "schemaVersion": { "const": 1 },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lockEntrySha256", "lockFileSha256", "sdkVersion"],
+      "properties": {
+        "lockEntrySha256": { "const": "840ca3968e7f20d9e525a2d3a0337e8ba81fad50800942ef299496ae18677d4b" },
+        "lockFileSha256": { "const": "e1115c5484a8df29fd25f2a96ee77de8f5561088a869b4192b5cc8f791f4afa8" },
+        "sdkVersion": { "const": "10.0.110" }
+      }
+    }
+  },
+  "$defs": {
+    "sourceBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "journalSource": {
+      "allOf": [
+        { "$ref": "#/$defs/sourceBase" },
+        { "properties": { "path": { "const": "tools/RiftHarness/AssetJobJournal.fs" } } }
+      ]
+    },
+    "calibrationSource": {
+      "allOf": [
+        { "$ref": "#/$defs/sourceBase" },
+        { "properties": { "path": { "const": "tools/RiftHarness/BlenderCalibration.fs" } } }
+      ]
+    },
+    "generatorSource": {
+      "allOf": [
+        { "$ref": "#/$defs/sourceBase" },
+        { "properties": { "path": { "const": "tools/RiftHarness/DotnetAssetGenerator.fs" } } }
+      ]
+    },
+    "artifactSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["glbSha256", "pngSha256", "reportSha256", "seed"],
+      "properties": {
+        "glbSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "pngSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "reportSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+      }
+    }
+  }
+}
