@@ -123,6 +123,7 @@ module DotnetAssetCiPolicyTests =
               "git archive --format=tar HEAD"
               "dotnet --version)\" != \"10.0.110"
               "dotnet restore Riftward.slnx --locked-mode"
+              "-p:RestorePackagesPath=\"$NUGET_PACKAGES\""
               "git write-tree"
               "git ls-files --others --exclude-standard"
               "git ls-files | grep -E"
@@ -220,6 +221,7 @@ module DotnetAssetCiPolicyTests =
         let mutations =
             [ script.Replace("git archive --format=tar HEAD", "cp -a .", StringComparison.Ordinal)
               script.Replace("--locked-mode", "", StringComparison.Ordinal)
+              script.Replace("-p:RestorePackagesPath=\"$NUGET_PACKAGES\"", "", StringComparison.Ordinal)
               script.Replace("10.0.110", "10.0.111", StringComparison.Ordinal)
               script.Replace("1048576", "10485760", StringComparison.Ordinal)
               script.Replace("<workspace>", "${rift_ci_root}", StringComparison.Ordinal)

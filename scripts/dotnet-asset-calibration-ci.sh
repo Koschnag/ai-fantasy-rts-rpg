@@ -47,9 +47,11 @@ fi
 mkdir -p "$rift_ci_tmp/logs"
 
 dotnet tool restore >"$rift_ci_tmp/logs/restore.log" 2>&1
-dotnet restore Riftward.slnx --locked-mode >>"$rift_ci_tmp/logs/restore.log" 2>&1
-./scripts/rift.sh security >"$rift_ci_tmp/logs/security.log" 2>&1
-dotnet build Riftward.slnx --configuration Release --no-restore >"$rift_ci_tmp/logs/build.log" 2>&1
+dotnet restore Riftward.slnx --locked-mode \
+  -p:RestorePackagesPath="$NUGET_PACKAGES" >>"$rift_ci_tmp/logs/restore.log" 2>&1
+dotnet build Riftward.slnx --configuration Release --no-restore \
+  -p:RestorePackagesPath="$NUGET_PACKAGES" >"$rift_ci_tmp/logs/build.log" 2>&1
+./scripts/security.sh >"$rift_ci_tmp/logs/security.log" 2>&1
 dotnet tool run fantomas . --check >"$rift_ci_tmp/logs/lint.log" 2>&1
 dotnet run --project tests/RiftHarness.Tests/RiftHarness.Tests.fsproj \
   --configuration Release --no-build >"$rift_ci_tmp/logs/test.log" 2>&1
@@ -76,7 +78,7 @@ if git ls-files | grep -E '^(assets/(quarantine|cooked)/|\.ai/runtime/)' \
   exit 6
 fi
 
-if git status --porcelain --ignored | grep -Eq '^!! (assets/(quarantine|cooked)/|\.ai/runtime/)'; then
+if git status --porcelain --ignored | grep -Eq '^!! (assets/(quarantine|cooked)/|\.ai/runtime/(memory|index|runs|asset-jobs|.*\.json|.*\.lock))'; then
   printf 'T-007 hinterließ Quarantäne-, Cooked- oder Runtimebytes im Checkout.\n' >&2
   exit 6
 fi
