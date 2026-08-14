@@ -211,6 +211,12 @@ module DotnetAssetCiPolicyTests =
         let script = read "scripts/dotnet-asset-calibration-ci.sh"
         assertTrue (ciScriptIsSafe script) "T-007 shell policy is incomplete or unsafe."
 
+        if not (OperatingSystem.IsWindows()) then
+            let mode =
+                File.GetUnixFileMode(Path.Combine(repositoryRoot, "scripts/dotnet-asset-calibration-ci.sh"))
+
+            assertTrue (mode.HasFlag(UnixFileMode.UserExecute)) "T-007 shell entry point is not executable."
+
         let mutations =
             [ script.Replace("git archive --format=tar HEAD", "cp -a .", StringComparison.Ordinal)
               script.Replace("--locked-mode", "", StringComparison.Ordinal)
