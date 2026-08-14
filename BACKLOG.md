@@ -30,7 +30,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-004 | E-001 | vollständige Run-Provenienz, Evidenzzuordnung, Trace-/Span-Felder, RAG-Buildmanifest und sichere Retention | Z-004, NF-003, NF-008 | M | MUST | DRAFT |
 | T-005 | E-001 | striktes calibration-v1-Spec und unabhängiger .NET-Inspector prüfen GLB, PNG, Report und Proxybudgets ohne Blender | Z-002, Z-004, Z-005, F-008, F-009 | M | MUST | DONE |
 | T-006 | E-001 | BCL-only-F#/.NET-Generator schreibt GLB und CPU-Preview deterministisch in-process und publiziert transaktional über T-003 in Quarantäne | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
-| T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | IN ARBEIT |
+| T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck auf allen Ziel-RIDs | Z-002, Z-003 | L | MUST | DRAFT |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DRAFT |
@@ -43,16 +43,16 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
 | T-051 | E-006 | gemessene Karten-/Quest-/Audio-Pipeline erzeugt konsistente Inhalte mit vollständiger Provenienz | Z-001, Z-004, Z-005 | XL | MUST | DRAFT |
 
-`T-003`, `T-005` und `T-006` sind unabhängig abgenommen. `T-006` hat den
+`T-003`, `T-005`, `T-006` und `T-007` sind unabhängig abgenommen. `T-006` hat den
 BCL-only-.NET-in-process-Generator samt transaktionalem Quarantäne-Lifecycle
-und dem ersten lokalen 3D-Quarantäneasset geliefert. `T-007` ist der nächste
-`IN ARBEIT`. Alle drei hängen direkt von `T-003` ab; zusätzlich hängt
+und dem ersten lokalen 3D-Quarantäneasset geliefert. `T-007` beweist diesen
+Pfad aus einem sauberen Linux-x64-Checkout. Alle drei Assettasks hängen direkt von `T-003` ab; zusätzlich hängt
 `T-006` von `T-005` und `T-007` von `T-005`/`T-006` ab. Der geschlossene Vertrag steht in
 `docs/DOTNET_GENERATOR_CONTRACT.md`. Das ist ein bewusstes T-006-Amendment:
 T-005 bleibt historisch abgenommen, seine komplette Inspector-Suite muss nach
 der eng begrenzten Identifier-/Quellen-/Pin-Anpassung erneut bestehen. `T-050`
-bleibt `DRAFT` und setzt alle
-drei voraus; erst T-050 verantwortet getrennte visuelle/rechtliche Reviews,
+bleibt `DRAFT` und setzt `T-003`, `T-005`, `T-006` und `T-007`
+voraus; erst T-050 verantwortet getrennte visuelle/rechtliche Reviews,
 Source-Promotion, LFS, Backup, Cooking und produktionsnahe Messung.
 
 ## Vorlage für eine Umsetzungseinheit

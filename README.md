@@ -52,10 +52,10 @@ Die Vorproduktion ist abgeschlossen, wenn:
 
 `T-002`, das Asset-Provenienz-/Quarantänegate `T-003`, der unabhängige
 `calibration-v1`-Inspector `T-005` und der BCL-only-F#/.NET-Assetgenerator
-`T-006` sind abgenommen. Der Generator schreibt GLB direkt und rendert PNG
+`T-006` sowie dessen Fresh-Checkout-CI-Nachweis `T-007` sind abgenommen. Der Generator schreibt GLB direkt und rendert PNG
 deterministisch auf der CPU, ohne Unterprozess, Netzwerk oder DCC. Sein
-Fresh-Checkout-/CI-Nachweis `T-007` wird derzeit umgesetzt und aus einem
-committeten Linux-x64-Checkout reproduziert.
+Linux-x64-CI-Pfad reproduziert Pin-, Quellen-, Determinismus-, Recovery- und
+T-003-Gates aus dem archivierten Commit und veröffentlicht nur bereinigte Evidenz.
 T-006 amendiert bewusst nur Generator-Identifier, Quelleninventar und
 .NET-Toolchainbindung; T-005 bleibt historisch abgenommen und wird vollständig
 als Regression erneut ausgeführt.

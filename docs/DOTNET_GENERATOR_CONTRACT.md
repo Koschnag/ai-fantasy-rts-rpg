@@ -1,6 +1,6 @@
 # Vertrag für den .NET-Kalibrierungsgenerator
 
-Status: **verbindliches T-006-Contract-Amendment; T-005 und T-006 sind `accepted`, T-007 ist `running`**
+Status: **verbindliches T-006-Contract-Amendment; T-005, T-006 und T-007 sind `accepted`**
 
 Dieser Vertrag ersetzt ab T-006 den ursprünglich geplanten DCC-Produktionspfad durch einen vollständig in-process laufenden F#/.NET-10-Generator. Er erzeugt GLB direkt und rendert die Preview mit einem deterministischen CPU-Rasterizer. Der Produktionspfad startet keinen Unterprozess, verwendet kein Netzwerk, kein DCC, kein Skript-Runtime-System, keine GPU und keine projektfremde native Bibliothek. Für Generator, Rasterizer und PNG-/GLB-Writer sind nur .NET-BCL-APIs zulässig; vorhandene Harness-Abhängigkeiten dürfen nicht in den Generatorpfad hineinwachsen.
 

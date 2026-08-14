@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "T-007",
   "title": "Fresh-Checkout-CI für die .NET-Assetkalibrierung",
-  "status": "running",
+  "status": "accepted",
   "objective": "Ein eigener Linux-x64-CI-Pfad beweist aus einem sauberen Checkout die gelockte .NET-, BCL-only-, Determinismus-, Recovery-, T-005-Regressions- und T-003-Invariante der calibration-v1-Pipeline, ohne Quarantäneoutput zu versionieren.",
   "inScope": [
     "pfadgefilterter Linux-x64-CI-Job für T-005/T-006 und betroffene Verträge, Specs, .NET-Generator-/Inspectorquellen, Toolchain- sowie Provenienzdateien",
