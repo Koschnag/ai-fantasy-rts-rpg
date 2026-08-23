@@ -12,7 +12,9 @@
     <Compile Include="Memory.fs" />
     <Compile Include="Rag.fs" />
     <Compile Include="Retrieval.fs" />
+    <Compile Include="Provenance.fs" />
     <Compile Include="Runs.fs" />
+    <Compile Include="Retention.fs" />
     <Compile Include="Assets.fs" />
     <Compile Include="BlenderCalibration.fs" />
     <Compile Include="Asset3dInspector.fs" Condition="Exists('Asset3dInspector.fs')" />

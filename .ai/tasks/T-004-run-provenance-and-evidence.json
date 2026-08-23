@@ -3,7 +3,9 @@
   "schemaVersion": 1,
   "id": "T-004",
   "title": "Vollständige Run-Provenienz, Evidenz und Retention",
-  "status": "draft",
+  "status": "accepted",
+  "releaseNote": "2026-08-22: Freigabe draft -> ready durch Projektleitung in der Agentsitzung (muendliche Anweisung 'setze die Arbeit fort, treffe sinnvolle Annahmen'); keine offene Produktentscheidung gemaess docs/OFFENE_FRAGEN.md Blockertabelle; Abhaengigkeit T-002 accepted.",
+  "reviewNote": "2026-08-22: Implementierung abgeschlossen; Gates gruen (build 0 Warnungen, test 129/129 inkl. 9 neuer T-004-Tests, lint, security, verify ueber 24 Runs fehlerfrei). Implementierungslauf 01M0NCFAVJ308TVZ3XY7J8SY58 mit vollstaendiger Provenienz und Evidenz je Abnahmekriterium. Nachträgliche Vertragsverfeinerung nach Produktionsprobe: Die Zusatzregel 'Evidenz nur mit frueherer Trace-Aktivitaet' wurde auf den AC-Text zurueckgebaut (Kriteriumsauflösung + Hüllenpflicht + Evidenz-Duplikatsperre + Retrieval-Querverweis bleiben strikt), weil autogenerierte Trace-IDs sonst unheilbar ungueltige Laeufe erzeugten. 2026-08-22: ACCEPT durch unabhaengigen Reviewlauf 01M0QMA3NAPRXX1KBVH8XFRA6J (Akteur t004-reviewer): saemtliche Gates erneut gruen, Quellcrosschecks je Kriterium, Abnahmedokument docs/abnahme/T-004-run-provenance-and-evidence.md. 2026-08-23: Fertigstellungslauf 01M0QNHR7BVCXS9YMQVG1ZXMSP (Akteur t004-independent-review) bestaetigt saemtliche Gates erneut (inkl. verify ueber 26 Runs) und pruefte adversarial Huellenpflicht, Fremdkriterien, Evidenz-Duplikate, Provenienz-Manipulation, gefaelschte Trace-Verweise und falsche Retention-Hashes; alle wurden abgewiesen.",
   "objective": "RiftHarness ordnet jeden autonomen Lauf eindeutig Task, Git-/Konfig-/Prompt-/Modellstand, Retrievals, Tool-Traces und kriterienspezifischer Evidenz zu und bewahrt beziehungsweise entfernt lokale Rohdaten nach einer sicheren, prüfbaren Retention-Policy.",
   "inScope": [
     "erweitertes Run-Manifest mit Agent-, Modell-, Prompt-, Git-, Toolchain- und Konfigurationshashes",

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/rag-build-manifest.schema.json",
+  "title": "RiftHarness RAG build manifest v1",
+  "description": "Deterministisches Build-Manifest des BM25-Index. Es bindet Index, Harness-Konfiguration und alle Quellen per SHA-256 und enthaelt bewusst keine Zeitstempel; zwei identische Builds erzeugen byte-identische Manifeste.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifestHash", "manifest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "manifestHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "chunkCount",
+        "configSha256",
+        "indexSha256",
+        "parameters",
+        "sourceCount",
+        "sources",
+        "tokenizer"
+      ],
+      "properties": {
+        "algorithm": { "const": "bm25" },
+        "chunkCount": { "type": "integer", "minimum": 0 },
+        "configSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "indexSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["b", "chunkLines", "k1", "overlapLines"],
+          "properties": {
+            "b": { "type": "number" },
+            "chunkLines": { "type": "integer", "minimum": 1 },
+            "k1": { "type": "number" },
+            "overlapLines": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "sourceCount": { "type": "integer", "minimum": 1 },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["lineCount", "path", "sha256"],
+            "properties": {
+              "lineCount": { "type": "integer", "minimum": 0 },
+              "path": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            }
+          }
+        },
+        "tokenizer": { "const": "unicode-alphanumeric-lower-invariant-stopwords-de-en-v1" }
+      }
+    }
+  }
+}

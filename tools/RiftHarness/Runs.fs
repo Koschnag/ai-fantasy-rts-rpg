@@ -37,13 +37,14 @@ type CompletedRunSnapshot =
       SummaryHash: string
       Events: StoredEvent list }
 
-type private RunMetadata =
+type RunMetadata =
     { RunId: string
       ActorId: string option
       StartedAtUtc: string
       Status: string
       FinishedAtUtc: string option
-      RetrievalTraceVersion: int option }
+      RetrievalTraceVersion: int option
+      Provenance: RunProvenance option }
 
 [<RequireQualifiedAccess>]
 module RunStore =
@@ -139,6 +140,10 @@ module RunStore =
             | Some version -> writer.WriteNumber("retrievalTraceVersion", version)
             | None -> ()
 
+            match metadata.Provenance with
+            | Some provenance -> Provenance.writeProvenance writer provenance
+            | None -> ()
+
             writer.WriteEndObject())
 
     let private loadMetadata runPath =
@@ -162,7 +167,8 @@ module RunStore =
                       "startedAtUtc"
                       "status"
                       "finishedAtUtc"
-                      "retrievalTraceVersion" ])
+                      "retrievalTraceVersion"
+                      "provenance" ])
                 (set [ "schemaVersion"; "runId"; "startedAtUtc"; "status" ])
                 root
 
@@ -205,7 +211,11 @@ module RunStore =
                 | true, value ->
                     match value.TryGetInt32() with
                     | true, version when version = 1 || version = 2 -> Some version
-                    | _ -> Internal.fail "Run-Feld 'retrievalTraceVersion' muss 1 oder 2 sein." }
+                    | _ -> Internal.fail "Run-Feld 'retrievalTraceVersion' muss 1 oder 2 sein."
+              Provenance =
+                match root.TryGetProperty("provenance") with
+                | false, _ -> None
+                | true, value -> Provenance.parseProvenance "run.json.provenance" value |> Some }
         with :? JsonException as error ->
             Internal.fail $"Ungueltige Run-Metadaten: {error.Message}"
 
@@ -396,6 +406,7 @@ module RunStore =
         (runId: string)
         (eventType: string)
         (payload: byte array)
+        (timestampUtc: DateTimeOffset)
         =
         validateEventType eventType
         ensureEventPayloadObject payload |> ignore
@@ -403,7 +414,7 @@ module RunStore =
         let existing = loadEventsStrict policy eventsPath runId
         let previous = existing |> List.tryLast |> Option.map (fun event -> event.EventHash)
         let sequence = int64 existing.Length + 1L
-        let timestamp = DateTimeOffset.UtcNow |> Internal.utcText
+        let timestamp = timestampUtc.ToUniversalTime() |> Internal.utcText
 
         let core =
             eventCoreBytes Constants.SchemaVersion runId sequence timestamp eventType previous payload
@@ -474,7 +485,8 @@ module RunStore =
               StartedAtUtc = Internal.utcText now
               Status = "running"
               FinishedAtUtc = None
-              RetrievalTraceVersion = Some 2 }
+              RetrievalTraceVersion = Some 2
+              Provenance = None }
 
         Internal.atomicWrite (Path.Combine(runPath, "run.json")) (metadataBytes metadata)
         Internal.atomicWrite (Path.Combine(runPath, "events.jsonl")) Array.empty
@@ -483,7 +495,90 @@ module RunStore =
 
     let start root = startForActor root "unspecified-agent"
 
-    let append root runId eventType payloadFile =
+    /// Liest und prueft die Metadaten eines Laufs (u. a. fuer Retention).
+    let metadataOf root runId =
+        let locations = Workspace.paths root
+
+        if not (Internal.isRunId runId) then
+            Internal.fail $"Run-Verzeichnis '{runId}' ist keine gueltige Run-ID."
+
+        let runPath = Path.Combine(locations.Runs, runId)
+
+        if not (Directory.Exists(runPath)) then
+            Internal.fail $"Run nicht gefunden: {runId}"
+
+        loadMetadata runPath
+
+    /// Startet einen Lauf mit vollstaendiger Start-Provenienz (T-004):
+    /// erweitertes Manifest, work-/evidence-Verzeichnisse und erstes run.started-Ereignis.
+    let startProvenancedAt root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
+        if
+            String.IsNullOrWhiteSpace(actorId)
+            || actorId <> actorId.Trim()
+            || actorId.Length > 128
+            || actorId |> Seq.exists Char.IsControl
+        then
+            Internal.fail "Run-Akteur muss eine nichtleere normalisierte ID ohne Steuerzeichen sein."
+
+        let locations = Workspace.requireInitialized root
+        let config = HarnessConfig.load locations
+
+        let provenance =
+            Provenance.buildProvenance locations config.MaxEventPayloadBytes inputs
+
+        let now = nowUtc.ToUniversalTime()
+
+        let rec reserve attempts =
+            if attempts = 0 then
+                Internal.fail "Es konnte keine eindeutige Run-ID reserviert werden."
+
+            let runId = Internal.createRunId now
+            let runPath = Path.Combine(locations.Runs, runId)
+
+            if Directory.Exists(runPath) then
+                reserve (attempts - 1)
+            else
+                Directory.CreateDirectory(runPath) |> ignore
+                runId, runPath
+
+        let runId, runPath = reserve 10
+
+        Directory.CreateDirectory(Path.Combine(runPath, "work")) |> ignore
+
+        Directory.CreateDirectory(Path.Combine(runPath, "evidence")) |> ignore
+
+        let metadata =
+            { RunId = runId
+              ActorId = Some actorId
+              StartedAtUtc = Internal.utcText now
+              Status = "running"
+              FinishedAtUtc = None
+              RetrievalTraceVersion = Some 2
+              Provenance = Some provenance }
+
+        Internal.atomicWrite (Path.Combine(runPath, "run.json")) (metadataBytes metadata)
+        Internal.atomicWrite (Path.Combine(runPath, "events.jsonl")) Array.empty
+        Internal.atomicWrite (Path.Combine(runPath, "retrieval.jsonl")) Array.empty
+
+        // Das erste Ereignis traegt dieselbe Provenienz wie das Manifest.
+        // Kanonisierung ist Pflicht: Reload und Hash vergleichen die sortierte Form.
+        let startedPayload =
+            Internal.jsonBytes false (fun writer ->
+                writer.WriteStartObject()
+                Provenance.writeProvenance writer provenance
+                writer.WriteEndObject())
+            |> Constants.Utf8NoBom.GetString
+            |> Internal.canonicalJson false
+
+        appendLocked config.Redaction runPath runId "run.started" startedPayload now
+        |> ignore
+
+        runId
+
+    let startProvenanced root actorId inputs =
+        startProvenancedAt root actorId inputs (DateTimeOffset.UtcNow)
+
+    let appendAt root runId eventType payloadFile (timestampUtc: DateTimeOffset) =
         let locations = Workspace.requireInitialized root
         let config = HarnessConfig.load locations
         let runPath = runDirectory locations runId
@@ -497,17 +592,46 @@ module RunStore =
             Internal.canonicalJsonWithRedaction config.Redaction payloadText
             |> ensurePayloadLimit config.MaxEventPayloadBytes
 
+        // Strukturierte Trace-/Span- und Evidenzvertraege vor dem Sperren pruefen.
+        use payloadDocument = JsonDocument.Parse(payload)
+
+        let spanEnvelope =
+            if payloadDocument.RootElement.ValueKind = JsonValueKind.Object then
+                Provenance.extractSpan $"Ereignis '{eventType}'" eventType payloadDocument.RootElement
+            else
+                None
+
+        if
+            eventType = "evidence.recorded"
+            && payloadDocument.RootElement.ValueKind = JsonValueKind.Object
+        then
+            match Provenance.validateEvidencePayload locations payloadDocument.RootElement with
+            | [] -> ()
+            | evidenceErrors -> Internal.fail (String.concat "; " evidenceErrors)
+
         withRunLock runPath (fun () ->
             let metadata = loadMetadata runPath
 
             if metadata.Status <> "running" then
                 Internal.fail $"Run {runId} ist bereits mit Status '{metadata.Status}' abgeschlossen."
 
-            let event = appendLocked config.Redaction runPath runId eventType payload
+            match spanEnvelope with
+            | Some span ->
+                let boundTaskId =
+                    metadata.Provenance |> Option.bind (fun provenance -> provenance.TaskId)
+
+                Provenance.checkCriterion locations boundTaskId span.CriterionId
+            | None -> ()
+
+            let event =
+                appendLocked config.Redaction runPath runId eventType payload timestampUtc
 
             { RunId = runId
               Sequence = event.Sequence
               EventHash = event.EventHash })
+
+    let append root runId eventType payloadFile =
+        appendAt root runId eventType payloadFile (DateTimeOffset.UtcNow)
 
     let private writeRetrievalAnchor (writer: Utf8JsonWriter) (anchor: RetrievalAnchor) =
         writer.WriteNumber("retrievalTraceCount", anchor.TraceCount)
@@ -605,7 +729,7 @@ module RunStore =
             writer.WriteString("summaryHash", summaryHash)
             writer.WriteEndObject())
 
-    let finish root runId status summaryFile =
+    let finishAt root runId status summaryFile (timestampUtc: DateTimeOffset) =
         if not (terminalStatuses.Contains(status)) then
             Internal.fail "Status muss 'succeeded', 'failed' oder 'cancelled' sein."
 
@@ -638,7 +762,7 @@ module RunStore =
                     |> ensurePayloadLimit config.MaxEventPayloadBytes
 
                 let event =
-                    appendLocked config.Redaction runPath runId "run.finished" finishEventPayload
+                    appendLocked config.Redaction runPath runId "run.finished" finishEventPayload timestampUtc
 
                 let finishedAt = event.TimestampUtc
 
@@ -669,6 +793,9 @@ module RunStore =
                   EventCount = event.Sequence
                   FinalEventHash = event.EventHash
                   SummaryHash = summaryHash }))
+
+    let finish root runId status summaryFile =
+        finishAt root runId status summaryFile (DateTimeOffset.UtcNow)
 
     let verifyRun root runId =
         let errors = ResizeArray<string>()
@@ -726,6 +853,78 @@ module RunStore =
                     match Internal.tryParseUtc event.TimestampUtc with
                     | Some timestamp when timestamp >= started -> ()
                     | _ -> Internal.fail $"Event {event.Sequence} liegt vor Run-Start oder ist ungueltig.")
+
+                // Provenienzvertrag: Laeufe mit Manifest muessen mit passendem run.started beginnen.
+                match metadata.Provenance with
+                | Some provenance ->
+                    match events with
+                    | [] -> ()
+                    | first :: _ ->
+                        if first.EventType <> "run.started" then
+                            Internal.fail
+                                "Ein Lauf mit Provenienzmanifest muss mit einem 'run.started'-Ereignis beginnen."
+
+                        use startedDocument = JsonDocument.Parse(first.Payload)
+
+                        match startedDocument.RootElement.TryGetProperty("provenance") with
+                        | true, value when value.ValueKind = JsonValueKind.Object ->
+                            let stored = value |> Internal.canonicalElement
+
+                            let expected = Provenance.bytesOfProvenance provenance
+
+                            if stored <> expected then
+                                Internal.fail "Provenienz im 'run.started'-Ereignis widerspricht run.json."
+                        | true, _ -> Internal.fail "Provenienz im 'run.started'-Ereignis muss ein JSON-Objekt sein."
+                        | false, _ -> Internal.fail "'run.started'-Ereignis traegt keine Provenienz."
+                | None -> ()
+
+                // Trace-/Span- und Kriteriumsvertraege ueber alle Ereignisse.
+                // Mehrere Ereignisse duerfen einen Span teilen; eine Evidenz schliesst
+                // genau eine Span-Kombination ab und damit genau ein Kriterium.
+                let closedEvidenceSpans = HashSet<string>(StringComparer.Ordinal)
+
+                let retrievalHashes = HashSet<string>(StringComparer.Ordinal)
+
+                let boundTaskId =
+                    metadata.Provenance |> Option.bind (fun provenance -> provenance.TaskId)
+
+                for event in events do
+                    use payloadDocument = JsonDocument.Parse(event.Payload)
+
+                    match
+                        Provenance.extractSpan
+                            $"Ereignis {event.Sequence} ({event.EventType})"
+                            event.EventType
+                            payloadDocument.RootElement
+                    with
+                    | Some span ->
+                        if event.EventType = "evidence.recorded" then
+                            if not (closedEvidenceSpans.Add($"{span.TraceId}/{span.SpanId}")) then
+                                Internal.fail
+                                    $"Ereignis {event.Sequence}: Die Span-Kombination ist bereits mit einer Evidenz abgeschlossen."
+
+                        Provenance.checkCriterion locations boundTaskId span.CriterionId
+
+                        if event.EventType = "evidence.recorded" then
+                            match Provenance.validateEvidencePayload locations payloadDocument.RootElement with
+                            | [] -> ()
+                            | evidenceErrors ->
+                                let joinedEvidenceErrors = String.concat "; " evidenceErrors
+
+                                Internal.fail $"Ereignis {event.Sequence}: {joinedEvidenceErrors}"
+
+                        if event.EventType = "retrieval.recorded" then
+                            if retrievalHashes.Count = 0 then
+                                RetrievalStore.recordedTraceHashes locations.Root runId
+                                |> List.iter (fun hash -> retrievalHashes.Add(hash) |> ignore)
+
+                            let referencedTrace =
+                                Internal.requiredString "traceHash" payloadDocument.RootElement
+
+                            if not (retrievalHashes.Contains(referencedTrace)) then
+                                Internal.fail
+                                    $"Ereignis {event.Sequence}: retrieval.recorded verweist auf einen unbekannten Trace-Hash."
+                    | None -> ()
 
                 let summaryPath = Path.Combine(runPath, "summary.json")
 

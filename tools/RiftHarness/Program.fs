@@ -35,6 +35,18 @@ module Cli =
         | Some result -> result, remaining
         | None -> Internal.fail $"Erforderliche Option fehlt: {name}"
 
+    let collectOptions (name: string) (arguments: string list) : string list * string list =
+        let rec loop collected remaining =
+            match remaining with
+            | [] -> List.rev collected, []
+            | option :: value :: tail when option = name -> loop (value :: collected) tail
+            | [ option ] when option = name -> Internal.fail $"Option '{name}' benoetigt einen Wert."
+            | head :: tail ->
+                let values, rest = loop collected tail
+                values, head :: rest
+
+        loop [] arguments
+
     let noArguments command remaining =
         if not (List.isEmpty remaining) then
             let joinedArguments = String.concat " " remaining
@@ -252,35 +264,55 @@ module Cli =
         | _ -> calibrationError command "INTERNAL_ERROR" "internal error" 8
 
     let usage =
-        """RiftHarness - lokales Agent-Gedaechtnis und BM25-RAG
+        """RiftHarness - lokales Agent-Gedaechtnis, BM25-RAG, Provenienz und Retention
 
 Aufruf:
   riftharness init [--workspace PATH]
-  riftharness start-run [--actor ACTOR] [--workspace PATH]
+  riftharness start-run [--actor ACTOR] [--task T-###] [--model ID] [--prompt-file FILE] [--toolchain-file FILE] [--workspace PATH]
   riftharness append-event RUN_ID --type TYPE --payload-file FILE [--workspace PATH]
+  riftharness append-evidence RUN_ID --criterion AC-ID --kind KIND --result-file FILE [--trace-id ID] [--span-id ID] [--command CMD] [--exit-code N] [--duration-ms N] [--artifact PATH]... [--workspace PATH]
   riftharness finish-run RUN_ID [--status succeeded|failed|cancelled] [--summary-file FILE] [--workspace PATH]
-  riftharness memory propose --record-file FILE [--workspace PATH]
-  riftharness memory validate [--workspace PATH]
-  riftharness memory accept RECORD_ID --new-id ID --actor ACTOR [--workspace PATH]
-  riftharness memory supersede RECORD_ID --with PROPOSAL_ID --new-id ID --actor ACTOR [--workspace PATH]
-  riftharness memory set-status RECORD_ID --status stale|rejected --new-id ID --actor ACTOR [--workspace PATH]
-  riftharness memory status [--workspace PATH]
+  riftharness memory propose|validate|accept|supersede|set-status|status ...
   riftharness build-rag [--workspace PATH]
-  riftharness query-rag --query TEXT [--top N] [--run RUN_ID] [--workspace PATH]
+  riftharness query-rag --query TEXT [--top N] [--run RUN_ID] [--criterion AC-ID] [--trace-id ID] [--span-id ID] [--workspace PATH]
   riftharness assets-check [--manifest FILE] [--require-local] [--require-approved] [--workspace PATH]
   riftharness export-generation-receipt RUN_ID --manifest FILE --output FILE [--workspace PATH]
-  riftharness asset-calibration validate-spec --spec FILE [--workspace PATH]
-  riftharness asset-calibration inspect --spec FILE --glb FILE --preview FILE --report FILE [--workspace PATH]
-  riftharness asset-calibration generate --spec FILE --job-id ULID [--workspace PATH]
-  riftharness asset-calibration recover --job-id ULID [--workspace PATH]
+  riftharness asset-calibration validate-spec|inspect|generate|recover ...
   riftharness asset-ci-evidence --output FILE --test-report-sha256 SHA256 [--workspace PATH]
   riftharness blender-calibration validate-spec|inspect ...  (historischer Read-only-Alias)
+  riftharness retention-plan [--now UTC] [--workspace PATH]
+  riftharness retention-execute --plan-file FILE --confirm-plan-sha256 SHA256 [--now UTC] [--workspace PATH]
   riftharness verify [--run RUN_ID] [--workspace PATH]
 """
 
     let private executeStandard arguments =
         let workspace, withoutWorkspace = takeOption "--workspace" arguments
         let root = workspace |> Option.defaultValue Environment.CurrentDirectory
+
+        let parseNowUtc (nowText: string option) =
+            match nowText with
+            | None -> DateTimeOffset.UtcNow
+            | Some text ->
+                match DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind) with
+                | true, parsed when parsed.Offset = TimeSpan.Zero -> parsed.ToUniversalTime()
+                | _ -> Internal.fail "--now muss einen UTC-Zeitstempel enthalten."
+
+        let writeRunTempPayload runId prefix (bytes: byte array) =
+            let locations = Workspace.requireInitialized root
+            let workDirectory = Path.Combine(locations.Runs, runId, "work")
+            Directory.CreateDirectory(workDirectory) |> ignore
+
+            let path = Path.Combine(workDirectory, $"{prefix}-{Guid.NewGuid():N}.json")
+
+            File.WriteAllBytes(path, bytes)
+            path
+
+        let deleteQuietly (path: string) =
+            try
+                File.Delete(path)
+            with _ ->
+                ()
+
 
         match withoutWorkspace with
         | []
@@ -299,12 +331,20 @@ Aufruf:
             0
         | command :: rest when command = "start-run" ->
             let actorId, rest = takeOption "--actor" rest
+            let taskId, rest = takeOption "--task" rest
+            let modelId, rest = takeOption "--model" rest
+            let promptFile, rest = takeOption "--prompt-file" rest
+            let toolchainFile, rest = takeOption "--toolchain-file" rest
             noArguments command rest
 
-            match actorId with
-            | Some actor -> RunStore.startForActor root actor
-            | None -> RunStore.start root
-            |> Console.Out.WriteLine
+            let inputs: Provenance.StartInputs =
+                { ActorId = actorId |> Option.defaultValue "unspecified-agent"
+                  TaskId = taskId
+                  ModelId = modelId
+                  PromptFile = promptFile
+                  ToolchainFile = toolchainFile }
+
+            RunStore.startProvenanced root inputs.ActorId inputs |> Console.Out.WriteLine
 
             0
         | command :: runId :: rest when command = "append-event" ->
@@ -320,6 +360,115 @@ Aufruf:
             |> Console.Out.WriteLine
 
             0
+        | command :: runId :: rest when command = "append-evidence" ->
+            let traceIdText, rest = takeOption "--trace-id" rest
+            let spanIdText, rest = takeOption "--span-id" rest
+            let criterionId, rest = requireOption "--criterion" rest
+            let kind, rest = requireOption "--kind" rest
+            let resultFile, rest = requireOption "--result-file" rest
+            let evidenceCommand, rest = takeOption "--command" rest
+            let exitCodeText, rest = takeOption "--exit-code" rest
+            let durationMsText, rest = takeOption "--duration-ms" rest
+            let artifactPaths, leftoverArguments = collectOptions "--artifact" rest
+            noArguments command leftoverArguments
+
+            let locations = Workspace.requireInitialized root
+            let config = HarnessConfig.load locations
+
+            let traceId, spanId =
+                match traceIdText, spanIdText with
+                | Some value1, Some value2 -> value1, value2
+                | None, None -> Provenance.newTraceId (), Provenance.newSpanId ()
+                | _ -> Internal.fail "--trace-id und --span-id muessen gemeinsam gesetzt oder gemeinsam fehlen."
+
+            // Ergebnis einlesen, redigieren, kanonisieren und per Hash binden.
+            let resultBytes =
+                Internal.safeReadAllText resultFile config.MaxEventPayloadBytes
+                |> Internal.canonicalJsonWithRedaction config.Redaction
+
+            // Artefakte pfadsicher, existenz- und hashgebunden aufnehmen.
+            let hashedArtifacts =
+                artifactPaths
+                |> List.map (fun artifactPath ->
+                    let absolute =
+                        if Path.IsPathRooted(artifactPath) then
+                            artifactPath
+                        else
+                            Path.Combine(root, artifactPath)
+
+                    let safePath = Workspace.requireSafePath locations "Evidenz-Artefakt" false absolute
+
+                    let relative = Workspace.relativePath locations safePath
+
+                    Provenance.validateArtifactPath locations relative |> ignore
+
+                    if not (File.Exists(safePath)) then
+                        Internal.fail $"Artefakt fehlt: {relative}"
+
+                    relative, Internal.sha256File safePath)
+
+            let payloadBytes =
+                Internal.jsonBytes false (fun writer ->
+                    writer.WriteStartObject()
+                    writer.WriteString("traceId", traceId)
+                    writer.WriteString("spanId", spanId)
+                    writer.WriteString("criterionId", criterionId)
+                    writer.WriteString("kind", kind)
+
+                    match evidenceCommand with
+                    | Some value -> writer.WriteString("command", value)
+                    | None -> ()
+
+                    match exitCodeText with
+                    | Some text ->
+                        match Int64.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture) with
+                        | true, code when code >= 0L && code <= 4096L -> writer.WriteNumber("exitCode", code)
+                        | _ -> Internal.fail "--exit-code muss eine Ganzzahl zwischen 0 und 4096 sein."
+                    | None -> ()
+
+                    match durationMsText with
+                    | Some text ->
+                        match Int64.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture) with
+                        | true, duration when duration >= 0L -> writer.WriteNumber("durationMs", duration)
+                        | _ -> Internal.fail "--duration-ms darf keine negative Ganzzahl sein."
+                    | None -> ()
+
+                    writer.WriteStartArray("artifacts")
+
+                    for relative, artifactHash in hashedArtifacts do
+                        writer.WriteStartObject()
+                        writer.WriteString("path", relative)
+                        writer.WriteString("sha256", artifactHash)
+                        writer.WriteEndObject()
+
+                    writer.WriteEndArray()
+                    Internal.rawJson writer "result" resultBytes
+
+                    writer.WriteString("resultSha256", Internal.sha256Hex resultBytes)
+
+                    writer.WriteEndObject())
+
+            if int64 payloadBytes.LongLength > config.MaxEventPayloadBytes then
+                Internal.fail
+                    $"Evidenz-Payload ueberschreitet logging.maxEventPayloadBytes ({config.MaxEventPayloadBytes} Bytes)."
+
+            let tempPayloadPath = writeRunTempPayload runId "evidence" payloadBytes
+
+            try
+                let receipt = RunStore.append root runId "evidence.recorded" tempPayloadPath
+
+                jsonResult (fun writer ->
+                    writer.WriteString("criterionId", criterionId)
+                    writer.WriteString("eventHash", receipt.EventHash)
+                    writer.WriteNumber("sequence", receipt.Sequence)
+                    writer.WriteString("runId", receipt.RunId)
+                    writer.WriteString("spanId", spanId)
+                    writer.WriteString("traceId", traceId))
+                |> Console.Out.WriteLine
+
+                0
+            finally
+                deleteQuietly tempPayloadPath
         | command :: runId :: rest when command = "finish-run" ->
             let status, rest = takeOption "--status" rest
             let summaryFile, rest = takeOption "--summary-file" rest
@@ -418,14 +567,23 @@ Aufruf:
                 writer.WriteNumber("sourceCount", receipt.SourceCount)
                 writer.WriteNumber("chunkCount", receipt.ChunkCount)
                 writer.WriteString("indexHash", receipt.IndexHash)
-                writer.WriteString("indexPath", receipt.IndexPath))
+                writer.WriteString("indexPath", receipt.IndexPath)
+                writer.WriteString("manifestPath", receipt.ManifestPath)
+                writer.WriteString("manifestSha256", receipt.ManifestHash))
             |> Console.Out.WriteLine
 
             0
         | command :: rest when command = "query-rag" ->
             let traceRun, rest = takeOption "--run" rest
+            let criterionId, rest = takeOption "--criterion" rest
+            let spanTraceId, rest = takeOption "--trace-id" rest
+            let spanIdText, rest = takeOption "--span-id" rest
             let topText, queryParts = takeOption "--top" rest
             let queryOption, positionalQuery = takeOption "--query" queryParts
+
+            match criterionId, traceRun with
+            | Some _, None -> Internal.fail "--criterion erfordert --run."
+            | _ -> ()
 
             let top =
                 match topText with
@@ -445,6 +603,40 @@ Aufruf:
 
             let recorded =
                 traceRun |> Option.map (fun runId -> RetrievalStore.record root runId response)
+
+            // Mit gebundener Span-Huelle zusaetzlich ein retrieval.recorded-Ereignis verankern.
+            match recorded, criterionId with
+            | Some trace, Some criterion ->
+                let boundTraceId, boundSpanId =
+                    match spanTraceId, spanIdText with
+                    | Some value1, Some value2 -> value1, value2
+                    | None, None -> Provenance.newTraceId (), Provenance.newSpanId ()
+                    | _ -> Internal.fail "--trace-id und --span-id muessen gemeinsam gesetzt oder gemeinsam fehlen."
+
+                let eventPayloadBytes =
+                    Internal.jsonBytes false (fun writer ->
+                        writer.WriteStartObject()
+                        writer.WriteString("traceId", boundTraceId)
+                        writer.WriteString("spanId", boundSpanId)
+                        writer.WriteString("criterionId", criterion)
+                        writer.WriteString("indexSha256", response.IndexSha256)
+                        writer.WriteNumber("sequence", trace.Sequence)
+                        writer.WriteString("traceHash", trace.TraceHash)
+                        writer.WriteString("queryId", trace.QueryId)
+                        writer.WriteEndObject())
+
+                let runIdForEvent = traceRun |> Option.get
+
+                let tempPayloadPath =
+                    writeRunTempPayload runIdForEvent "retrieval" eventPayloadBytes
+
+                try
+                    RunStore.append root runIdForEvent "retrieval.recorded" tempPayloadPath
+                    |> ignore
+                finally
+                    deleteQuietly tempPayloadPath
+            | Some _, None -> ()
+            | None, _ -> ()
 
             { response with Trace = recorded }
             |> RagIndex.queryJson
@@ -528,6 +720,37 @@ Aufruf:
             let report = Verification.verify root requestedRun
             report |> Verification.reportJson |> Console.Out.WriteLine
             if report.Valid then 0 else 2
+        | command :: rest when command = "retention-plan" ->
+            let nowText, rest = takeOption "--now" rest
+            noArguments command rest
+            let nowUtc = parseNowUtc nowText
+
+            let planFileBytes, _ = Retention.planBytes root nowUtc
+
+            Constants.Utf8NoBom.GetString(planFileBytes) |> Console.Out.WriteLine
+
+            0
+        | command :: rest when command = "retention-execute" ->
+            let planFilePath, rest = requireOption "--plan-file" rest
+            let confirmHash, rest = requireOption "--confirm-plan-sha256" rest
+            let nowText, rest = takeOption "--now" rest
+            noArguments command rest
+            let nowUtc = parseNowUtc nowText
+            let receipt = Retention.execute root planFilePath confirmHash nowUtc
+
+            jsonResult (fun writer ->
+                writer.WriteStartArray("deletedRunIds")
+
+                for runId in receipt.DeletedRunIds do
+                    writer.WriteStringValue(runId)
+
+                writer.WriteEndArray()
+                writer.WriteNumber("consideredCount", receipt.ConsideredCount)
+                writer.WriteString("executedAtUtc", receipt.ExecutedAtUtc)
+                writer.WriteString("planSha256", receipt.PlanSha256))
+            |> Console.Out.WriteLine
+
+            0
         | command :: _ -> Internal.fail $"Unbekannter oder unvollstaendiger Befehl: {command}"
 
     let execute arguments =

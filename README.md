@@ -59,9 +59,12 @@ T-003-Gates aus dem archivierten Commit und veröffentlicht nur bereinigte Evide
 T-006 amendiert bewusst nur Generator-Identifier, Quelleninventar und
 .NET-Toolchainbindung; T-005 bleibt historisch abgenommen und wird vollständig
 als Regression erneut ausgeführt.
-Vollständige allgemeine Run-Provenienz/Evidenz (`T-004`) und das native
-SDL3-/bgfx-Walking-Skeleton (`T-010`) folgen, sobald der jeweilige Auftrag
-`READY` ist. Nur `READY`-Aufträge dürfen ohne weitere fachliche Klärung
+`T-001` bis `T-007` sind abgenommen. Damit besitzt das Harness vollständige
+Run-Provenienz, Trace-/Span-/Evidenzverträge, ein deterministisches
+RAG-Buildmanifest und eine bewachte 180-Tage-Retention
+(`docs/abnahme/T-004-run-provenance-and-evidence.md`). Das native
+SDL3-/bgfx-Walking-Skeleton (`T-010`) folgt, sobald `Q-TEC-001`/`Q-TEC-003`
+entschieden sind. Nur `READY`-Aufträge dürfen ohne weitere fachliche Klärung
 gestartet werden.
 
 ## Leitentscheidungen

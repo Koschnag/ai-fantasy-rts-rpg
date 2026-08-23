@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/retention-plan.schema.json",
+  "title": "RiftHarness retention plan v1",
+  "description": "Read-only Vorschau (Dry-Run) der Run-Retention. Die Ausfuehrung entfernt ausschliesslich Kandidaten dieses gehashten Plans, die zum Ausfuehrungszeitpunkt erneut abgelaufene Frist, gueltigen Abschluss und einen akzeptierten bereinigten History-Bericht nachweisen.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plan", "planSha256", "schemaVersion"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "planSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidates", "deletableCount", "generatedAtUtc", "retentionDays"],
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "deletable",
+              "expiresAtUtc",
+              "finishedAtUtc",
+              "historyProof",
+              "reasons",
+              "runId",
+              "status"
+            ],
+            "properties": {
+              "deletable": { "type": "boolean" },
+              "expiresAtUtc": {
+                "oneOf": [{ "type": "null" }, { "type": "string", "format": "date-time" }]
+              },
+              "finishedAtUtc": {
+                "oneOf": [{ "type": "null" }, { "type": "string", "format": "date-time" }]
+              },
+              "historyProof": {
+                "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+              },
+              "reasons": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "runId": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$" },
+              "status": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "deletableCount": { "type": "integer", "minimum": 0 },
+        "generatedAtUtc": { "type": "string", "format": "date-time" },
+        "retentionDays": { "const": 180 }
+      }
+    }
+  }
+}

@@ -1874,7 +1874,24 @@ module Program =
               Tests.retrievalTracesAreDeterministicChainedRedactedAndBounded
               "RAG excludes configured paths, secrets and symlinks", Tests.ragExcludesConfiguredPathsSecretsAndSymlinks
               "Init is idempotent and validates configuration", Tests.initIsIdempotentAndValidatesConfiguration
-              "Fixed v1 configuration rejects pretend options", Tests.fixedV1ConfigurationRejectsPretendOptions ]
+              "Fixed v1 configuration rejects pretend options", Tests.fixedV1ConfigurationRejectsPretendOptions
+              "T-004 provenanced runs record complete manifests with Git",
+              RunProvenanceTests.provenancedRunsRecordCompleteManifests
+              "T-004 provenance completeness stays explicit without Git",
+              RunProvenanceTests.provenanceCompletenessStaysExplicitWithoutGit
+              "T-004 span envelope contract rejects broken envelopes",
+              RunProvenanceTests.spanEnvelopeContractRejectsBrokenEnvelopes
+              "T-004 span envelope chain end-to-end verifies", RunProvenanceTests.spanEnvelopeChainEndToEndVerifies
+              "T-004 duplicate evidence spans fail verification",
+              RunProvenanceTests.duplicateEvidenceSpansFailVerification
+              "T-004 retrieval events require known trace hashes",
+              RunProvenanceTests.retrievalEventsRequireKnownTraceHashes
+              "T-004 RAG build manifest is deterministic and binds inputs",
+              RunProvenanceTests.ragBuildManifestIsDeterministicAndBindsInputs
+              "T-004 retention plans are read-only and executions stay guarded",
+              RunProvenanceTests.retentionPlansAreReadOnlyAndExecutionsStayGuarded
+              "T-004 evidence payloads redact secrets and reject foreign fields",
+              RunProvenanceTests.evidencePayloadsRedactSecretsAndRejectForeignFields ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

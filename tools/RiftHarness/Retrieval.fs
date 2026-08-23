@@ -512,6 +512,18 @@ module RetrievalStore =
         with :? IOException as error ->
             Internal.fail $"Run ist bereits fuer einen Retrieval-Schreibvorgang gesperrt: {error.Message}"
 
+    /// Liste aller Trace-Hashes eines Laufs fuer Querverweise aus Ereignissen.
+    let recordedTraceHashes root runId =
+        let locations = Workspace.requireInitialized root
+        let config = HarnessConfig.load locations
+        let path = tracePath locations runId
+
+        if File.Exists(path) then
+            loadStrict config.Redaction config.MaxEventPayloadBytes path runId
+            |> List.map (fun trace -> trace.TraceHash)
+        else
+            []
+
     let verifyRun root runId =
         let errors = ResizeArray<string>()
 

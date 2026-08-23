@@ -27,7 +27,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-001 | E-001 | lokales F#-Harness mit Run-Ledger, Hashkette, BM25-RAG, Zitaten und Integritätsprüfung | Z-004, NF-008 | M | MUST | DONE |
 | T-002 | E-001 | Memory-Promotion, Konflikt-/Stalenessprüfung und Retrieval-Traces | Z-004, NF-003 | M | MUST | DONE |
 | T-003 | E-001 | Clean-Room-, Asset-Provenienz-, Quarantäne- und technische Validatorhülle | Z-004, Z-005 | M | MUST | DONE |
-| T-004 | E-001 | vollständige Run-Provenienz, Evidenzzuordnung, Trace-/Span-Felder, RAG-Buildmanifest und sichere Retention | Z-004, NF-003, NF-008 | M | MUST | DRAFT |
+| T-004 | E-001 | vollständige Run-Provenienz, Evidenzzuordnung, Trace-/Span-Felder, RAG-Buildmanifest und sichere Retention | Z-004, NF-003, NF-008 | M | MUST | DONE |
 | T-005 | E-001 | striktes calibration-v1-Spec und unabhängiger .NET-Inspector prüfen GLB, PNG, Report und Proxybudgets ohne Blender | Z-002, Z-004, Z-005, F-008, F-009 | M | MUST | DONE |
 | T-006 | E-001 | BCL-only-F#/.NET-Generator schreibt GLB und CPU-Preview deterministisch in-process und publiziert transaktional über T-003 in Quarantäne | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
 | T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
@@ -49,11 +49,16 @@ und dem ersten lokalen 3D-Quarantäneasset geliefert. `T-007` beweist diesen
 Pfad aus einem sauberen Linux-x64-Checkout. Alle drei Assettasks hängen direkt von `T-003` ab; zusätzlich hängt
 `T-006` von `T-005` und `T-007` von `T-005`/`T-006` ab. Der geschlossene Vertrag steht in
 `docs/DOTNET_GENERATOR_CONTRACT.md`. Das ist ein bewusstes T-006-Amendment:
-T-005 bleibt historisch abgenommen, seine komplette Inspector-Suite muss nach
+T-005 bleibt historisch abgenommen; seine komplette Inspector-Suite muss nach
 der eng begrenzten Identifier-/Quellen-/Pin-Anpassung erneut bestehen. `T-050`
 bleibt `DRAFT` und setzt `T-003`, `T-005`, `T-006` und `T-007`
 voraus; erst T-050 verantwortet getrennte visuelle/rechtliche Reviews,
 Source-Promotion, LFS, Backup, Cooking und produktionsnahe Messung.
+
+`T-004` wurde am 2026-08-22 durch die Projektleitung freigegeben (`READY`), in
+Lauf `01M0NCFAVJ308TVZ3XY7J8SY58` implementiert und durch den unabhängigen
+Reviewlauf `01M0QMA3NAPRXX1KBVH8XFRA6J` akzeptiert; Abnahmedokument:
+`docs/abnahme/T-004-run-provenance-and-evidence.md`.
 
 ## Vorlage für eine Umsetzungseinheit
 

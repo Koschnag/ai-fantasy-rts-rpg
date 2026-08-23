@@ -23,6 +23,7 @@
     <Compile Include="DotnetAssetCiPolicyTests.fs" Condition="Exists('DotnetAssetCiPolicyTests.fs')" />
     <Compile Include="DotnetAssetPipelineTests.fs" Condition="Exists('DotnetAssetPipelineTests.fs')" />
     <Compile Include="DotnetAssetPipelineCliTests.fs" Condition="Exists('DotnetAssetPipelineCliTests.fs')" />
+    <Compile Include="RunProvenanceTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

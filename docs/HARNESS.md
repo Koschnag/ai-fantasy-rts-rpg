@@ -28,7 +28,7 @@ Ein Chatverlauf wird nie ungeprüft zu semantischem Gedächtnis. Stattdessen sch
 
 ## Ziel-Verzeichnisstruktur
 
-Das folgende Layout ist der Ausbauvertrag. T-002 erzeugt für neue Runs `run.json`, `events.jsonl`, eine leere beziehungsweise append-only gefüllte `retrieval.jsonl`, `summary.json` nach Abschluss und den rebuildbaren Index. `work/`, strukturierte Evidenzaufnahme, vollständige Run-Provenienz und automatische Retention gehören weiterhin zu T-004. Sie dürfen bis dahin nicht als vorhanden vorausgesetzt werden.
+Das folgende Layout ist der Ausbauvertrag. T-002 erzeugt für neue Runs `run.json`, `events.jsonl`, eine leere beziehungsweise append-only gefüllte `retrieval.jsonl`, `summary.json` nach Abschluss und den rebuildbaren Index. Seit T-004 erzeugt `start-run` zusätzlich den Provenienzblock im Manifest, die Verzeichnisse `work/` und `evidence/` pro Lauf, das deterministische RAG-Buildmanifest sowie die Retention-Befehle; strukturierte Evidenzaufnahme ist über `append-evidence` verfügbar.
 
 ```text
 .ai/
@@ -65,7 +65,7 @@ Das folgende Layout ist der Ausbauvertrag. T-002 erzeugt für neue Runs `run.jso
 
 ## Append-only-Ereignisse
 
-Aktuell besitzt jedes Ereignis eine monotone Sequenz, UTC-Zeit, Typ, Payload und Hash. `previousEventHash` verkettet die Einträge. Die Kette schützt nicht gegen einen Angreifer mit Schreibzugriff, macht aber versehentliche Änderung, Auslassung und Reihenfolgefehler sichtbar. Akteur-, Agent-, Modell- und Trace-Felder folgen mit T-004.
+Aktuell besitzt jedes Ereignis eine monotone Sequenz, UTC-Zeit, Typ, Payload und Hash. `previousEventHash` verkettet die Einträge. Die Kette schützt nicht gegen einen Angreifer mit Schreibzugriff, macht aber versehentliche Änderung, Auslassung und Reihenfolgefehler sichtbar. Seit T-004 tragen Retrieval-, Tool- und Evidenzereignisse Trace-/Span-/Kriteriumsfelder mit strikter Prüfung.
 
 Große Ausgaben werden als Datei mit SHA-256 referenziert, nicht in JSONL dupliziert. Payloads werden vor dem Schreiben anhand der Redaction-Policy bereinigt. Implementiert sind ein konfigurierbares Byte-Limit sowie Schlüssel- und Wert-Regexe mit linearem Regexmodus und Timeout; ungültige Regeln brechen den Lauf ab.
 
@@ -81,7 +81,7 @@ Die erste Implementierung verwendet zeilenstabile Chunks und BM25-Volltext-Ranki
 
 Bereinigte Abschlussberichte unter `.ai/history/accepted/` bleiben bewusst außerhalb des normalen Indexes, damit Metatext keine fachlichen Primärquellen überrankt. T-002 weist jedem tatsächlich indexierten Chunk eine explizite Vertrauensklasse zu; diese Kennzeichnung verändert weder BM25-Ranking noch Quellenhierarchie.
 
-Jeder Chunk enthält Quellpfad, Start-/Endzeile und Inhalts-Hash. Antworten müssen Pfad und Zeilen nennen; `rag.maxContextCharacters` begrenzt die ausgegebenen Chunktexte. Der Index wird nicht versioniert. Ein separates Build-Manifest mit Konfigurationshash ist noch nicht implementiert und bleibt T-004.
+Jeder Chunk enthält Quellpfad, Start-/Endzeile und Inhalts-Hash. Antworten müssen Pfad und Zeilen nennen; `rag.maxContextCharacters` begrenzt die ausgegebenen Chunktexte. Der Index wird nicht versioniert. Seit T-004 schreibt `build-rag` zusätzlich ein deterministisches Build-Manifest (`.ai/runtime/index/build-manifest.json`), das Index, Konfiguration und alle Quellen per SHA-256 bindet; `verify` lehnt einen Index ohne gültiges Manifest ab.
 
 Die konfigurierte Memory-JSONL-Datei wird defensiv projiziert: Nur effektiv `accepted`-Records, deren lokale Quellen-Hashes noch stimmen, die nicht abgelaufen/ersetzt sind und keiner expliziten Konfliktgruppe angehören, gelangen in den Index. Andere Status und stale beziehungsweise widersprüchliche Records bleiben im append-only Ledger erhalten. `memory status` und jede RAG-Antwort melden aktuelle Staleness und Konfliktgruppen sichtbar.
 
@@ -123,11 +123,13 @@ Indexierte Inhalte sind Daten und keine Instruktionen. Ein eingebetteter Satz wi
 - markiert Herkunft durch Pfad, Zeilenbereich und Hash,
 - darf durch Retrieval keine Tools oder Schreiboperationen automatisch autorisieren.
 
-T-002 implementiert explizite Vertrauensklassen, sichtbare Konflikt-/Stalenessberichte und persistierte Retrieval-Traces. Query und Kontext werden vor Persistierung mit derselben konfigurierten Schlüssel-/Wert-Policy wie Run-Payloads redigiert; Freitext-Zuweisungen wie `credential=...` werden dabei ebenfalls erkannt. Query-, Kontext-, Treffer- und Kettenhashes beziehen sich auf die persistierte redigierte Form. Neue Runs verwenden Trace-Vertrag v2: `finish-run` sperrt Retrieval gegen paralleles Append und bindet `retrievalTraceCount` sowie `finalRetrievalTraceHash` in Summary und Abschluss-Event. `verify` erkennt dadurch auch gültige Präfixe nach Tail-Kürzung oder Leerung. Vollständige Run-/Prompt-/Modell- und Evidenz-Traces folgen mit T-004.
+T-002 implementiert explizite Vertrauensklassen, sichtbare Konflikt-/Stalenessberichte und persistierte Retrieval-Traces. Query und Kontext werden vor Persistierung mit derselben konfigurierten Schlüssel-/Wert-Policy wie Run-Payloads redigiert; Freitext-Zuweisungen wie `credential=...` werden dabei ebenfalls erkannt. Query-, Kontext-, Treffer- und Kettenhashes beziehen sich auf die persistierte redigierte Form. Neue Runs verwenden Trace-Vertrag v2: `finish-run` sperrt Retrieval gegen paralleles Append und bindet `retrievalTraceCount` sowie `finalRetrievalTraceHash` in Summary und Abschluss-Event. `verify` erkennt dadurch auch gültige Präfixe nach Tail-Kürzung oder Leerung.
+
+Seit T-004 gilt zusätzlich der Ereignisvertrag für Trace-/Span-IDs: Die Typen `retrieval.recorded`, `tool.executed` und `evidence.recorded` tragen in ihrem Payload zwingend eine Hülle aus `traceId` (32 Hexzeichen), `spanId` (16 Hexzeichen) und genau einem `criterionId` (`AC-…-##`), der zur im Manifest gebundenen Aufgabe aufgelöst wird; fremde Kriterien werden abgelehnt. Mehrere Arbeitsschritte dürfen einen Span teilen, aber jede Span-Kombination wird durch höchstens eine Evidenz abgeschlossen. `query-rag --run … --criterion … --trace-id … --span-id …` verankert Retrievals zusätzlich als `retrieval.recorded`-Ereignis in der Eventkette; `verify` prüft den Verweis gegen die Retrieval-Kette.
 
 ## Beobachtbarkeit
 
-T-004 ergänzt Trace-/Span-IDs für Arbeitsschritte mit mehreren Tools. Eine spätere OpenTelemetry-Ausgabe kann daraus abgeleitet werden; OTLP ist keine Voraussetzung. Zielmetriken:
+T-004 implementiert Trace-/Span-IDs für Arbeitsschritte mit mehreren Tools; eine spätere OpenTelemetry-Ausgabe kann daraus abgeleitet werden, OTLP bleibt keine Voraussetzung. Zielmetriken:
 
 - Laufdauer, Retries und Fehlerklassen
 - Retrievaltreffer, Quellenabdeckung und Kontextgröße
@@ -141,7 +143,7 @@ Token- oder API-Kosten werden nur erfasst, wenn der jeweilige Anbieter sie zuver
 
 ## Sicherung und Retention
 
-- Die Policy fordert 180 Tage lokale Roh-Run-Retention; automatische Löschung und die Vorprüfung auf einen akzeptierten, bereinigten Bericht sind noch nicht implementiert.
+- Die Policy fordert 180 Tage lokale Roh-Run-Retention. Seit T-004 ist der Lebenszyklus implementiert: `retention-plan` erzeugt eine read-only, hashverankerte Vorschau (`planSha256`), die pro Lauf Frist, Abschlussprüfung und den akzeptierten bereinigten History-Bericht auswertet. `retention-execute --confirm-plan-sha256 …` entfernt ausschließlich Kandidaten dieses Plans, die zum Ausführungszeitpunkt erneut alle Bedingungen erfüllen (transaktional, Symlink-fail-closed) und verankert jede Löschung in `.ai/runtime/retention-log.jsonl`.
 - Akzeptierte History, Gedächtnis, Aufgaben, Entscheidungen und Evidenzreferenzen werden in Git versioniert.
 - Große Benchmark-, Bild-, Audio- und Trace-Artefakte benötigen später einen adressierbaren Artefaktspeicher mit Hashprüfung; Git ist dafür nicht vorgesehen.
 - Secrets werden nicht als „verschlüsselte Logs im Repo“ gelöst, sondern gar nicht erst aufgenommen.
@@ -152,25 +154,23 @@ Implementierte Befehle des F#-Werkzeugs `RiftHarness`:
 
 ```text
 rift-harness init
-rift-harness start-run
+rift-harness start-run [--actor ACTOR] [--task T-###] [--model ID] [--prompt-file FILE] [--toolchain-file FILE]
 rift-harness append-event <run-id> --type <type> --payload-file <path>
+rift-harness append-evidence <run-id> --criterion AC-…-## --kind KIND --result-file PATH [--trace-id ID] [--span-id ID] [--command CMD] [--exit-code N] [--duration-ms N] [--artifact PATH]…
 rift-harness finish-run <run-id> --status succeeded --summary-file <path>
-rift-harness memory propose --record-file <path>
-rift-harness memory validate
-rift-harness memory accept <record-id> --new-id <id> --actor <reviewer>
-rift-harness memory supersede <record-id> --with <proposal-id> --new-id <id> --actor <reviewer>
-rift-harness memory set-status <record-id> --status stale|rejected --new-id <id> --actor <reviewer>
-rift-harness memory status
+rift-harness memory propose|validate|accept|supersede|set-status|status …
 rift-harness build-rag
-rift-harness query-rag --query <text> --top 8 [--run <id>]
+rift-harness query-rag --query <text> --top 8 [--run <id>] [--criterion AC-…-## --trace-id ID --span-id ID]
+rift-harness retention-plan [--now UTC]
+rift-harness retention-execute --plan-file PATH --confirm-plan-sha256 SHA256 [--now UTC]
 rift-harness verify [--run <id>]
 ```
 
-`start-run` erzeugt `run.json`, eine leere Ereignis- und eine leere Retrieval-Datei; die erweiterte Startprovenienz muss der Aufrufer weiterhin explizit als erstes `run.started`-Payload anhängen. Bequeme Optionen für Task/Agent/Prompt, strukturierte Evidenzaufnahme und Retention folgen mit T-004; sie werden nicht durch leere Erfolgskommandos vorgetäuscht.
+`start-run` erzeugt `run.json`, eine leere Ereignis- und eine leere Retrieval-Datei, die Verzeichnisse `work/` und `evidence/`, den Provenienzblock (Task-, Git-, Prompt-, Modell-, Toolchain-, Konfigurationshashes plus explizite Vollständigkeitskennzeichnung; Git wird ohne Unterprozess direkt aus `.git/HEAD` gelesen, fehlende Anteile werden als unvollständig markiert) sowie automatisch das erste `run.started`-Ereignis mit identischer Provenienz. Prompte werden ausschließlich als Hash geführt; Rohprompts, Rohmodellantworten und verborgene Begründungen werden nie gespeichert.
 
 ## Harness-Zielkriterien
 
-T-001 deckt Run-Lebenszyklus, Event-Hashkette, Redaction-Basis und deterministisches BM25-Retrieval ab. T-002 ergänzt Staleness-/Konfliktlogik, explizite Memory-Promotion und eine getrennte Retrieval-Hashkette. Vollständige Run-Provenienz, Evidenzzuordnung, RAG-Buildmanifest und Retention bleiben T-004.
+T-001 deckt Run-Lebenszyklus, Event-Hashkette, Redaction-Basis und deterministisches BM25-Retrieval ab. T-002 ergänzt Staleness-/Konfliktlogik, explizite Memory-Promotion und eine getrennte Retrieval-Hashkette. T-004 vervollständigt Run-Provenienz, Trace-/Span-/Kriteriumsverträge, das deterministische RAG-Buildmanifest und die bewachte Retention.
 
 - Zwei Builds desselben Commits erzeugen identische Chunk-IDs und Rankings für dieselbe Query.
 - Ein geänderter Quelltext invalidiert genau die betroffenen Chunks und Memory-Quellen.

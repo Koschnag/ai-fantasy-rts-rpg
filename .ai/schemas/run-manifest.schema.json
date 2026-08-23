@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://project-riftward.invalid/schemas/run-manifest.schema.json",
   "title": "RiftHarness run metadata v1",
-  "description": "Kleines kanonisches Laufzeitmanifest. Task-, Agent-, Prompt- und Git-Provenienz wird im ersten run.started-Ereignis referenziert, bis ein erweitertes Manifest als eigene Schema-Version implementiert ist.",
+  "description": "Kanonisches Laufzeitmanifest. Seit T-004 schreibt start-run einen provenance-Block mit Task-, Git-, Prompt-, Modell-, Toolchain- und Konfigurationshashes sowie expliziter Vollstaendigkeitskennzeichnung. Laeufe ohne diesen Block bleiben gueltig (Abwaertskompatibilitaet).",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "runId", "startedAtUtc", "status"],
@@ -17,6 +17,56 @@
     "retrievalTraceVersion": {
       "enum": [1, 2],
       "description": "Wenn gesetzt, ist retrieval.jsonl auch bei null Abfragen Pflicht. Version 2 verankert Anzahl und finalen Trace-Hash beim Run-Abschluss."
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "configSha256",
+        "gitCommit",
+        "modelId",
+        "promptSha256",
+        "schemaVersion",
+        "taskId",
+        "toolchainSha256"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "configSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "gitCommit": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9a-f]{40}$|^[0-9a-f]{64}$" }
+          ]
+        },
+        "modelId": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1, "maxLength": 200 }]
+        },
+        "promptSha256": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^[0-9a-f]{64}$" }],
+          "description": "Nur der Hash des wirksamen Prompts; Rohtexte werden nie gespeichert."
+        },
+        "taskId": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^T-[0-9]{3,}$" }]
+        },
+        "toolchainSha256": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^[0-9a-f]{64}$" }]
+        },
+        "complete": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["config", "git", "model", "prompt", "task", "toolchain"],
+          "properties": {
+            "config": { "const": true },
+            "git": { "type": "boolean" },
+            "model": { "type": "boolean" },
+            "prompt": { "type": "boolean" },
+            "task": { "type": "boolean" },
+            "toolchain": { "type": "boolean" }
+          }
+        }
+      }
     }
   },
   "allOf": [

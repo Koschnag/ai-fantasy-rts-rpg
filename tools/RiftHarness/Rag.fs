@@ -12,7 +12,9 @@ type RagBuildReceipt =
     { SourceCount: int
       ChunkCount: int
       IndexHash: string
-      IndexPath: string }
+      IndexPath: string
+      ManifestPath: string
+      ManifestHash: string }
 
 type RagCitation =
     { Path: string
@@ -665,6 +667,65 @@ module RagIndex =
             Internal.rawJson writer "index" body
             writer.WriteEndObject())
 
+    // ------------------------------------------------------------------
+    // Deterministisches Build-Manifest (T-004)
+    // ------------------------------------------------------------------
+
+    let private manifestPath locations =
+        Path.Combine(locations.Index, "build-manifest.json")
+
+    let private manifestCoreBytes (index: IndexData) (indexHash: string) (configSha256: string) =
+        Internal.jsonBytes false (fun writer ->
+            writer.WriteStartObject()
+            writer.WriteString("algorithm", "bm25")
+            writer.WriteNumber("chunkCount", index.Chunks.Length)
+            writer.WriteString("configSha256", configSha256)
+            writer.WriteString("indexSha256", indexHash)
+            writer.WriteStartObject("parameters")
+            writer.WriteNumber("b", index.B)
+            writer.WriteNumber("chunkLines", index.ChunkLines)
+            writer.WriteNumber("k1", index.K1)
+            writer.WriteNumber("overlapLines", index.OverlapLines)
+            writer.WriteEndObject()
+            writer.WriteNumber("sourceCount", index.Sources.Length)
+            writer.WriteStartArray("sources")
+
+            for source in index.Sources do
+                writer.WriteStartObject()
+                writer.WriteNumber("lineCount", source.LineCount)
+                writer.WriteString("path", source.Path)
+                writer.WriteString("sha256", source.Sha256)
+                writer.WriteEndObject()
+
+            writer.WriteEndArray()
+            writer.WriteString("tokenizer", "unicode-alphanumeric-lower-invariant-stopwords-de-en-v1")
+            writer.WriteEndObject())
+
+    let private manifestFileBytes (core: byte array) (hash: string) =
+        Internal.jsonBytes true (fun writer ->
+            writer.WriteStartObject()
+            writer.WriteNumber("schemaVersion", Constants.SchemaVersion)
+            writer.WriteString("manifestHash", hash)
+            Internal.rawJson writer "manifest" core
+            writer.WriteEndObject())
+
+    let private parseManifest path =
+        use document = JsonDocument.Parse(File.ReadAllBytes(path))
+        let root = document.RootElement
+
+        if Internal.requiredInt "schemaVersion" root <> Constants.SchemaVersion then
+            Internal.fail "RAG-Build-Manifest hat eine nicht unterstuetzte Schema-Version."
+
+        let storedHash = Internal.requiredString "manifestHash" root
+        let bodyElement = Internal.requiredProperty "manifest" root
+
+        let rawBody = Constants.Utf8NoBom.GetBytes(bodyElement.GetRawText())
+
+        if storedHash <> Internal.sha256Hex rawBody then
+            Internal.fail "RAG-Build-Manifest-Hash ist ungueltig."
+
+        rawBody
+
     let private mapFromObject (element: JsonElement) : Map<string, int> =
         if element.ValueKind <> JsonValueKind.Object then
             Internal.fail "Erwartetes JSON-Objekt im RAG-Index."
@@ -820,10 +881,20 @@ module RagIndex =
         let hash = Internal.sha256Hex body
         Internal.atomicWrite locations.IndexFile (indexFileBytes body hash)
 
+        let manifestCore =
+            manifestCoreBytes index hash (Internal.sha256File locations.Config)
+
+        let manifestHash = Internal.sha256Hex manifestCore
+        let targetManifestPath = manifestPath locations
+
+        Internal.atomicWrite targetManifestPath (manifestFileBytes manifestCore manifestHash)
+
         { SourceCount = sources.Length
           ChunkCount = chunks.Length
           IndexHash = hash
-          IndexPath = locations.IndexFile }
+          IndexPath = locations.IndexFile
+          ManifestPath = targetManifestPath
+          ManifestHash = manifestHash }
 
     let query root queryText top =
         if String.IsNullOrWhiteSpace(queryText) then
@@ -1005,7 +1076,25 @@ module RagIndex =
             HarnessConfig.load locations |> ignore
             let config = loadConfig locations
             let resolved = resolveSources locations config
-            let index, _ = parseIndex locations
+            let index, indexHash = parseIndex locations
+
+            // Das Build-Manifest bindet Index, Konfiguration und alle Quellen per Hash.
+            let expectedManifestPath = manifestPath locations
+
+            if not (File.Exists(expectedManifestPath)) then
+                errors.Add("RAG-Build-Manifest fehlt; fuehre 'build-rag' erneut aus.")
+            else
+                try
+                    let storedCore = parseManifest expectedManifestPath
+
+                    let expectedCore =
+                        manifestCoreBytes index indexHash (Internal.sha256File locations.Config)
+
+                    if not (storedCore.AsSpan().SequenceEqual(expectedCore)) then
+                        errors.Add("RAG-Build-Manifest passt nicht zu aktuellem Index, Konfiguration oder Quellen.")
+                with
+                | HarnessException message -> errors.Add(message)
+                | error -> errors.Add(error.Message)
 
             if
                 index.ChunkLines <> config.ChunkLines
