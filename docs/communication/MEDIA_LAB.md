@@ -14,12 +14,35 @@ getrennt: Ein gutes Bild wird nicht automatisch zu einem Spielasset.
 | CAL-STONEWOOD-V1-39FAAE34C4CD | prozedurales GLB + Preview | deterministische 3D- und Inspector-Kalibrierung | lokale Quarantäne; technisches Testasset |
 | MKT-RIFTWARD-RESEARCH-HERO-001 | KI-Hero-Konzept | Erkundung → Aufbau → Verteidigung | neu erzeugt, kanonische Provenienz, lokale Quarantäne; kein Gameplaybeleg |
 | MKT-RIFTWARD-RETAIL-COVER-001 | KI-Coverstudie | geerdete Echtzeit-3D-Anmutung der frühen 2010er für die digitale Retail-Erinnerungswelt | vierte lokale Variante, kanonische Provenienz, Quarantäne; nicht auf Pages und kein Gameplaybeleg |
+| MKT-RIFTWARD-ATMOSPHERE-STUDY-001 | drei KI-Konzeptbilder + deterministische Filmrolle | Morgen, Arbeit, Versorgung und Gemeinschaft als erreichbare Echtzeit-Anmutung | Quarantänequellen; kleine hashgebundene Pages-Exporte mit sichtbarer Konzeptkennzeichnung; kein Gameplaybeleg |
 | `docs/media/*.svg` | eigene deterministische SVG-Grafiken | GitHub- und Forschungsvisualisierung | versionierbar; keine Runtime-/Gameplayaussage |
 
-Die Raster- und 3D-Outputs liegen absichtlich im ignorierten
-`assets/quarantine/`. Git enthält Specs, Manifeste und Receipts, aber kein
-unfreigegebenes Binärmaterial. Das verhindert, dass eine anschauliche
-Kommunikationsidee versehentlich in die Shipping-Pipeline rutscht.
+Die Raster- und 3D-Originaloutputs liegen absichtlich im ignorierten
+`assets/quarantine/`. Git enthält Specs, Manifeste und Receipts. Ein
+ausdrücklich autorisierter Forschungs-/Kommunikationsexport darf zusätzlich
+eine kleine, hashgebundene Ableitung unter `docs/showcase/assets/` enthalten.
+Diese Ableitung bleibt außerhalb von `assets/source`, `assets/cooked` und jedem
+Shipping-Paket. Das verhindert, dass eine anschauliche Kommunikationsidee
+versehentlich zum Spielasset oder Gameplaybeleg wird.
+
+## Öffentliche Quarantäne-Exporte
+
+Ein Quarantänekonzept darf nur als transparenter Forschungsgegenstand im
+öffentlichen Showcase erscheinen, wenn alle folgenden Bedingungen erfüllt
+sind:
+
+- technische und interne visuelle Prüfung sind `pass`; `needs-work` wird nie
+  exportiert;
+- die Projektleitung hat die konkrete öffentliche Verwendung autorisiert;
+- Quelle, Prompt/Spec, Generatorlücken, Transformation und Output-Hash stehen
+  in einem öffentlichen Manifest;
+- unmittelbar am Medium steht `CONCEPT · NOT GAMEPLAY`;
+- die Seite behauptet weder Shipping-Freigabe, Runtime-Ursprung, Lizenzklarheit
+  noch eine bestandene unabhängige Originalitätsprüfung;
+- ein späteres negatives Review entfernt den Export wieder.
+
+Der fehlgeschlagene Causeway-Keyframe bleibt beispielsweise trotz technischer
+Gültigkeit unveröffentlicht, weil sein visuelles Review `needs-work` lautet.
 
 ## Produktionswarteschlange
 
@@ -66,5 +89,6 @@ Sobald Rechte und Quellen freigegeben sind, soll ein eigener Exportjob:
 4. sichtbare `CONCEPT – NOT GAMEPLAY`-Kennzeichnung bei Konzepten erzwingen,
 5. eine maschinenlesbare Quellenliste neben jeden Export schreiben.
 
-Bis dahin bleiben die SVG-Forschungsgrafiken das öffentliche visuelle
-Grundgerüst.
+Der Showcase darf neben SVG-Forschungsgrafiken ausdrücklich gekennzeichnete
+Quarantäneableitungen zeigen. Echte Runtime-Aufnahmen ersetzen diese Motive
+erst, wenn Commit, Szene, Seed, Preset und Evidence Pack reproduzierbar sind.
