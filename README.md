@@ -5,6 +5,7 @@
 <p align="center">
   <a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/verify.yml"><img src="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/verify.yml/badge.svg" alt="Verify"></a>
   <a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/dotnet-asset-calibration.yml"><img src="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/dotnet-asset-calibration.yml/badge.svg" alt="Asset calibration"></a>
+  <a href="https://koschnag.github.io/ai-fantasy-rts-rpg/"><img src="https://img.shields.io/badge/live-research%20showcase-c48a46" alt="Live research showcase"></a>
   <img src="https://img.shields.io/badge/status-research%20preproduction-c48a46" alt="Research preproduction">
   <img src="https://img.shields.io/badge/runtime-not%20yet%20gameplay-526779" alt="Runtime not yet gameplay">
 </p>
@@ -104,7 +105,7 @@ quality inside the budget. Full thresholds are versioned in
 
 ## Research and build-in-public
 
-- [digital retail-era showcase and public status](docs/showcase/index.html)
+- [live digital retail-era showcase and public status](https://koschnag.github.io/ai-fantasy-rts-rpg/)
 - [case-study overview](docs/research/README.md)
 - [research protocol and falsification signals](docs/research/PROTOCOL.md)
 - [mapping to Cong-Driven Development](docs/research/CCD_MAPPING.md)
