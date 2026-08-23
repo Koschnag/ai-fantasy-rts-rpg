@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Project Riftward: öffentliches FOSS-Forschungsprojekt für eine agentische SDLC und ein modernes Low-Spec-Fantasy-RTS/RPG.">
+  <meta name="theme-color" content="#111716">
+  <title>Project Riftward · Open Game Research</title>
+  <link rel="stylesheet" href="showcase.css">
+  <script src="showcase.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Zum Inhalt</a>
+  <header class="masthead">
+    <a class="wordmark" href="#top" aria-label="Project Riftward Startseite"><span>PROJECT</span> RIFTWARD</a>
+    <nav aria-label="Hauptnavigation">
+      <a href="#artifact">Edition</a><a href="#status">Status</a><a href="#research">Forschung</a><a href="#evidence">Evidence</a>
+    </nav>
+    <span class="build-mark">OPEN BUILD <b data-bind="shortCommit">9637ec8</b></span>
+  </header>
+
+  <main id="content">
+    <section class="hero" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow">FOSS · AGENTIC SDLC · LOW-SPEC BY DESIGN</p>
+        <h1 aria-label="Eine alte Art von Vorfreude. Ein neues Experiment.">Eine alte Art<br>von <em>Vorfreude.</em><br>Ein neues Experiment.</h1>
+        <p class="lede">Eine vollständig digitale Erinnerung an Box, Disc, Handbuch und Magazinseite – für ein offenes Forschungsprojekt darüber, wie weit KI ein echtes Spielsystem bauen kann und wie wenig Hardware gutes Gaming wirklich braucht.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#artifact">Digitale Edition öffnen</a>
+          <a class="button" href="https://github.com/Koschnag/ai-fantasy-rts-rpg">Quellstand auf GitHub ↗</a>
+        </div>
+        <p class="truth-line"><span>CONCEPT · NOT GAMEPLAY</span> Runtime und repräsentatives Gameplay sind noch nicht fertig.</p>
+      </div>
+
+      <div class="box-stage" aria-label="Digitale Simulation einer klassischen PC-Spielbox">
+        <div class="box-shadow"></div>
+        <article class="game-box">
+          <div class="box-spine"><b>PROJECT RIFTWARD</b><small>OPEN RESEARCH BUILD</small></div>
+          <div class="box-front">
+            <img src="assets/retail-cover-study.svg" alt="Originäre Vektorstudie dreier Vermesser über einem bewohnten Steinbruch">
+            <div class="box-corner">LINUX<br>WINDOWS<br>macOS</div>
+          </div>
+        </article>
+        <span class="catalogue">CAT. RFT–0008 / DIGITAL ARTIFACT</span>
+      </div>
+    </section>
+
+    <section class="ticker" aria-label="Projektprinzipien">
+      <div>BUILD THE SYSTEM</div><i>◆</i><div>MEASURE THE OUTCOME</div><i>◆</i><div>PUBLISH THE FAILURES</div><i>◆</i><div>KEEP OLD HARDWARE USEFUL</div>
+    </section>
+
+    <section class="artifact-section" id="artifact">
+      <header class="section-head">
+        <div><p class="folio">01 / THE DIGITAL EDITION</p><h2>Das Drumherum ist Teil der Welt.</h2></div>
+        <p>Keine physische Ware. Eine interaktive digitale Sammlung, die das Ritual klassischer PC-Veröffentlichungen zurückholt und jeden Claim an den echten Projektstand bindet.</p>
+      </header>
+
+      <div class="artifact-tabs" role="tablist" aria-label="Digitale Artefakte">
+        <button role="tab" aria-selected="true" aria-controls="panel-manual" id="tab-manual" data-panel="manual">Handbuch</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-disc" id="tab-disc" data-panel="disc" tabindex="-1">Datenträger</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-ad" id="tab-ad" data-panel="ad" tabindex="-1">Magazinseite</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-frames" id="tab-frames" data-panel="frames" tabindex="-1">Bildstrecke</button>
+      </div>
+
+      <div class="artifact-panels">
+        <article class="artifact-panel manual-panel active" id="panel-manual" role="tabpanel" aria-labelledby="tab-manual">
+          <div class="manual-spread">
+            <section class="paper left-page"><span class="page-no">04</span><p class="kicker">FIELD NOTES</p><h3>Der Wanderbruch</h3><p class="dropcap">Die Welt erinnert sich an Zustände, die vielleicht nie waren. Wasser, Stein und Schatten folgen Regeln – nur nicht immer denselben.</p><blockquote>Heimat ist eine Tätigkeit, keine Herkunft.</blockquote><p>Du beginnst als Kartografin. Was du verstehst, wird zur Route. Was du rettest, wird zur Gemeinschaft. Was du aufbaust, verändert das Land.</p></section>
+            <section class="paper right-page"><span class="page-no">05</span><p class="kicker">THREE SCALES</p><ol class="scale-list"><li><b>Persönlich</b><span>Werkzeug, Erinnerung, Verlust.</span></li><li><b>Gemeinschaftlich</b><span>Werkstatt, Versorgung, Schutz.</span></li><li><b>Strategisch</b><span>Gelände, Armee, Konsequenz.</span></li></ol><div class="margin-note">DIGITAL MANUAL<br>Living document<br>Commit-bound</div></section>
+          </div>
+          <div class="artifact-caption"><b>Digitales Handbuch</b><span>Später direkt aus akzeptierten Welt-, Bedienungs- und Buildverträgen erzeugt.</span></div>
+        </article>
+
+        <article class="artifact-panel disc-panel" id="panel-disc" role="tabpanel" aria-labelledby="tab-disc" hidden>
+          <div class="disc-wrap"><div class="disc"><div class="disc-copy"><small>PROJECT</small><b>RIFTWARD</b><span>RESEARCH BUILD<br>NO. 0008</span></div></div><div class="disc-sleeve"><span>ARCHIVE COPY</span><b>CODE · EVIDENCE · FAILURES</b><small>Das Symbol eines Builds – nicht die Ankündigung eines physischen Datenträgers.</small></div></div>
+          <div class="artifact-caption"><b>Virtueller Datenträger</b><span>Seine spätere „Master-ID“ verweist auf reproduzierbare Build- und Evidence-Manifeste.</span></div>
+        </article>
+
+        <article class="artifact-panel ad-panel" id="panel-ad" role="tabpanel" aria-labelledby="tab-ad" hidden>
+          <div class="magazine-ad"><div class="ad-number">01</div><p>HOW FAR CAN AN AGENTIC SDLC REALLY GO?</p><h3>Lieber einmal<br>hart optimieren<br>als überall<br>mehr Hardware.</h3><div class="ad-grid"><span>ORIGINAL FANTASY RTS/RPG</span><span>GTX 660 CLASS TARGET</span><span>OPEN METHODS</span><span>FAILURES INCLUDED</span></div><small>Eine Forschungshypothese. Noch kein Leistungs- oder Nachhaltigkeitsbeweis.</small></div>
+          <div class="artifact-caption"><b>Digitale Magazinseite</b><span>Editorialer Auftakt für einen belegbaren Meilenstein, nicht für Hype.</span></div>
+        </article>
+
+        <article class="artifact-panel frames-panel" id="panel-frames" role="tabpanel" aria-labelledby="tab-frames" hidden>
+          <div class="contact-sheet">
+            <figure><img src="assets/retail-cover-study.svg" alt="Vektor-Konzeptstudie der Riftward-Welt"><figcaption><b>FRAME 01 · WORLD CONCEPT</b><span>Not gameplay · deterministic SVG</span></figcaption></figure>
+            <figure class="diagram-frame"><div class="loop-diagram"><i>INTENT</i><span>→</span><i>AGENT</i><span>→</span><i>GATES</i><span>→</span><i>EVIDENCE</i></div><figcaption><b>FRAME 02 · SYSTEM</b><span>Implemented research contract</span></figcaption></figure>
+            <figure class="empty-frame"><div><span>RUNTIME CAPTURE</span><b>RESERVED</b><small>T-010 evidence required</small></div><figcaption><b>FRAME 03 · IN-ENGINE</b><span>Intentionally not fabricated</span></figcaption></figure>
+          </div>
+          <div class="artifact-caption"><b>Bildstrecke</b><span>Echte Screenshots erscheinen hier erst mit Commit, Szene, Preset und reproduzierbarem Evidence Pack.</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="status-section" id="status">
+      <header class="section-head inverse">
+        <div><p class="folio">02 / PUBLIC PROJECT STATUS</p><h2>Was heute wirklich existiert.</h2></div>
+        <p>Diese Werte werden beim Pages-Deployment direkt aus dem Repository erzeugt. Terminal-Uptime ist keine Autonomie und Konzeptgrafik kein Gameplay.</p>
+      </header>
+      <div class="status-grid">
+        <article><span>ACCEPTED TASKS</span><b data-bind="accepted">7</b><small>Harness & asset foundation</small></article>
+        <article><span>READY TASKS</span><b data-bind="ready">1</b><small>Implementable missions</small></article>
+        <article><span>RUNTIME</span><b class="status-word" data-bind="runtime">READY</b><small data-bind="runtimeTask">T-010 · walking skeleton</small></article>
+        <article><span>LAST COMMIT</span><b class="commit" data-bind="shortCommit">9637ec8</b><small data-bind="generatedAt">Repository snapshot</small></article>
+      </div>
+      <div class="status-ledger">
+        <div><i class="lamp green"></i><b>Produktionsfundament</b><span>Run-Ledger, RAG, Evidenz, Quarantäne, deterministischer 3D-Spike</span></div>
+        <div><i class="lamp amber"></i><b>Spielruntime</b><span>Walking Skeleton ist als READY-Auftrag spezifiziert; noch kein akzeptiertes repräsentatives Gameplay</span></div>
+        <div><i class="lamp dark"></i><b>30/60 FPS auf Zielhardware</b><span>Noch nicht belegt; Messszene folgt nach Runtime-Grundlage</span></div>
+      </div>
+    </section>
+
+    <section class="research-section" id="research">
+      <div class="research-title"><p class="folio">03 / TWO QUESTIONS</p><h2>Mehr Rechenzentrum heute.<br>Weniger Hardwarezwang morgen?</h2><p>Das ist eine zu prüfende Amortisierungshypothese, kein grünes Versprechen. Entwicklungs-Compute, Nutzung, Lebensdauer, Rebound und das echte Gegenfaktum werden getrennt betrachtet.</p></div>
+      <div class="hypotheses">
+        <article><span>RQ–01</span><h3>Agentic SDLC</h3><p>Wie lange konvergiert ein System aus Mission, Kontext, Werkzeugen und unabhängigen Gates ohne menschlichen Eingriff?</p><small>Misst produktive Outcomes, nicht offene Terminals.</small></article>
+        <article><span>RQ–03</span><h3>Low-spec by design</h3><p>Wie viel Atmosphäre, taktische Lesbarkeit und Systemtiefe passen in feste CPU-, GPU- und Speicherbudgets?</p><small>Ziel: i7-3770 / GTX-660-Klasse · 1080p / 30 FPS.</small></article>
+        <article><span>RQ–04</span><h3>Compute amortization</h3><p>Kann zusätzlicher einmaliger Optimierungsaufwand über viele Spielsitzungen niedrigere Endgeräteanforderungen aufwiegen?</p><small>Unentscheidbar ohne offene Messdaten und Gegenfaktum.</small></article>
+      </div>
+    </section>
+
+    <section class="evidence-section" id="evidence">
+      <p class="folio">04 / THE RULE</p><blockquote>Ein Modelloutput ist ein Kandidat.<br><em>Nur gemessene Evidenz bewegt das Projekt.</em></blockquote>
+      <div class="evidence-links"><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/research/PROTOCOL.md">Forschungsprotokoll</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/research/CASE_STUDY_LOG.md">Fallstudienlog</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/communication/CAMPAIGN.md">Claim-Regeln</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/BACKLOG.md">Backlog</a></div>
+    </section>
+  </main>
+
+  <footer><div class="wordmark"><span>PROJECT</span> RIFTWARD</div><p>Open FOSS game-engineering research · digital retail-era showcase</p><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg">GitHub Repository ↗</a></footer>
+</body>
+</html>

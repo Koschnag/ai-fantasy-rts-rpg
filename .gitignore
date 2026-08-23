@@ -3,6 +3,8 @@
 **/obj/
 artifacts/
 dist/
+output/playwright/
+.playwright-cli/
 
 # Local IDE and operating-system state
 .idea/

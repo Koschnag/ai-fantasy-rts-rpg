@@ -17,3 +17,5 @@ Wichtige, schwer rückgängig zu machende oder querschnittliche Entscheidungen w
 | [001](001-dotnet-sprach-und-aot-strategie.md) | .NET 10, C#/F#-Grenzen und gemessenes Native AOT | akzeptiert | 2026-08-13 |
 | [002](002-plattform-und-renderunterbau.md) | SDL3 + bgfx mit konservativen Backends | akzeptiert | 2026-08-13 |
 | [003](003-agent-harness-und-rag.md) | lokales event-sourced Harness und BM25-RAG | akzeptiert | 2026-08-13 |
+| [004](004-autonome-synthetische-assetproduktion.md) | spezifikationsgetriebene synthetische Assetproduktion mit Quarantäne und getrennten Reviews | akzeptiert | 2026-08-13 |
+| [005](005-taktile-retail-era-erfahrung.md) | eigenständige taktile Retail-Era-Grammatik für Forschung und spätere Produkterfahrung | akzeptiert | 2026-08-23 |

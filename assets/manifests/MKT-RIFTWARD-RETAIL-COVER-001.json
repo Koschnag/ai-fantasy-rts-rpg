@@ -1,0 +1,104 @@
+{
+  "$schema": "../../.ai/schemas/asset-manifest.schema.json",
+  "schemaVersion": 1,
+  "assetId": "MKT-RIFTWARD-RETAIL-COVER-001",
+  "purpose": "Realistischeres vertikales Forschungs-Key-Art fuer eine rein digitale Retail-Era-Boxsimulation; kein Shipping-Asset und kein Gameplay-Nachweis.",
+  "specSha256": "7e2f5d426de2cc6f86a02edb4f9a8be1684b129c6fc0671d10167fe69fddfd79",
+  "generationRunId": "01M0R21FST352F3Z86127Y54VV",
+  "generationBindingMode": "canonical-event-v1",
+  "generationReceipt": "assets/receipts/MKT-RIFTWARD-RETAIL-COVER-001/01M0R21FST352F3Z86127Y54VV.json",
+  "generationReceiptSha256": "6f9922ba743d02ba26b18d36e5fd5a3d11047be200fa4da07972ee655f2fc87c",
+  "createdBy": "codex-imagegen-service",
+  "status": "quarantine",
+  "generator": {
+    "kind": "ai",
+    "tool": "Codex built-in image_gen",
+    "version": "2026-08-23-service-contract",
+    "model": "OpenAI built-in image generation",
+    "modelVersion": "not-exposed-by-tool",
+    "modelArtifactSha256": null,
+    "executionMode": "remote",
+    "seed": null,
+    "generatorSourceSha256": null,
+    "toolchainPin": null
+  },
+  "inputs": [
+    {
+      "id": "SPEC-MKT-RIFTWARD-RETAIL-COVER-001",
+      "path": "assets/specs/marketing/MKT-RIFTWARD-RETAIL-COVER-001.md",
+      "sha256": "7e2f5d426de2cc6f86a02edb4f9a8be1684b129c6fc0671d10167fe69fddfd79",
+      "origin": "Project-authored clean-room communication specification",
+      "originClass": "internal-specification",
+      "creativeInfluence": true,
+      "license": "Project-private; no public content license asserted",
+      "rightsEvidence": "Derived only from versioned Riftward world, art, atmosphere, performance and communication rules; no external media input was supplied.",
+      "allowedUse": "internal-specification",
+      "referenceUseReviewed": true
+    },
+    {
+      "id": "MKT-RIFTWARD-RETAIL-COVER-001-V3-QUARANTINE",
+      "path": "assets/quarantine/marketing/MKT-RIFTWARD-RETAIL-COVER-001-v3.png",
+      "sha256": "b304c48635ff388adf3a239f7b078a48c745a8701154169cf4632b7dc0a9ddd1",
+      "origin": "Project-generated prior quarantine variant from the same internal specification and built-in image service",
+      "originClass": "agentic-synthetic",
+      "creativeInfluence": true,
+      "license": "Quarantine-only; no public content license asserted",
+      "rightsEvidence": "The local source variant was generated only from project-authored text and the earlier project-generated quarantine variant; no external image was used.",
+      "allowedUse": "generation-input",
+      "referenceUseReviewed": true
+    }
+  ],
+  "prompts": {
+    "prompt": "Final realism correction of the supplied original clean-room game-world cover study. Keep the three rear-facing field surveyors, the vertical framing, the functional quarry refuge and the subdued early-2010s PC real-time-render mood.\n\nCorrect the remaining synthetic visual tells without making the image more cinematic: break up every repeated or tiled rock pattern into a few large authored cliff modules with natural strata, erosion, soil shelves, moss and sparse shrubs; reduce black crushed shadows so paths, retaining walls and building purpose remain legible; remove random microdetail and repeated shapes. Use a restrained era-appropriate real-time material look with limited texture sets, baked lightmaps and ambient occlusion, one directional overcast dusk light, moderate shadow resolution, finite view distance, natural exposure and slightly warm low-contrast grading.\n\nMake the settlement materially plausible and sparse: one timber workshop cluster, one lift crane, two garden terraces, one water channel, one main bridge, a handful of utility sheds and readable walkable routes at consistent scale. Add only a few ordinary workers. Keep the three foreground figures realistically proportioned with practical neutral clothing and hand tools. No visible faces. Remove any glowing anomaly; retain wonder only through one subtly impossible shadow at a distant retaining wall.\n\nThe final image should resemble a carefully art-directed authored 3D promotional capture from a custom PC game engine around 2010–2013: grounded, slightly imperfect, explorable and materially coherent. It must not look like a modern AI panorama, matte painting, photoreal movie still or glossy mobile advertisement. Do not imitate any named title, publisher, artist, package or trade dress.\n\nPreserve calm sky and lower foreground for external layout. No text, letters, logo, watermark, UI, rating, badge, barcode, box, disc, giant face, palace, dragon, neon, lasers, particles, extreme depth of field, oversharpening, tiled terrain, impossible geology or borrowed symbols.",
+    "negativePrompt": null,
+    "promptSha256": "6d500c4b33826fc3f847bd66f13a97d3e5bc2923600cb4c27d62ea2767d7f887",
+    "promptEnvelopeSha256": "504ded8cd948a1b7ded3e4737136762acc416a8ae3e146917f2d08be4de1aea0",
+    "bindingMode": "canonical-envelope-v1"
+  },
+  "outputs": [
+    {
+      "path": "assets/quarantine/marketing/MKT-RIFTWARD-RETAIL-COVER-001-v4.png",
+      "sha256": "db5c781d294ab5d14866dc8f2d1f9b590fef1d60eedb125e4aa5d71f92a238a8",
+      "mediaType": "image/png",
+      "bytes": 2773859,
+      "technicalMetrics": {
+        "width": 1024,
+        "height": 1536,
+        "channels": 3,
+        "alpha": false
+      }
+    }
+  ],
+  "transformations": [
+    {
+      "tool": "Codex built-in image_gen",
+      "version": "2026-08-23-service-contract",
+      "operation": "Final realism correction of the project-owned v3 quarantine candidate; no external creative reference.",
+      "parametersSha256": "504ded8cd948a1b7ded3e4737136762acc416a8ae3e146917f2d08be4de1aea0"
+    }
+  ],
+  "licenseBasis": {
+    "modelTerms": "Exact backend identity, model artifact and a repository-local copy of applicable output terms are not exposed or reviewed yet.",
+    "inputRights": "Only the project-authored specification and a project-generated quarantine variant were supplied; no external creative work was used.",
+    "outputPolicy": "Local quarantine research only; not approved for Pages, shipping, public reuse or unqualified commercial claims.",
+    "commercialUseReviewed": false,
+    "reviewedAtUtc": null,
+    "termsEvidenceArtifact": null
+  },
+  "reviews": [
+    {
+      "reviewId": "REV-MKT-RIFTWARD-RETAIL-COVER-001-TECH-001",
+      "revision": 1,
+      "active": true,
+      "kind": "technical",
+      "reviewerId": "codex-root-validator",
+      "atUtc": "2026-08-23T19:39:00Z",
+      "result": "pass",
+      "evidence": "PNG 1024x1536 RGB, 2773859 bytes; output SHA-256 matches this manifest. Visual, originality and license reviews remain deliberately open.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    }
+  ],
+  "supersedes": [],
+  "createdAtUtc": "2026-08-23T19:38:00Z"
+}
