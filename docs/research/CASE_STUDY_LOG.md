@@ -64,6 +64,13 @@ laufendes Produkt verwechselt.
   ein frischer Run mit dem vom Harness verwendeten Canonical-Envelope-Format
   ersetzte den fehlerhaften Export, ohne dessen Historie als Erfolg
   umzudeuten.
+- **CI-Gegenbeispiel:** Der lokale Audit fand den ignorierten v3-Rasterinput,
+  der Fresh Checkout dagegen nicht. Dadurch wurde sichtbar, dass
+  `RequireLocal=false` nur für Quarantäne-Outputs, nicht für gleichartige
+  Inputs wirkte. Der Vertrag erlaubt nun fehlende Quarantäne-Inputs im
+  Repository-Audit, während `--require-local` weiterhin explizit mit
+  `ASSET_INPUT_MISSING` scheitert; unsichere Pfade, Symlinks und falsche
+  Hashes bleiben Fehler.
 - **Outcome:** Die öffentliche Erzählung ist ohne Rasterfreigabe testbar. Das
   Provenienzgate hat dabei nicht nur Erfolg dokumentiert, sondern einen realen
   Integrationsfehler vor Veröffentlichung abgefangen.
