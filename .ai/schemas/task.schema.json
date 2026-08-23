@@ -11,6 +11,14 @@
     "id": { "type": "string", "pattern": "^T-[0-9]{3,}$" },
     "title": { "type": "string", "minLength": 5 },
     "status": { "enum": ["draft", "ready", "running", "review", "accepted", "blocked", "cancelled"] },
+    "releaseNote": {
+      "type": "string",
+      "description": "Optionaler, datierter Vermerk zur Statusfreigabe (z. B. draft -> ready) mit Autorisierung und Blockerpruefung."
+    },
+    "reviewNote": {
+      "type": "string",
+      "description": "Optionaler, datierter Vermerk zu Implementierungs-, Review- und Akzeptanzstaenden mit Run-IDs; nie Ersatz fuer Evidenz."
+    },
     "objective": { "type": "string", "minLength": 10 },
     "inScope": { "type": "array", "minItems": 1, "items": { "type": "string" } },
     "outOfScope": { "type": "array", "items": { "type": "string" } },

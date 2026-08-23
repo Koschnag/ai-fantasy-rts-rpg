@@ -31,7 +31,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-005 | E-001 | striktes calibration-v1-Spec und unabhängiger .NET-Inspector prüfen GLB, PNG, Report und Proxybudgets ohne Blender | Z-002, Z-004, Z-005, F-008, F-009 | M | MUST | DONE |
 | T-006 | E-001 | BCL-only-F#/.NET-Generator schreibt GLB und CPU-Preview deterministisch in-process und publiziert transaktional über T-003 in Quarantäne | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
 | T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
-| T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck auf allen Ziel-RIDs | Z-002, Z-003 | L | MUST | DRAFT |
+| T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | READY |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DRAFT |
 | T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DRAFT |
@@ -59,6 +59,28 @@ Source-Promotion, LFS, Backup, Cooking und produktionsnahe Messung.
 Lauf `01M0NCFAVJ308TVZ3XY7J8SY58` implementiert und durch den unabhängigen
 Reviewlauf `01M0QMA3NAPRXX1KBVH8XFRA6J` akzeptiert; Abnahmedokument:
 `docs/abnahme/T-004-run-provenance-and-evidence.md`.
+
+`T-010` wurde am 2026-08-23 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) auf `READY` gesetzt. Die Epikabhängigkeit E-001
+ist im für T-010 erforderlichen Umfang erfüllt: T-001 bis T-007 sind
+abgenommen; das Epic selbst bleibt wegen möglicher Folgeeinheiten in Arbeit.
+Die zuvor blockierenden Fragen Q-TEC-001/Q-TEC-003 sind verfahrensmäßig
+entschieden (Klärungsprotokoll in `docs/OFFENE_FRAGEN.md`): Die konkreten
+nativen Pins und Build-/Cachedetails entstehen als gatender erster Abschnitt
+des Auftrags `.ai/tasks/T-010-native-walking-skeleton.json` nach vollständig
+spezifizierten Kriterien gemäß der Spike-Klausel in `docs/QUALITAET.md`;
+Rückrollbar durch Pin-Austausch und Neubau. Der Auftrag liefert die nativen
+linux-x64-Nachweise von AC-T010-02/03 auf dem Entwickler-PC (i7-3770/RX 570);
+Windows- und macOS-Builds, Smokes und Paketnachweise sind bewusst an T-011
+überwiesen. Fehlt die linux-x64-Referenzhardware bei Umsetzung, bleiben die
+Kriterien offen und werden eskaliert statt durch Cross-Compile oder Simulation
+ersetzt; das Projektziel Z-003/NF-006 (alle drei Pflicht-RIDs) bleibt
+unverändert. Audio (Q-TEC-007) bleibt ausdrücklich ausgeschlossen.
+
+Die Spezifikation wurde am 2026-08-23 durch den unabhängigen Reviewlauf
+`01M0QQYJDX9CS56144Z7VGN8J4` geprüft: Task-Manifest schema-validiert,
+Dokumente konsistent, alle lokalen Gates grün. Die Implementierung hat noch
+nicht begonnen.
 
 ## Vorlage für eine Umsetzungseinheit
 

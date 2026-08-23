@@ -2,7 +2,7 @@
 
 Interner, nicht öffentlich freigegebener Codename: **Project Riftward**
 Status: **Vorproduktions-Fundament aufgebaut; Spielruntime noch nicht begonnen**
-Letzte Aktualisierung: **2026-08-13**
+Letzte Aktualisierung: **2026-08-23**
 
 Ein eigenständiger, düster-märchenhafter Echtzeitstrategie-/Rollenspiel-Hybrid mit Heldenentwicklung, Erkundung, Basisbau und Armeeführung. Das Spiel soll den langsamen, atmosphärischen Wechsel zwischen persönlichem Abenteuer und großflächiger Strategie aufgreifen, aber eine vollständig eigene Welt, Identität und Inhaltsbibliothek besitzen.
 
@@ -63,9 +63,11 @@ als Regression erneut ausgeführt.
 Run-Provenienz, Trace-/Span-/Evidenzverträge, ein deterministisches
 RAG-Buildmanifest und eine bewachte 180-Tage-Retention
 (`docs/abnahme/T-004-run-provenance-and-evidence.md`). Das native
-SDL3-/bgfx-Walking-Skeleton (`T-010`) folgt, sobald `Q-TEC-001`/`Q-TEC-003`
-entschieden sind. Nur `READY`-Aufträge dürfen ohne weitere fachliche Klärung
-gestartet werden.
+SDL3-/bgfx-Walking-Skeleton (`T-010`) ist am 2026-08-23 spezifiziert und
+`READY`; Q-TEC-001/Q-TEC-003 sind verfahrensmäßig in den gatenden
+Pin-Bauabschnitt des Auftrags überführt (siehe Klärungsprotokoll in
+`docs/OFFENE_FRAGEN.md`). Nur `READY`-Aufträge dürfen ohne weitere fachliche
+Klärung gestartet werden.
 
 ## Leitentscheidungen
 

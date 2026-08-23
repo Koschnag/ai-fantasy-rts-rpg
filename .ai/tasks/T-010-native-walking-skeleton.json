@@ -1,0 +1,96 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-010",
+  "title": "SDL3-Fenster, Eingabe und bgfx-Dreieck - zuerst linux-x64 auf Referenzhardware",
+  "status": "ready",
+  "releaseNote": "2026-08-23: draft -> ready durch autonomen Planungsagenten gemaess Autorisierung der Projektleitung vom 2026-08-23; Epikabhaengigkeit E-001 im erforderlichen Umfang erfuellt (T-001 bis T-007 accepted); Q-TEC-001/Q-TEC-003 verfahrensmaessig in den gatenden Pin-Bauabschnitt (Abschnitt 0) ueberfuehrt gemaess Spike-Klausel docs/QUALITAET.md; Klaerungsprotokoll in docs/OFFENE_FRAGEN.md.",
+  "reviewNote": "2026-08-23: Unabhaengiger Reviewlauf 01M0QQYJDX9CS56144Z7VGN8J4 (Akteur t010-spec-reviewer) bestaetigt die Spezifikation: Task-Manifest schema-validiert, Konsistenz zu BACKLOG/README/OFFENE_FRAGEN/ADR-002/PLATTFORMMATRIX/PERFORMANCE_BUDGET geprueft und Dokdefekte repariert (T-010-Zeile und Restrisikoformulierung auf linux-x64-Scope korrigiert); Schemavertrag um optionale releaseNote-/reviewNote-Felder ergaenzt, da der Nachtrag in T-004 (Commit 7a0658e) eine additionalProperties-false-Verletzung verursachte; Gates fmt/lint/build (0 Warnungen)/test 129 von 129/security PASS/rag-build/verify gruen. Implementierung nicht begonnen; Status bleibt ready.",
+  "objective": "Der Walking-Skeleton-Client laeuft zuerst auf linux-x64 auf dem Entwickler-PC (Intel Core i7-3770, Radeon RX 570, Mesa/radeonsi) und damit exakt in der verbindlichen Low-End-CPU-Klasse: Er oeffnet ein SDL3-Fenster, rendert ein bgfx-Dreieck ueber OpenGL 3.3 Core, nimmt Fenster- und Beendigungsereignisse entgegen, beendet sich kontrolliert und haelt messbare Hardwareeffizienzbudgets fuer alte Hardware (i7-3770/GTX-660/FX-8350-Klasse) ein; alle nativen Komponenten sind commitgepinnt, nativ gebaut, lizenziert inventarisiert und per ABI-Smoke nachgewiesen. Windows- und macOS-Nachweise sind bewusst nach T-011 verschoben, das Projektziel Z-003/NF-006 bleibt unveraendert.",
+  "inScope": [
+    "Abschnitt 0 (gatender Pin-Spike): Auswahl der exakten SDL3-, bgfx-, bx- und bimg-Quellenstaende ausschliesslich nach den im Auftrag fixierten Kriterien - offizielle Upstream-Quellen, bevorzugt stabile Release-Tags mit Begruendungspflicht bei Abweichung, bgfx/bx/bimg aus einem konsistenten Stand, am gepinnten Stand verifizierte permissive Lizenzen (SDL zlib, bgfx/bx/bimg BSD-2-Clause); Eintrag je Komponente mit Upstream-URL, Commit oder Tag, Abrufdatum, SHA-256 der bezogenen Quelle und SPDX-Lizenz in toolchain.lock.json",
+    "Reproduzierbarer nativer Build der gepinnten SDL3-/bgfx-Bibliotheken fuer linux-x64 mit protokollierter, hashverifizierter Quellbeschaffung, lokalem Cache ausserhalb von Git, minimalen Buildoptionen und dokumentiertem Wiederholungsbau ohne Netzwerkzugriff aus dem Cache",
+    "Duenner zentraler C#-LibraryImport-Interop-Layer fuer SDL3 (Video/Fenster/Eingabeereignisse/Quit) und bgfx (Init/Frame/Shutdown) mit expliziten Handle-Besitz- und Freigaberegeln, Versions-/Commitauslesen und Fehleruebersetzung an der Prozessgrenze; Backendwahl ist konfigurierbar angelegt, es wird aber nur der OpenGL-3.3-Core-Pfad umgesetzt",
+    "Minimale Runtime-Host-Anwendung gemaess Sprachaufteilung (C#): Fensteroeffnung, bgfx-Initialisierung mit OpenGL 3.3 Core, gerendertes Dreieck aus offline kompilierten Shadern, Ereignisschleife bis zum Beenden sowie ein Headless-faehiger Smoke-Modus mit fester Zeitgrenze",
+    "ABI-Smoke-Nachweis auf dem Entwickler-PC inklusive maschinenlesbarer Evidenz gemaess QUALITAET.md-Evidenzvertrag (OS/Kernel, Mesa-/Treiberversion, GPU-Name, CPU-Flagauszug, Backendname, Pins, Artefakt- und Reporthashes, Befehle, Exitcodes)",
+    "Hardwareeffizienz-Baseline: automatisierter Effizienzlauf mit maschinenlesbarem Report (Startzeit bis erstem Frame, Idle-RSS, p99-Frametime, verwaltete Allokationen je warmem Frame, RSS-Drift im Idle-Fenster, Draw-Aufrufe je Frame) und Ablage als versionierbare Baseline-Evidenz",
+    "Low-End-Kompatibilitaetsvertrag: Nachweis, dass weder Runtime noch Native-Build eine ISA oberhalb der konservativen x86-64-Basis erzwingen (kein -march=native, keine AVX2-/FMA-Pflicht), und Dokumentation der bestaetigten Mindestbasis (CPU-Klasse i7-3770/FX-8350, OpenGL 3.3 Core ohne optionale Erweiterungspflicht, lokaler Mesa-/Treiberstand als erste Referenz) in docs/PLATTFORMMATRIX.md",
+    "Kontrollierte Fehlerbehandlung an allen neuen Grenzen: fehlendes oder hashbeschaedigtes Native-Artefakt und nicht initialisierbares Backend/GPU-Kontext fuehren zu verstaendlicher Meldung und definiertem Exitcode ungleich 0 ohne Absturz, Haengen oder Schreibvorgang",
+    "Dokumentation: Interop-Grenzen und Lebensdauerregeln, native Build-/Cache-Prozedur, Erweiterung THIRD_PARTY_NOTICES.md, Aufnahme von plattformsmoke- und effizienzbaseline-Aufrufen in den oeffentlichen Befehlsvertrag"
+  ],
+  "outOfScope": [
+    "Windows- und macOS-native Builds, Smokes und Paketnachweise; diese durch T-011 nachholen",
+    "Cross-RID-, Cross-GPU- oder Cross-Plattform-Vergleichsaussagen und Determinismusbehauptungen",
+    "Audio jeglicher Art; Q-TEC-007 bleibt getrennter Spike",
+    "Spielinhalt, Simulation, Kamera-, Auswahl- oder Befehlslogik ueber das technische Testdreieck hinaus; UI, HUD und Menues",
+    "Packaging, Installer, Code-Signierung, Notarisierung und Release-CI-Matrix (T-011, Q-OPS-002)",
+    "macOS-x64-Frage und konkrete Treiber-Supportmatrix (Q-TEC-002); Treiberminima entstehen erst aus den Smokes",
+    "Benchmarkszene, Telemetrieumfang und vollstaendige Hardwareprofilnachweise (T-020); der Effizienzreport hier ist Skelett-Baseline, kein Profilfreigabenachweis",
+    "Vulkan oder andere optionale Backends",
+    "kreative Assetfreigaben; das Dreieck ist rein technisches Testmuster ohne Shipping-Anspruch",
+    "Gamepad-Umfang (Q-GAM-009) und konfigurierbare Eingabebelegung (F-006, T-041)"
+  ],
+  "requirements": ["Z-002", "Z-003", "NF-006", "NF-007", "NF-008"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T010-01",
+      "statement": "toolchain.lock.json enthaelt fuer SDL3, bgfx, bx und bimg je einen vollstaendigen Pin mit Upstream-URL, Commit oder Tag, Abrufdatum, SHA-256 der bezogenen Quelle und SPDX-Lizenz; die Lizenzen sind am gepinnten Stand als zlib beziehungsweise BSD-2-Clause verifiziert, bgfx/bx/bimg stammen aus einem konsistenten Stand, und alle Komponenten sind in THIRD_PARTY_NOTICES.md eingetragen.",
+      "verification": "Neue Lockfile-/Lizenzpruefung in lint und security mit Positiv- und Negativfixtures; geaenderter Hash, fehlende Lizenzangabe und inkonsistenter bgfx-Stand schlagen fehl"
+    },
+    {
+      "id": "AC-T010-02",
+      "statement": "Aus den gepinnten Quellen entstehen auf linux-x64 nativ gebaute SDL3-/bgfx-Artefakte; die Erstbeschaffung ist protokolliert und hashverifiziert, ein wiederholter Build aus dem lokalen Cache benoetigt kein Netzwerk und wird gegen die aufgezeichneten Artefakthashes geprueft, wobei eine Hashabweichung die Pruefung fehlschlagen laesst.",
+      "verification": "Build-/Cache-Nachweis lokal auf dem Entwickler-PC ausgefuehrt; Distributionspakete gelten nicht als Shipping-Version"
+    },
+    {
+      "id": "AC-T010-03",
+      "statement": "Auf dem Entwickler-PC startet der Host nativ, oeffnet ein Fenster, initialisiert explizit OpenGL 3.3 Core als bgfx-Backend, rendert mindestens einen fehlerfreien Frame des Dreiecks, behandelt Fenster- und Beendigungsereignisse und beendet sich innerhalb einer festen Zeitgrenze mit Exitcode 0; der Smoke-Report enthaelt OS/Kernel, Mesa-/Treiberversion, GPU, CPU-Flagauszug, Backendname, Pins und Hashes.",
+      "verification": "Automatisierbarer plattformsmoke-Befehl erzeugt einen maschinenlesbaren Report; der Lauf findet auf dem i7-3770/RX-570-Entwickler-PC statt und gilt damit als echter Low-End-CPU-Klassenlauf"
+    },
+    {
+      "id": "AC-T010-04",
+      "statement": "Der Interop-Layer verwendet LibraryImport, haelt SDL3-/bgfx-Typen ausserhalb des Plattform-Layers zurueck, definiert Besitz und Freigabe jedes Handles explizit und uebersetzt native Fehlercodes in kontrollierte Fehlerobjekte; Tests decken Initialisierungsfehler, ungueltige Handles, doppelte Freigabe und falsche Shutdown-Reihenfolge ab.",
+      "verification": "Architekturtest gegen unerlaubte Native-Typreferenzen ausserhalb des Plattform-Layers plus Unit- und Negativfixtures ohne Netzwerk in ./scripts/rift.sh test"
+    },
+    {
+      "id": "AC-T010-05",
+      "statement": "Fehlendes, unvollstaendiges oder hashbeschaedigtes Native-Artefakt sowie ein nicht initialisierbares Backend fuehren zu einer verstaendlichen Fehlermeldung mit definiertem Exitcode ungleich 0, ohne dass der Prozess abstuerzt, haengt oder in Spiel- und Benutzerverzeichnisse schreibt.",
+      "verification": "Fault-Injection-Fixtures fuer jede Fehlerklasse im regulaeren Testlauf"
+    },
+    {
+      "id": "AC-T010-06",
+      "statement": "rift.sh bootstrap/build/fmt/lint/test/verify/security laufen mit dem neuen Code gruen, es gibt null neue Compiler- und Analyzerwarnungen, und die einzige neue Abhaengigkeit besteht aus den vier gepinnten nativen Komponenten mit dokumentierter Zweck-, Lizenz- und Austauschstrategie.",
+      "verification": "Gate-Ausfuehrungen im Abschlussrun mit Exitcodes und Logs; Review gleicht die Abhaengigkeitsliste mit TOOLCHAIN.md und THIRD_PARTY_NOTICES.md ab"
+    },
+    {
+      "id": "AC-T010-07",
+      "statement": "Ein automatisierter Effizienzlauf auf dem Entwickler-PC haelt die Skelett-Budgets ein und legt einen maschinenlesbaren Baseline-Report ab: Start bis erster gerenderter Frame hoechstens 5 s; Idle-RSS hoechstens 300 MB (Ziel) beziehungsweise 450 MB (hart); p99-Frametime hoechstens 33,3 ms bei aktivem VSync; verwaltete Allokationen hoechstens 1 KiB pro warmem Frame; RSS-Wachstum hoechstens 16 MB in einem 10-Minuten-Idle-Fenster; hoechstens 8 Draw-Aufrufe pro Frame; keine Shaderkompilierung zur Laufzeit.",
+      "verification": "Effizienzbaseline-Befehl misst alle Felder automatisch und laesst jede Grenzwertverletzung das Gate fehlschlagen; Report mit Umgebung, Pins und Hashes geht als Evidenz in den Run"
+    },
+    {
+      "id": "AC-T010-08",
+      "statement": "Der Low-End-Vertrag ist dokumentiert und geprueft: Native- und Runtime-Build erzwingen keine ISA oberhalb der konservativen x86-64-Basis (kein -march=native, keine AVX2-/FMA-Pflicht), der OpenGL-3.3-Core-Pfad benoetigt keine optionalen Erweiterungen, und docs/PLATTFORMMATRIX.md nennt die bestaetigte Mindestbasis mit CPU-Klasse (i7-3770/FX-8350), GL-3.3-Pflicht und dem lokalen Mesa-/Treiberstand als erste Referenz.",
+      "verification": "Buildkonfigurationspruefung im lint/security-Umfang; Negativfixture mit -march=native oder AVX2-Pflicht schlaegt fehl; Doku-Review mit Quellenangabe im Run"
+    }
+  ],
+  "dependencies": ["T-001", "T-002", "T-003", "T-004", "T-005", "T-006", "T-007"],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "konkrete Pin-Wahl von SDL3/bgfx/bx/bimg ausschliesslich innerhalb der im Auftrag fixierten Pin-Kriterien und des ADR-002-Stacks",
+      "native Buildsystemdetails, Verzeichnis- und Cachelayout sowie Compileoptionen innerhalb der Backendpolicy und FOSS-first-Vorgaben",
+      "interne Struktur des Interop-Layers, Projektlayout der Runtime-Projekte und Smoke-/Effizienzreportformat innerhalb des Evidenzvertrags",
+      "Verschaerfung der Skeleton-Effizienzbudgets sowie die Messmethodik innerhalb der fixierten Grenzwerte",
+      "Phasenreihenfolge und lokale Testfixtures ohne Abschwaechung der Abnahmekriterien"
+    ],
+    "mustEscalate": [
+      "Abweichung vom ADR-002-Stack, zusaetzliche native Abhaengigkeit oder optionale Backends wie Vulkan",
+      "nicht-permissive oder unklare Lizenzbestandteile im gepinnten Stand sowie jede rechtliche Freigabebehauptung",
+      "Aufweichen der Low-End-Basis: ISA-Anhebung, Pflicht optionaler GL-Erweiterungen oder Lockerung der Effizienzbudgets",
+      "Rueckkehr des Windows-/macOS-Scopes in diesen Auftrag statt T-011",
+      "Aenderung der Ziel-RID-Matrix, der OS-Baselines oder der Performancebudgets",
+      "Beschaffung: Kaeufe, Cloud- oder CI-Dienste, Signier-/Notarisierungsinfrastruktur, Veroeffentlichung",
+      "Abschwaechung oder Entfernung eines Abnahmekriteriums oder Gates"
+    ]
+  }
+}
