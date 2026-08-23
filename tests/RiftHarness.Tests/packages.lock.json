@@ -41,6 +41,9 @@
           "FSharp.Core": "[10.0.110, )",
           "JsonSchema.Net": "[8.0.5, 8.0.5]"
         }
+      },
+      "riftward.platform": {
+        "type": "Project"
       }
     }
   }

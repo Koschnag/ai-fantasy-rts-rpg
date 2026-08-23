@@ -143,6 +143,13 @@ rift_harness() {
   dotnet run --project tools/RiftHarness/RiftHarness.fsproj --configuration Release --no-build --no-restore -- "$@"
 }
 
+rift_need_app_output() {
+  if [ ! -f "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" ]; then
+    printf 'App-Build fehlt. Führe zuerst ./scripts/rift.sh bootstrap oder ./scripts/rift.sh build aus.\n' >&2
+    exit 4
+  fi
+}
+
 rift_unavailable() {
   printf '%s: NICHT VERFÜGBAR – benötigt eine eigene READY-Aufgabe und darf nicht grün vorgetäuscht werden.\n' "$1" >&2
   exit 3
@@ -181,6 +188,18 @@ case "$rift_command" in
   lint)
     rift_need_dotnet
     dotnet tool run fantomas . --check "$@"
+    rift_need_build_outputs
+    rift_harness toolchain-check
+    ;;
+  plattformsmoke)
+    rift_need_dotnet
+    rift_need_app_output
+    exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" plattformsmoke "$@"
+    ;;
+  effizienzbaseline)
+    rift_need_dotnet
+    rift_need_app_output
+    exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" effizienzbaseline "$@"
     ;;
   harness)
     rift_need_dotnet
@@ -235,9 +254,11 @@ case "$rift_command" in
       '  bootstrap     .NET installieren; Restore, Build, Harness-init und RAG-Build ausführen' \
       '  build         Tool-/Test-Solution im Release-Modus bauen' \
       '  fmt           F#-Quellen mit gepinntem Fantomas formatieren' \
-      '  lint          F#-Formatierung unverändernd prüfen' \
+      '  lint          F#-Formatierung plus Toolchain-/Lizenz-/ISA-Prüfung' \
       '  test          Harness-Tests ausführen' \
       '  harness ...   RiftHarness CLI aufrufen' \
+      '  plattformsmoke  nativen linux-x64-Smoke (Fenster, GL-3.3-Dreieck) ausführen' \
+      '  effizienzbaseline  Effizienzlauf mit Budgetgate und Report ausführen' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \

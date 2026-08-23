@@ -100,7 +100,7 @@
       "required": ["lockEntrySha256", "lockFileSha256", "sdkVersion"],
       "properties": {
         "lockEntrySha256": { "const": "840ca3968e7f20d9e525a2d3a0337e8ba81fad50800942ef299496ae18677d4b" },
-        "lockFileSha256": { "const": "e1115c5484a8df29fd25f2a96ee77de8f5561088a869b4192b5cc8f791f4afa8" },
+        "lockFileSha256": { "const": "49dd75fa91e539fcf19ab3f8b01aecd81a3cf11fbff940f14051ce80ec088b42" },
         "sdkVersion": { "const": "10.0.110" }
       }
     }

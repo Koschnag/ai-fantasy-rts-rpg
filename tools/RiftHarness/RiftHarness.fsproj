@@ -22,6 +22,7 @@
     <Compile Include="DotnetAssetGenerator.fs" Condition="Exists('DotnetAssetGenerator.fs')" />
     <Compile Include="DotnetAssetCiEvidence.fs" Condition="Exists('DotnetAssetCiEvidence.fs')" />
     <Compile Include="DotnetAssetPipeline.fs" Condition="Exists('DotnetAssetPipeline.fs')" />
+    <Compile Include="ToolchainCheck.fs" />
     <Compile Include="Verification.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

@@ -17,7 +17,28 @@ flowchart LR
     G --> H{Alle Kriterien erfüllt?}
     H -- nein --> B
     H -- ja --> I[Review-Artefakt + reproduzierbarer Build]
+    I --> J[Lokaler Checkpoint auf Arbeitsbranch]
+    J --> K[Pull Request + verpflichtende Repository-Gates]
+    K --> L[Squash-Merge in vorzeigbaren main]
 ```
+
+## Geschützte GitHub-Integration
+
+- Agenten besitzen keinen allgemeinen GitHub-Publisher und pushen niemals
+  direkt auf `main`.
+- Ein lokaler, repo-gebundener Integrator akzeptiert nur den festgelegten
+  Arbeitsbranch und genau dieses Repository.
+- Er öffnet oder aktualisiert einen Pull Request und wartet auf alle
+  verpflichtenden Checks. Rote oder fehlende Gates, Konflikte, ein schmutziger
+  Arbeitsbaum und abweichende Bäume blockieren den Merge fail-closed.
+- Ein begrenzter frischer Reviewlauf darf belegte Integrationsfehler
+  reparieren. Wiederholtes Scheitern beendet die Automation sichtbar.
+- Erst nach Squash-Merge und identischem freigegebenem Baum werden lokale Refs
+  neu verankert. Dadurch bleibt `main` jederzeit der abnehmbare und öffentlich
+  demonstrierbare Stand.
+
+Der Integrator verwaltet keine anderen Repositories und erweitert weder
+Agentenrechte noch Modellzugriffe. Details und Begründung stehen in ADR 005.
 
 ## Einheitlicher Befehlsvertrag
 
@@ -26,9 +47,11 @@ Diese Aufgaben werden früh im Repository bereitgestellt und bleiben die einzige
 - `bootstrap`: gepinnte Werkzeuge und Abhängigkeiten vorbereiten
 - `build`: Development-Build der aktuellen Plattform
 - `fmt`: Formatierung anwenden
-- `lint`: Format, Analyse und Daten-Schemas nur prüfen
+- `lint`: Format, Toolchain-/Lizenz-/ISA-Prüfung und Daten-Schemas nur prüfen
 - `test`: deterministische Tests ohne Netzwerk ausführen
 - `assets-check`: Roh- und Cooked-Assets prüfen
+- `plattformsmoke`: nativen linux-x64-Smoke (Fenster, GL-3.3-Dreieck, maschinenlesbarer Report) ausführen
+- `effizienzbaseline`: Effizienzlauf mit Budgetgate (Startzeit, RSS, p99, Allokationen, Draw-Aufrufe) und Report ausführen
 - `bench`: reproduzierbare Benchmarks mit maschinenlesbarem Ergebnis
 - `security`: Secrets, Abhängigkeiten und Lizenzen prüfen
 - `check`: alle nicht verändernden lokalen Gates ausführen
@@ -41,6 +64,9 @@ Ein nicht implementiertes Gate muss fehlschlagen oder ausdrücklich `NICHT VERF�
 - Jeder Auftrag verweist auf Anforderungs- und Test-IDs.
 - Neue Architektur oder Abhängigkeiten erfordern ein ADR.
 - Hot Paths benötigen Benchmark oder begründete Budgetzuordnung.
+- Ein Budget oder passender Entwurf darf nicht als Optimierungsnachweis
+  bezeichnet werden; dieser entsteht erst durch die in ADR 005 und
+  `PERFORMANCE_BUDGET.md` gebundene reale Messung.
 - Releasepfade dürfen keine Reflection-, Trimming- oder AOT-Warnungen unterdrücken.
 - Replay-/Seed-gesteuerte Szenarien dienen als objektive Gameplayregression.
 - Automatische Reviews prüfen Spezifikation, Codequalität, Performance, Sicherheit und Lizenz getrennt.

@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Riftward.Platform/Riftward.Platform.csproj" />
+    <Project Path="src/Riftward.App/Riftward.App.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RiftHarness.Tests/RiftHarness.Tests.fsproj" />
   </Folder>

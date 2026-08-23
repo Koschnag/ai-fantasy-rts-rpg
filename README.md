@@ -23,14 +23,15 @@ Das Repository wird zunächst als ausführbare Projektspezifikation und reproduz
 11. [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) – Spielsäulen, Umfang und Vertical Slice
 12. [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md) – eigenständige Bild- und Klangidentität
 13. [docs/PERFORMANCE_BUDGET.md](docs/PERFORMANCE_BUDGET.md) – feste Budgets für Zielhardware
-14. [docs/AUTOMATION.md](docs/AUTOMATION.md) – autonome KI-Produktionsschleife und Qualitätsgates
-15. [docs/IP_UND_LIZENZEN.md](docs/IP_UND_LIZENZEN.md) – FOSS- und Asset-Provenienzregeln
-16. [docs/CLEAN_ROOM.md](docs/CLEAN_ROOM.md) – verbindliche Trennung von Genreanalyse und Produktion
-17. [docs/ATMOSPHAERE.md](docs/ATMOSPHAERE.md) – emotionaler Nordstern, Weltidentität und Review-Rubrik
-18. [docs/HARNESS.md](docs/HARNESS.md) – KI-Verlauf, Gedächtnis, RAG und Evidenz
-19. [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md) – installierte und geplante FOSS-Werkzeuge
-20. [docs/PLATTFORMMATRIX.md](docs/PLATTFORMMATRIX.md) – OS-, Backend-, Paket- und Smoke-Baselines
-21. [docs/ASSET_PIPELINE.md](docs/ASSET_PIPELINE.md) – synthetische Asseterzeugung, FOSS-Werkzeuge und Modellzulassung
+14. [ADR 005](docs/entscheidungen/005-performancebeweis-sprachrollen-und-integration.md) – Performancebeweis, Sprachrollen und geschützte Integration
+15. [docs/AUTOMATION.md](docs/AUTOMATION.md) – autonome KI-Produktionsschleife und Qualitätsgates
+16. [docs/IP_UND_LIZENZEN.md](docs/IP_UND_LIZENZEN.md) – FOSS- und Asset-Provenienzregeln
+17. [docs/CLEAN_ROOM.md](docs/CLEAN_ROOM.md) – verbindliche Trennung von Genreanalyse und Produktion
+18. [docs/ATMOSPHAERE.md](docs/ATMOSPHAERE.md) – emotionaler Nordstern, Weltidentität und Review-Rubrik
+19. [docs/HARNESS.md](docs/HARNESS.md) – KI-Verlauf, Gedächtnis, RAG und Evidenz
+20. [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md) – installierte und geplante FOSS-Werkzeuge
+21. [docs/PLATTFORMMATRIX.md](docs/PLATTFORMMATRIX.md) – OS-, Backend-, Paket- und Smoke-Baselines
+22. [docs/ASSET_PIPELINE.md](docs/ASSET_PIPELINE.md) – synthetische Asseterzeugung, FOSS-Werkzeuge und Modellzulassung
 
 ## Statusbegriffe
 
@@ -79,6 +80,9 @@ Klärung gestartet werden.
 - die höchste geplante Grafikstufe ist für RX-580-Klasse ausgelegt; keine Raytracing- oder Echtzeit-GI-Pfade
 - 100 % der kreativen Shipping-Assets entstehen KI- beziehungsweise agentisch synthetisch aus eigenen Spezifikationen; DCC-Verarbeitung, Gates und Nutzerfeedback liefern technische Qualität sowie dokumentierte Eigenständigkeitsnachweise, aber keine automatische Rechtsgarantie
 - FOSS-first: externe Komponenten nur mit dokumentierter Lizenz, Version und Austauschstrategie
+- dokumentierte Budgets sind Hypothesen; „optimiert“ gilt erst nach einem reproduzierbaren repräsentativen Lauf auf der echten Zielhardware
+- C# führt Runtime und Hotpaths aus; F# spezifiziert, kompiliert und prüft offline; Python bleibt optionaler untrusted Produktionsadapter
+- Autopilot-Checkpoints erreichen den jederzeit vorzeigbaren `main` nur per Pull Request und verpflichtenden Gates
 
 ## Aktuelle Befehle
 
@@ -89,6 +93,8 @@ Klärung gestartet werden.
 ./scripts/rift.sh lint
 ./scripts/rift.sh test
 ./scripts/rift.sh security
+./scripts/rift.sh plattformsmoke --report artifacts/t010/smoke.json
+./scripts/rift.sh effizienzbaseline --report artifacts/t010/effizienz.json
 ./scripts/rift.sh asset-calibration validate-spec --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json
 ./scripts/rift.sh rag-build
 ./scripts/rift.sh rag-query --query "Atmosphäre und RPG RTS Übergang" --top 5

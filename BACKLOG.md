@@ -31,11 +31,12 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-005 | E-001 | striktes calibration-v1-Spec und unabhängiger .NET-Inspector prüfen GLB, PNG, Report und Proxybudgets ohne Blender | Z-002, Z-004, Z-005, F-008, F-009 | M | MUST | DONE |
 | T-006 | E-001 | BCL-only-F#/.NET-Generator schreibt GLB und CPU-Preview deterministisch in-process und publiziert transaktional über T-003 in Quarantäne | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
 | T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
-| T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | READY |
+| T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DRAFT |
 | T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DRAFT |
 | T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DRAFT |
+| T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DRAFT |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DRAFT |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
@@ -81,6 +82,34 @@ Die Spezifikation wurde am 2026-08-23 durch den unabhängigen Reviewlauf
 `01M0QQYJDX9CS56144Z7VGN8J4` geprüft: Task-Manifest schema-validiert,
 Dokumente konsistent, alle lokalen Gates grün. Die Implementierung hat noch
 nicht begonnen.
+
+T-010 wurde am 2026-08-24 durch den unabhängigen Review-/Vollendungslauf
+`01M0QYAA11MC89GVMP6BWR7016` (Akteur `t010-review-completion`) abgenommen und
+ist `DONE`: Zwei abgebrochene Implementierungsläufe wurden geprüft, deren
+In-Scope-Defekte repariert (bgfx-Ausgabepfade, x86-64-v2-/PIC-Buildflags,
+Shim-Link gegen bimg, SDL3-X11-Laufzeitbindung, Shader-Semantikdefinition,
+`SOURCE_DATE_EPOCH` für byteidentische Neubauten, Manifest-Neuschreiben im
+Verify-Modus) und die fehlenden Anteile vollendet: nativer Build samt
+Reproduzierbarkeitsnachweis, C#-Interop mit LibraryImport/Besitzregeln/
+Fehlerobjekten, Host mit `plattformsmoke`/`effizienzbaseline`,
+Toolchain-/Lizenz-/ISA-Gate in `lint`+`security`, Fault-Injection- und
+Architekturtests, Doku (`NATIVE_UNTERBAU.md`, Mindestbasis in
+`PLATTFORMMATRIX.md`, Befehlsvertrag in `AUTOMATION.md`). Alle
+Abnahmekriterien AC-T010-01 bis AC-T010-08 sind mit Evidenz im Lauf
+nachgewiesen; Smoke und Effizienzbaseline liefen nativ auf dem
+Entwickler-PC (i7-3770/RX 570, Mesa 26.0.3). Die durch den Pin-Nachtrag
+invalidierten T-006/T-007-Bindungen (Manifest-Input-Hash, Receipt-Kette,
+CI-Evidenzschema) wurden über die dokumentierte Regeneration neu verankert;
+die generierten Assets blieben byteidentisch. Windows-/macOS-Builds, Smokes
+und Paketnachweise bleiben gemäß Auftrag an T-011 überwiesen; Abnahmedokument:
+`docs/abnahme/T-010-native-walking-skeleton.md`.
+
+Nach T-010 werden die isolierten Baselines T-020/T-021 und anschließend der
+integrierte Repräsentativitätsnachweis T-023 gegenüber weiterer allgemeiner
+Produktionsinfrastruktur priorisiert, soweit deren Abhängigkeiten `READY` sind.
+Der bewusst einfache Belastungsframe ist der erste Beleg für oder gegen die
+Effizienzhypothese; Architektur und Budgets allein gelten nicht als Optimierung
+(ADR 005).
 
 ## Vorlage für eine Umsetzungseinheit
 

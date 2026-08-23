@@ -1891,7 +1891,31 @@ module Program =
               "T-004 retention plans are read-only and executions stay guarded",
               RunProvenanceTests.retentionPlansAreReadOnlyAndExecutionsStayGuarded
               "T-004 evidence payloads redact secrets and reject foreign fields",
-              RunProvenanceTests.evidencePayloadsRedactSecretsAndRejectForeignFields ]
+              RunProvenanceTests.evidencePayloadsRedactSecretsAndRejectForeignFields
+              "T-010 toolchain pins, licenses and cohort pass the check",
+              ToolchainCheckTests.repositoryToolchainPassesAllChecks
+              "T-010 tampered source hash is rejected", ToolchainCheckTests.tamperedSourceHashIsRejected
+              "T-010 intact cache passes the source crosscheck", ToolchainCheckTests.intactCachePassesCrosscheck
+              "T-010 missing license entry is rejected", ToolchainCheckTests.missingLicenseEntryIsRejected
+              "T-010 inconsistent bgfx cohort is rejected", ToolchainCheckTests.inconsistentBgfxCohortIsRejected
+              "T-010 missing notices entry is rejected", ToolchainCheckTests.missingNoticesEntryIsRejected
+              "T-010 forbidden ISA flag in build sources is rejected",
+              ToolchainCheckTests.forbiddenIsaFlagInBuildSourcesIsRejected
+              "T-010 documented x86-64-v2 base stays allowed", ToolchainCheckTests.cleanSourcesPassIsaScan
+              "T-010 artifact validation accepts intact fixtures",
+              PlatformInteropTests.artifactValidationAcceptsIntactFixtures
+              "T-010 artifact fault classes fail controlled", PlatformInteropTests.artifactFaultClassesFailControlled
+              "T-010 artifact validation never writes", PlatformInteropTests.artifactValidationNeverWrites
+              "T-010 exit code mapping is stable and documented",
+              PlatformInteropTests.exitCodeMappingIsStableAndDocumented
+              "T-010 SDL session ownership rules are explicit", PlatformInteropTests.sdlSessionOwnershipRulesAreExplicit
+              "T-010 bgfx initialization errors are translated",
+              PlatformInteropTests.bgfxDeviceTranslatesInitializationErrors
+              "T-010 bgfx handle ownership and shutdown order are enforced",
+              PlatformInteropTests.bgfxHandleOwnershipAndShutdownOrderAreEnforced
+              "T-010 invalid native handles are translated", PlatformInteropTests.invalidNativeHandlesAreTranslated
+              "T-010 architecture keeps native imports inside the platform layer",
+              PlatformInteropTests.architectureKeepsNativeImportsInsidePlatformLayer ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

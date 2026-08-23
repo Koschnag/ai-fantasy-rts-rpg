@@ -2,6 +2,66 @@
   "schemaVersion": 1,
   "generatedAtUtc": "2026-08-13T12:16:27.000Z",
   "note": "Maschinenprüfbare Produktions-Pins entstehen schrittweise. OS-Pakete bleiben Entwicklungsbaseline der Distribution; Shipping-Native-Libs erhalten vor T-010 vollständige Commit-/Artefaktpins.",
+  "nativeComponentsNote": "T-010 Abschnitt 0 (gatender Pin-Spike, 2026-08-23): SDL3 ist als stabiler Upstream-Release-Tag gepinnt. bgfx/bx/bimg besitzen im offiziellen Upstream keine Release-Tags; Abweichung dokumentiert: Pin per Commit aus einem gemeinsamen Abrufkohort vor dem Upstream-Umstieg 'Minimum OpenGL 4.3' (2026-08-19), weil der ADR-002-Stack Linux OpenGL 3.3 Core als Pflichtpfad vorsieht und AC-T010-03 diesen explizit initialisieren muss (bgfx 35a98dd6 = letzter Stand mit BGFX_CONFIG_RENDERER_OPENGL=31..46). Lizenzen wurden am gepinnten Stand verifiziert (SDL=zlib; bgfx/bx/bimg=BSD-2-Clause). Quellarchive liegen hashgeprüft im lokalen Cache außerhalb von Git (.ai/runtime/cache/native/src). ISA-Basis: bx deklariert am gepinnten Stand SSE4.2 als Mindestspezifikation (include/bx/simd_t.h, 'minspec is SSE4.2'); die bestätigte konservative Basis ist daher x86-64-v2 (SSE4.2/POPCNT) und deckt beide Referenz-CPU-Klassen (i7-3770 Ivy Bridge, FX-8350 Piledriver) ab; -march=native sowie jede AVX-/AVX2-/FMA-Pflicht bleiben verboten und werden im Native-Build geprüft (docs/PLATTFORMMATRIX.md).",
+  "nativeComponents": [
+    {
+      "id": "sdl3",
+      "upstreamUrl": "https://github.com/libsdl-org/SDL",
+      "sourceArchiveUrl": "https://codeload.github.com/libsdl-org/SDL/tar.gz/release-3.4.14",
+      "refType": "tag",
+      "ref": "release-3.4.14",
+      "commit": "147a8ee32dbf9ac02f3794964490687b6bbda1bc",
+      "version": "3.4.14",
+      "fetchedAtUtc": "2026-08-23T19:40:00Z",
+      "sourceSha256": "9d57b178fb297e121ef2605275937b7afaa7cd24d99ce1f95953e69e7a2535d6",
+      "licenseSpdx": "zlib",
+      "licenseVerifiedAtRef": true,
+      "thirdPartyNoticesRecorded": true,
+      "compatibilityGroup": "standalone"
+    },
+    {
+      "id": "bgfx",
+      "upstreamUrl": "https://github.com/bkaradzic/bgfx",
+      "sourceArchiveUrl": "https://codeload.github.com/bkaradzic/bgfx/tar.gz/35a98dd6453cf25dc75c68e233abb400836d5920",
+      "refType": "commit",
+      "commit": "35a98dd6453cf25dc75c68e233abb400836d5920",
+      "fetchedAtUtc": "2026-08-23T19:52:00Z",
+      "sourceSha256": "68ecda67f15b43e0b324b338dfe6b49b58bbbc684d2c5a718c674198db15fee4",
+      "licenseSpdx": "BSD-2-Clause",
+      "licenseVerifiedAtRef": true,
+      "thirdPartyNoticesRecorded": true,
+      "compatibilityGroup": "bgfx-family",
+      "compatibilityKey": "2026-08-23-cohort-1"
+    },
+    {
+      "id": "bx",
+      "upstreamUrl": "https://github.com/bkaradzic/bx",
+      "sourceArchiveUrl": "https://codeload.github.com/bkaradzic/bx/tar.gz/9e3fadf6f11380031486be704d2ff46ca143664f",
+      "refType": "commit",
+      "commit": "9e3fadf6f11380031486be704d2ff46ca143664f",
+      "fetchedAtUtc": "2026-08-23T19:40:00Z",
+      "sourceSha256": "84740909a73336fa6192f3489cff8ba338b1c525103c291cbf7554a77002eb1a",
+      "licenseSpdx": "BSD-2-Clause",
+      "licenseVerifiedAtRef": true,
+      "thirdPartyNoticesRecorded": true,
+      "compatibilityGroup": "bgfx-family",
+      "compatibilityKey": "2026-08-23-cohort-1"
+    },
+    {
+      "id": "bimg",
+      "upstreamUrl": "https://github.com/bkaradzic/bimg",
+      "sourceArchiveUrl": "https://codeload.github.com/bkaradzic/bimg/tar.gz/371d90098b1fd017cd00205979d5ef74b8c3ed62",
+      "refType": "commit",
+      "commit": "371d90098b1fd017cd00205979d5ef74b8c3ed62",
+      "fetchedAtUtc": "2026-08-23T19:40:00Z",
+      "sourceSha256": "a1464cfbbbbbb1712df9231bb5c5442e3728f78110c7072d5145892e428fd937",
+      "licenseSpdx": "BSD-2-Clause",
+      "licenseVerifiedAtRef": true,
+      "thirdPartyNoticesRecorded": true,
+      "compatibilityGroup": "bgfx-family",
+      "compatibilityKey": "2026-08-23-cohort-1"
+    }
+  ],
   "tools": [
     {
       "id": "dotnet-sdk",
