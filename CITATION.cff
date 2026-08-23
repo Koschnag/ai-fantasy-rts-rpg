@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this research repository, cite the repository version and commit you evaluated."
+title: "Project Riftward: an agentic SDLC and low-spec game engineering case study"
+type: software
+authors:
+  - family-names: "Nguyen"
+    given-names: "Cong"
+repository-code: "https://github.com/Koschnag/ai-fantasy-rts-rpg"
+url: "https://github.com/Koschnag/ai-fantasy-rts-rpg"
+abstract: "An exploratory, evidence-driven case study of a full-agentic software delivery chain and a performance-budgeted original fantasy RTS/RPG."
+version: "0.1-research-preproduction"
+date-released: 2026-08-23
+keywords:
+  - agentic software engineering
+  - game development
+  - low-spec gaming
+  - performance engineering
+  - evidence-driven development

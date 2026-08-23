@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">Compute amortization is a hypothesis, not a conclusion</title>
+  <desc id="desc">A conceptual chart shows upfront development compute amortized over many play sessions alongside avoided end-user hardware demand, with an evidence gap between them.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0a141e"/><stop offset="1" stop-color="#1c2c38"/></linearGradient>
+    <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e2a25d" stop-opacity="0.34"/><stop offset="1" stop-color="#e2a25d" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="1200" height="430" rx="22" fill="url(#bg)"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif">
+    <text x="58" y="58" font-size="25" font-weight="700" fill="#f1ece1">Can expensive development compute reduce global hardware demand?</text>
+    <text x="58" y="88" font-size="15" fill="#adbdc7">Research hypothesis · no sustainability claim until both sides are measured</text>
+    <path d="M92 335H1110M92 335V124" stroke="#647985" stroke-width="2"/>
+    <path d="M93 142C185 155 210 222 288 259S468 306 606 320 862 328 1110 330L1110 335H93Z" fill="url(#fill)"/>
+    <path d="M93 142C185 155 210 222 288 259S468 306 606 320 862 328 1110 330" fill="none" stroke="#e1a25e" stroke-width="5"/>
+    <path d="M93 258C310 254 512 248 708 231S948 184 1110 146" fill="none" stroke="#7cb7c2" stroke-width="5" stroke-dasharray="10 9"/>
+    <circle cx="93" cy="142" r="7" fill="#e1a25e"/><circle cx="1110" cy="146" r="7" fill="#7cb7c2"/>
+    <text x="123" y="148" font-size="15" font-weight="650" fill="#f0bd83">development compute per play session</text>
+    <text x="770" y="135" font-size="15" font-weight="650" fill="#9ad1d8">possible avoided device burden</text>
+    <rect x="484" y="159" width="238" height="91" rx="13" fill="#121d26" stroke="#8b765e" stroke-dasharray="5 5"/>
+    <text x="603" y="191" text-anchor="middle" font-size="14" font-weight="700" fill="#f1ece1">EVIDENCE GAP</text>
+    <text x="603" y="216" text-anchor="middle" font-size="13" fill="#b9c6ce">energy · embodied carbon</text>
+    <text x="603" y="236" text-anchor="middle" font-size="13" fill="#b9c6ce">adoption · rebound · lifetime</text>
+    <text x="600" y="387" text-anchor="middle" font-size="14" fill="#aebdc6">more verified installations and play sessions →</text>
+    <text x="28" y="238" transform="rotate(-90 28 238)" text-anchor="middle" font-size="14" fill="#aebdc6">relative burden (conceptual)</text>
+  </g>
+</svg>
