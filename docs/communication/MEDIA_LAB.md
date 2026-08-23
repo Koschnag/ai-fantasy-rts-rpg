@@ -13,6 +13,7 @@ getrennt: Ein gutes Bild wird nicht automatisch zu einem Spielasset.
 | ENV-SLUICE-DEFENSE-KEYFRAME-003 | KI-Konzeptbild | Formationen, Zivilisten und Geländehebel | lokale Quarantäne; keine Shipping-Freigabe |
 | CAL-STONEWOOD-V1-39FAAE34C4CD | prozedurales GLB + Preview | deterministische 3D- und Inspector-Kalibrierung | lokale Quarantäne; technisches Testasset |
 | MKT-RIFTWARD-RESEARCH-HERO-001 | KI-Hero-Konzept | Erkundung → Aufbau → Verteidigung | neu erzeugt, kanonische Provenienz, lokale Quarantäne; kein Gameplaybeleg |
+| MKT-RIFTWARD-RETAIL-COVER-001 | KI-Coverstudie | geerdete Echtzeit-3D-Anmutung der frühen 2010er für die digitale Retail-Erinnerungswelt | vierte lokale Variante, kanonische Provenienz, Quarantäne; nicht auf Pages und kein Gameplaybeleg |
 | `docs/media/*.svg` | eigene deterministische SVG-Grafiken | GitHub- und Forschungsvisualisierung | versionierbar; keine Runtime-/Gameplayaussage |
 
 Die Raster- und 3D-Outputs liegen absichtlich im ignorierten

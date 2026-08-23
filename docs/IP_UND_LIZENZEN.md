@@ -61,9 +61,18 @@ Major-Upgrades sind deshalb Teil des Vertrags.
 
 ## Projektlizenz
 
-**Status:** OFFEN
+**Richtung FOSS:** ENTSCHIEDEN
 
-„FOSS-first“ beschreibt derzeit die Auswahl der Werkzeuge und Komponenten. Ob der eigene Spielcode, die Werkzeuge und/oder die Assets öffentlich lizenziert werden, ist eine separate Produktentscheidung. Bis dahin darf keine Datei mit einer erfundenen Lizenzbehauptung veröffentlicht werden.
+**Konkrete Lizenzwahl:** OFFEN
+
+Die Projektleitung hat am 2026-08-23 entschieden, Riftward als FOSS- und
+Forschungsprojekt zu entwickeln. Das umfasst als Ziel den eigenen Spielcode,
+die Produktionswerkzeuge und publizierbare Forschungsartefakte. Daraus folgt
+noch keine konkrete Lizenz: Code, Dokumentation, Daten und Medien können
+unterschiedliche geeignete offene Lizenzen benötigen. Kompatibilität,
+Patentklauseln, Copyleft-Wirkung, KI-Outputbedingungen und die gewünschte
+Weiterverwendung werden vor der SPDX-Auswahl getrennt bewertet. Bis dahin darf
+keine Datei mit einer erfundenen Lizenzbehauptung veröffentlicht werden.
 
 ## Asset-Provenienz
 

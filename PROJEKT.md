@@ -78,6 +78,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 | Plattform | Windows x64, Linux x64, macOS arm64; macOS x64 wird im Toolchain-Spike geprüft | ANGENOMMEN |
 | Zeitrahmen | Vertical Slice zuerst; Vollproduktion erst nach dessen Abnahme | ENTSCHIEDEN |
 | Budget / Betriebskosten | FOSS-first; kostenpflichtige Dienste nur nach expliziter Entscheidung | ENTSCHIEDEN |
+| Projektöffnung | Spielcode, Produktionswerkzeuge und Forschungsartefakte werden als FOSS-Projekt entwickelt; konkrete SPDX-Lizenz je Artefaktklasse wird vor öffentlicher Lizenzfreigabe entschieden | ENTSCHIEDEN / Lizenzwahl OFFEN |
 | Datenschutz / Datenstandort | keine Onlinepflicht im Spiel; Produktionsdienste führen keine geheimen oder fremden Daten | ANGENOMMEN |
 | Bestehende Systeme / Schnittstellen | keine Runtime-Cloudabhängigkeit | ANGENOMMEN |
 | Technologie | .NET 10 LTS, C# + F#, Native AOT für Release evaluieren, kleine native FOSS-Bibliotheken | ENTSCHIEDEN |

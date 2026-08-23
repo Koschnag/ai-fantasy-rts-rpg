@@ -104,6 +104,7 @@ quality inside the budget. Full thresholds are versioned in
 
 ## Research and build-in-public
 
+- [digital retail-era showcase and public status](docs/showcase/index.html)
 - [case-study overview](docs/research/README.md)
 - [research protocol and falsification signals](docs/research/PROTOCOL.md)
 - [mapping to Cong-Driven Development](docs/research/CCD_MAPPING.md)

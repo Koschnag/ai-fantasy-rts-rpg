@@ -42,6 +42,32 @@ laufendes Produkt verwechselt.
   überprüfbaren Projektfakten beginnen; KI-Rastermedien benötigen weiter das
   getrennte Freigabeverfahren.
 
+## CS-002 – Digitaler Retail-Era-Showcase und realistischere Coverstudie
+
+- **Datum:** 2026-08-23
+- **Frage:** Lässt sich das Gefühl einer PC-Retail-Veröffentlichung der Jahre
+  2000 bis 2010 rein digital, eigenständig und wahrheitsgebunden darstellen,
+  während ein Rasterexperiment gezielt näher an eine geerdete Echtzeit-3D-
+  Darstellung der frühen 2010er geführt wird?
+- **Änderung:** Abhängigkeitsfreie GitHub-Pages-Ausgabe mit virtueller Box,
+  Datenträger, Handbuch, Magazinanzeige und Bildstrecke; eigene SVG-/CSS-
+  Darstellung bleibt der einzige öffentliche Bildträger. Die FOSS-Richtung
+  ist festgehalten, die konkreten SPDX-Lizenzen je Artefaktklasse bleiben eine
+  offene Projektleitungsentscheidung.
+- **Medienexperiment:** `MKT-RIFTWARD-RETAIL-COVER-001` wurde in vier lokalen
+  Varianten von einer malerischen Panoramaanmutung zu gröberen, plausibleren
+  Engine-Modulen, begrenzten Materialien, lesbaren Wegen und zurückhaltender
+  Beleuchtung verengt. Die vierte Variante bleibt lokale Quarantäne und wird
+  weder als Gameplay noch als freigegebenes Marketingmaterial verwendet.
+- **Fehlversuch:** Der erste Receipt-Export band einen nicht kanonisch
+  serialisierten Prompt-Envelope-Hash. `assets-check` erkannte die Abweichung;
+  ein frischer Run mit dem vom Harness verwendeten Canonical-Envelope-Format
+  ersetzte den fehlerhaften Export, ohne dessen Historie als Erfolg
+  umzudeuten.
+- **Outcome:** Die öffentliche Erzählung ist ohne Rasterfreigabe testbar. Das
+  Provenienzgate hat dabei nicht nur Erfolg dokumentiert, sondern einen realen
+  Integrationsfehler vor Veröffentlichung abgefangen.
+
 ## Vorlage für Folgeeinträge
 
 ```text
