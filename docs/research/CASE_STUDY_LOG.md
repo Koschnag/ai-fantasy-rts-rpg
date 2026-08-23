@@ -75,6 +75,33 @@ laufendes Produkt verwechselt.
   Provenienzgate hat dabei nicht nur Erfolg dokumentiert, sondern einen realen
   Integrationsfehler vor Veröffentlichung abgefangen.
 
+## CS-003 – Öffentliches Atmosphärendossier mit ehrlicher Quarantänegrenze
+
+- **Datum / Ausgangscommit:** 2026-08-24 / `4ce6075c0430`
+- **Frage:** Kann geerdete Art-Direction-Forschung öffentlich und emotional
+  wirksam gezeigt werden, ohne KI-Konzeptbilder als Gameplay, Shipping-Asset
+  oder geklärtes Lizenzmaterial auszugeben?
+- **Änderung:** Zwei intern geprüfte Weltmotive und drei neue
+  referenzgeführte Clean-Room-Motive wurden als kleine WebP-Ableitungen in ein
+  asymmetrisches redaktionelles Dossier aufgenommen. Eine 21-sekündige,
+  reproduzierbare Filmrolle verbindet sie ohne Ton, Autoplay oder
+  Animationsclaim.
+- **Grenzen:** Original-PNGs bleiben ignorierte Quarantäne. Modellversion und
+  Seed sind nicht offengelegt; unabhängige Originalitäts-, Lizenz- und
+  kommerzielle Prüfung bleiben offen. Das `needs-work`-Causeway-Motiv wurde
+  ausgeschlossen und ist durch ein Pages-Build-Gate gesperrt.
+- **Nachvollziehbarkeit:** Das öffentliche Medienmanifest bindet Quellen,
+  Prompt-Spec, FFmpeg-Transformationen und jeden Exporthash. Der Build prüft
+  alle sieben Binärdateien mit SHA-256.
+- **UX-Evidence:** Firefox/Playwright bei 1440×1000 und 390×844 ohne
+  horizontalen Überlauf oder Console-Warnung; fünf Bilder geladen, WebM
+  fehlerfrei abspielbar, Tabs per Pfeiltasten/Home/End bedienbar und
+  `prefers-reduced-motion` wirksam.
+- **Vorläufiges Outcome:** Unter transparenter Kennzeichnung lässt sich das
+  visuelle Forschungsobjekt zeigen, ohne die Produktwahrheit zu verwischen.
+  Ob Besucher die Kennzeichnung tatsächlich verstehen, bleibt ohne
+  Nutzertest unentscheidbar.
+
 ## Vorlage für Folgeeinträge
 
 ```text

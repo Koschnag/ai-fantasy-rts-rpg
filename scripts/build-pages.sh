@@ -18,6 +18,23 @@ case "$pages_output" in
     ;;
 esac
 
+if grep -Eiq '<video[^>]*[[:space:]]autoplay([[:space:]>]|=)' "$pages_root/docs/showcase/index.html"; then
+  printf 'Pages-Policy verletzt: Konzeptvideo darf nicht automatisch starten.\n' >&2
+  exit 2
+fi
+
+if grep -q 'ENV-FLOODED-CAUSEWAY-KEYFRAME-002' "$pages_root/docs/showcase/index.html"; then
+  printf 'Pages-Policy verletzt: needs-work-Konzept darf nicht publiziert werden.\n' >&2
+  exit 2
+fi
+
+if ! grep -q 'CONCEPT · NOT GAMEPLAY' "$pages_root/docs/showcase/index.html"; then
+  printf 'Pages-Policy verletzt: sichtbare Konzeptkennzeichnung fehlt.\n' >&2
+  exit 2
+fi
+
+(cd "$pages_root/docs/showcase" && sha256sum -c assets/media-checksums.sha256)
+
 if [[ -e "$pages_output" ]] && find "$pages_output" -mindepth 1 -print -quit | grep -q .; then
   printf 'Pages-Ausgabeverzeichnis ist nicht leer: %s\n' "$pages_output" >&2
   exit 2

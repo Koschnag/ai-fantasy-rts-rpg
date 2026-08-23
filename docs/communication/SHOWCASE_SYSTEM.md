@@ -46,15 +46,50 @@ nachvollziehbare Checkpoints; lokaler Dirty State ist kein Fortschrittsclaim.
 
 ## Aktueller Prototyp
 
-`docs/showcase/index.html` bildet Box, Datenträger, Handbuch, Anzeige und
-Bildstrecke als digitale Interaktion ab. Er benötigt keinen Build, kein
-Framework und kein Netzwerk. Im öffentlichen Checkout nutzt er ausschließlich
-deterministische SVG-/CSS-Medien. Ein lokales Quarantänebild darf nur in einer
-getrennten Reviewansicht erscheinen und wird nie automatisch publiziert. Der
-Showcase kündigt weder Herstellung noch Versand einer physischen Ausgabe an.
+`docs/showcase/index.html` bildet Atmosphärendossier, Filmrolle, Box,
+Datenträger, Handbuch, Anzeige und Bildstrecke als digitale Interaktion ab. Er
+benötigt kein Framework und zur Laufzeit kein Netzwerk. Im öffentlichen
+Checkout nutzt er deterministische SVG-/CSS-Medien sowie explizit
+autorisierte, hashgebundene Ableitungen geprüfter Quarantänekonzepte. Die
+Originale bleiben lokal; das öffentliche Manifest legt Generatorlücken,
+Transformationen und Aussagegrenze offen. Der Showcase kündigt weder
+Herstellung noch Versand einer physischen Ausgabe an.
 
 Die GitHub-Pages-Pipeline baut daraus bei jedem relevanten Checkpoint ein
 minimales statisches Artefakt. `status.json` entsteht aus Commit, Backlog und
-T-010-Taskstatus; lokale Prozessdaten und Quarantäneausgaben werden nicht
+T-010-Taskstatus; lokale Prozessdaten und Quarantäneoriginale werden nicht
 publiziert. Die Seite dokumentiert damit den versionierten öffentlichen Stand,
 nicht die bloße Aktivität eines Terminals.
+
+## UI-/UX-Begründung
+
+Der Showcase verwendet keine beliebige Sammlung moderner Karten, weicher
+Verläufe und Glassmorphism. Seine visuelle Grammatik stammt aus einem digitalen
+Redaktionsdossier: Folios, Kontaktbögen, harte Linien, begrenzte Satzbreiten,
+große Bildstrecken und klar getrennte Fakt-/Konzeptzustände. Ein kleines Set
+von Design-Tokens hält Farbe, Typografie, Abstand und Bewegungsregeln konsistent.
+
+Die konkrete Umsetzung folgt folgenden öffentlichen Leitlinien:
+
+- [USWDS Design Principles](https://designsystem.digital.gov/design-principles/):
+  echte Nutzerbedürfnisse, zugängliche und nachvollziehbare Information;
+- [GOV.UK Layout](https://design-system.service.gov.uk/styles/layout/):
+  mobile-first, einfache Hierarchie und ungefähr 75 Zeichen maximale
+  Fließtextbreite;
+- [W3C WAI Designing Tips](https://www.w3.org/WAI/tips/designing/) und
+  [Audio/Video Content](https://www.w3.org/WAI/media/av/av-content/):
+  Kontrast, semantische Alternativen, sichtbare Mediensteuerung und eine
+  Textbeschreibung der stummen Filmrolle;
+- [web.dev zu Layout Shifts](https://web.dev/articles/optimize-cls) und
+  [nativem Lazy Loading](https://web.dev/articles/browser-level-image-lazy-loading):
+  feste Medienmaße, eager nur für das Hero-Motiv, lazy für Offscreen-Bilder;
+- [Atlassian Design Tokens](https://atlassian.design/foundations/tokens/design-tokens/)
+  und [Motion](https://atlassian.design/foundations/motion): konsistente Tokens
+  und Bewegung nur zur Zustandsklärung;
+- [WCAG 2.2: Animation from Interactions](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions)
+  sowie [`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion):
+  kein Autoplay und abschaltbare Panelbewegung.
+
+Die Leitlinien definieren keine Marke. Sie begrenzen die gestalterische
+Willkür; die eigenständige Riftward-Sprache entsteht aus Inhalt, Satz und
+Materialwelt.
