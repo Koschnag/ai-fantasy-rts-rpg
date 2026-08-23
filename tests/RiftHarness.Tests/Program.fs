@@ -132,8 +132,8 @@ module private Tests =
                   RequireApproved = false }
 
         Assert.isTrue report.Valid $"Repository-Assetfixtures ungueltig: {AssetStore.reportJson report}"
-        Assert.equal 4 report.ManifestsChecked "Repository-Assetfixturezahl ist falsch."
-        Assert.equal 4 report.QuarantineCount "Repository-Assets bleiben nicht geschlossen in Quarantaene."
+        Assert.equal 5 report.ManifestsChecked "Repository-Assetfixturezahl ist falsch."
+        Assert.equal 5 report.QuarantineCount "Repository-Assets bleiben nicht geschlossen in Quarantaene."
         Assert.isTrue (not report.ShippingReady) "Quarantaene-Keyframes wurden shipping-faehig gemeldet."
 
     let assetSchemaIsStrictOfflineAndShortCircuitsCrossFields () =
