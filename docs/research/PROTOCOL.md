@@ -23,6 +23,7 @@ zum beobachteten System.
 | RQ-03 | Wie niedrig kann das Hardwareziel bleiben? | Frühe feste Budgets und ein schlanker Runtime-Unterbau erhalten Lesbarkeit und Atmosphäre auf GTX-660-/M1-Klasse. | Repräsentative Szenen verfehlen Frame-, Speicher- oder Qualitätsziele trotz Scope- und Effektkontrolle. |
 | RQ-04 | Lässt sich Entwicklungs-Compute amortisieren? | Zusätzlicher einmaliger Optimierungsaufwand kann bei hinreichend vielen Spielsitzungen geringere Endgeräteanforderungen aufwiegen. | Entwicklungsaufwand, geringe Nutzung, Rebound oder kaum vermiedene Hardware machen die Bilanz negativ oder unentscheidbar. |
 | RQ-05 | Bleibt die kreative Identität eigenständig? | Interne Weltregeln, Clean Room, unabhängige Reviews und Provenienz erzeugen eine kohärente eigene Bild-/Spielidentität. | Blindtests erkennen keine Projektidentität oder ordnen Material spontan einem konkreten Fremdwerk zu. |
+| RQ-06 | Ist steigender Hardwarebedarf für ein besseres Spielerlebnis notwendig? | Ein kleiner eigener Runtime-Unterbau, feste Budgets und gezielte Optimierung erhalten mehr Spielsystem, Lesbarkeit und Atmosphäre auf DDR3-/GTX-660-, Linux- und M1-8-GB-Systemen, als eine frühe Festlegung auf High-End-Hardware erwarten ließe. | Die akzeptierte Erlebnisqualität ist nur durch Scopeverlust, versteckte Auflösungsreduktion oder stärkere Hardware erreichbar; oder der zusätzliche KI-/Optimierungsaufwand übersteigt den nachweisbaren Nutzen. |
 
 Die Hypothesen dürfen nach Beginn eines Experiments nicht passend zum Ergebnis
 umformuliert werden. Neue Hypothesen erhalten eine neue Version und ein Datum.
@@ -85,10 +86,24 @@ Proxys publiziert, aber nicht in erfundene kWh oder CO₂e umgerechnet.
   eingefroren.
 - Der wichtigste zeitliche Vergleich ist das Projekt gegen seine eigene
   vorherige Harness-/Runtime-Version.
+- Performanceexperimente vergleichen denselben Commit oder klar isolierte
+  A/B-Varianten derselben Szene: zunächst korrekt/unoptimiert gegen optimiert,
+  anschließend einzelne Maßnahmen per Ablation. Verändert werden dürfen nicht
+  gleichzeitig Spielumfang, Simulation, Kamera, Seed und Qualitätsziel.
+- „Mehr Qualität pro Ressource“ wird gemeinsam aus Framezeit, RAM/VRAM,
+  Lade-/Paketgröße, Leistungsaufnahme soweit messbar und blind bewerteter
+  Lesbarkeit/Atmosphäre beurteilt. Eine bloß höhere FPS-Zahl nach entferntem
+  Gameplay stützt RQ-06 nicht.
 - Externe Engines, Spiele oder Medien dienen nicht als kreative
   Produktionsquelle. Öffentliche technische Benchmarks dürfen nur mit
   dokumentierter Methodik als Kontext dienen.
 - Fehlende Telemetrie wird als fehlend ausgewiesen und nicht geschätzt.
+
+Die Kritik an einer High-End-zentrierten Veröffentlichungskultur ist eine
+offene Produktposition. Das Protokoll behauptet weder, jedes moderne Spiel sei
+schlecht optimiert, noch dass ein bestimmtes Betriebssystem allein steigende
+Anforderungen verursache. Solche allgemeineren Aussagen benötigen separate,
+vergleichbare Daten außerhalb der Riftward-Einzelfallstudie.
 
 ## Evidenzpaket je Experiment
 

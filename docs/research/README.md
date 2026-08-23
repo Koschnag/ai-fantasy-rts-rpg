@@ -25,6 +25,10 @@ Spielruntime beginnt mit `T-010`.
 5. Welche Teile einer vollständigen SDLC lassen sich zuverlässig agentisch
    schließen und wo bleiben menschliche Produkt-, Risiko- und
    Freigabeentscheidungen unverzichtbar?
+6. Wie viel der üblichen Hardware-Eskalation lässt sich durch einen kleinen
+   eigenen Runtime-Unterbau, gezielte Daten-/Renderoptimierung und bewusst
+   begrenzte Inhalte vermeiden, ohne Spielsystem, Lesbarkeit oder Atmosphäre
+   nur wegzusparen?
 
 ## Keine vorweggenommene These
 
@@ -33,6 +37,13 @@ eine zu prüfende Hypothese, keine Umweltbehauptung. Für eine belastbare Aussag
 fehlen insbesondere providerseitige Compute-/Energiedaten, Stückzahlen,
 Lebenszyklusdaten der Endgeräte, Nutzungsdauer und Rebound-Effekte. Das Projekt
 publiziert deshalb auch Nullresultate, Kosten, Fehlversuche und Datenlücken.
+
+Die politische Position des Projekts ist dennoch eindeutig: Effizienz ist
+Produktqualität. Ein DDR3-PC, ein Linux-Desktop oder ein M1 mit 8 GB sollen
+nicht vorschnell als unzureichend gelten, solange Messung und harte
+Optimierung noch ungenutzten Spielraum zeigen. Daraus folgt keine pauschale
+Abwertung moderner Spiele oder Betriebssysteme; genau diese Grenze trennt
+Position, Hypothese und belegten Befund.
 
 ## Einstieg
 

@@ -16,6 +16,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 - Gesucht ist die besondere Spannung zwischen einer kleinen, persönlich entwickelten Heldengruppe und dem Aufbau einer größeren Streitmacht.
 - Die technische Produktion soll weitgehend autonom durch KI erfolgen und dennoch reproduzierbar, testbar, performant und rechtlich nachvollziehbar bleiben.
 - Ein eigener schlanker Unterbau erlaubt feste Leistungsbudgets und vermeidet den Ballast einer großen Engine.
+- Das Projekt setzt der verbreiteten Hardware-Eskalation bewusst eine andere Produktpolitik entgegen: Effizienz, lange Nutzbarkeit und harte Optimierung gelten als Qualitätsmerkmale, nicht als nachträgliche Kompatibilitätsarbeit.
 
 ## 3. Zielgruppe
 
@@ -42,6 +43,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 | Z-003 | Windows, Linux und macOS bleiben lieferbar | Build- und Smoke-Test-Matrix | grüne Artefakte für alle Ziel-RIDs | ANGENOMMEN |
 | Z-004 | KI-Produktion bleibt kontrollierbar | Nachverfolgbarkeit und Qualitätsgates | jeder Build verweist auf Anforderungen, Tests und Asset-Provenienz | ANGENOMMEN |
 | Z-005 | Eigenständige kreative Identität | Review gegen Art Bible und Provenienzregeln | keine im dokumentierten Review festgestellte unautorisierte Übernahme; vollständige Provenienz | ANGENOMMEN |
+| Z-006 | Mehr Spielerlebnis pro vorhandener Hardware statt automatischer Hardware-Eskalation | präregistrierte A/B-Benchmarks derselben Szene vor/nach Optimierung, Frame-/Speicher-/Leistungsdaten und blinde Qualitätsprüfung | Vertical Slice hält die akzeptierten Spiel-, Lesbarkeits- und Atmosphärenziele auf `HW-PC-MIN` und `HW-MAC-MIN`; Einsparungen werden gegen ihren Entwicklungs-/KI-Aufwand bilanziert | ANGENOMMEN |
 
 ## 6. MVP-Umfang
 

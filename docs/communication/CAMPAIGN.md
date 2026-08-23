@@ -9,6 +9,8 @@ Es ist ein öffentlich prüfbarer Versuch, zwei Fragen praktisch zu verbinden:
    und Recovery als System gebaut werden?
 2. Wie viel modernes Spielerlebnis lässt sich durch harte Optimierung auf
    alter beziehungsweise kleiner Hardware erhalten?
+3. Was ändert sich, wenn Effizienz und lange Hardware-Nutzbarkeit als
+   Produktqualität und nicht als nachträglicher Low-Spec-Modus behandelt werden?
 
 Der vorläufige Leitsatz lautet:
 
@@ -25,12 +27,13 @@ markenrechtlich zu prüfen.
 - Forschende zu Human–AI Collaboration und agentischen Systemen
 - Spieler mit älterer, integrierter oder energiebegrenzter Hardware
 
-## Vier Inhaltssäulen
+## Fünf Inhaltssäulen
 
 | Säule | Erzählung | belastbarer Beleg |
 |---|---|---|
 | Agentic SDLC | Nicht der Prompt, sondern das rückgekoppelte System ist das Experiment. | Task, Run, Commit, Gates, Evidence |
 | Low-spec by design | Atmosphäre und Lesbarkeit erhalten ein Hardwarebudget, bevor Content skaliert. | feste Profile, Frame-/Speicherbudgets, später Traces |
+| Efficiency is a feature | Hardware-Eskalation ist kein Naturgesetz; jede teure Laufzeitentscheidung muss ihren sichtbaren oder spielerischen Nutzen verdienen. | A/B-Messungen derselben Szene, Optimierungs-Ablationen, DDR3-/Linux-/M1-Evidence |
 | Evidence over hype | Fehlschläge und Datenlücken werden nicht aus der Geschichte geschnitten. | Fallstudienlog, negative Gates, verworfene Kandidaten |
 | Synthetic worldbuilding | Eigene Weltregeln, Clean Room und Provenienz statt Stilkopie. | Specs, Manifeste, Quarantäne und Reviews |
 
@@ -123,6 +126,22 @@ Verboten sind insbesondere:
 - Ziel-FPS ohne reale Zielhardware, Szene und Trace als erreicht zu melden
 - Quarantäneassets ohne Status-, Prompt- und Herkunftshinweis zu veröffentlichen
 - FOSS-, Copyright-, Exklusivitäts- oder Markenclaims ohne abgeschlossene Prüfung
+- pauschale Behauptungen, alle modernen Großproduktionen oder ein bestimmtes
+  Betriebssystem verschwendeten Ressourcen, ohne vergleichbare Messdaten
+
+## Produktpolitische Position
+
+> Wir akzeptieren steigende Mindestanforderungen nicht als automatischen Preis
+> für bessere Spiele. Riftward versucht zuerst, vorhandene Hardware durch
+> bessere Datenstrukturen, kleine Laufzeitschichten, Offline-Cooking, feste
+> Budgets und harte Messung besser zu nutzen. KI soll den einmaligen
+> Entwicklungs- und Optimierungsaufwand skalierbar machen; ob diese Investition
+> über reale Spielsitzungen Ressourcen spart, bleibt eine offene Bilanz.
+
+Der Gegner dieser Position ist eine Gewohnheit, kein einzelnes Produkt: Effekte,
+Abstraktionen und Komfortschichten dürfen Ressourcen kosten, müssen ihren
+Nutzen aber sichtbar belegen. Das Projekt nennt keine pauschalen Sieger, bevor
+die eigene Runtime, Zielhardware und Erlebnisqualität gemessen sind.
 
 ## Wirkungsmessung
 

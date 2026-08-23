@@ -21,6 +21,13 @@ community building and army-scale strategy while treating 1080p performance on
 i7-3770-/GTX-660-class PCs and an 8 GB M1 as a product constraint from the
 start.
 
+Its product position is deliberate: hardware escalation is not treated as the
+automatic price of better games. A small custom runtime built on focused FOSS
+libraries must first exhaust data-oriented design, offline processing, culling,
+LOD and measured trade-offs on DDR3-era PCs, Linux desktops and 8 GB M1 Macs.
+AI is used to scale that one-time engineering effort; whether it amortizes over
+real play sessions remains a falsifiable research question.
+
 The second research object is the production system itself: versioned intent,
 agent missions, local retrieval and memory, hard gates, recovery, provenance
 and independently reviewable evidence. A model response is a candidate; only a
@@ -92,7 +99,7 @@ permanent spectacle.
 
 | Profile | Target |
 |---|---|
-| PC minimum | i7-3770, GTX 660, 8 GB RAM, 1920×1080 Low, 30 FPS |
+| PC minimum | i7-3770, GTX 660, 8 GB DDR3-class RAM, 1920×1080 Low, 30 FPS |
 | Mac minimum | Apple M1, 8 GB unified memory, 30 FPS |
 | high preset ceiling | RX-580 class, 1920×1080 High, 60 FPS preferred |
 
