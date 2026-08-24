@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../tools/RiftHarness/RiftHarness.fsproj" />
+    <ProjectReference Include="../../src/Riftward.Platform/Riftward.Platform.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +25,8 @@
     <Compile Include="DotnetAssetPipelineTests.fs" Condition="Exists('DotnetAssetPipelineTests.fs')" />
     <Compile Include="DotnetAssetPipelineCliTests.fs" Condition="Exists('DotnetAssetPipelineCliTests.fs')" />
     <Compile Include="RunProvenanceTests.fs" />
+    <Compile Include="ToolchainCheckTests.fs" Condition="Exists('ToolchainCheckTests.fs')" />
+    <Compile Include="PlatformInteropTests.fs" Condition="Exists('PlatformInteropTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

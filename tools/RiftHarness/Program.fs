@@ -714,6 +714,14 @@ Aufruf:
             |> Console.Out.WriteLine
 
             0
+        | command :: rest when command = "toolchain-check" ->
+            let explicitRoot, rest = takeOption "--workspace" rest
+            noArguments command rest
+            let checkRoot = explicitRoot |> Option.defaultValue root
+            let report = ToolchainCheck.check checkRoot
+            let reportText = ToolchainCheck.reportJson report
+            Console.Out.WriteLine(reportText)
+            if report.Valid then 0 else 2
         | command :: rest when command = "verify" ->
             let requestedRun, rest = takeOption "--run" rest
             noArguments command rest

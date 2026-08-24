@@ -70,6 +70,9 @@ flowchart TB
 | Audio | Spike zwischen SDL3-Core-Audio und SDL3_mixer; nur benötigte Decoder ausliefern | ADR 002 | OFFEN |
 | Persistenz | lokale versionierte Saves, Einstellungen und Checkpoints; keine Runtime-Datenbank | Anforderungen F-005/F-006 | ANGENOMMEN; Binär-/Textformat OFFEN |
 | Produktion | lokales F#-Harness, JSONL-Ereignisse und BM25-RAG; kein Pflicht-Cloud-Dienst | ADR 003 | ENTSCHIEDEN |
+| Performancebeweis | Budgets bleiben Hypothesen bis zum Release-nahen Lauf auf realer Referenzhardware; isolierte Baselines plus integrierter Repräsentativitätsnachweis | ADR 006 | ENTSCHIEDEN |
+| Sprachrollen | C# für ausgelieferte Runtime; F# für typisierte Offline-Spezifikation, Compiler, Referenzmodelle und Verifikation; Python nur optionaler untrusted Offline-Adapter | ADR 001, ADR 006 | ENTSCHIEDEN |
+| Integration | Arbeitsbranch → Pull Request → verpflichtende Gates → Squash-`main`; kein agentischer Direkt-Push auf `main` | ADR 006 | ENTSCHIEDEN |
 | Distribution | eigenständige Pakete für Windows x64, Linux x64 und macOS arm64 | NF-006 | ENTSCHIEDEN im Ziel; konkrete Paketform/Stores OFFEN |
 | Authentifizierung | kein Konto, keine Rollen und keine Bezahlung im Spielclient | NF-004 / MVP-Grenze | NICHT ZUTREFFEND |
 

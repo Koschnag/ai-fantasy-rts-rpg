@@ -59,7 +59,7 @@ Nicht zutreffende Bereiche werden bewusst als „nicht relevant“ markiert, nic
 | Z-001 | F-001–F-004 | UF-001 | T-030 | Vertical-Slice-Replay und manuelle Abnahme |
 | Z-001 | F-005, NF-002 | UF-002 | T-031 | Save-Roundtrip, atomarer Abbruch, Korruptions- und Recovery-Fixtures |
 | Z-001 | NF-004 | UF-001 | T-011, T-030 | kompletter Offline-Smoke mit gesperrtem Netzwerk; keine unerwarteten Verbindungen |
-| Z-002 | NF-001, NF-002, NF-007 | UF-006 | T-020, T-021, T-022 | Hardwarebenchmarks, maschinenlesbare Telemetrie und 8-Stunden-Soak |
+| Z-002 | NF-001, NF-002, NF-007 | UF-006 | T-020, T-021, T-022, T-023 | isolierte und integrierte Hardwarebenchmarks, maschinenlesbare Telemetrie und 8-Stunden-Soak |
 | Z-003 | NF-006 | UF-001 | T-010, T-011 | native CI-Smokes |
 | Z-004 | F-007, NF-003, NF-008 | UF-004 | T-001, T-002, T-004 | Harness-, Security-, Provenienz- und Integritätstests |
 | Z-004, Z-005 | F-008, F-009 | UF-005 | T-003, T-005, T-006, T-007, T-050 | Spec-/Artefaktinspektion, Assetmanifest, technische Prüfung, Provenienz- und Originalitätsgate |

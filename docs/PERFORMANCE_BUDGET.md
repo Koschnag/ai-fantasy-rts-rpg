@@ -4,6 +4,8 @@
 
 **Status:** ENTSCHIEDEN; konkrete Budgets sind auf echter Hardware zu validieren
 
+Die Werte dieses Dokuments sind verbindliche Zielverträge und zunächst Performancehypothesen. Ein vorhandenes Budget, passender Datenentwurf, erfolgreicher Build oder schneller Lauf auf stärkerer Hardware ist noch kein Optimierungsnachweis. „Bestanden“ setzt reproduzierbare Release-nahe Evidenz auf der jeweiligen realen Referenzklasse voraus; siehe ADR 006.
+
 Die Hardwaremodelle sind Leistungsklassen, keine Bindung an exakt ein Bauteil. Schnellere Hardware wird unterstützt, erzeugt aber keinen eigenen Effektpfad oberhalb der geplanten höchsten Qualitätsstufe.
 
 | Profil | CPU / SoC | GPU | Speicher | Verbindliches Ziel |
@@ -82,3 +84,9 @@ Alle Zahlen sind Startbudgets. Ein Budget darf nur per dokumentierter Entscheidu
 - `BENCH-BASE`: vollständige Basis, Arbeiter und Produktionswarteschlangen
 - `BENCH-PATH`: mehrere Gruppen mit konkurrierenden langen Wegen
 - `BENCH-LOAD`: kaltes Laden und Asset-Streaming
+
+## Integrierter Repräsentativitätsnachweis
+
+Nach den isolierten Renderer- und Simulationsbaselines kombiniert `BENCH-REPRESENTATIVE` mindestens 350 sichtbare instanzierte Einheiten, den repräsentativen Animationspfad mit mindestens 48 Bones je normaler Einheit, 250 vollständig simulierte mobile Agenten, konkurrierende Gruppenpfade, Landschaft, Sonne, die budgetierten lokalen Schattenlichter und eine Partikelspitze. Der Aufbau darf visuell einfach sein; seine Lastverteilung darf nicht künstlich leer sein.
+
+Der Nachweis protokolliert mindestens p50/p95/p99 von Frame-, GPU- und Simulationszeit, Allokationen und GC-Pausen, Working Set, VRAM beziehungsweise Unified Memory, Draw-/Submit-Aufrufe, sichtbare Dreiecke und Ladezeit. Außerdem bindet er Rohmessung, Warm-up, Laufdauer, Szenen-/Seed-ID, Commit, Buildmodus, Runtimeprofil, Hardware, OS und Treiber. `BENCH-REPRESENTATIVE` muss auf `HW-PC-MIN` und `HW-MAC-MIN` bestehen, bevor die zentrale Effizienzhypothese als bestätigt gilt.

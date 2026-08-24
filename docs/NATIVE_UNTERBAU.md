@@ -1,0 +1,116 @@
+# Nativer Unterbau (linux-x64, T-010)
+
+**Status:** T-010 Abschnitt 0 umgesetzt; Windows/macOS folgen über T-011
+
+Dieses Dokument beschreibt die reproduzierbare native Build-/Cache-Prozedur für
+SDL3 und die bgfx-Familie auf linux-x64 sowie die zugehörigen Verträge
+(Pins, ISA-Basis, Exitcodes). Die maschinenprüfbaren Pins stehen in
+`toolchain.lock.json` (`nativeComponents`, Kohorte `2026-08-23-cohort-1`);
+Lizenzen sind in `THIRD_PARTY_NOTICES.md` inventarisiert.
+
+## Komponenten und Quellen
+
+| Komponente | Pin | Lizenz |
+|---|---|---|
+| SDL3 | Tag `release-3.4.14` (Commit `147a8ee32dbf9ac02f3794964490687b6bbda1bc`) | zlib |
+| bgfx | Commit `35a98dd6453cf25dc75c68e233abb400836d5920` | BSD-2-Clause |
+| bx | Commit `9e3fadf6f11380031486be704d2ff46ca143664f` | BSD-2-Clause |
+| bimg | Commit `371d90098b1fd017cd00205979d5ef74b8c3ed62` | BSD-2-Clause |
+
+Auswahlkriterien (Auftrag T-010, Abschnitt 0): offizielle Upstreamquellen,
+bevorzugt stabile Release-Tags mit Begründungspflicht bei Abweichung,
+bgfx/bx/bimg aus einem gemeinsamen Abrufkohort vor dem Upstream-Umstieg auf
+„Minimum OpenGL 4.3" (2026-08-19), weil ADR-002 Linux OpenGL 3.3 Core als
+Pflichtpfad festlegt und der gepinnte bgfx-Stand `BGFX_CONFIG_RENDERER_OPENGL`
+als erzwungene Renderer-Version unterstützt. Am gepinnten Stand verifizierte
+Lizenzen: SDL=zlib; bgfx/bx/bimg=BSD-2-Clause.
+
+## Build und Cache
+
+Aufruf:
+
+```bash
+scripts/native-build-linux-x64.sh                # Cache-first bauen + Hashprüfung
+scripts/native-build-linux-x64.sh --verify-cache # nur Offline-Prüfung, kein Build
+scripts/native-build-linux-x64.sh --fresh        # vollständiger Neubau aus dem Cache
+```
+
+Verhalten:
+
+1. **Pins**: Alle vier Quellarchive werden gegen `sourceSha256` in
+   `toolchain.lock.json` geprüft. Fehlt ein Archiv im Cache, wird es genau dann
+   einmalig von der gepinnten `sourceArchiveUrl` geladen (protokollierte
+   Erstbeschaffung); danach genügt der Cache ohne Netzwerk.
+2. **Build**: SDL3 via CMake/Ninja (minimale Optionen, kein Audio/Gamepad/
+   Wayland), bgfx/bx/bimg via GENie/gmake (`config=release64`) mit injiziertem
+   `-DBGFX_CONFIG_RENDERER_OPENGL=33` (GL-3.3-Core-Pflichtpfad) sowie
+   `-msse4.2 -fPIC`. Der eigene C-Shim (`src/Riftward.Native`) wird statisch
+   gegen libbgfx/libbimg/libbx gebunden und als `libriftbgfx.so` verlinkt;
+   Shader werden offline mit dem gepinnten `shaderc` für GLSL 130 übersetzt —
+   es findet keine Shaderkompilierung zur Laufzeit statt.
+3. **Manifest**: `.ai/runtime/cache/native/artifact-hashes.json` zeichnet je
+   Artefakt SHA-256 und Größe auf. Es wird nur bei Erstbau bzw. `--fresh`
+   geschrieben; wiederholte Läufe prüfen vorhandene Artefakte strikt gegen das
+   aufgezeichnete Manifest, eine Abweichung bricht mit Fehler ab.
+4. **Reproduzierbarkeit**: Zwei aufeinanderfolgende `--fresh`-Neubauten
+   erzeugen byteidentische Artefakte. `SOURCE_DATE_EPOCH` ist fixiert
+   (1786623387 = Lockfile-`generatedAtUtc`), weil bx `__DATE__/__TIME__`
+   einbettet; GNU-ar arbeitet im deterministischen Modus.
+5. **ISA-Gate**: Nach jedem Build werden die generierten Makefiles und die
+   Buildkonfiguration unter `src/` auf ISA-Anhebung geprüft
+   (`-march=native`, AVX/AVX2/AVX512, FMA sind verboten). Die bestätigte
+   Mindestbasis ist x86-64-v2 (SSE4.2/POPCNT) gemäß
+   `docs/PLATTFORMMATRIX.md`; `-msse4.2` ist damit zulässige Basisflag.
+
+Cache-Lage: `.ai/runtime/cache/native/` (Git-ignoriert) mit `src/`
+(hashgeprüfte Quellarchive und entpackte Bäume), `dist/`
+(Laufzeitartefakte: `libSDL3.so.0`, `libriftbgfx.so`, `shaders/*.bin`),
+`logs/`, `toolchain/` (benutzerlokale, aus Distributionspaketen extrahierte
+Entwicklungswerkzeuge/-header ohne sudo; keine Shipping-Artefakte).
+Distributionspakete gelten nicht als Shipping-Version.
+
+## Laufzeitgrenze (Riftward.Platform / Riftward.App)
+
+- Der Host prüft vor dem Laden jedes Artefakt gegen das Hashmanifest; fehlende,
+  unvollständige oder hashbeschädigte Dateien führen zu kontrollierten
+  Fehlermeldungen ohne Schreibzugriff und ohne Prozessabsturz.
+- Native Bibliotheken werden ausschließlich aus dem geprüften Artefaktverzeichnis
+  geladen (`NativeLibrary`-Resolver); Distributionspfade werden nie verwendet.
+- Besitzregeln Handles: SDL-Sitzung besitzt Fenster; bgfx-Device besitzt die
+  Dreiecksressourcen; Freigabe in fester Reihenfolge Programm → Shader →
+  Vertex-Buffer → Shutdown. Doppelte Freigabe ist definiertes No-op,
+  Nutzung nach Freigabe und falsche Shutdown-Reihenfolge sind kontrollierte
+  Fehler (`PlatformErrorCode`).
+
+## Exitcodes des Hosts (`Riftward.App`)
+
+| Code | Bedeutung |
+|---|---|
+| 0 | Erfolg (Smoke mit mindestens einem fehlerfreien Frame; Effizienzlauf innerhalb aller harten Budgets) |
+| 2 | Usage-Fehler |
+| 14 | Artefaktmanifest fehlt/unlesbar |
+| 15 | Artefakt unvollständig (Größenabweichung) |
+| 16 | Artefakt fehlt |
+| 17 | Artefakthash weicht ab |
+| 18 | Backend/GPU-Kontext nicht initialisierbar oder falsches aktives Backend |
+| 19 | Fenster-/Videoinitialisierung fehlgeschlagen |
+| 20 | Falsche Freigabereihenfolge (Shutdown vor Ressourcen/Fenstern) |
+| 21 | Ungültiges oder freigegebenes Handle |
+| 22 | Plattform nicht unterstützt (nur linux-x64 im T-010-Scope) |
+| 23 | Smoke endete ohne gerenderten Frame |
+| 24 | Effizienzbudget verletzt (Report wurde dennoch geschrieben) |
+
+Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
+dokumentierte Entscheidung und eine Anpassung der Tests
+(`exitCodeMappingIsStableAndDocumented`).
+
+## Öffentliche Befehle
+
+```bash
+./scripts/rift.sh plattformsmoke --report artifacts/t010/smoke.json
+./scripts/rift.sh effizienzbaseline --report artifacts/t010/effizienz.json
+```
+
+Beide Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
+OS/Kernel, CPU-Modell/Flagauszug, GPU/GL-Treiberstring, Backend, Pins,
+Artefaktmanifest-Hash, Messwerten und Budgetbewertung (Effizienz).

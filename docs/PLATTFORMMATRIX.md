@@ -2,6 +2,25 @@
 
 **Status:** Baseline für T-010/T-011; auf realen Runnern zu validieren
 
+## Bestätigte Mindestbasis linux-x64 (T-010, 2026-08-23)
+
+Auf dem Entwickler-PC (Intel Core i7-3770, Radeon RX 570, Mesa/radeonsi) wurde
+der Walking-Skeleton-Smoke nativ bestanden. Daraus folgt die dokumentierte,
+verbindliche Mindestbasis für den Linux-Pflichtpfad:
+
+- **CPU-Klasse:** Intel Core i7-3770 (Ivy Bridge) beziehungsweise AMD FX-8350
+  (Piledriver). ISA-Basis ist **x86-64-v2** (SSE4.2/POPCNT): bx deklariert am
+  gepinnten Stand SSE4.2 als Mindestspezifikation; `-march=native` und jede
+  AVX-/AVX2-/FMA-Pflicht sind verboten und werden im Native-Build sowie in
+  `lint`/`security` geprüft (`toolchain-check`).
+- **Renderer:** OpenGL **3.3 Core ohne optionale Erweiterungspflicht**, am
+  gepinnten bgfx-Stand per `BGFX_CONFIG_RENDERER_OPENGL=33` erzwungen; kein
+  stiller Backend-Fallback.
+- **Erste Referenz des lokalen Treiberstands:** Mesa 26.0.3-1ubuntu1
+  (radeonsi, LLVM/ACO), Kernel 7.0.0-29-generic. Dieser Stand ist erste
+  Messreferenz, keine Supportgarantie; konkrete Treiberminima entstehen aus den
+  Smokes von T-011 (Q-TEC-002 bleibt `OFFEN`).
+
 Die genannten GPUs beschreiben Leistungsprofile. Sie erzwingen keine Unterstützung eines Betriebssystems aus dem Erscheinungsjahr der Hardware. Unterstützt werden gewartete Betriebssysteme und Treiber, weil .NET 10, Signierung und aktuelle Sicherheitsupdates Teil des Produkts sind.
 
 | Plattform | Architektur | vorläufige Mindestbasis | Renderer | Paket / Pflichtnachweis |

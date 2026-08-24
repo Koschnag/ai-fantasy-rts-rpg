@@ -33,9 +33,35 @@ agent missions, local retrieval and memory, hard gates, recovery, provenance
 and independently reviewable evidence. A model response is a candidate; only a
 measured outcome advances the project.
 
-> **Honest status (2026-08-23):** the reproducible production foundation exists;
-> the game runtime and gameplay do not yet. `T-001`–`T-007` are accepted. The
-> native SDL3/bgfx walking skeleton is the next implementation milestone.
+> **Honest status (2026-08-24):** the reproducible production foundation and
+> the native Linux SDL3/bgfx walking skeleton (`T-010`) are accepted; gameplay
+> does not exist yet. The retail-era research showcase (`T-008`) is in review,
+> and the cross-platform build matrix (`T-011`) remains a draft.
+
+## Project documents
+
+1. [PROJEKT.md](PROJEKT.md) – Problem, Zielbild, Zielgruppe und Umfang
+2. [docs/OFFENE_FRAGEN.md](docs/OFFENE_FRAGEN.md) – Punkte, die wir gemeinsam klären
+3. [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md) – funktionale und nichtfunktionale Anforderungen
+4. [docs/USER_FLOWS.md](docs/USER_FLOWS.md) – Nutzerwege und Fehlerfälle
+5. [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md) – technische Leitplanken
+6. [docs/DATENMODELL.md](docs/DATENMODELL.md) – Daten, Beziehungen und Lebenszyklen
+7. [BACKLOG.md](BACKLOG.md) – priorisierte Umsetzungseinheiten
+8. [docs/QUALITAET.md](docs/QUALITAET.md) – Abnahme, Tests und Definition of Done
+9. [docs/entscheidungen/README.md](docs/entscheidungen/README.md) – nachvollziehbare Entscheidungen
+10. [AGENTS.md](AGENTS.md) – verbindliche Arbeitsregeln für implementierende KI-Agenten
+11. [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) – Spielsäulen, Umfang und Vertical Slice
+12. [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md) – eigenständige Bild- und Klangidentität
+13. [docs/PERFORMANCE_BUDGET.md](docs/PERFORMANCE_BUDGET.md) – feste Budgets für Zielhardware
+14. [ADR 006](docs/entscheidungen/006-performancebeweis-sprachrollen-und-integration.md) – Performancebeweis, Sprachrollen und geschützte Integration
+15. [docs/AUTOMATION.md](docs/AUTOMATION.md) – autonome KI-Produktionsschleife und Qualitätsgates
+16. [docs/IP_UND_LIZENZEN.md](docs/IP_UND_LIZENZEN.md) – FOSS- und Asset-Provenienzregeln
+17. [docs/CLEAN_ROOM.md](docs/CLEAN_ROOM.md) – verbindliche Trennung von Genreanalyse und Produktion
+18. [docs/ATMOSPHAERE.md](docs/ATMOSPHAERE.md) – emotionaler Nordstern, Weltidentität und Review-Rubrik
+19. [docs/HARNESS.md](docs/HARNESS.md) – KI-Verlauf, Gedächtnis, RAG und Evidenz
+20. [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md) – installierte und geplante FOSS-Werkzeuge
+21. [docs/PLATTFORMMATRIX.md](docs/PLATTFORMMATRIX.md) – OS-, Backend-, Paket- und Smoke-Baselines
+22. [docs/ASSET_PIPELINE.md](docs/ASSET_PIPELINE.md) – synthetische Asseterzeugung, FOSS-Werkzeuge und Modellzulassung
 
 `Project Riftward` is an internal research codename pending naming/trademark
 review.
@@ -68,6 +94,20 @@ hardware cost, adoption and rebound effects. See the
 - fixed platform, frame-time, memory, scene and effect budgets before runtime
   content scales
 - an original world/art bible and quarantined, manifested concept research
+
+### Binding engineering decisions
+
+- the original fantasy RTS/RPG is not a reconstruction of any one external work
+- a lean custom runtime replaces a full game engine
+- .NET 10 LTS, C# and F# are the baseline; release builds may use Native AOT
+- Windows, Linux and macOS require platform-specific builds and tests
+- creative shipping assets are generated from project-owned specifications and
+  still require technical, provenance and originality review
+- dependencies are FOSS-first, versioned and paired with an exit strategy
+- budgets remain hypotheses until a reproducible run passes on real target hardware
+- C# owns runtime hot paths, F# owns typed offline specification and validation,
+  and Python remains an optional untrusted production adapter
+- autonomous checkpoints reach `main` only through pull requests and required gates
 
 ## What is not real yet
 
@@ -139,6 +179,9 @@ Prerequisites and platform setup are documented in
 ./scripts/rift.sh lint
 ./scripts/rift.sh test
 ./scripts/rift.sh security
+./scripts/rift.sh plattformsmoke --report artifacts/t010/smoke.json
+./scripts/rift.sh effizienzbaseline --report artifacts/t010/effizienz.json
+./scripts/rift.sh asset-calibration validate-spec --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json
 ./scripts/rift.sh assets-check
 ./scripts/rift.sh rag-build
 ./scripts/rift.sh verify

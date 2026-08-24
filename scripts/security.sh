@@ -316,6 +316,20 @@ else
   fi
 fi
 
+security_log 'Prüfe Native-Pins, Lizenzen, Kohorten und ISA-Vertrag (T-010).'
+if [[ ! -f "$security_root/tools/RiftHarness/bin/Release/net10.0/RiftHarness.dll" ]]; then
+  security_error 'RiftHarness-Build fehlt; Toolchain-/ISA-Prüfung konnte nicht laufen.'
+else
+  export DOTNET_CLI_TELEMETRY_OPTOUT=1
+  export DOTNET_NOLOGO=1
+  if dotnet run --project "$security_root/tools/RiftHarness/RiftHarness.fsproj" \
+      --configuration Release --no-build --no-restore -- toolchain-check; then
+    security_log 'Toolchain-/Lizenz-/ISA-Prüfung: PASS.'
+  else
+    security_error 'Toolchain-/Lizenz-/ISA-Prüfung fehlgeschlagen (siehe Findings oben).'
+  fi
+fi
+
 security_log 'Grenze: Baseline-Gate, kein vollständiger Secret-Scanner, SAST, Malware-, Lizenz- oder Threat-Model-Nachweis.'
 if [[ "$security_failures" -gt 0 ]]; then
   security_log "ERGEBNIS: FAIL ($security_failures fehlgeschlagene Gate-Bereiche)."

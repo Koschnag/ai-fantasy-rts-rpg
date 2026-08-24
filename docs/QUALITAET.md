@@ -49,7 +49,7 @@ Eine Umsetzungseinheit ist erst `DONE`, wenn:
 | G-HARNESS Harness | Eventhashkette, Runabschluss, RAG-/Konfigintegrität | `./scripts/rift.sh verify` | implementiert für aktuellen Harnessumfang | Exit 0; Kette, Quellen und Index gültig |
 | G-DATA Daten | JSON-/Content-Schemas, Referenzen, Lokalisierung, Save-Fixtures | künftig `lint`/spezifische Compiler | JSON-Syntax und Harness-Schemas teilweise implementiert; Runtime-Content noch NICHT VERFÜGBAR | alle betroffenen Dateien validiert; keine fehlende Pflichtreferenz |
 | G-PROVENANCE Assets/Modelle | Provenienz, Lizenz, Ähnlichkeit, Technik und Cook | `./scripts/rift.sh assets-check`; für Shipping zusätzlich `--require-local --require-approved` | Manifest-/Receipt-/Modell-/Clean-Room- und Lifecycle-Prüfung implementiert; Cook- und Gesamtspielreview wachsen in späteren Tasks | jedes referenzierte Shipping-Asset und Modell freigegeben; Quarantäne zählt niemals als Shipping-Freigabe |
-| G-PERF Performance | Pflichtszenen, Telemetrie, Baselinevergleich | `bench` | NICHT VERFÜGBAR | alle relevanten Profilgrenzen eingehalten |
+| G-PERF Performance | Pflichtszenen, Telemetrie, Baselinevergleich und integrierter `BENCH-REPRESENTATIVE` | `bench` | NICHT VERFÜGBAR | alle relevanten Profilgrenzen auf der gebundenen realen Referenzklasse eingehalten |
 | G-VISUAL Bild/Atmosphäre | Golden-Szenen, Lesbarkeit, Originalität und Atmosphärenrubrik | Reviewprotokoll; später Evaluator | Rubrik spezifiziert, ausführbarer Evaluator noch NICHT VERFÜGBAR | Rubrik und harte Originalitätsbedingungen erfüllt |
 | G-SECURITY Sicherheit/Lizenzen | Secrets, Abhängigkeiten, native Lizenzen und untrusted inputs | `./scripts/rift.sh security` | lokaler Baseline-Gate implementiert; native Lizenzen, Threat Model und Releaseprüfung noch NICHT VERFÜGBAR | Baseline Exit 0 und alle aufgabenspezifisch benötigten Nachweise vorhanden; Baseline allein ist keine Releasefreigabe |
 | G-PLATFORM Plattform | native Builds, ABI- und Smoke-Prüfungen je betroffenem RID | native CI-/Smoke-Aufträge | NICHT VERFÜGBAR | jeder betroffene Ziel-RID nativ grün |
@@ -69,7 +69,7 @@ Ein als `NICHT VERFÜGBAR` markiertes Gate ist keine bestandene Prüfung. Ein Ta
 | Save-/Migrationstests | Snapshot-Roundtrip, atomarer Abbruch, Korruption, unbekannte Version und idempotente Migration | bei jeder save-relevanten Änderung | Runtime-Agent |
 | Gameplay-Smoke / E2E | zentrale Nutzerwege mit festen Seeds und Zustandsprüfpunkten | pro Merge; vollständiger Lauf vor Meilenstein | Gameplay-Agent |
 | Plattform-Smoke | Prozessstart, Fenster, Eingabe, Renderbackend, Audio, Laden, Beenden | native Windows-/Linux-/macOS-Matrix | Release-/Plattform-Agent |
-| Performance | `BENCH-EMPTY/ARMY/BATTLE/BASE/PATH/LOAD` mit Rohmetriken und Baseline | bei Hotpath/Contentbudget; vollständig vor Meilenstein | Performance-Agent |
+| Performance | `BENCH-EMPTY/ARMY/BATTLE/BASE/PATH/LOAD` plus `BENCH-REPRESENTATIVE` mit Rohmetriken und Baseline | bei Hotpath/Contentbudget; vollständig vor Meilenstein | Performance-Agent |
 | Soak / Zuverlässigkeit | 8 Stunden Replay ohne Absturz, Hänger oder fortschreitenden Speicherverlust | vor Vertical-Slice-RC und nach Kernänderung | Performance/Runtime |
 | Visuell / Atmosphäre | Lesbarkeit, Licht/Farbe, Audio, Pacing, Modusübergang, Originalität | finalitätsnahe Builds, blind wo spezifiziert | Art-/Creative-Review |
 | Zugänglichkeit / Lokalisierung | freie Bindings, UI-Skalierung, Untertitel, keine reine Farbcodierung, DE/EN-Schlüssel | automatisiert plus manuell vor RC | UX/Localization |
@@ -102,6 +102,7 @@ Ein als `NICHT VERFÜGBAR` markiertes Gate ist keine bestandene Prüfung. Ein Ta
 - Prozess-/VRAM-, Lade-, Input- und Szenengrenzen gelten vollständig gemäß `PERFORMANCE_BUDGET.md`; ein Durchschnittswert verdeckt keine p99- oder Peakverletzung.
 - Niedrigere Grafikstufen dürfen Effekte, Schatten, LOD und Partikel reduzieren, aber keine Einheiten, Simulationsregeln oder taktisch notwendige Information.
 - Ein Budget ändert sich nur durch dokumentierte Entscheidung nach reproduzierbarem Profil, nicht durch Anpassung eines Tests an die aktuelle Implementierung.
+- Architektur, Datenlayout und Budgetzuordnung allein belegen keine Optimierung. Die zentrale Effizienzhypothese bleibt offen, bis der in `PERFORMANCE_BUDGET.md` definierte integrierte Repräsentativitätsnachweis auf `HW-PC-MIN` und `HW-MAC-MIN` besteht.
 
 ### Atmosphäre und Eigenständigkeit
 

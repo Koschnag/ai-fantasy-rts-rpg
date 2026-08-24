@@ -69,7 +69,7 @@ module DotnetAssetCiEvidenceTests =
             evidence.RootElement.GetProperty("toolchain").GetProperty("lockFileSha256").GetString()
 
         assertTrue
-            (lockFileSha256 = "e1115c5484a8df29fd25f2a96ee77de8f5561088a869b4192b5cc8f791f4afa8")
+            (lockFileSha256 = "49dd75fa91e539fcf19ab3f8b01aecd81a3cf11fbff940f14051ce80ec088b42")
             "Evidence did not bind the complete toolchain lock bytes."
 
         let evaluation =

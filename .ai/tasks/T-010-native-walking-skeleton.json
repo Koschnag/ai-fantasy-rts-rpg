@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "T-010",
   "title": "SDL3-Fenster, Eingabe und bgfx-Dreieck - zuerst linux-x64 auf Referenzhardware",
-  "status": "ready",
+  "status": "accepted",
   "releaseNote": "2026-08-23: draft -> ready durch autonomen Planungsagenten gemaess Autorisierung der Projektleitung vom 2026-08-23; Epikabhaengigkeit E-001 im erforderlichen Umfang erfuellt (T-001 bis T-007 accepted); Q-TEC-001/Q-TEC-003 verfahrensmaessig in den gatenden Pin-Bauabschnitt (Abschnitt 0) ueberfuehrt gemaess Spike-Klausel docs/QUALITAET.md; Klaerungsprotokoll in docs/OFFENE_FRAGEN.md.",
   "reviewNote": "2026-08-23: Unabhaengiger Reviewlauf 01M0QQYJDX9CS56144Z7VGN8J4 (Akteur t010-spec-reviewer) bestaetigt die Spezifikation: Task-Manifest schema-validiert, Konsistenz zu BACKLOG/README/OFFENE_FRAGEN/ADR-002/PLATTFORMMATRIX/PERFORMANCE_BUDGET geprueft und Dokdefekte repariert (T-010-Zeile und Restrisikoformulierung auf linux-x64-Scope korrigiert); Schemavertrag um optionale releaseNote-/reviewNote-Felder ergaenzt, da der Nachtrag in T-004 (Commit 7a0658e) eine additionalProperties-false-Verletzung verursachte; Gates fmt/lint/build (0 Warnungen)/test 129 von 129/security PASS/rag-build/verify gruen. Implementierung nicht begonnen; Status bleibt ready.",
   "objective": "Der Walking-Skeleton-Client laeuft zuerst auf linux-x64 auf dem Entwickler-PC (Intel Core i7-3770, Radeon RX 570, Mesa/radeonsi) und damit exakt in der verbindlichen Low-End-CPU-Klasse: Er oeffnet ein SDL3-Fenster, rendert ein bgfx-Dreieck ueber OpenGL 3.3 Core, nimmt Fenster- und Beendigungsereignisse entgegen, beendet sich kontrolliert und haelt messbare Hardwareeffizienzbudgets fuer alte Hardware (i7-3770/GTX-660/FX-8350-Klasse) ein; alle nativen Komponenten sind commitgepinnt, nativ gebaut, lizenziert inventarisiert und per ABI-Smoke nachgewiesen. Windows- und macOS-Nachweise sind bewusst nach T-011 verschoben, das Projektziel Z-003/NF-006 bleibt unveraendert.",
@@ -30,7 +30,13 @@
     "kreative Assetfreigaben; das Dreieck ist rein technisches Testmuster ohne Shipping-Anspruch",
     "Gamepad-Umfang (Q-GAM-009) und konfigurierbare Eingabebelegung (F-006, T-041)"
   ],
-  "requirements": ["Z-002", "Z-003", "NF-006", "NF-007", "NF-008"],
+  "requirements": [
+    "Z-002",
+    "Z-003",
+    "NF-006",
+    "NF-007",
+    "NF-008"
+  ],
   "acceptanceCriteria": [
     {
       "id": "AC-T010-01",
@@ -73,8 +79,23 @@
       "verification": "Buildkonfigurationspruefung im lint/security-Umfang; Negativfixture mit -march=native oder AVX2-Pflicht schlaegt fehl; Doku-Review mit Quellenangabe im Run"
     }
   ],
-  "dependencies": ["T-001", "T-002", "T-003", "T-004", "T-005", "T-006", "T-007"],
-  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-SECURITY"],
+  "dependencies": [
+    "T-001",
+    "T-002",
+    "T-003",
+    "T-004",
+    "T-005",
+    "T-006",
+    "T-007"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-SECURITY"
+  ],
   "decisionPolicy": {
     "mayDecide": [
       "konkrete Pin-Wahl von SDL3/bgfx/bx/bimg ausschliesslich innerhalb der im Auftrag fixierten Pin-Kriterien und des ADR-002-Stacks",
@@ -92,5 +113,6 @@
       "Beschaffung: Kaeufe, Cloud- oder CI-Dienste, Signier-/Notarisierungsinfrastruktur, Veroeffentlichung",
       "Abschwaechung oder Entfernung eines Abnahmekriteriums oder Gates"
     ]
-  }
+  },
+  "completionNote": "2026-08-24: Unabhaengiger Review-/Vollendungslauf 01M0QYAA11MC89GVMP6BWR7016 (Akteur t010-review-completion) hat die von zwei abgebrochenen Implementierungslaeufen begonnene Arbeit geprueft, In-Scope-Defekte repariert und vollendet: Native-Build (SDL3/bgfx-Familie/Shim/Shader) mit byteidentischem --fresh-Wiederholbau, C#-Interop (LibraryImport, Besitzregeln, Fehlerobjekte) und Host (plattformsmoke/effizienzbaseline), Toolchain-/Lizenz-/ISA-Gate in lint+security, 17 neue Tests (146/146), Doku (NATIVE_UNTERBAU, PLATTFORMMATRIX-Mindestbasis, AUTOMATION). Alle AC-T010-01..08 mit Evidenz im Run; Gates fmt/lint/build(0 Warnungen)/test/security/rag-build/verify gruen. T-007-Evidenz und Manifest-/Receipt-Bindungen wurden nach dem Lockfile-Pin-Nachtrag regeneriert; GLB/PNG/Technique blieben byteidentisch. Windows/macOS bleiben bei T-011."
 }
