@@ -1,0 +1,64 @@
+name: Experiment or reproduction
+description: Report a reproducible agent, gate, runtime, or hardware observation.
+title: "[Experiment]: "
+labels:
+  - research
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing the method. Do not include API keys, personal data, copyrighted game assets, or unreviewed model output.
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Exact 40-character commit SHA used for the observation.
+      placeholder: 0123456789abcdef0123456789abcdef01234567
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Observation type
+      options:
+        - Agent / harness
+        - Build / test / gate
+        - Runtime / performance
+        - Asset provenance
+        - Research method
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, CPU, GPU, RAM, driver/tool versions, preset and scenario where applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Reproduction method
+      description: Commands, seed, warm-up, duration and any deviations from the documented protocol.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Observed result
+      description: Include measurements and sanitized evidence paths; distinguish observations from interpretation.
+    validations:
+      required: true
+  - type: textarea
+    id: limitations
+    attributes:
+      label: Limitations and possible confounders
+    validations:
+      required: true
+  - type: checkboxes
+    id: clean
+    attributes:
+      label: Submission safety
+      options:
+        - label: I removed secrets, unnecessary personal data and unlicensed third-party creative material.
+          required: true

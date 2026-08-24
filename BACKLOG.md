@@ -31,6 +31,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-005 | E-001 | striktes calibration-v1-Spec und unabhängiger .NET-Inspector prüfen GLB, PNG, Report und Proxybudgets ohne Blender | Z-002, Z-004, Z-005, F-008, F-009 | M | MUST | DONE |
 | T-006 | E-001 | BCL-only-F#/.NET-Generator schreibt GLB und CPU-Preview deterministisch in-process und publiziert transaktional über T-003 in Quarantäne | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
 | T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
+| T-008 | E-001 | überprüfbarer Retail-Era-Forschungs-Showcase mit Press-Kit-Prototyp, Quarantäne-Key-Art und wahrheitsgebundenen Exportregeln | Z-004, Z-005 | M | SHOULD | REVIEW |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DRAFT |
@@ -80,8 +81,8 @@ unverändert. Audio (Q-TEC-007) bleibt ausdrücklich ausgeschlossen.
 
 Die Spezifikation wurde am 2026-08-23 durch den unabhängigen Reviewlauf
 `01M0QQYJDX9CS56144Z7VGN8J4` geprüft: Task-Manifest schema-validiert,
-Dokumente konsistent, alle lokalen Gates grün. Die Implementierung hat noch
-nicht begonnen.
+Dokumente konsistent, alle lokalen Gates grün. Zu diesem Prüfzeitpunkt hatte die
+Implementierung noch nicht begonnen.
 
 T-010 wurde am 2026-08-24 durch den unabhängigen Review-/Vollendungslauf
 `01M0QYAA11MC89GVMP6BWR7016` (Akteur `t010-review-completion`) abgenommen und
@@ -109,7 +110,7 @@ integrierte Repräsentativitätsnachweis T-023 gegenüber weiterer allgemeiner
 Produktionsinfrastruktur priorisiert, soweit deren Abhängigkeiten `READY` sind.
 Der bewusst einfache Belastungsframe ist der erste Beleg für oder gegen die
 Effizienzhypothese; Architektur und Budgets allein gelten nicht als Optimierung
-(ADR 005).
+(ADR 006).
 
 ## Vorlage für eine Umsetzungseinheit
 

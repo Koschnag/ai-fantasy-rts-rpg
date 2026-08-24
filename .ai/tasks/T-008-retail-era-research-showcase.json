@@ -1,0 +1,71 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-008",
+  "title": "Taktiler Retail-Era-Forschungs-Showcase",
+  "status": "review",
+  "releaseNote": "2026-08-23: draft -> ready aufgrund der ausdruecklichen Projektleitungsentscheidung, ein eigenstaendiges physisches PC-Retail-Gefuehl der Jahre 2000 bis 2010 als Kommunikations- und spaetere Produkterfahrung zu erforschen; Clean-Room-, Claim- und Quarantaenegates bleiben unveraendert.",
+  "reviewNote": "2026-08-23: Umsetzung fuer ein unabhaengiges Review bereitgestellt. Browser-, Fresh-Checkout-, Provenienz- und Claim-Evidenz wird im zugehoerigen Merge-Request gebunden; der Rasterkandidat bleibt bis zu getrennten visuellen, Originalitaets- und Lizenzreviews in Quarantaene.",
+  "objective": "Ein origineller, statischer und lokal reproduzierbarer digitaler Forschungs-Showcase verbindet Riftwards Welt- und Hardwarethese mit der Erinnerung an grosse PC-Schachteln, optische Datentraeger, gedruckte Handbuecher, Magazinanzeigen und beschriftete Bildstrecken, ohne ein physisches Produkt anzukuendigen, Fremdmarken zu imitieren oder Konzeptmaterial als Gameplay auszugeben.",
+  "inScope": [
+    "Akzeptierte Gestaltungsentscheidung fuer eine rein digitale, eigenstaendige PC-Retail-Erinnerungswelt mit virtueller Schachtel, virtuellem Datentraeger, digitalem Handbuch, Anzeige und Bildstrecke",
+    "Abhaengigkeitsfreier statischer Press-Kit-Prototyp unter docs/showcase mit responsiver Browserdarstellung und druckbarer Handbuchansicht",
+    "Deterministische, versionierbare SVG-/CSS-Komposition fuer den oeffentlichen Repository-Stand",
+    "Ein originelles vertikales Key-Art-Experiment aus einer bereinigten internen Spezifikation; Rohoutput, Prompt, Manifest und Receipt bleiben im T-003-Quarantaenevertrag",
+    "Sichtbare Kennzeichnung aller Forschungsvisuals als CONCEPT - NOT GAMEPLAY sowie Status- und Evidenzhinweise",
+    "Exportmatrix fuer Repository, Magazinseite, Boxfront, Disc, Handbuch und spaetere echte In-Engine-Screenshots"
+  ],
+  "outOfScope": [
+    "Shipping-Freigabe, Titel-/Markenfreigabe oder kommerzielle Lizenzbehauptung fuer KI-Rasterbilder",
+    "Uebernahme oder Rekonstruktion fremder Logos, Verpackungen, Anzeigen, Handbuecher, Screenshots, Layouts oder Trade Dress",
+    "Behauptung, Konzeptbilder seien Gameplay, In-Engine-Aufnahmen oder Performanceevidenz",
+    "Veroeffentlichung ungepruefter Quarantaene-Binaerdateien in Git oder Git LFS",
+    "Game-UI, Runtime-Assets, Trailer, Musik, Sprache, Herstellung oder Versandmaterial",
+    "Aenderung von Hardware-, Atmosphaeren-, Clean-Room- oder Assetbudgets"
+  ],
+  "requirements": ["Z-004", "Z-005"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T008-01",
+      "statement": "Eine akzeptierte Entscheidung beschreibt die rein digitale Retail-Era-Grammatik, ihre Ableitung aus Riftwards Zielen und eine Negativliste gegen Marken- und Ausdruckskopie.",
+      "verification": "Dokumentenreview von ADR 005 gegen CLEAN_ROOM.md, ART_DIRECTION.md und IP_UND_LIZENZEN.md"
+    },
+    {
+      "id": "AC-T008-02",
+      "statement": "Der statische Showcase stellt Box, Datentraeger, Handbuch, Anzeige und Bildstrecke responsiv dar, funktioniert ohne JavaScript-Framework oder Netzwerk und kennzeichnet jedes Konzeptmotiv sichtbar als nicht spielbar und nicht Gameplay.",
+      "verification": "Lokaler Browser-Smoke auf Desktop- und Mobile-Viewport, Tastaturfokus, Druckvorschau sowie Textscan auf Pflichtkennzeichnungen"
+    },
+    {
+      "id": "AC-T008-03",
+      "statement": "Der oeffentliche Git-Stand benoetigt keine unfreigegebene Rasterdatei; alle sichtbaren Repository-Medien sind deterministische Projekt-SVG/CSS-Ausgaben mit dokumentierter Aussagegrenze.",
+      "verification": "Fresh-Checkout-Dateiinventar und Offline-Browser-Smoke ohne assets/quarantine"
+    },
+    {
+      "id": "AC-T008-04",
+      "statement": "Das neue Raster-Key-Art besitzt eine interne Spezifikation, einen bereinigten Prompt, Outputhash, technische Metadaten, Receipt und ein Quarantaenemanifest; es erhebt weder Shipping- noch Gameplay- oder Reproduzierbarkeitsanspruch.",
+      "verification": "assets-check gegen Manifest und lokale Datei; require-approved muss fuer das Asset weiterhin fehlschlagen"
+    },
+    {
+      "id": "AC-T008-05",
+      "statement": "Showcase und Kommunikationsdokumentation definieren, dass echte Screenshots, Frameraten und Hardwareclaims erst aus akzeptierten, commitgebundenen Runtime-Evidence-Packs exportiert werden.",
+      "verification": "Claim-Review gegen CAMPAIGN.md, PROTOCOL.md und den neuen Showcase-Vertrag"
+    }
+  ],
+  "dependencies": ["T-001", "T-003", "T-004"],
+  "requiredGates": ["G-SPEC", "G-HARNESS", "G-PROVENANCE", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Layout, Typografie, Abstaende und responsive Anordnung innerhalb von ADR 005 und der bestehenden Art Bible",
+      "deterministische SVG- und CSS-Techniken ohne neue Abhaengigkeit",
+      "technische Quarantaenevarianten innerhalb der bereinigten Key-Art-Spezifikation",
+      "Verschaerfung von Wahrheitskennzeichnung, Barrierefreiheit und Provenienzanzeige"
+    ],
+    "mustEscalate": [
+      "Shipping-, Titel-, Marken-, Lizenz- oder kommerzielle Freigabe",
+      "Aufnahme einer externen kreativen Referenz oder einer namentlichen Stilvorgabe in den Produktionskontext",
+      "Veroeffentlichung eines KI-Rasteroutputs als freigegebenes Repository- oder Produktasset",
+      "Darstellung von Konzeptmaterial als Gameplay oder einer Zielmetrik ohne Evidence Pack",
+      "neue Laufzeit-, Build- oder Frontendabhaengigkeit"
+    ]
+  }
+}

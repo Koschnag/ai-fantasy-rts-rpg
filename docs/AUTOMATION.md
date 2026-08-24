@@ -38,7 +38,7 @@ flowchart LR
   demonstrierbare Stand.
 
 Der Integrator verwaltet keine anderen Repositories und erweitert weder
-Agentenrechte noch Modellzugriffe. Details und Begründung stehen in ADR 005.
+Agentenrechte noch Modellzugriffe. Details und Begründung stehen in ADR 006.
 
 ## Einheitlicher Befehlsvertrag
 
@@ -65,7 +65,7 @@ Ein nicht implementiertes Gate muss fehlschlagen oder ausdrücklich `NICHT VERF�
 - Neue Architektur oder Abhängigkeiten erfordern ein ADR.
 - Hot Paths benötigen Benchmark oder begründete Budgetzuordnung.
 - Ein Budget oder passender Entwurf darf nicht als Optimierungsnachweis
-  bezeichnet werden; dieser entsteht erst durch die in ADR 005 und
+  bezeichnet werden; dieser entsteht erst durch die in ADR 006 und
   `PERFORMANCE_BUDGET.md` gebundene reale Messung.
 - Releasepfade dürfen keine Reflection-, Trimming- oder AOT-Warnungen unterdrücken.
 - Replay-/Seed-gesteuerte Szenarien dienen als objektive Gameplayregression.

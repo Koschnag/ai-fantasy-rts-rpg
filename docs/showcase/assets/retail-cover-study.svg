@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" role="img" aria-labelledby="title desc">
+  <title id="title">Project Riftward digital cover study</title>
+  <desc id="desc">An original vector study of three surveyors overlooking an inhabited quarry in a storm-dark ring landscape. Concept, not gameplay.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101924"/><stop offset=".52" stop-color="#31404b"/><stop offset="1" stop-color="#978064"/>
+    </linearGradient>
+    <linearGradient id="land" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#24343a"/><stop offset="1" stop-color="#11191c"/>
+    </linearGradient>
+    <radialGradient id="amber"><stop stop-color="#ffd57a"/><stop offset="1" stop-color="#b56b2b"/></radialGradient>
+    <pattern id="grain" width="13" height="13" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="3" r=".8" fill="#fff" opacity=".06"/><circle cx="10" cy="7" r=".6" fill="#000" opacity=".12"/>
+      <path d="M0 12 13 0" stroke="#fff" stroke-width=".35" opacity=".025"/>
+    </pattern>
+    <filter id="glow"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  <rect width="800" height="1200" fill="url(#sky)"/>
+  <path d="M0 360 105 292l100 38 123-85 116 69 122-126 124 93 110-51v386H0Z" fill="#202c34"/>
+  <path d="M0 425 125 370l74 36 138-75 116 88 107-106 118 64 122-21v317H0Z" fill="#293a3d"/>
+  <path d="M72 505C201 444 267 501 371 455c104-46 205-15 357-88" fill="none" stroke="#b7c3be" stroke-width="8" opacity=".26"/>
+  <path d="M0 546 132 497l98 34 118-63 130 76 119-55 203 24 103 77v376H0Z" fill="url(#land)"/>
+  <path d="M57 652c173-110 242-27 354-65 108-36 180-15 332 78" fill="none" stroke="#54727a" stroke-width="34" opacity=".75"/>
+  <path d="M81 664c162-94 241-19 341-54 101-34 178-5 290 68" fill="none" stroke="#98a9a2" stroke-width="3" opacity=".55"/>
+  <g fill="#171d1c" stroke="#657068" stroke-width="3">
+    <path d="m108 700 84-42 76 25-6 85-134 26Z"/><path d="m283 656 111-35 81 49-20 82-154 15Z"/>
+    <path d="m489 681 100-25 91 48-18 85-149 4Z"/><path d="m211 799 113-24 91 45-27 94-156 5Z"/>
+    <path d="m431 802 118-19 78 58-34 84-150-1Z"/>
+  </g>
+  <g fill="#db9847">
+    <circle cx="154" cy="719" r="7"/><circle cx="218" cy="699" r="5"/><circle cx="328" cy="689" r="6"/>
+    <circle cx="396" cy="706" r="5"/><circle cx="533" cy="719" r="7"/><circle cx="622" cy="741" r="5"/>
+    <circle cx="273" cy="842" r="6"/><circle cx="355" cy="820" r="4"/><circle cx="484" cy="849" r="6"/>
+    <circle cx="563" cy="858" r="5"/>
+  </g>
+  <g fill="#e3ad58" opacity=".35" filter="url(#glow)">
+    <circle cx="154" cy="719" r="20"/><circle cx="328" cy="689" r="17"/><circle cx="533" cy="719" r="20"/>
+    <circle cx="484" cy="849" r="18"/>
+  </g>
+  <path d="M648 310c-21 62-1 88-33 139-28 45-10 78-51 122" fill="none" stroke="#d69542" stroke-width="7"/>
+  <path d="M648 310c-21 62-1 88-33 139-28 45-10 78-51 122" fill="none" stroke="#ffd982" stroke-width="19" opacity=".13" filter="url(#glow)"/>
+  <path d="M0 966c137-28 241-48 408-24 170 25 278 18 392-5v263H0Z" fill="#0b1012"/>
+  <g fill="#080b0c" stroke="#384445" stroke-width="3">
+    <circle cx="293" cy="939" r="30"/><path d="m264 974-24 145h104l-23-145Z"/><path d="m267 1004-47 69m101-71 45 70" fill="none" stroke-width="13"/>
+    <circle cx="404" cy="921" r="34"/><path d="m370 963-18 164h113l-25-164Z"/><path d="m370 993-52 76m122-77 61 74" fill="none" stroke-width="14"/>
+    <circle cx="520" cy="944" r="29"/><path d="m492 979-19 140h98l-23-140Z"/><path d="m493 1002-47 63m102-61 52 64" fill="none" stroke-width="13"/>
+  </g>
+  <rect width="800" height="1200" fill="url(#grain)"/>
+  <path d="M38 44h724M38 1155h724" stroke="#d7b36c" stroke-width="2" opacity=".55"/>
+  <text x="400" y="112" text-anchor="middle" fill="#e7dcc5" font-family="Georgia,serif" font-size="30" letter-spacing="12">PROJECT</text>
+  <text x="400" y="174" text-anchor="middle" fill="#f3ead8" font-family="Georgia,serif" font-size="72" letter-spacing="5">RIFTWARD</text>
+  <text x="400" y="215" text-anchor="middle" fill="#c59751" font-family="Arial Narrow,sans-serif" font-size="17" letter-spacing="5">AN OPEN AGENTIC GAME RESEARCH PROJECT</text>
+  <text x="400" y="1130" text-anchor="middle" fill="#c8c0ad" font-family="Courier New,monospace" font-size="17" letter-spacing="3">CONCEPT · NOT GAMEPLAY</text>
+</svg>

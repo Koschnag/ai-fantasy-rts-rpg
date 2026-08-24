@@ -4,13 +4,13 @@
 
 **Status:** ENTSCHIEDEN; konkrete Budgets sind auf echter Hardware zu validieren
 
-Die Werte dieses Dokuments sind verbindliche Zielverträge und zunächst Performancehypothesen. Ein vorhandenes Budget, passender Datenentwurf, erfolgreicher Build oder schneller Lauf auf stärkerer Hardware ist noch kein Optimierungsnachweis. „Bestanden“ setzt reproduzierbare Release-nahe Evidenz auf der jeweiligen realen Referenzklasse voraus; siehe ADR 005.
+Die Werte dieses Dokuments sind verbindliche Zielverträge und zunächst Performancehypothesen. Ein vorhandenes Budget, passender Datenentwurf, erfolgreicher Build oder schneller Lauf auf stärkerer Hardware ist noch kein Optimierungsnachweis. „Bestanden“ setzt reproduzierbare Release-nahe Evidenz auf der jeweiligen realen Referenzklasse voraus; siehe ADR 006.
 
 Die Hardwaremodelle sind Leistungsklassen, keine Bindung an exakt ein Bauteil. Schnellere Hardware wird unterstützt, erzeugt aber keinen eigenen Effektpfad oberhalb der geplanten höchsten Qualitätsstufe.
 
 | Profil | CPU / SoC | GPU | Speicher | Verbindliches Ziel |
 |---|---|---|---:|---|
-| `HW-PC-MIN` | Intel Core i7-3770 oder vergleichbare 4C/8T-Leistung | GTX-660-Klasse, typischerweise 2 GB VRAM | 8 GB RAM | 1920×1080 Low, stabile 30 FPS |
+| `HW-PC-MIN` | Intel Core i7-3770 oder vergleichbare 4C/8T-Leistung | GTX-660-Klasse, typischerweise 2 GB VRAM | 8 GB DDR3-Klasse | 1920×1080 Low, stabile 30 FPS |
 | `HW-MAC-MIN` | Apple M1 | integrierte M1-GPU | 8 GB Unified Memory | 1920×1080 bzw. äquivalente skalierte Ausgabe, stabile 30 FPS |
 | `HW-PC-HIGH` | passend zur RX-580-Ära oder besser | Radeon RX 580 bzw. vergleichbar | 8 GB Minimum, 16 GB empfohlen | 1920×1080 High, stabile 60 FPS |
 
@@ -31,6 +31,13 @@ Auf den Minimum-Profilen sind 60 FPS das bevorzugte Optimierungsziel, aber 30 FP
 | Eingabe-zu-Reaktion | 100 ms | 150 ms | Befehlsmarker / Simulation |
 
 Die 30-FPS-Grenze ist der unterstützte Mindestmodus, nicht das bevorzugte Ergebnis. Grafikstufen dürfen Effekte reduzieren, nicht Gameplay, Simulation oder taktische Sichtbarkeit verändern. Dynamische Auflösung ist optional, aber 1080p muss der reguläre Low-Modus bleiben und darf nicht durch dauerhaftes Upscaling aus einer deutlich kleineren internen Auflösung nur nominell erfüllt werden.
+
+Das DDR3-Profil ist kein Nostalgie-Benchmark ohne Produktfolge. Es prüft die
+These, dass gezielte Datenlayouts, Offline-Verarbeitung und begrenzte
+Laufzeitsysteme mehr nutzbare Qualität liefern können als die pauschale
+Anhebung der Mindestanforderungen. Ein Ergebnis zählt nur, wenn dieselbe
+Spielmechanik, taktische Lesbarkeit und akzeptierte Atmosphärenabsicht erhalten
+bleiben.
 
 ## Szenenbudget für den Vertical Slice
 

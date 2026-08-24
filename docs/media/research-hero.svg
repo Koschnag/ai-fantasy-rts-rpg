@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">Project Riftward – AI-native game engineering research</title>
+  <desc id="desc">An original abstract landscape connects exploration, community building and strategy under an evidence graph.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07101d"/>
+      <stop offset="0.55" stop-color="#17283a"/>
+      <stop offset="1" stop-color="#314356"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#384958"/>
+      <stop offset="1" stop-color="#111a20"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4f7d8b" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#9cc8cf" stop-opacity="0.62"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e59a47" stop-opacity="0"/>
+      <stop offset="0.45" stop-color="#f0b35e"/>
+      <stop offset="1" stop-color="#ffd38b" stop-opacity="0.25"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="520" rx="24" fill="url(#sky)"/>
+  <circle cx="1010" cy="102" r="62" fill="#e8d4aa" opacity="0.11"/>
+  <path d="M0 286 150 206 300 254 452 174 610 244 760 164 920 238 1060 184 1200 224V520H0Z" fill="#203240"/>
+  <path d="M0 340 118 286 272 316 408 250 540 304 690 258 838 316 998 268 1200 324V520H0Z" fill="url(#ground)"/>
+  <path d="M45 402C180 370 245 384 338 425S555 458 661 411 865 334 1145 395" fill="none" stroke="#64717b" stroke-width="27" opacity="0.72"/>
+  <path d="M610 455C715 420 770 370 848 373S1008 453 1175 399" fill="none" stroke="url(#water)" stroke-width="42"/>
+  <path d="M60 250C224 214 313 274 437 226S668 184 831 239 1018 211 1170 167" fill="none" stroke="url(#amber)" stroke-width="6" filter="url(#glow)"/>
+
+  <g fill="#10171d" stroke="#71808a" stroke-width="2">
+    <path d="M395 345h210v18H395z"/>
+    <path d="M418 315h164v18H418z"/>
+    <path d="M451 283h98v18h-98z"/>
+    <path d="M438 255h55v28h-55zM509 247h31v36h-31z"/>
+    <path d="m465 255 13-15 15 15zm44-8 15-17 16 17z" fill="#a86b35" stroke="none" opacity="0.82"/>
+  </g>
+  <g stroke="#b87537" stroke-width="3" opacity="0.9">
+    <path d="M412 316v47M452 283v80M548 283v80M582 316v47"/>
+    <path d="M395 344h210M418 314h164M451 282h98"/>
+  </g>
+
+  <g fill="#d4c4a9" stroke="#0a1118" stroke-width="3">
+    <circle cx="172" cy="378" r="10"/><path d="M172 390v32m0-18-18 15m18-15 17 17m-17 1-12 27m12-27 16 27" fill="none"/>
+    <circle cx="217" cy="389" r="9"/><path d="M217 400v29m0-16-16 13m16-13 15 14m-15 2-12 24m12-24 14 24" fill="none"/>
+    <circle cx="258" cy="374" r="10"/><path d="M258 386v33m0-17-17 14m17-14 17 12m-17 5-11 27m11-27 16 25" fill="none"/>
+  </g>
+
+  <g fill="#758794" stroke="#101820" stroke-width="3">
+    <circle cx="888" cy="366" r="8"/><circle cx="917" cy="354" r="8"/><circle cx="946" cy="368" r="8"/>
+    <circle cx="1018" cy="350" r="8"/><circle cx="1048" cy="364" r="8"/><circle cx="1078" cy="350" r="8"/>
+    <path d="M880 378h16v29h-16zm29-12h16v29h-16zm29 14h16v29h-16zM1010 362h16v29h-16zm30 14h16v29h-16zm30-14h16v29h-16z"/>
+  </g>
+  <path d="M789 392h72v17h-72zM802 365h47v27h-47z" fill="#1a2227" stroke="#bd7a3a" stroke-width="3"/>
+  <path d="M812 367v-35m27 35v-35M803 338h46" stroke="#bd7a3a" stroke-width="4"/>
+
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" fill="#f4efe4">
+    <text x="58" y="78" font-size="18" font-weight="650" letter-spacing="4" fill="#e7ad67">PROJECT RIFTWARD · RESEARCH CODENAME</text>
+    <text x="58" y="132" font-size="42" font-weight="720">Full-agentic SDLC × low-spec gaming</text>
+    <text x="60" y="169" font-size="20" fill="#bfccd3">Build the system. Measure the outcome. Publish the failures.</text>
+  </g>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="15" font-weight="650" letter-spacing="1" fill="#d7dee2">
+    <text x="113" y="483">EXPLORE</text>
+    <text x="454" y="483">BUILD</text>
+    <text x="946" y="483">DEFEND</text>
+  </g>
+  <rect x="1" y="1" width="1198" height="518" rx="23" fill="none" stroke="#8ea1ad" stroke-opacity="0.28" stroke-width="2"/>
+</svg>

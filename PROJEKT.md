@@ -16,6 +16,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 - Gesucht ist die besondere Spannung zwischen einer kleinen, persönlich entwickelten Heldengruppe und dem Aufbau einer größeren Streitmacht.
 - Die technische Produktion soll weitgehend autonom durch KI erfolgen und dennoch reproduzierbar, testbar, performant und rechtlich nachvollziehbar bleiben.
 - Ein eigener schlanker Unterbau erlaubt feste Leistungsbudgets und vermeidet den Ballast einer großen Engine.
+- Das Projekt setzt der verbreiteten Hardware-Eskalation bewusst eine andere Produktpolitik entgegen: Effizienz, lange Nutzbarkeit und harte Optimierung gelten als Qualitätsmerkmale, nicht als nachträgliche Kompatibilitätsarbeit.
 
 ## 3. Zielgruppe
 
@@ -42,6 +43,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 | Z-003 | Windows, Linux und macOS bleiben lieferbar | Build- und Smoke-Test-Matrix | grüne Artefakte für alle Ziel-RIDs | ANGENOMMEN |
 | Z-004 | KI-Produktion bleibt kontrollierbar | Nachverfolgbarkeit und Qualitätsgates | jeder Build verweist auf Anforderungen, Tests und Asset-Provenienz | ANGENOMMEN |
 | Z-005 | Eigenständige kreative Identität | Review gegen Art Bible und Provenienzregeln | keine im dokumentierten Review festgestellte unautorisierte Übernahme; vollständige Provenienz | ANGENOMMEN |
+| Z-006 | Mehr Spielerlebnis pro vorhandener Hardware statt automatischer Hardware-Eskalation | präregistrierte A/B-Benchmarks derselben Szene vor/nach Optimierung, Frame-/Speicher-/Leistungsdaten und blinde Qualitätsprüfung | Vertical Slice hält die akzeptierten Spiel-, Lesbarkeits- und Atmosphärenziele auf `HW-PC-MIN` und `HW-MAC-MIN`; Einsparungen werden gegen ihren Entwicklungs-/KI-Aufwand bilanziert | ANGENOMMEN |
 
 ## 6. MVP-Umfang
 
@@ -78,6 +80,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 | Plattform | Windows x64, Linux x64, macOS arm64; macOS x64 wird im Toolchain-Spike geprüft | ANGENOMMEN |
 | Zeitrahmen | Vertical Slice zuerst; Vollproduktion erst nach dessen Abnahme | ENTSCHIEDEN |
 | Budget / Betriebskosten | FOSS-first; kostenpflichtige Dienste nur nach expliziter Entscheidung | ENTSCHIEDEN |
+| Projektöffnung | Spielcode, Produktionswerkzeuge und Forschungsartefakte werden als FOSS-Projekt entwickelt; konkrete SPDX-Lizenz je Artefaktklasse wird vor öffentlicher Lizenzfreigabe entschieden | ENTSCHIEDEN / Lizenzwahl OFFEN |
 | Datenschutz / Datenstandort | keine Onlinepflicht im Spiel; Produktionsdienste führen keine geheimen oder fremden Daten | ANGENOMMEN |
 | Bestehende Systeme / Schnittstellen | keine Runtime-Cloudabhängigkeit | ANGENOMMEN |
 | Technologie | .NET 10 LTS, C# + F#, Native AOT für Release evaluieren, kleine native FOSS-Bibliotheken | ENTSCHIEDEN |

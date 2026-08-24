@@ -1509,16 +1509,25 @@ module AssetStore =
             | None -> ()
             | Some path ->
                 try
-                    let absolute = safeManifestPath locations "Assetinput" false path
-                    let actualHash, _ = safeFileHashAndLength absolute "Assetinput"
+                    let absolute = safeManifestPath locations "Assetinput" true path
 
-                    if actualHash <> getString "sha256" input then
+                    if File.Exists(absolute) then
+                        let actualHash, _ = safeFileHashAndLength absolute "Assetinput"
+
+                        if actualHash <> getString "sha256" input then
+                            addError
+                                findings
+                                "ASSET_INPUT_HASH_MISMATCH"
+                                (Some manifestRelative)
+                                ($"/inputs/{index}/sha256")
+                                "Assetinput-Hash stimmt nicht."
+                    elif requireLocal then
                         addError
                             findings
-                            "ASSET_INPUT_HASH_MISMATCH"
+                            "ASSET_INPUT_MISSING"
                             (Some manifestRelative)
-                            ($"/inputs/{index}/sha256")
-                            "Assetinput-Hash stimmt nicht."
+                            ($"/inputs/{index}/path")
+                            "Lokal erforderlicher Assetinput fehlt."
                 with
                 | HarnessException _
                 | :? IOException

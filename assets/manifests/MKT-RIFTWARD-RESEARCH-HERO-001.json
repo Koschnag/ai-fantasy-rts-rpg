@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.ai/schemas/asset-manifest.schema.json",
+  "schemaVersion": 1,
+  "assetId": "MKT-RIFTWARD-RESEARCH-HERO-001",
+  "purpose": "Originales Hero-Motiv zur transparenten Visualisierung des Forschungsprojekts; kein Shipping-Asset und kein Gameplay-Nachweis.",
+  "specSha256": "50ce178f6d61f4dc5fad0ac89dd81936802313428e05e77aa338c3a53013682f",
+  "generationRunId": "01M0QV63AMB9BHFPE6QMAY5XG1",
+  "generationBindingMode": "canonical-event-v1",
+  "generationReceipt": "assets/receipts/MKT-RIFTWARD-RESEARCH-HERO-001/01M0QV63AMB9BHFPE6QMAY5XG1.json",
+  "generationReceiptSha256": "645253581e16c81e2f88f365fff5c75aa11c0657104019c77d3cfd95d0f6fc97",
+  "createdBy": "codex-imagegen-service",
+  "status": "quarantine",
+  "generator": {
+    "kind": "ai",
+    "tool": "Codex built-in image_gen",
+    "version": "2026-08-23-service-contract",
+    "model": "OpenAI built-in image generation",
+    "modelVersion": "not-exposed-by-tool",
+    "modelArtifactSha256": null,
+    "executionMode": "remote",
+    "seed": null,
+    "generatorSourceSha256": null,
+    "toolchainPin": null
+  },
+  "inputs": [
+    {
+      "id": "SPEC-MKT-RIFTWARD-RESEARCH-HERO-001",
+      "path": "assets/specs/marketing/MKT-RIFTWARD-RESEARCH-HERO-001.md",
+      "sha256": "50ce178f6d61f4dc5fad0ac89dd81936802313428e05e77aa338c3a53013682f",
+      "origin": "Project-authored clean-room communication specification",
+      "originClass": "internal-specification",
+      "creativeInfluence": true,
+      "license": "Project-private; no public content license asserted",
+      "rightsEvidence": "Derived only from the repository's own project, art, atmosphere, performance and communication requirements; no external media input was supplied.",
+      "allowedUse": "internal-specification",
+      "referenceUseReviewed": true
+    }
+  ],
+  "prompts": {
+    "prompt": "Use case: marketing campaign hero and research-project visualization\nAsset type: completely original wide cinematic key art for an experimental cross-platform fantasy RTS/RPG production, without any typography\nPrimary request: show one continuous wounded valley changing from intimate exploration on the left, through cooperative rebuilding in the center, into a readable defensive strategy situation on the right; three mortal field engineers follow a rain-darkened stone causeway toward an inhabited terraced quarry refuge where workers repair timber bridges, gardens and water channels, while farther right organized small formations protect civilians by opening a practical wooden sluice that redirects shallow water across one approach\nNarrative idea: human-scale understanding grows into responsibility for a community and landscape; the same places, people and material systems connect all three scales rather than forming separate panels\nWorld detail: sparse wind-bent pines and alder, weathered local stone, patched canvas, practical tools, warm workshops, a distant mismatched masonry survey tower, and a subtle geological anomaly visible only as a restrained amber mineral seam with one physically impossible shadow edge\nStyle/medium: polished stylized-realistic original 3D game concept art with painterly color grading, believable PBR-like materials, deliberately simplified production-feasible geometry, strong silhouettes and terrain readability suitable for a low-spec real-time game target\nComposition/framing: panoramic 16:9 elevated three-quarter game camera, continuous landscape with visual flow from left foreground to warm center and right background; no triptych borders; the three scales must remain distinguishable at thumbnail size; reserve some calm dark sky and terrain space for optional external text overlay, but render no text in the image\nLighting/mood: wistful, earthy, wondrous and determined; blue-hour after rain, one dominant low sky direction, baked-light feeling, restrained warm inhabited islands, localized haze only\nColor palette: about 60 percent muted earth and blue-gray stone, 30 percent desaturated forest and storm blue, 10 percent warm amber work light and anomaly accent\nConstraints: entirely original clean-room world and design; no text, letters, logo, interface, watermark or mock UI; no giant hero portrait, no ornate palace, no giant monster, no neon portal, no ray-traced spectacle, no dense particle veil, no photobash artifacts; no recognizable borrowed imagery, characters, architecture, maps, symbols, faction emblems or style imitation of any named artist or existing game",
+    "negativePrompt": null,
+    "promptSha256": "3afd91dcbb9438a4aaa954ed3f414322eaa9bee8e1ffc1ff4239db96fa524223",
+    "promptEnvelopeSha256": "15879f7eddf6dd96a2774f8d5ce5a79d680cf22a51486225890e205ce1ed4eac",
+    "bindingMode": "canonical-envelope-v1"
+  },
+  "outputs": [
+    {
+      "path": "assets/quarantine/marketing/MKT-RIFTWARD-RESEARCH-HERO-001.png",
+      "sha256": "b99d3f9bba0867cdb59946e980755092abf79c777104bfc6d7c5e42560deee86",
+      "mediaType": "image/png",
+      "bytes": 2696357,
+      "technicalMetrics": {
+        "width": 1672,
+        "height": 941,
+        "channels": 3,
+        "alpha": false
+      }
+    }
+  ],
+  "transformations": [],
+  "licenseBasis": {
+    "modelTerms": "Exact backend identity and a repository-local copy of the applicable output terms are not exposed or reviewed yet.",
+    "inputRights": "Only the project-authored text specification was supplied; no image reference or external creative work was used.",
+    "outputPolicy": "Quarantine-only research and concept communication with explicit labeling; not approved for shipping or unqualified commercial claims.",
+    "commercialUseReviewed": false,
+    "reviewedAtUtc": null,
+    "termsEvidenceArtifact": null
+  },
+  "reviews": [
+    {
+      "reviewId": "REV-MKT-RIFTWARD-RESEARCH-HERO-001-TECH-001",
+      "revision": 1,
+      "active": true,
+      "kind": "technical",
+      "reviewerId": "codex-root-validator",
+      "atUtc": "2026-08-23T17:34:03Z",
+      "result": "pass",
+      "evidence": "PNG 1672x941 RGB, 2696357 bytes; output SHA-256 matches this manifest.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    },
+    {
+      "reviewId": "REV-MKT-RIFTWARD-RESEARCH-HERO-001-VIS-001",
+      "revision": 1,
+      "active": true,
+      "kind": "visual",
+      "reviewerId": "codex-root-visual-review",
+      "atUtc": "2026-08-23T17:34:03Z",
+      "result": "pass",
+      "evidence": "The continuous landscape visibly connects exploration, inhabited repair work and a water-mediated defense; the output contains no observed text, logo or UI. This is an internal concept review, not an independent originality review.",
+      "evidenceArtifact": null,
+      "supersedesReviewId": null
+    }
+  ],
+  "supersedes": [],
+  "createdAtUtc": "2026-08-23T17:34:03Z"
+}

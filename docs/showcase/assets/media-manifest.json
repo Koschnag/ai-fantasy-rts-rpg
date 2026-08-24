@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "exportId": "MKT-RIFTWARD-ATMOSPHERE-STUDY-001-PAGES",
+  "createdAtUtc": "2026-08-23T22:45:54Z",
+  "purpose": "Transparent public art-direction research for the Project Riftward GitHub Pages showcase.",
+  "claimBoundary": "Every raster is a concept, not gameplay, not a runtime capture, not a performance result, and not a shipping asset.",
+  "publicationAuthorization": "Project owner explicitly requested use of suitable quarantine concepts on GitHub Pages on 2026-08-24.",
+  "spec": {
+    "path": "assets/specs/marketing/MKT-RIFTWARD-ATMOSPHERE-STUDY-001.md",
+    "sha256": "c69d425c5b2d318c9aa44a3539846475c0c860d89b22cc758841a58c03fbe7ee"
+  },
+  "generation": {
+    "tool": "Codex built-in image_gen",
+    "mode": "reference-guided edit using two project-generated quarantine images",
+    "modelVersion": null,
+    "seed": null,
+    "disclosure": "The service did not expose its exact model artifact, version, or seed. No external image reference was supplied."
+  },
+  "sourceConcepts": [
+    {
+      "id": "ENV-QUARRY-REFUGE-KEYFRAME-001-v2",
+      "path": "assets/quarantine/concepts/ENV-QUARRY-REFUGE-KEYFRAME-001-v2.png",
+      "sha256": "2d4b805e338ea799c52611662dca5edcadd13fb01d2514967b1a8c5b0c801e1a",
+      "generator": "Codex built-in image_gen",
+      "review": "technical pass and internal visual pass; independent originality and license review open"
+    },
+    {
+      "id": "ENV-SLUICE-DEFENSE-KEYFRAME-003",
+      "path": "assets/quarantine/concepts/ENV-SLUICE-DEFENSE-KEYFRAME-003.png",
+      "sha256": "362b21f8752cbb231e5fedfe2882aaa5665d4ecbfc69f65448f7b1ff9c5a6c76",
+      "generator": "Codex built-in image_gen",
+      "review": "technical pass and internal visual pass; independent originality and license review open"
+    },
+    {
+      "id": "MKT-RIFTWARD-NIGHT-SUPPLY-WATCH-001",
+      "path": "assets/quarantine/concepts/MKT-RIFTWARD-NIGHT-SUPPLY-WATCH-001.png",
+      "sha256": "b97b1d7aa00361ecf7fd8fa51d1d94b8fe239612ecfca625e722456eede6513f",
+      "generator": "Codex built-in image_gen",
+      "review": "technical pass and internal visual pass for transparent research communication; independent originality and license review open"
+    },
+    {
+      "id": "MKT-RIFTWARD-FIRST-LIGHT-MUSTER-001",
+      "path": "assets/quarantine/concepts/MKT-RIFTWARD-FIRST-LIGHT-MUSTER-001.png",
+      "sha256": "2ff8386c45724fdcf69794c39dc2405033fcee809f2642fdb62df3664cceaf4a",
+      "generator": "Codex built-in image_gen",
+      "review": "technical pass and internal visual pass for transparent research communication; independent originality and license review open"
+    },
+    {
+      "id": "MKT-RIFTWARD-AFTER-THE-SHIFT-001",
+      "path": "assets/quarantine/concepts/MKT-RIFTWARD-AFTER-THE-SHIFT-001.png",
+      "sha256": "2dcd282ed5d3aade3e269d9937f7098312b5d46909ee56efc2fbd012542f6c3b",
+      "generator": "Codex built-in image_gen",
+      "review": "technical pass and internal visual pass for transparent research communication; independent originality and license review open"
+    }
+  ],
+  "exports": [
+    { "path": "assets/concepts/world-refuge.webp", "sha256": "2e2ce9c89b96f5b59423ad3257a195e164c2643f511c7833913854d69451be7c", "mediaType": "image/webp", "width": 1600, "height": 900 },
+    { "path": "assets/concepts/sluice-defense.webp", "sha256": "a3476531c26ae00d5c8afe3bdbd1ed9c56bee0e07e7d9f6a7d41c5911b275d58", "mediaType": "image/webp", "width": 1600, "height": 900 },
+    { "path": "assets/concepts/night-supply-watch.webp", "sha256": "15c3f7a0b1a5fc4d55b4e44a0cae7b6f4e3e9ce8e4fa0f1827db4d984a88e0f5", "mediaType": "image/webp", "width": 1600, "height": 900 },
+    { "path": "assets/concepts/first-light-muster.webp", "sha256": "0327dccff7b85032743e996200923238caeef14811134b14e1ac56b8511583e6", "mediaType": "image/webp", "width": 1600, "height": 900 },
+    { "path": "assets/concepts/after-the-shift.webp", "sha256": "0299eb9f737a286cf94cf05a104dfc26f6ed094bdb928c7a89aab58c8b74722a", "mediaType": "image/webp", "width": 1600, "height": 900 },
+    { "path": "assets/reel/atmosphere-study-001.mp4", "sha256": "28432999825b61dd5186d91473395c8ad63fb776fdbda5904f229dc53966b0a2", "mediaType": "video/mp4", "width": 1600, "height": 900, "durationSeconds": 21, "audio": false },
+    { "path": "assets/reel/atmosphere-study-001.webm", "sha256": "423b2dc1e38adee952f4e47a659882959dcd68409cc2054e5ae70497e0e7cf7d", "mediaType": "video/webm", "width": 1600, "height": 900, "durationSeconds": 21, "audio": false }
+  ],
+  "transformations": [
+    {
+      "tool": "ffmpeg",
+      "version": "8.0.1-3ubuntu2",
+      "images": "scale=1600:900:force_original_aspect_ratio=increase,crop=1600:900; libwebp quality 82, compression level 6",
+      "video": "five 5-second still inputs at 25 fps; four 1-second fade transitions at seconds 4, 8, 12, and 16; no audio; H.264 CRF 24 and VP9 CRF 38"
+    }
+  ],
+  "publicationPolicy": {
+    "publicResearchExport": true,
+    "sourceAssetApproved": false,
+    "cookedAssetApproved": false,
+    "shippingApproved": false,
+    "commercialUseReviewed": false,
+    "independentOriginalityReviewComplete": false,
+    "requiredVisibleLabel": "CONCEPT · NOT GAMEPLAY"
+  }
+}

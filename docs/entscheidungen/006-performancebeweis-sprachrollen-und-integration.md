@@ -1,8 +1,20 @@
-# ADR 005: Performancebeweis, Sprachrollen und geschützte Integration
+# ADR 006: Performancebeweis, Sprachrollen und geschützte Integration
 
 - **Status:** akzeptiert
 - **Datum:** 2026-08-24
 - **Entscheidungsverantwortung:** Projektleitung
+
+> **Provenienz der Nummer:** Historische `ADR 005`-Verweise in unveränderlicher,
+> akzeptierter Evidenz der lokalen Linie bis einschließlich Elternstand
+> `5ef1fca68a2f28076c16226e4e8d92e4bf0b802e` – ausgenommen Evidenz aus dem
+> Origin-Elternstand `fee6a9bebf7fcf612c441e27530355d5cbdcad6e` – meinen
+> die heutige ADR 006 unter
+> `docs/entscheidungen/006-performancebeweis-sprachrollen-und-integration.md`.
+> `ADR 005`-Verweise der Origin-Linie bei
+> `fee6a9bebf7fcf612c441e27530355d5cbdcad6e` sowie aktuelle Verweise
+> meinen die beibehaltene Retail-Era-ADR unter
+> `docs/entscheidungen/005-taktile-retail-era-erfahrung.md`. Dieser Merge hat
+> nur die Dokumentnummer geändert und akzeptierte Evidenz nicht umgeschrieben.
 
 ## Kontext
 
@@ -136,4 +148,3 @@ freigegeben und Python wird keine Spielclient-Abhängigkeit.
   generative Tests fachliche Regressionen sichtbar machen.
 - Tooladapter und Anbieter bleiben FOSS-first, abstrahiert und austauschbar;
   jede zusätzliche Grenze muss ihren messbaren Nutzen belegen.
-

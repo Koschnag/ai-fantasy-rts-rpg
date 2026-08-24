@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">CCD evidence loop used by the project</title>
+  <desc id="desc">A chain from signal and specifications through agents, gates, evidence and measured outcomes, with findings feeding the specifications.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b1420"/><stop offset="1" stop-color="#182939"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#dca15e"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-opacity="0.3"/></filter>
+  </defs>
+  <rect width="1200" height="360" rx="22" fill="url(#bg)"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif">
+    <text x="58" y="60" font-size="25" font-weight="700" fill="#f1ece1">From intent to evidence — and back</text>
+    <text x="58" y="88" font-size="15" fill="#aebcc6">The loop is the research object. A model response is only one component.</text>
+    <g filter="url(#shadow)">
+      <g transform="translate(52 130)"><rect width="170" height="94" rx="13" fill="#1f3445" stroke="#486579"/><text x="85" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#f1ece1">SIGNAL + INTENT</text><text x="85" y="62" text-anchor="middle" font-size="13" fill="#b9c6ce">question · constraint</text><text x="85" y="80" text-anchor="middle" font-size="13" fill="#b9c6ce">product decision</text></g>
+      <g transform="translate(284 130)"><rect width="170" height="94" rx="13" fill="#26394a" stroke="#557184"/><text x="85" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#f1ece1">SPOT GRAPH</text><text x="85" y="62" text-anchor="middle" font-size="13" fill="#b9c6ce">specs · tests · risks</text><text x="85" y="80" text-anchor="middle" font-size="13" fill="#b9c6ce">decisions · knowledge</text></g>
+      <g transform="translate(516 130)"><rect width="170" height="94" rx="13" fill="#35404a" stroke="#857154"/><text x="85" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#fff1db">AGENT RUN</text><text x="85" y="62" text-anchor="middle" font-size="13" fill="#d6c8b6">candidate change</text><text x="85" y="80" text-anchor="middle" font-size="13" fill="#d6c8b6">bounded mission</text></g>
+      <g transform="translate(748 130)"><rect width="170" height="94" rx="13" fill="#2c3d40" stroke="#648083"/><text x="85" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#eff4ef">HARD GATES</text><text x="85" y="62" text-anchor="middle" font-size="13" fill="#c0cfcd">build · tests · perf</text><text x="85" y="80" text-anchor="middle" font-size="13" fill="#c0cfcd">security · provenance</text></g>
+      <g transform="translate(980 130)"><rect width="170" height="94" rx="13" fill="#3b3328" stroke="#b17c43"/><text x="85" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#fff0d5">EVIDENCE</text><text x="85" y="62" text-anchor="middle" font-size="13" fill="#dcc9ae">accepted outcome</text><text x="85" y="80" text-anchor="middle" font-size="13" fill="#dcc9ae">or useful failure</text></g>
+    </g>
+    <g fill="none" stroke="#dca15e" stroke-width="3" marker-end="url(#arrow)"><path d="M224 177h52"/><path d="M456 177h52"/><path d="M688 177h52"/><path d="M920 177h52"/><path d="M1065 232C1030 307 210 307 137 234"/></g>
+    <text x="600" y="320" text-anchor="middle" font-size="14" fill="#d9b47d">Measured outcome, failure and uncertainty update the graph</text>
+  </g>
+</svg>
