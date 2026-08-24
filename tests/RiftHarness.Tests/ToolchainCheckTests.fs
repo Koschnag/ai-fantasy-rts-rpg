@@ -35,6 +35,39 @@ let private editLock (root: string) (transform: string -> string) =
     let path = Path.Combine(root, "toolchain.lock.json")
     File.WriteAllText(path, transform (File.ReadAllText(path)))
 
+let private bimgCommit = "371d90098b1fd017cd00205979d5ef74b8c3ed62"
+
+let private bimgPinnedSourceHash =
+    "a1464cfbbbbbb1712df9231bb5c5442e3728f78110c7072d5145892e428fd937"
+
+/// Erstellt eine kleine hermetische Cache-Fixture. Der Toolchain-Check prueft
+/// nur die Bindung Dateiname/Lock-SHA; die Gueltigkeit echter Upstream-Archive
+/// bleibt Vertrag des separaten Native-Builds.
+let private writeBimgCacheFixture (root: string) =
+    let fixtureCache = Path.Combine(root, ".ai", "runtime", "cache", "native", "src")
+    Directory.CreateDirectory(fixtureCache) |> ignore
+
+    let fixturePath = Path.Combine(fixtureCache, $"bimg-{bimgCommit}.tar.gz")
+
+    let fixtureBytes =
+        Text.Encoding.UTF8.GetBytes("riftward-toolchain-cache-fixture-v1\n")
+
+    File.WriteAllBytes(fixturePath, fixtureBytes)
+
+    let fixtureHash =
+        Security.Cryptography.SHA256.HashData(fixtureBytes)
+        |> Convert.ToHexString
+        |> fun text -> text.ToLowerInvariant()
+
+    fixturePath, fixtureHash
+
+let private bindBimgFixtureHash (root: string) (fixtureHash: string) =
+    editLock root (fun text ->
+        if not (text.Contains(bimgPinnedSourceHash, StringComparison.Ordinal)) then
+            failwith "Bimg-Quellhash fehlt in der Test-Lockdatei."
+
+        text.Replace(bimgPinnedSourceHash, fixtureHash))
+
 let private assertFinding (codePrefix: string) (report: ToolchainCheck.Report) =
     if report.Valid then
         failwith $"Erwartete Finding '{codePrefix}', aber der Lauf war gueltig."
@@ -54,41 +87,20 @@ let repositoryToolchainPassesAllChecks () =
         failwith $"Repository-Lockfile ist ungueltig: {ToolchainCheck.reportJson report}"
 
 let tamperedSourceHashIsRejected () =
-    // Fixture mit echtem bimg-Cache-Archiv: Ein wohlgeformter, aber von der
-    // bezogenen Quelle abweichender SHA-256 muss die Kreuzpruefung failen.
+    // Eine nach ihrer Bindung manipulierte Cache-Fixture muss die
+    // Quellhash-Kreuzpruefung failen, auch ohne Entwicklercache.
     makeCheckWorkspace (fun root ->
-        let repositoryCache =
-            Path.Combine(repositoryRoot, ".ai", "runtime", "cache", "native", "src")
-
-        let fixtureCache = Path.Combine(root, ".ai", "runtime", "cache", "native", "src")
-        Directory.CreateDirectory(fixtureCache) |> ignore
-
-        File.Copy(
-            Path.Combine(repositoryCache, "bimg-371d90098b1fd017cd00205979d5ef74b8c3ed62.tar.gz"),
-            Path.Combine(fixtureCache, "bimg-371d90098b1fd017cd00205979d5ef74b8c3ed62.tar.gz")
-        )
-
-        editLock root (fun text ->
-            text.Replace(
-                "a1464cfbbbbbb1712df9231bb5c5442e3728f78110c7072d5145892e428fd937",
-                "b1464cfbbbbbb1712df9231bb5c5442e3728f78110c7072d5145892e428fd937"
-            ))
+        let fixturePath, fixtureHash = writeBimgCacheFixture root
+        bindBimgFixtureHash root fixtureHash
+        File.AppendAllText(fixturePath, "tampered\n")
 
         let report = ToolchainCheck.check root
         assertFinding "SOURCE_CACHE_MISMATCH_BIMG" report)
 
 let intactCachePassesCrosscheck () =
     makeCheckWorkspace (fun root ->
-        let repositoryCache =
-            Path.Combine(repositoryRoot, ".ai", "runtime", "cache", "native", "src")
-
-        let fixtureCache = Path.Combine(root, ".ai", "runtime", "cache", "native", "src")
-        Directory.CreateDirectory(fixtureCache) |> ignore
-
-        File.Copy(
-            Path.Combine(repositoryCache, "bimg-371d90098b1fd017cd00205979d5ef74b8c3ed62.tar.gz"),
-            Path.Combine(fixtureCache, "bimg-371d90098b1fd017cd00205979d5ef74b8c3ed62.tar.gz")
-        )
+        let _, fixtureHash = writeBimgCacheFixture root
+        bindBimgFixtureHash root fixtureHash
 
         let report = ToolchainCheck.check root
 
