@@ -47,7 +47,11 @@ public interface IBgfxApi
 
     uint DrawCalls();
 
+    bool TryReadStats(out BgfxFrameStats stats);
+
     void ViewSetup(byte viewId, uint clearColorRgba, ushort width, ushort height);
+
+    void ViewTransform(byte viewId, ReadOnlySpan<float> view16, ReadOnlySpan<float> proj16);
 
     ushort CreateVertexBuffer(ReadOnlySpan<byte> data, uint sizeInBytes);
 
@@ -118,8 +122,25 @@ public sealed class NativeApi : ISdlApi, IBgfxApi
 
     public uint DrawCalls() => BgfxShimNative.rift_bgfx_stats_draw_calls();
 
+    public bool TryReadStats(out BgfxFrameStats stats)
+    {
+        var native = new RiftBgfxStats();
+
+        if (BgfxShimNative.rift_bgfx_stats_snapshot(ref native) == 0)
+        {
+            stats = BgfxFrameStats.FromNative(native);
+            return true;
+        }
+
+        stats = default;
+        return false;
+    }
+
     public void ViewSetup(byte viewId, uint clearColorRgba, ushort width, ushort height) =>
         BgfxShimNative.rift_view_setup(viewId, clearColorRgba, width, height);
+
+    public void ViewTransform(byte viewId, ReadOnlySpan<float> view16, ReadOnlySpan<float> proj16) =>
+        BgfxShimNative.rift_view_transform(viewId, view16, proj16);
 
     public ushort CreateVertexBuffer(ReadOnlySpan<byte> data, uint sizeInBytes) =>
         BgfxShimNative.rift_tri_create_vertex_buffer(data, sizeInBytes);

@@ -181,6 +181,7 @@ Prerequisites and platform setup are documented in
 ./scripts/rift.sh security
 ./scripts/rift.sh plattformsmoke --report artifacts/t010/smoke.json
 ./scripts/rift.sh effizienzbaseline --report artifacts/t010/effizienz.json
+./scripts/rift.sh bench --scenario bench-empty --report artifacts/t020/bench-empty.json
 ./scripts/rift.sh asset-calibration validate-spec --spec assets/specs/3d/CAL-STONEWOOD-V1.calibration-v1.json
 ./scripts/rift.sh assets-check
 ./scripts/rift.sh rag-build

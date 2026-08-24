@@ -1915,7 +1915,27 @@ module Program =
               PlatformInteropTests.bgfxHandleOwnershipAndShutdownOrderAreEnforced
               "T-010 invalid native handles are translated", PlatformInteropTests.invalidNativeHandlesAreTranslated
               "T-010 architecture keeps native imports inside the platform layer",
-              PlatformInteropTests.architectureKeepsNativeImportsInsidePlatformLayer ]
+              PlatformInteropTests.architectureKeepsNativeImportsInsidePlatformLayer
+              "T-020 percentile band matches golden fixtures", BenchEmptyTests.percentileBandMatchesGoldenFixtures
+              "T-020 budget gate golden fixtures cover every class",
+              BenchEmptyTests.budgetGateGoldenFixturesCoverEveryClass
+              "T-020 report schema accepts golden and rejects fabrication matrix",
+              BenchEmptyTests.reportSchemaAcceptsGoldenAndRejectsFabricationMatrix
+              "T-020 camera path is deterministic with hash fixture",
+              BenchEmptyTests.cameraPathIsDeterministicWithHashFixture
+              "T-020 camera matrices stay finite and sane", BenchEmptyTests.cameraMatricesStayFiniteAndSane
+              "T-020 profile binding honesty matrix is enforced", BenchEmptyTests.profileBindingHonestyMatrixIsEnforced
+              "T-020 scenario registry rejects unknown and unimplemented",
+              BenchEmptyTests.scenarioRegistryRejectsUnknownAndUnimplemented
+              "T-020 exit codes 25-28 are stable and documented",
+              BenchEmptyTests.exitCodesTwentyFiveToTwentyEightAreStableAndDocumented
+              "T-020 CLI contract fails controlled without reports",
+              BenchEmptyTests.cliContractFailsControlledWithoutReports
+              "T-020 unwritable report path fails controlled", BenchEmptyTests.unwritableReportPathFailsControlled
+              "T-020 structure equality ignores measurement drift but detects shape changes",
+              BenchEmptyTests.structureEqualityIgnoresMeasurementDriftButDetectsShapeChanges
+              "T-020 rift script bench contract keeps app build guard",
+              BenchEmptyTests.riftScriptBenchContractKeepsAppBuildGuard ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

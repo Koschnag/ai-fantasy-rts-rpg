@@ -52,7 +52,7 @@ Diese Aufgaben werden früh im Repository bereitgestellt und bleiben die einzige
 - `assets-check`: Roh- und Cooked-Assets prüfen
 - `plattformsmoke`: nativen linux-x64-Smoke (Fenster, GL-3.3-Dreieck, maschinenlesbarer Report) ausführen
 - `effizienzbaseline`: Effizienzlauf mit Budgetgate (Startzeit, RSS, p99, Allokationen, Draw-Aufrufe) und Report ausführen
-- `bench`: reproduzierbare Benchmarks mit maschinenlesbarem Ergebnis
+- `bench --scenario bench-empty --report PFAD`: deterministische leere Benchmarkszene (T-020) mit maschinenlesbarer Telemetrie nach NF-007 und fail-closed Budgetgate ausführen; unbekannte oder noch nicht implementierte Szenarien (`bench-army`/`-battle`/`-base`/`-path`/`-load`) schlagen mit Exitcode 25 fehl und erzeugen keinen Report. Läufe auf dem Entwickler-PC sind diagnostische Baseline gemäß Q-OPS-001; Profilbestehen entsteht nur durch deklarierte Referenzklassenbindung bei benannten Referenzrechnern
 - `security`: Secrets, Abhängigkeiten und Lizenzen prüfen
 - `check`: alle nicht verändernden lokalen Gates ausführen
 - `package`: Release-Artefakt für genau einen RID erzeugen

@@ -44,6 +44,18 @@ public enum PlatformErrorCode
 
     /// <summary>Effizienzbudget verletzt; Report wurde dennoch geschrieben.</summary>
     EfficiencyBudgetViolated = 24,
+
+    /// <summary>Benchmark-Szenario unbekannt oder noch nicht implementiert; kein Report.</summary>
+    BenchScenarioUnavailable = 25,
+
+    /// <summary>Bench-Budget verletzt; Report wurde dennoch geschrieben.</summary>
+    BenchBudgetViolated = 26,
+
+    /// <summary>Zwischenmetriken oder Report widersprechen dem Schemavertrag; kein gefälschter Report.</summary>
+    TelemetryInvalid = 27,
+
+    /// <summary>Reportpfad ist nicht schreibbar.</summary>
+    ReportNotWritable = 28,
 }
 
 /// <summary>Ein einzelner kontrollierter Fehler mit Code, Meldung und Detailpfad.</summary>

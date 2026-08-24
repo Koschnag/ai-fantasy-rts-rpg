@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="../../tools/RiftHarness/RiftHarness.fsproj" />
     <ProjectReference Include="../../src/Riftward.Platform/Riftward.Platform.csproj" />
+    <ProjectReference Include="../../src/Riftward.App/Riftward.App.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +28,7 @@
     <Compile Include="RunProvenanceTests.fs" />
     <Compile Include="ToolchainCheckTests.fs" Condition="Exists('ToolchainCheckTests.fs')" />
     <Compile Include="PlatformInteropTests.fs" Condition="Exists('PlatformInteropTests.fs')" />
+    <Compile Include="BenchEmptyTests.fs" Condition="Exists('BenchEmptyTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

@@ -23,6 +23,22 @@ public sealed class CommandLineArgs
         return null;
     }
 
+    /// <summary>Alle Werte eines wiederholbaren Optionsnamens in Reihenfolge.</summary>
+    public IReadOnlyList<string> AllOptions(string name)
+    {
+        var values = new List<string>();
+
+        for (var index = 0; index < _arguments.Length - 1; index++)
+        {
+            if (string.Equals(_arguments[index], name, StringComparison.Ordinal))
+            {
+                values.Add(_arguments[index + 1]);
+            }
+        }
+
+        return values;
+    }
+
     public long NumberOption(string name, long fallback) =>
         long.TryParse(Option(name), out var value) && value >= 0 ? value : fallback;
 }

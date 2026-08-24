@@ -99,6 +99,10 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 22 | Plattform nicht unterstützt (nur linux-x64 im T-010-Scope) |
 | 23 | Smoke endete ohne gerenderten Frame |
 | 24 | Effizienzbudget verletzt (Report wurde dennoch geschrieben) |
+| 25 | Benchmark-Szenario unbekannt oder noch nicht implementiert (kein Report; T-020) |
+| 26 | Bench-Budget verletzt (Report wurde dennoch geschrieben; T-020) |
+| 27 | Zwischenmetriken oder Report widersprechen dem Schemavertrag (T-020; der Report wird zur Diagnose geschrieben, gilt aber nicht als Beleg) |
+| 28 | Reportpfad nicht schreibbar (T-020) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -109,8 +113,30 @@ dokumentierte Entscheidung und eine Anpassung der Tests
 ```bash
 ./scripts/rift.sh plattformsmoke --report artifacts/t010/smoke.json
 ./scripts/rift.sh effizienzbaseline --report artifacts/t010/effizienz.json
+./scripts/rift.sh bench --scenario bench-empty --report artifacts/t020/bench-empty.json
 ```
 
-Beide Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
+Beide ersten Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
 OS/Kernel, CPU-Modell/Flagauszug, GPU/GL-Treiberstring, Backend, Pins,
 Artefaktmanifest-Hash, Messwerten und Budgetbewertung (Effizienz).
+
+`bench` (T-020) führt die deterministische leere Szene `BENCH-EMPTY` nativ auf
+linux-x64 aus: 1920×1080, Low-Profil, GL-3.3-Core-Pflichtpfad, VSync-Policy wie
+die Effizienzbaseline, festes Kameraflugskript mit Seed. Der Report bindet je
+Kennzahl Einheit und Erfassungsmethode (p50/p95/p99-Framezeit, Allokationen je
+warmem Frame, GC-Pausen, Working-Set-Stichproben, Draw-/Submit-Aufrufe,
+sichtbare Dreiecke, GPU-Zeit und bgfx-verwalteter GPU-Speicher aus der neuen
+Shim-Statistikschnittstelle oder explizit unavailable mit Grund), die
+Umgebungsbinding (OS/Kernel, CPU, GPU/Treiber, Backend, Pins, Commit,
+Buildmodus, Szenen-/Seed-ID, Warm-up/Messdauer) sowie das fail-closed-Budgetgate.
+Unbekannte oder noch nicht implementierte Szenarien brechen mit Exitcode 25 ab,
+ohne einen Report zu schreiben. Läufe auf dem Entwickler-PC sind diagnostische
+Baseline gemäß dem Q-OPS-001-Klärungsprotokoll; Pflichtprofile bleiben ohne
+benannte Referenzhardware `NOT-MEASURED`.
+
+Die Shim-Grenze (`riftbgfx_shim.h`) wurde für T-020 um zwei dokumentierte
+Funktionen erweitert: `rift_bgfx_stats_snapshot` (flache Momentaufnahme von
+`bgfx::Stats`: Draws, gerenderte Dreiecke, GPU-Timer, bgfx-verwalteter Speicher)
+und `rift_view_transform` (View-/Projektionsmatrix eines Views). Die Erweiterung
+folgt demselben Reproduzierbarkeitsvertrag; zwei aufeinanderfolgende
+`--fresh`-Neubauten bleiben byteidentisch.

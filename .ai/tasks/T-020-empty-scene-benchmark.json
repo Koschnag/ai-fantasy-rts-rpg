@@ -1,0 +1,108 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-020",
+  "title": "Leere Benchmarkszene BENCH-EMPTY mit maschinenlesbarer Telemetrie und Budgetgate",
+  "status": "accepted",
+  "releaseNote": "2026-08-24: draft -> ready durch autonomen Planungsagenten gemaess Autorisierung der Projektleitung vom 2026-08-23. Auswahl: Der tabellarisch naechste DRAFT T-011 bleibt zurueckgestellt, weil seine native Windows-/macOS-Build-/Smoke-/Paketmatrix vorhandene Runner, Signier-/Notarisierungsinfrastruktur (Q-OPS-002) und physische Hardware voraussetzt, die hier nicht vorhanden sind und nicht stillschweigend angenommen werden duerfen; BACKLOG priorisiert nach T-010 ausdruecklich die isolierten Baselines T-020/T-021, und ADR 006 verlangt, dass Infrastrukturarbeit den ersten Performancebeweis nicht verdraengt. Epikabhaengigkeit E-002 im fuer eine isolierte Renderer-Baseline erforderlichen Umfang erfuellt (T-010 accepted, linux-x64 nativ inklusive Smoke-/Effizienzvertrag); Z-003/NF-006 bleiben unveraendert und bei T-011. Q-TEC-004/Q-TEC-005 betreffen Simulation und bleiben Blocker von T-021. Q-OPS-001 ist fuer diesen Auftrag verfahrensmaessig behandelt (Klaerungsprotokoll docs/OFFENE_FRAGEN.md): Messungen auf dem Entwickler-PC (i7-3770/RX 570) gelten als diagnostische Baseline, Profilbestehen entsteht nur durch deklarierte Referenzklassenbindung, fehlende Profile bleiben NOT-MEASURED und eskalieren statt ersetzt zu werden; rueckrollbar durch Benennung konkreter Referenzrechner und Wiederholung desselben bench-Befehls. Media-Lab-Pruefung gemaess docs/communication/MEDIA_LAB.md: kein zusaetzliches visuelles Artefakt in diesem Auftrag, weil BENCH-EMPTY keinen sichtbaren Szenengehalt besitzt und MEDIA-05 die Benchmarkvisualisierung mit strengerer Bindung verantwortet.",
+  "reviewNote": "2026-08-24: unabhaengiger Review-/Vollendungslauf 01M0T2GGVHV79RFDSKNSJ1QV8B (Akteur t020-review-completion) pruefte die READY-Spezifikation gegen Quellenhierarchie und Clean-Room-Regeln, implementierte den vollstaendigen Umfang und wies alle Abnahmekriterien AC-T020-01 bis AC-T020-08 mit Evidenz nach: Shim-Erweiterung (bgfx-Statistikschnappschuss, Viewtransformation) mit zweifachem byteidentischem --fresh-Neubau; bench-Befehlsvertrag in rift.sh; BenchRunner mit deterministischem Kameraflugskript (Hashfixture), Telemetrie je Kennzahl mit Einheit/Methodenkennung, fail-closed Budgetgate ausschliesslich gegen dokumentierte Grenzwerte, Szenarioregistry mit Exitcode 25 fuer unbekannte/nicht implementierte Szenarien, Profilbindungs-Ehrlichkeitsregel; 12 neue Tests (Suite 158/158); Doku NATIVE_UNTERBAU/AUTOMATION/PERFORMANCE_BUDGET/quality-gates. Echter Lauf auf dem Entwickler-PC: p99 2,979 ms, 565 B Allokationen je warmem Frame, GC-Pausen 0, Working-Set max ~195 MiB, 1 Draw, 1 sichtbares Dreieck, GPU-Zeit gemessen (bgfx-Timer, p99 0,078 ms), bgfx-verwalteter GPU-Speicher 49152 B; alle Budgetgrenzen eingehalten, Reportstruktur zweier Laeufe identisch (158 Knoten, 0 Differenzen). Renderer im Kopflos-Aufbau dieser Sitzung: llvmpipe (Mesa 26.0.3) statt radeonsi; als diagnostische Baseline im Report gebunden und im Abnahmedokument ausgewiesen. Pflichtprofile bleiben NOT-MEASURED (Q-OPS-001 OFFEN). Status ready -> accepted durch denselben Lauf gemaess T-010-Praezedenz.",
+  "objective": "Der erste Pflichtbenchmark BENCH-EMPTY misst den Backend- und Frame-Overhead der bestehenden linux-x64-Runtime als deterministische, automatisierbare leere Szene bei 1920x1080 und liefert ueber den oeffentlichen bench-Befehl einen maschinenlesbaren Telemetriereport nach NF-007 und dem QUALITAET-Evidenzvertrag, dessen Budgetgate ausschliesslich gegen dokumentierte Grenzwerte fail-closed entscheidet. Laeufe auf dem Entwickler-PC sind diagnostische Baseline nach dem Q-OPS-001-Klaerungsprotokoll; Bestehensansaetze fuer Hardwareprofile entstehen nur durch deklarierte Referenzklassenbindung, fehlende Referenzhardware bleibt NOT-MEASURED und eskaliert, statt durch Diagnose-, Cross-Compile- oder Simulationsergebnisse ersetzt zu werden. Dies ist die erste ausfuehrbare Stufe des G-PERF-Gates und keine Optimierungsbehauptung (ADR 006).",
+  "inScope": [
+    "Deterministisches BENCH-EMPTY-Szenario im bestehenden Host: leere Karte ohne Spielinhalt, festes Kameraflugskript mit Seed, feste Aufloesung 1920x1080, Low-Anzeigeprofil auf dem GL-3.3-Core-Pflichtpfad, fixierte VSync-Policy konsistent zur T-010-Effizienzbaseline sowie im Report ausgewiesene feste Warm-up- und Messdauer",
+    "Maschinenlesbarer Telemetriereport nach NF-007 und Evidenzvertrag: p50/p95/p99-Framezeit, Frameanzahl, verwaltete Allokationen je warmem Frame, GC-Pausensumme/-anzahl, Working-Set-Stichproben (Min/Max/Endwert), Draw-/Submit-Aufrufe und sichtbare Dreiecke je Frame sowie GPU-Zeit und VRAM jeweils gemessen mit Methodenkennung oder explizit unavailable mit maschinenlesbarem Grund; jede Kennzahl mit Einheit, Erfassungsmethode und Umgebungsbinding (OS/Kernel, CPU, GPU/Treiber, Backend, Pins, Commit, Buildmodus, Szenen-/Seed-ID)",
+    "Fail-closed-Budgetgate im bench-Befehl gegen ausschliesslich dokumentierte Grenzwerte: p99 hoechstens 33,3 ms (harte Minimumprofilgrenze aus PERFORMANCE_BUDGET.md), Allokationen hoechstens 1 KiB je warmem Frame und hoechstens 8 Draw-/Submit-Aufrufe je Frame geerbt aus AC-T010-07, keine Shaderkompilierung zur Laufzeit, RSS hoechstens 300 MB (Ziel) beziehungsweise 450 MB (hart) ebenfalls geerbt aus AC-T010-07; Verletzung ergibt definierten Exitcode ungleich 0 und schreibt den Report dennoch",
+    "Oeffentlicher Befehlsvertrag: rift.sh bench fuehrt bench-empty mit --report aus; die noch nicht implementierten Szenarien BENCH-ARMY/BATTLE/BASE/PATH/LOAD schlagen weiterhin explizit fehl und tauschen keinen kosmetischen Gruenerfolg",
+    "Profilbindungs- und Ehrlichkeitsregel: Profilbestehen nur bei deklarierter Bindung an die zugehoerige Referenzklasse; Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet; ohne gebundene Referenzhardware bleiben Pflichtprofile NOT-MEASURED, das Gate bleibt unbestanden und es erfolgt Eskalation statt Ersatz",
+    "Kontrollierte Fehlerbehandlung an allen neuen Grenzen: nicht schreibbarer Reportpfad, beschädigte Zwischenmetriken, fehlender App-Build und ungueltige Szenarioargumente fuehren zu verstaendlicher Meldung mit definiertem Exitcode ohne Absturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb erlaubter Verzeichnisse; neue Exitcodes folgen dem dokumentierten Vertrag aus NATIVE_UNTERBAU.md mit stabilem Mapping-Test",
+    "Tests ohne Netzwerk: Percentil- und Gateberechnung mit Golden-Fixtures je Bestehens- und Verletzungsklasse, Reportschema-Version mit Ablehnung gefaelschter, typenfremder oder grundlos fehlender Felder, Fault-Injection je Fehlerklasse, CLI-Vertragstests inklusive Negativfaellen, Kamerapfad-Determinismus als Hashfixture sowie Architekturtest gegen SDL3-/bgfx-Referenzen ausserhalb der Plattformgrenze",
+    "Dokumentation: AUTOMATION.md-Benchvertrag aktualisiert, kurzer Implementierungsverweis in PERFORMANCE_BUDGET.md ohne Aenderung eines Budgetwerts, G-PERF-Eintrag in .ai/evals/quality-gates.json fuer BENCH-EMPTY praezisiert und Baseline-Status laut Q-OPS-001-Klaerungsprotokoll genannt"
+  ],
+  "outOfScope": [
+    "Alle weiteren Pflichtbenchmarks (BENCH-ARMY, BENCH-BATTLE, BENCH-BASE, BENCH-PATH, BENCH-LOAD) und der integrierte Belastungsframe BENCH-REPRESENTATIVE (T-023)",
+    "Simulation, Ticklogik, Numerik-/Hashvertrag (Q-TEC-004) sowie Job-, Speicher-, Navigations- und Zustandsstrukturen (Q-TEC-005); diese bleiben bei T-021",
+    "Windows-, macOS-, Cross-RID- oder Cross-GPU-Nachweise, Treiberminima (Q-TEC-002), Packaging/Signierung (Q-OPS-002/Q-OPS-003) sowie die Benennung konkreter Referenzrechner; die Frage Q-OPS-001 selbst bleibt OFFEN und liegt bei der Projektleitung",
+    "Neue Grafikfunktionen ueber die Darstellung der leeren Karte hinaus; vollstaendige LOD-, Culling-, Instancing- und Materialsortiersubsysteme gehoeren zu den lastgebundenen Benchmarks ab T-021/T-023, nicht zur leeren Szene",
+    "Audio (Q-TEC-007), Eingabe ueber Beenden hinaus, UI, HUD und Menues sowie kreative Assets jeglicher Art",
+    "Native-AOT-/CoreCLR-Vergleichsmessungen (Q-TEC-008), 8-Stunden-Soak und Leak-Grenzwerte (T-022, Q-TEC-010)",
+    "Telemetrie-Upload, Cloud- oder Runtime-Netzwerkdienst (NF-004); saemtliche Messwerte bleiben lokal",
+    "Visuelle Medienartefakte aus Benchmarkdaten; deren Aufbereitung bleibt beim Media-Lab-Prozess (MEDIA-05)"
+  ],
+  "requirements": [
+    "Z-002",
+    "NF-001",
+    "NF-007"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T020-01",
+      "statement": "Der oeffentliche Befehl './scripts/rift.sh bench --scenario bench-empty --report <Pfad>' existiert, fuehrt die deterministische leere Szene nativ auf linux-x64 aus und schreibt einen maschinenlesbaren Report mit Evidenzvertragsfeldern (Szenen-/Seed-ID, Commit, Buildmodus, OS/RID, CPU, GPU/Treiber, Backend, Pins, Warm-up, Messdauer, Exitcode); ein unbekanntes oder noch nicht implementiertes Szenario bricht mit definiertem Exitcode ab, ohne einen Report vorzutaeuschen.",
+      "verification": "Gate-Ausfuehrung auf dem Entwickler-PC mit Exitcodes und Logs im Run; CLI-Vertragstests mit Positiv- und Negativfaellen (unbekanntes Szenario, fehlender App-Build) im regulaeren Testlauf"
+    },
+    {
+      "id": "AC-T020-02",
+      "statement": "Der Report enthaelt je Kennzahl Einheit und Erfassungsmethode und mindestens: p50/p95/p99-Framezeit, Frameanzahl, verwaltete Allokationen je warmem Frame, GC-Pausensumme und -anzahl, Working-Set-Stichproben (Min/Max/Endwert), Draw-/Submit-Aufrufe und sichtbare Dreiecke je Frame sowie GPU-Zeit und VRAM entweder gemessen mit Methodenkennung oder explizit unavailable mit maschinenlesbarem Grund; ein erfundener, typenfremder oder grundlos fehlender Wert laesst die Schemapruefung fehlschlagen.",
+      "verification": "Schema- und Golden-Fixture-Tests inklusive Negativfaellen (fehlendes Pflichtfeld, Wert ohne Methodenkennung, unavailable ohne Grund) im regulaeren Testlauf"
+    },
+    {
+      "id": "AC-T020-03",
+      "statement": "Identische Konfiguration (Seed, Aufloesung, Preset, VSync-, Warm-up- und Dauerwerte) erzeugt identische Kamerapfad-Samples und dieselbe Reportstruktur; Messwerte duerfen variieren; alle Konfigurationswerte sind maschinenlesbar im Report gebunden.",
+      "verification": "Kamerapfad-Determinismus als Unit-Test mit Hashfixture ohne Uhrzufall; Strukturgleichheit zweier Reports als Gate-Ausfuehrung im Abschlussrun"
+    },
+    {
+      "id": "AC-T020-04",
+      "statement": "Das Budgetgate entscheidet fail-closed ausschliesslich gegen die dokumentierten Grenzwerte p99 hoechstens 33,3 ms, Allokationen hoechstens 1 KiB je warmem Frame, Draw-/Submit-Aufrufe hoechstens 8 je Frame, keine Laufzeitshaderkompilierung und RSS hoechstens 300 MB Ziel beziehungsweise 450 MB hart; jede Verletzung ergibt Exitcode ungleich 0 bei trotzdem geschriebenem Report, und keine Grenze wird gelockert oder umgangen.",
+      "verification": "Gate-Evaluator-Unit-Tests mit synthetischen Metrikfixtures je Bestehens- und Verletzungsklasse; echter Lauf auf dem Entwickler-PC besteht alle Grenzwerte; Review gleicht Grenzwerte gegen PERFORMANCE_BUDGET.md und AC-T010-07 ab"
+    },
+    {
+      "id": "AC-T020-05",
+      "statement": "Ein Profilbestehen entsteht nur durch deklarierte Bindung an die zugehoerige Referenzklasse; ohne Bindung oder bei fehlender Referenzhardware bleiben Pflichtprofile im Report NOT-MEASURED, ein behaupteter Profilbestehen ohne gueltige Bindung wird abgewiesen, und Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet.",
+      "verification": "Unit-Tests der Bindungs- und Ablehnungslogik mit synthetischen Hardwarebeschreibungen (RX 570 als Entwickler-PC, GTX-660-Klasse, Apple M1); kein echter Profillauf auf fehlender Hardware erforderlich oder ersetzbar"
+    },
+    {
+      "id": "AC-T020-06",
+      "statement": "Nicht schreibbarer Reportpfad, beschädigte Zwischenmetriken, fehlender App-Build und ungueltige Argumente fuehren zu verstaendlichen Meldungen mit definierten Exitcodes ungleich 0 ohne Prozessabsturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb der erlaubten Verzeichnisse.",
+      "verification": "Fault-Injection-Fixtures je Fehlerklasse im regulaeren Testlauf"
+    },
+    {
+      "id": "AC-T020-07",
+      "statement": "rift.sh bootstrap/build/fmt/lint/test/verify/security laufen mit dem neuen Code gruen, es gibt null neue Compiler- und Analyzerwarnungen, und es entsteht keine neue Abhaengigkeit: Telemetrie nutzt ausschliesslich die BCL sowie die bereits gepinnten SDL3-/bgfx-Grenzen.",
+      "verification": "Gate-Ausfuehrungen im Abschlussrun mit Exitcodes und Logs; Architekturtest haelt Simulations-/Gameplayebene frei von Native-Referenzen; Review gleicht die Abhaengigkeitsliste mit TOOLCHAIN.md und THIRD_PARTY_NOTICES.md ab"
+    },
+    {
+      "id": "AC-T020-08",
+      "statement": "Dokumentation und Gate-Register sind konsistent: AUTOMATION.md beschreibt den implementierten bench-empty-Aufruf und das explizite Fehlschlagen der uebrigen Szenarien, PERFORMANCE_BUDGET.md nennt ohne Aenderung eines Budgetwerts Ort und Methode des BENCH-EMPTY-Nachweises, der G-PERF-Eintrag in .ai/evals/quality-gates.json ist fuer BENCH-EMPTY praezisiert, und der Baseline-Status nach dem Q-OPS-001-Klaerungsprotokoll ist genannt.",
+      "verification": "Doku-Review mit Pfad- und Zeilenangaben im Run; rift.sh verify gruen"
+    }
+  ],
+  "dependencies": [
+    "T-010"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-PERF",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Konkrete Messmethodik: Warm-up- und Messdauer, Samplingintervalle, Percentilverfahren, VSync-Policy konsistent zu T-010 sowie Operationalisierung rein diagnostischer Zusatzfelder innerhalb der fixierten Grenzwerte",
+      "Interne Struktur des Telemetriemoduls, Reportformat und Schemaversion innerhalb des Evidenzvertrags",
+      "GPU-Zeit- und VRAM-Erfassung entweder ueber bereits gepinnte Schnittstellen oder als dokumentierte unavailable-Kennzeichnung mit Grund, ohne Fabrikation und ohne neue Abhaengigkeit",
+      "Inhalt der leeren Szene (Clear-Pass, optionales technisches Testmuster, Kameraflugskript) ohne Spielinhalt",
+      "Neue Exitcodewerte nach dem dokumentierten Vertrag ohne Aenderung bestehender Bedeutungen sowie Reihenfolge und Aufbau lokaler Fixtures",
+      "Verschaerkung einzelner Grenzwerte"
+    ],
+    "mustEscalate": [
+      "Lockerung, Umgehung oder Aenderung eines Grenzwerts oder Budgetwerts einschliesslich PERFORMANCE_BUDGET.md-Aenderungen",
+      "Uebernahme von Simulationsscope oder Festlegungen zu Q-TEC-004, Q-TEC-005 oder Q-TEC-010 in diesen Auftrag",
+      "Windows-/macOS-Scopes, Packaging/Signierung (Q-OPS-002/Q-OPS-003), Treiberminima (Q-TEC-002) oder Benennung von Referenzrechnern; die Q-OPS-001-Entscheidung bleibt Projektleitung",
+      "Ersetzung fehlender Referenzhardware durch Diagnose-, Cross-Compile- oder Simulationsergebnisse bei einem Profilbestehen",
+      "Jede neue Abhaengigkeit, externer Telemetriedienst oder Runtime-Netzwerkzugriff",
+      "Abschwaechung oder Entfernung eines Abnahmekriteriums oder Gates sowie Veraenderung bestehender Exitcodebedeutungen",
+      "Freigabe visueller Medien aus Benchmarkdaten; dies verbleibt beim Media-Lab-Prozess"
+    ]
+  }
+}

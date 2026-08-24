@@ -85,6 +85,17 @@ Alle Zahlen sind Startbudgets. Ein Budget darf nur per dokumentierter Entscheidu
 - `BENCH-PATH`: mehrere Gruppen mit konkurrierenden langen Wegen
 - `BENCH-LOAD`: kaltes Laden und Asset-Streaming
 
+`BENCH-EMPTY` ist seit T-020 implementiert und über
+`./scripts/rift.sh bench --scenario bench-empty --report PFAD` ausführbar. Der
+Nachweisort ist der maschinenlesbare Telemetriereport (Schemaversion 1) mit je
+Kennzahl Einheit und Erfassungsmethode; das Budgetgate entscheidet dort
+fail-closed ausschließlich gegen die oben fixierten Werte (p99 ≤ 33,3 ms auf
+den Minimumprofilen, Allokationen ≤ 1 KiB je warmem Frame, ≤ 8 Draw-/Submit-
+Aufrufe je Frame, keine Laufzeitshaderkompilierung, RSS ≤ 300 MB Ziel /
+450 MB hart, geerbt aus AC-T010-07). Kein Budgetwert wird dadurch geändert.
+Messungen ohne deklarierte Bindung an eine Referenzklasse auf benannter
+Referenzhardware bleiben diagnostische Baseline (Q-OPS-001-Klärungsprotokoll).
+
 ## Integrierter Repräsentativitätsnachweis
 
 Nach den isolierten Renderer- und Simulationsbaselines kombiniert `BENCH-REPRESENTATIVE` mindestens 350 sichtbare instanzierte Einheiten, den repräsentativen Animationspfad mit mindestens 48 Bones je normaler Einheit, 250 vollständig simulierte mobile Agenten, konkurrierende Gruppenpfade, Landschaft, Sonne, die budgetierten lokalen Schattenlichter und eine Partikelspitze. Der Aufbau darf visuell einfach sein; seine Lastverteilung darf nicht künstlich leer sein.
