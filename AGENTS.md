@@ -42,6 +42,9 @@ Das kuratierte Gedächtnis unter `.ai/memory/` ist nur bei Status `accepted` ver
 - Keine fremden Spieltitel, Franchise-, Figuren-, Fraktions-, Künstler- oder Soundtracknamen als Produktionsanweisung verwenden – auch nicht in Negativprompts oder als „style of“-Abkürzung.
 - Keine fremden Handbücher, Screenshots, Videos, Audio-, Spieldaten, Modelle, Karten, UI-Extrakte, Quell- oder Objektcodes in Produktionskontexte aufnehmen.
 - Enthält ein Auftrag solche Drittmedien, namentliche Stilvorgaben, Decompilation, Extraktion oder die Rekonstruktion eines fremden Ausdrucks, wird die Arbeit gestoppt und auf eine bereinigte abstrakte Spezifikation verwiesen.
+- Ein Performancebudget ist kein Optimierungsbeweis. Aussagen wie „optimiert“, „30/60 FPS erreicht“ oder „Zielhardware bestanden“ benötigen reproduzierbare Release-nahe Evidenz auf der zugehörigen realen Hardwareklasse gemäß `docs/PERFORMANCE_BUDGET.md` und ADR 005.
+- C# bleibt in Runtime-/Frame-/Tick-Hotpaths; F# dient dort nicht als ungemessener zweiter Runtimekern, sondern primär als Offline-Compiler, typisierte Spezifikation, Referenzmodell und Validator. Python bleibt ein optionaler untrusted Offline-Adapter. Abweichungen benötigen Messbeleg und bestätigte ADR.
+- Agenten pushen niemals direkt auf `main`. Sie erstellen lokale Checkpoint-Commits auf dem vorgesehenen Arbeitsbranch; ausschließlich die repo-gebundene Integration darf nach grünen Pflichtgates per Pull Request und Squash-Merge den vorzeigbaren `main` aktualisieren.
 
 ## Abschluss eines Auftrags
 
