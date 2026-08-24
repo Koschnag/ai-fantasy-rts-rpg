@@ -37,7 +37,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
 | T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DONE |
 | T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DRAFT |
-| T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DRAFT |
+| T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | READY |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DRAFT |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
@@ -206,6 +206,60 @@ alle Gates grün; Pflichtprofile bleiben `NOT-MEASURED` (Q-OPS-001). Ein
 ausführbar (SDL3 ohne Wayland); Absicherung über unveränderten Codespfad und
 die vollständige T-020-Suite. Abnahmedokument:
 `docs/abnahme/T-021-headless-simulation-baseline.md`.
+
+T-023 wurde am 2026-08-24 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) auf `READY` gesetzt. Auswahlkette über alle
+DRAFT-Einträge: Der tabellarisch frühere DRAFT `T-011` bleibt blockiert, weil
+seine native Windows-/macOS-Build-/Smoke-/Paketmatrix vorhandene Runner,
+Signier-/Notarisierungsentscheidungen (Q-OPS-002) und physische Zielhardware
+voraussetzt, die hier nicht vorhanden sind und nicht stillschweigend angenommen
+werden dürfen; `T-022` bleibt durch die tolerierte Benchmarkstreuung aus
+Q-TEC-010 blockiert (Klärungsprotokoll 2026-08-24 nennt T-022 ausdrücklich
+weiterhin blockiert); `T-030`/`T-031` hängen an echten Produktentscheidungen
+(Q-GAM-001 bis Q-GAM-007, Q-NAR-002, Q-TEC-006); `T-040`/`T-041`/`T-050`/
+`T-051` liegen hinter E-004/E-005 beziehungsweise hinter getrennten
+Review-, LFS- und Backup-Freigaben. Damit ist `T-023` der höchstpriorisierte
+DRAFT-Auftrag mit erfüllten Abhängigkeiten (`T-010`, `T-020`, `T-021` sind
+`DONE`) und folgt der ausdrücklichen Priorisierung des integrierten
+Repräsentativitätsnachweises nach den isolierten Baselines sowie ADR 006:
+der Belastungsframe hat Vorrang vor weiterer allgemeiner
+Produktionsinfrastruktur, und zusätzliche Toolarbeit darf den ersten
+Performancebeweis nicht verdrängen. Blockerbehandlung ohne stille
+Produktannahme: Q-OPS-001 gilt entsprechend der protokollierten
+T-020-/T-021-Behandlung (Klärungsprotokoll in `docs/OFFENE_FRAGEN.md`);
+Q-TEC-008/Q-TEC-009 und die Q-TEC-010-Streuung bleiben ausdrücklich außerhalb
+des Auftrags. Reversible Entscheidungen der Freigabe mit Rückrollweg:
+die simulierte Komponente wiederverwendet `Riftward.Simulation` unverändert
+gemäß `docs/SIMULATIONSVERTRAG.md` V1; der Szeneninhalt entsteht
+deterministisch zur Laufzeit als Graybox ohne Shipping-Asset (T-050 bleibt
+unberührt); ein einzelner opt-in Frameabgriff dient als begrenztes visuelles
+Evidenzartefakt nach Media-Lab-Prüfung (`docs/communication/MEDIA_LAB.md`),
+ist lokal, hashgebunden, auf Graybox-Lastbelegung begrenzt und niemals
+Gameplay-, Atmosphären- oder Shipping-Beleg; sämtliche Gatewerte stammen
+unverändert aus `docs/PERFORMANCE_BUDGET.md`, dem AC-T010-07/T-020/T-021-
+Präzedenz und dem Simulationsvertrag. Der Auftrag liegt als
+`.ai/tasks/T-023-representative-load-frame.json` vor und implementiert den
+integrierten Anteil des G-PERF-Gates (`BENCH-REPRESENTATIVE`) ohne
+Budgetänderung; Pflichtprofile bleiben bis zur Benennung von Referenzrechnern
+`NOT-MEASURED`.
+
+Die Spezifikation wurde am 2026-08-24 durch den unabhängigen Reviewlauf
+`01M0TQQ9QVH8WBBMYGBA36RE4K` (Akteur `t023-spec-reviewer`) geprüft: Task-
+Manifest gegen `.ai/schemas/task.schema.json` gültig, Szenario-/Gatewerte
+stimmen zeichenweise mit `docs/PERFORMANCE_BUDGET.md`, dem AC-T010-07/T-020/
+T-021-Präzedenz und `docs/SIMULATIONSVERTRAG.md` V1 überein; Auswahlkette,
+Blockerbehandlung und Klärungsprotokoll sind konsistent; Clean-Room-Scan ohne
+Befund (keine Fremdtitel, keine Drittmedien, keine Secrets). Reparaturen im
+Scope: `.ai/schemas/task.schema.json` um das optionale Feld `completionNote`
+ergänzt (das abgenommene Manifest T-010 war durch seinen Abschlussvermerk
+gegen `additionalProperties: false` ungueltig; Präzedenz: releaseNote/
+reviewNote-Feldnachtrag des T-010-Spec-Reviews) und Feldkonvention in
+`.ai/tasks/README.md` dokumentiert; die T-023-Zeile in `OFFENE_FRAGEN.md`
+nennt die Simulationsvertrag-Ratifizierung (Q-TEC-004) jetzt ausdrücklich
+weiterhin `OFFEN`, statt sie still als „abgenommen" zu behaupten. Alle lokalen
+Gates grün (fmt/lint/build mit 0 Warnungen, Tests 172/172, security PASS,
+rag-build, verify über alle Runs). Zu diesem Prüfzeitpunkt hatte die
+Implementierung noch nicht begonnen; der Taskstatus bleibt `ready`.
 
 ## Vorlage für eine Umsetzungseinheit
 

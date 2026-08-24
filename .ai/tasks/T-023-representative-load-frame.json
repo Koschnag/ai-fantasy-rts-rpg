@@ -1,0 +1,145 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-023",
+  "title": "Integrierter repraesentativer Belastungsframe BENCH-REPRESENTATIVE verbindet Simulation, Animation, Landschaft, Schatten und Partikel mit vollstaendiger Ressourcentelemetrie",
+  "status": "ready",
+  "releaseNote": "2026-08-24: draft -> ready durch den autonomen Planungsagenten gemaess Autorisierung der Projektleitung vom 2026-08-23. Auswahlkette ueber alle DRAFT-Eintraege: T-011 bleibt blockiert (Q-OPS-002: keine nativen Windows-/macOS-Runner, keine Signier-/Notarisierungsentscheidung, keine physische Zielhardware; laut BACKLOG bewusst zurueckgestellt); T-022 bleibt durch die tolerierte Benchmarkstreuung aus Q-TEC-010 blockiert (Klaerungsprotokoll 2026-08-24 blockiert T-022 ausdruecklich weiter); T-030/T-031 haengen an echten Produktentscheidungen (Q-GAM-001..007/Q-NAR-002/Q-TEC-006); T-040/T-041/T-050/T-051 liegen hinter E-004/E-005 beziehungsweise hinter getrennten Review-/LFS-/Backup-Freigaben. T-023 ist damit der hoechstpriorisierte DRAFT-Auftrag mit erfuellten Abhaengigkeiten und folgt der ausdruecklichen BACKLOG-Priorisierung (nach T-020/T-021 folgt der integrierte Repraesentativitaetsnachweis) sowie ADR 006 Absatz 1 (Belastungsframe hat Vorrang vor weiterer allgemeiner Produktionsinfrastruktur). Abhaengigkeiten T-010, T-020, T-021 sind accepted/DONE. Blockerbehandlung ohne stille Produktannahme: Q-OPS-001 gilt entsprechend der protokollierten T-020-/T-021-Behandlung (Entwickler-PC-Laeufe sind diagnostische Baseline, Profilbestehen nur mit deklarierter Referenzklassenbindung auf benannten Referenzrechnern, fehlende Profile bleiben NOT-MEASURED mit Eskalation; Klaerungsprotokolleintrag ergaenzt). Kein weiterer OFFENE_FRAGEN-Punkt ist fuer diesen Auftrag registriert; Q-TEC-008 (AOT/CoreCLR-Vergleich), Q-TEC-009 (M1-Speichermethode) und die Q-TEC-010-Streuung bleiben ausdruecklich out of scope. Reversible Entscheidungen dieses Freigabeschritts mit Rueckrollweg: (1) Die simulierte Komponente des Belastungsframes wiederverwendet Riftward.Simulation unveraendert gemaess docs/SIMULATIONSVERTRAG.md V1 statt neuer Numerik/Welt - Rueckrollbar durch Austausch des Szenarioaufbaus ohne Aenderung der Vertraege. (2) Szeneninhalt entsteht deterministisch zur Laufzeit als Graybox aus codegebundener Konfiguration; es entstehen keine Shipping-Assets und kein Quarantaene Lifecycle wird beruehrt (T-050 unveraendert) - Rueckrollbar durch spaeteren Wechsel auf gekochte Assets der T-050-Pipeline bei gleichem Messvertrag. (3) Begrenztes visuelles Evidenzartefakt: Media-Lab-Pruefung gemaess docs/communication/MEDIA_LAB.md ergab, dass ein einziger deterministischer Frame-Abgriff die Zusammensetzung der Last (Einheiten, Bones, Lichter, Partikel) besser pruefbar macht als Telemetrie allein; er ist opt-in, lokal, hashgebunden, auf Graybox-Lastbeleg begrenzt und niemals Gameplay-/Atmosphaeren-/Shipping-Beleg; oeffentliche Verwendung bleibt an die MEDIA_LAB-Oeffentlichexport-Bedingungen plus Projektleitungsautorisierung gebunden - Rueckrollbar durch Weglassen des Flags; Standardlauf bleibt messidentisch. (4) Report-/Gatewerte stammen ausschliesslich aus dokumentierten Tabellen (PERFORMANCE_BUDGET.md, AC-T010-07/T-020/T-021-Praezedenz, SIMULATIONSVERTRAG V1); kein Budgetwert wird geaendert, erfunden oder gelockert. Der Auftrag bleibt eine Baseline nach ADR 006: Er misst, er behauptet keine Optimierung.",
+  "objective": "Der erste integrierte Repraesentativitaetsnachweis BENCH-REPRESENTATIVE fuehrt die isolierten Baselines T-020 (Renderer) und T-021 (Simulation) in einem deterministischen Graybox-Belastungsframe zusammen: mindestens 350 gleichzeitig sichtbare, instanziierte und geskinnte Einheiten (darunter genau die 250 vollstaendig simulierten mobilen Agenten aus Riftward.Simulation samt konkurrierender budgetierter Gruppenpfadsuche), repraesentative Landschaft, Sonne plus vier lokale Schattenlichter und eine Partikelspitze, gerendert nativ auf linux-x64 ueber den oeffentlichen bench-Befehl mit maschinenlesbarem Telemetriereport nach NF-007 und dem QUALITAET-Evidenzvertrag sowie einem fail-closed Budgetgate ausschliesslich gegen dokumentierte Grenzwerte. Die Lastverteilung darf nicht kuenstlich leer sein, die Darstellung bleibt absichtlich einfach. Der Report bindet Frame-, GPU- und Simulationszeit, Allokationen, GC-Pausen, Working Set, GPU-Speicher, Draw-/Submit-Aufrufe, sichtbare Dreiecke und Szenenaufbauzeit mit je Kennzahl Einheit und Methode sowie die Umgebungsbinding inklusive Simulationszustands-Hashkette als Regressionsanker. Laeufe auf dem Entwickler-PC sind diagnostische Baseline nach dem Q-OPS-001-Klaerungsprotokoll; Profilbestehen entsteht nur durch deklarierte Referenzklassenbindung auf benannten Referenzrechnern, fehlende Pflichtprofile bleiben NOT-MEASURED und eskalieren. Dies ist ein Messnachweis, keine Optimierungsbehauptung (ADR 006); es entstehen keine Spielinhalte, Saveformate oder Shipping-Assets.",
+  "inScope": [
+    "Abschnitt 0 (gatende Szenariokonfiguration vor der Hotpath-Arbeit): fixierte, codegebundene Szenariospezifikation bench-representative mit exakten Zielwerten je Lastklasse (sichtbare Einheiten, Bones je normaler Einheit, simulierte Agenten, Schattenlichter, Partikelspitze, Landschaftsanteil, Kameraskript), abgeleitet ausschliesslich aus den Szenebudgettabellen von docs/PERFORMANCE_BUDGET.md und ADR 006; jede Abweichung nach unten waere eine Verschwaechung und eskaliert, jede nach oben bleibt unzulassig",
+    "Integriertes deterministisches Szenario im bestehenden Host: 1920x1080, Low-Anzeigeprofil, OpenGL-3.3-Core-Pflichtpfad ohne stillen Backend-Fallback, fixierte VSync-Policy konsistent zur Effizienzbaseline, festes Seed-Kameraflugskript; neue Szenarioid bench-representative in der bestehenden bench-Registry; unbekannte oder noch nicht implementierte Szenarien schlagen weiterhin mit Exitcode 25 ohne Report fehl",
+    "Simulationsintegration ohne Vertragsaenderung: Wiederverwendung von Riftward.Simulation gemaess docs/SIMULATIONSVERTRAG.md V1 (fester 20-Hz-Tick, genau 250 vollstaendig simulierte mobile Agenten, kanonische Ordnung, Zustands-Hashkette fnv1a64-canonical-chain-v1), vom Rendering entkoppelt; die Darstellung konsumiert ausschliesslich lesbare Snapshots und mutiert den Simulationszustand nie direkt (ARCHITEKTUR-Laufzeitvertrag)",
+    "Repraesentativer Animations-/Skinnerungspfad: mindestens 48 Bones je normaler sichtbarer Einheit, instanziertes Rendering, deterministic Pose aus Tickzeit, ohne per-Frame-Heapallokationen jenseits des Allokationsbudgets; Hintergrundakteure sind vereinfachte, deterministisch skriptgesteuerte Sichtakteure ohne Simulation",
+    "Landschafts-, Licht- und Partikellast: repraesentative Graybox-Landschaftsgeometrie, Sonnenlicht plus genau vier lokale Schattenlichter mit aktiven Schattenpaessen sowie eine nicht-degenerative Partikelspitze bis hoechstens 5000 gleichzeitige transparente Partikel; ausschliesslich offline uebersetzte Shader, keine Shaderkompilierung zur Laufzeit",
+    "Maschinenlesbarer Telemetriereport (naechste konsistente Schemaversion nach NF-007 und Evidenzvertrag): p50/p95/p99 von Frame-, GPU- und Simulations-Tickzeit, Allokationen je warmem Frame, GC-Pausensumme/-anzahl, Working-Set-Stichproben, bgfx-verwalteter GPU-Speicher und diskreter VRAM wo messbar sonst unavailable mit Grund, Draw-/Submit-Aufrufe, sichtbare Dreiecke, gleichzeitige Partikel, Szenenaufbau-/Ladezeit bis zum ersten zusammengesetzten Frame mit Methode und ausdruecklicher Nichtanwendbarkeit der Kartenlade-Budgetzeile (BENCH-LOAD besitzt sie), Simulations-Hashketten-Stichproben sowie Umgebungsbinding (OS/RID, CPU/GPU/Treiber, Backend, Pins, Commit, Buildmodus, Szenario-/Seed-ID, Warm-up, Messdauer)",
+    "Fail-closed Budgetgate ausschliesslich gegen dokumentierte Grenzwerte: Frame-p99 hoechstens 33,3 ms harte Minimumprofilgrenze, GPU-Zeit-p99 hoechstens 30 ms hart mit ausgewiesenem 14-ms-Ziel, Tick-p99 hoechstens 16 ms hart mit ausgewiesenem 8-ms-Ziel, Allokationen hoechstens 1 KiB je warmem Frame (AC-T010-07/T-020-Praezedenz, Verschaerfung erlaubt), hoechstens 1200 Draw-/Submit-Aufrufe, hoechstens 2 Mio. sichtbare Dreiecke Low ohne Schattenwiederholung, hoechstens 5000 transparente Partikel, hoechstens eine Sonne plus vier lokale Schattenlichter, keine Laufzeitshaderkompilierung, Working-Set gegen die dokumentierte harte Grenze; jede Verletzung ergibt definierten Exitcode ungleich 0 und schreibt den Report dennoch",
+    "Determinismus- und Regressionsanker: gleicher Seed und geordnete Befehlsfolge ergeben in zwei unabhaengigen Fresh-Prozesslaufen identische Hashketten gemaess Hashklasse K2 des Simulationsvertrags; geaenderter Seed oder umgeordnete Befehlsfolge aendert den Endhash nachweislich; jede representative Reportdatei bindet Start-, Intervall- und Endhash",
+    "Profilbindungs- und Ehrlichkeitsregel analog T-020/T-021 gemaess Q-OPS-001-Klaerungsprotokoll: Profilbestehen nur bei deklarierter Bindung an die zugehoerige Referenzklasse auf benannten Referenzrechnern; Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet; ohne gebundene Referenzhardware bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH NOT-MEASURED, das Gate bleibt unbestanden und es erfolgt Eskalation statt Ersatz",
+    "Begrenztes visuelles Evidenzartefakt nach Media-Lab-Pruefung: opt-in CLI-Flag schreibt genau einen 1920x1080-Frameabgriff einer deterministischen Kameraposition an festem Frameindex strikt nach dem Messfenster; Artefakthash, Abmessungen, Szenario-/Seed-/Commitbinding stehen im Report; Aussagegrenze ist ausschliesslich die Graybox-Lastbelegung, niemals Gameplay-, Atmosphaeren- oder Shipping-Aussage; oeffentliche Verwendung bleibt an MEDIA_LAB.md-Oeffentlichexportbedingungen plus Projektleitungsautorisierung gebunden; ohne Flag entsteht kein Bild und das Messverhalten bleibt identisch",
+    "Kontrollierte Fehlerbehandlung an allen neuen Grenzen: nicht schreibbarer Report- oder Artefaktpfad, beschaedigte Zwischenmetriken, fehlender App-Build, ungueltige oder widerspruechliche Szenarioargumente fuehren zu verstaendlichen Meldungen mit definierten Exitcodes ungleich 0 ohne Absturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb erlaubter Verzeichnisse; bestehende Exitcodebedeutungen (25/26/27/28) bleiben unveraendert",
+    "Tests ohne Netzwerk: Percentil- und Gateberechnung mit Golden-Fixtures je Bestehens- und Verletzungsklasse je Kennzahl, Reportschema-Pruefung mit Ablehnung erfundener, typenfremder oder grundlos fehlender Felder, Szenariokompositionstests (Zaehler je Lastklasse gleich konfiguriertem Ziel; keine Lastklasse null oder degenerativ), Determinismus-/Negativfixtures, Profilbindungslogik mit synthetischen Hardwarebeschreibungen, Frame-Evidenztests (Flagverhalten, Schreibfehler, Messfenster-Reihenfolge), Fault-Injection je Fehlerklasse, CLI-Vertragstests mit Positiv- und Negativfaellen sowie Architekturtests (Simulationsprojekt frei von SDL3-/bgfx-/Plattformtypen; Snapshot-Richtung; F# und LINQ/Boxing fern vom Tick-/Frame-Hotpath)",
+    "Dokumentation: AUTOMATION.md um den bench-representative-Vertrag erweitert (uebrige Pflichtszenarien schlagen weiter explizit fehl), PERFORMANCE_BUDGET.md nennt ohne Aenderung eines Budgetwerts Ort und Methode des integrierten Nachweises inklusive NOT-MEASURED-Status der Pflichtprofile, G-PERF-Eintrag in .ai/evals/quality-gates.json praezisiert, NATIVE_UNTERBAU.md bildet Exitcode-/Reportvertrag und eine falls notwendige dokumentierte Shim-Erweiterung unter dem bestehenden Reproduzierbarkeitsvertrag ab, ARCHITEKTUR.md verweist auf Snapshot-Konsum des Belastungsframes"
+  ],
+  "outOfScope": [
+    "Die uebrigen Pflichtbenchmarks BENCH-ARMY/BENCH-BATTLE/BENCH-BASE/BENCH-PATH/BENCH-LOAD; sie bleiben registriert, nicht implementiert und schlagen mit Exitcode 25 fehl",
+    "8-Stunden-Soak, Leak-Schwellwerte und tolerierte Benchmarkstreuung (T-022; der Streuungsanteil von Q-TEC-010 bleibt offen und blockiert weiterhin T-022)",
+    "Windows-/macOS-Builds, Smokes, Paketnachweise, Treiberminima und Cross-Plattform-Determinismusbehauptungen (T-011, Q-TEC-002, Q-OPS-002); Hashklasse K3 bleibt unbehauptet",
+    "Native-AOT-/CoreCLR-Vergleichsmessungen (Q-TEC-008): der Buildmodus wird nur gebunden und ausgewiesen",
+    "M1-/Unified-Memory-Messmethodik und jeder HW-MAC-MIN-Nachweis (Q-TEC-009); das Profil bleibt NOT-MEASURED",
+    "Audio (Q-TEC-007), Eingabe, UI, HUD, Menues, Kamerasteuerung durch Nutzer und jede Praesentationsqualitaet jenseits der Graybox-Lastbelegung",
+    "Fachliche Spielregeln und Inhalte: Kampf, Wirtschaft, Gebaeude, Helden, Faehigkeiten, Gegnerarchetypen, Fog of War, Questlogik sowie konkrete Q-GAM-Werte; alle Akteure bleiben abstrakte Graybox-Einheiten ohne Namen, Lore oder Fremdbezuege (Clean-Room gemaess docs/CLEAN_ROOM.md)",
+    "Save-/Load-System, WorldState-/MissionState-Umfang, Replaydateiformat und Migrationen (T-031, DATENMODELL-OFFEN-Stellen); interne Fixtures begruenden keine Formatfestlegungen",
+    "Shipping-Assetproduktion, Quarantaene-Promotion, LFS, Backup und Cooking (T-050); das Szenario erzeugt deterministische Laufzeitgeometrie, aber kein Shipping-Asset",
+    "Oeffentliche Showcase-, Film- oder Medienexporte einschliesslich MEDIA-05; nur das lokal gebundene Einzelartefakt nach dem zugehoerigen Scope-Eintrag entsteht",
+    "Jegliche neue Abhaengigkeit; Renderer- und Simulationspfad bleiben BCL-only plus die gepinnten nativen Komponenten aus toolchain.lock.json",
+    "Benennung konkreter Referenzrechner (Q-OPS-001 bleibt Projektleitung) und jede Ersetzung fehlender Profile durch Diagnose-, Cross-Compile- oder Simulationsergebnisse",
+    "Budgetaenderungen aller Art; alle Grenzwerte aus PERFORMANCE_BUDGET.md, AC-T010-07/T-020/T-021-Praezedenz und SIMULATIONSVERTRAG V1 bleiben unveraendert",
+    "Optimierungsbehauptungen jeglicher Art; das Ergebnis ist eine gemessene Baseline und ein Korrektheitsanker fuer kuenftige Optimierungslaeufe (ADR 006)"
+  ],
+  "requirements": [
+    "Z-002",
+    "NF-001",
+    "NF-007",
+    "NF-008"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T023-01",
+      "statement": "Der oeffentliche Befehl './scripts/rift.sh bench --scenario bench-representative --report <Pfad>' existiert, fuehrt das integrierte deterministische Szenario nativ auf linux-x64 im bestehenden Host aus (1920x1080, Low, OpenGL-3.3-Core-Pflichtpfad ohne stillen Fallback, fixierte VSync-Policy) und schreibt einen maschinenlesbaren Report; ein unbekanntes oder noch nicht implementiertes Szenario bricht weiterhin mit Exitcode 25 ohne Report ab, und ein fehlender App-Build fuehrt zu definierter Fehlerbehandlung.",
+      "verification": "Gate-Ausfuehrung auf dem Entwickler-PC mit Exitcodes und Logs im Run; CLI-Vertragstests mit Positiv- und Negativfaellen (bench-representative, unbekanntes Szenario, registriert-nicht-implementiert, fehlender Build) im regulaeren Testlauf"
+    },
+    {
+      "id": "AC-T023-02",
+      "statement": "Die Szenariokomposition erfuellt die dokumentierte Budgettabelle: mindestens 350 gleichzeitig sichtbare, instanzierte, geskinnte Einheiten, davon genau die 250 vollstaendig simulierten mobilen Agenten aus Riftward.Simulation mit konkurrierenden Gruppenpfaden, der Rest deterministische Hintergrundakteure; jede normale sichtbare Einheit durchlaeuft den repraesentativen Animationspfad mit mindestens 48 Bones; Landschaft, Sonne plus genau vier lokale Schattenlichter mit aktiven Schattenpaessen und eine nicht-degenerative Partikelspitze bis hoechstens 5000 transparente Partikel sind aktiv; die Istzaehler je Lastklasse entsprechen im echten Lauf den fixierten Szenariozielen (keine Lastklasse null oder degenerativ) und sind maschinenlesbar im Report gebunden.",
+      "verification": "Unit-/Schemaassertionen gegen die codegebundene Szenariokonfiguration und die Istzaehler des echten Reports; Review gegen PERFORMANCE_BUDGET.md-Szenebudgettabelle und ADR 006 Absatz 1; Clean-Room-Review der Weltdefinition"
+    },
+    {
+      "id": "AC-T023-03",
+      "statement": "Der Report enthaelt je Kennzahl Einheit und Erfassungsmethode und mindestens p50/p95/p99 von Frame-, GPU- und Tickzeit, Allokationen je warmem Frame, GC-Pausen, Working-Set-Stichproben, bgfx-verwalteten GPU-Speicher sowie diskreten VRAM wo messbar (sonst explizit unavailable mit Grund), Draw-/Submit-Aufrufe, sichtbare Dreiecke, gleichzeitige Partikel, Szenenaufbau-/Ladezeit mit Methode und ausdruecklicher Nichtanwendbarkeit der Kartenlade-Budgetzeile, Hashketten-Stichproben und die volle Umgebungsbinding; ein erfundener, typenfremder oder grundlos fehlender Wert laesst die Schemapruefung fehlschlagen.",
+      "verification": "Schema- und Golden-Fixture-Tests inklusive Negativfaellen (fehlendes Pflichtfeld, Wert ohne Methodenkennung, unavailable ohne Grund, GPU-Wert ohne Messquelle) im regulaeren Testlauf; Feldabgleich des echten Reports gegen NF-007 und den Evidenzvertrag"
+    },
+    {
+      "id": "AC-T023-04",
+      "statement": "Das Budgetgate entscheidet fail-closed ausschliesslich gegen dokumentierte Grenzwerte: Frame-p99 hoechstens 33,3 ms, GPU-p99 hoechstens 30 ms mit ausgewiesenem 14-ms-Ziel, Tick-p99 hoechstens 16 ms mit ausgewiesenem 8-ms-Ziel, Allokationen hoechstens 1 KiB je warmem Frame, hoechstens 1200 Draw-/Submit-Aufrufe, hoechstens 2 Mio. sichtbare Dreiecke ohne Schattenwiederholung, hoechstens 5000 Partikel, hoechstens eine Sonne plus vier lokale Schattenlichter, null Laufzeitshaderkompilierungen, Working-Set gegen die dokumentierte harte Grenze; Ziele werden getrennt vom Hartgate ausgewiesen; jede Verletzung ergibt Exitcode ungleich 0 bei trotzdem geschriebenem Report, und keine Grenze wird gelockert oder umgangen.",
+      "verification": "Gate-Evaluator-Unit-Tests mit synthetischen Metrikfixtures je Bestehens- und Verletzungsklasse je Grenze; echter Lauf auf dem Entwickler-PC mit Ergebnis im Run; Review gleicht jeden Grenzwert gegen PERFORMANCE_BUDGET.md und die AC-T010-07/T-020/T-021-Praezedenz ab"
+    },
+    {
+      "id": "AC-T023-05",
+      "statement": "Gleicher Seed und geordnete Befehlsfolge erzeugen im integrierten Szenario in zwei unabhaengigen Fresh-Prozesslaufen identische Simulationszustands-Hashketten gemaess Hashklasse K2 des Simulationsvertrags; geaenderter Seed oder umgeordnete Befehlsfolge fuehrt nachweislich zu einem anderen Endhash; Start-, Intervall- und Endhash sind in jedem bench-representative-Report gebunden, sodass kuenftige Optimierungslaufen einen fachlichen Korrektheitsanker besitzen.",
+      "verification": "Determinismus-/Replay-Tests mit Fixtures im regulaeren Testlauf inklusive Negativfaellen; zweifacher echter Fresh-Prozesslauf mit Hashvergleich im Abschlussrun; Review gegen docs/SIMULATIONSVERTRAG.md ohne K3-Zusage"
+    },
+    {
+      "id": "AC-T023-06",
+      "statement": "Ein Profilbestehen entsteht nur durch deklarierte Bindung an die zugehoerige Referenzklasse auf benannten Referenzrechnern; ohne Bindung oder bei fehlender Referenzhardware bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH im Report NOT-MEASURED, ein behaupteter Profilbestehen ohne gueltige Bindung wird abgewiesen, und Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet.",
+      "verification": "Unit-Tests der Bindungs- und Ablehnungslogik mit synthetischen Hardwarebeschreibungen (i7-3770/RX-570-Entwickler-PC, GTX-660-Klasse, Apple M1, RX-580-Klasse); kein echter Profillauf auf fehlender Hardware erforderlich oder ersetzbar"
+    },
+    {
+      "id": "AC-T023-07",
+      "statement": "Architektur- und Sprachrollen bleiben intakt: Riftward.Simulation referenziert keine SDL3-, bgfx-, Plattform- oder Praesentationstypen; die Darstellung konsumiert ausschliesslich lesbare Snapshots und mutiert den Simulationszustand nie direkt; F# sowie LINQ-/IEnumerable-Pipelines, Boxing, Reflection und unbegrenzte Objektgraphen entstehen nicht in Tick- oder Frame-Hotpaths; es gibt null neue Abhaengigkeiten (BCL-only plus gepinnte Native-Komponenten) und keine AOT-/Trimming-feindlichen Muster im neuen Code.",
+      "verification": "Architekturtests gegen unerlaubte Referenzen und Snapshot-Richtung im regulaeren Testlauf; Abhaengigkeitsreview gegen TOOLCHAIN.md und packages.lock; Warnungszahl null im Buildgate"
+    },
+    {
+      "id": "AC-T023-08",
+      "statement": "Das opt-in Frame-Evidenzartefakt schreibt bei gesetztem Flag genau einen 1920x1080-Frameabgriff einer deterministischen Kameraposition an festem Frameindex strikt nach dem Messfenster in ein erlaubtes lokales Verzeichnis; Report und Run binden Artefakthash, Abmessungen, Szenario-, Seed- und Commitkennung sowie die Aussagegrenze (Graybox-Lastbelegung, kein Gameplay-, Atmosphaeren- oder Shipping-Beleg); ohne Flag entsteht kein Bild und das Messverhalten ist identisch; ein Fehlschlag des Abgriffs fuehrt zu kontrollierter Fehlermeldung mit definiertem Exitcode ohne Prozessabsturz; eine oeffentliche Verwendung bleibt an die MEDIA_LAB.md-Oeffentlichexportbedingungen plus Projektleitungsautorisierung gebunden.",
+      "verification": "Unit- und Fault-Injection-Tests zum Flagverhalten, zur Messfenster-Reihenfolge (Marker im Report) und zum Schreibfehlerfall; echter Lauf mit Artefakthash im Abschlussrun; Doku-Review der Aussagegrenze gegen docs/communication/MEDIA_LAB.md"
+    },
+    {
+      "id": "AC-T023-09",
+      "statement": "Nicht schreibbarer Report- oder Artefaktpfad, beschaedigte Zwischenmetriken, fehlender App-Build und ungueltige oder widerspruechliche Argumente fuehren zu verstaendlichen Meldungen mit definierten Exitcodes ungleich 0 ohne Prozessabsturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb erlaubter Verzeichnisse; die bestehenden Exitcodebedeutungen 25/26/27/28 bleiben unveraendert, neue Codes folgen dem dokumentierten Vertrag.",
+      "verification": "Fault-Injection-Fixtures je Fehlerklasse im regulaeren Testlauf; Mapping-Test haelt den dokumentierten Exitcodevertrag stabil (exitCodeMappingIsStableAndDocumented)"
+    },
+    {
+      "id": "AC-T023-10",
+      "statement": "rift.sh bootstrap/build/fmt/lint/test/verify/security laufen mit dem neuen Code gruen, es gibt null neue Compiler-, Analyzer- und ABI-Warnungen, und die bestehenden Vertraege von bench-empty und bench-sim bleiben unveraendert bestehen; kann die ausfuehrende Sitzung einen fensterpflichtigen Lauf displaylos nicht starten, bleiben die betroffenen Nachweise offen, werden im Abschlussrun als Restpunkt genannt und eskaliert, statt durch Simulation oder Auslassung ersetzt zu werden.",
+      "verification": "Gate-Ausfuehrungen im Abschlussrun mit Exitcodes und Logs; regulaerer Testlauf enthaelt die unveraenderten T-020-/T-021-Suiten; Restpunktnotiz im Run bei Displaylimitation"
+    },
+    {
+      "id": "AC-T023-11",
+      "statement": "Ein diagnostischer Gesamtbeweislauf des integrierten Szenarios ist auf dem Entwickler-PC (i7-3770/RX 570, Mesa/radeonsi) nativ ausgefuehrt: Report mit allen Pflichtfeldern, Gateergebnis, Hashkettenbindung und optionaler Frameabgriff-HASH liegen als Evidenz im Run; der Lauf ist als diagnostische Baseline gekennzeichnet, alle Pflichtprofile bleiben NOT-MEASURED mit Eskalationsvermerk gemaess Q-OPS-001; ist die native Ausfuehrung im ausfuehrenden Lauf unmoeglich, bleibt dieses Kriterium offen und wird eskaliert statt substituiert.",
+      "verification": "Evidenzdateien (Report-Pfad und SHA-256, Logs, optionale Artefakthashes) im Abschlussrun; Kennzeichnung als diagnostische Baseline im Report; Eskalationsvermerk NOT-MEASURED je Pflichtprofil"
+    },
+    {
+      "id": "AC-T023-12",
+      "statement": "Dokumentation und Gate-Register sind konsistent: AUTOMATION.md beschreibt den implementierten bench-representative-Aufruf und das explizite Fehlschlagen der uebrigen Pflichtszenarien, PERFORMANCE_BUDGET.md nennt ohne Aenderung eines Budgetwerts Ort und Methode des integrierten Nachweises inklusive NOT-MEASURED-Status der Pflichtprofile, der G-PERF-Eintrag in .ai/evals/quality-gates.json ist praezisiert, NATIVE_UNTERBAU.md bildet den aktualisierten Exitcode-/Reportvertrag sowie eine falls vorhandene Shim-Erweiterung unter dem Reproduzierbarkeitsvertrag ab, und ARCHITEKTUR.md verweist auf den Snapshot-Konsum des Belastungsframes.",
+      "verification": "Doku-Review mit Pfad- und Zeilenangaben im Run; rift.sh verify gruen; Konsistenzabgleich der genannten Stellen gegen den implementierten Befehls- und Gatevertrag"
+    }
+  ],
+  "dependencies": [
+    "T-010",
+    "T-020",
+    "T-021"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-PERF",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Konkrete Graybox-Szenariokonfiguration innerhalb der fixierten Budgettabelle: Landschaftsaufbau, Platzierung von Lichtern und Blockaden, Hintergrundaktorenskript, Partikelmuster, Kameraflugskript, Tick-/Framezahl und Warm-up, ohne Spielinhalt, ohne Namen und ohne Fremdbezuege",
+      "Konkrete Skinnings-/Animationstechnik innerhalb des gepinnten SDL3/bgfx/bimg-Stands (z. B. Bone-Matrix-Upload ueber Uniformpuffer, Instanzlayout), sofern mindestens 48 Bones je normaler Einheit und das Allokationsbudget eingehalten bleiben",
+      "Konkreter Mechanismus des Einzel-Frameabgriffs innerhalb des gepinnten Stands ohne neue Abhaengigkeit sowie dessen Platzierung nach dem Messfenster",
+      "Messmethodik konsistent zur T-020-/T-021-Praxis: Warm-up, Messdauer, Samplingintervalle, Percentilverfahren, Hashkettenintervall, fester Captureframeindex",
+      "Reportformat- und Schemaevolution zur naechsten konsistenten Schemaversion innerhalb des NF-007-Evidenzvertrags sowie interne Projekt-/Modulstruktur der Render-Sim-Anbindung und des Snapshotformats",
+      "Neue Exitcodewerte nach dem dokumentierten Vertrag, ohne bestehende Bedeutungen zu veraendern, sowie Reihenfolge und Aufbau lokaler Fixtures",
+      "Verschaerkung einzelner Grenzwerte oder Szenarioziele innerhalb der dokumentierten Obergrenzen"
+    ],
+    "mustEscalate": [
+      "Lockerung, Umgehung oder Aenderung eines Grenzwerts, Szenarioziels oder Budgetwerts einschliesslich PERFORMANCE_BUDGET.md, AC-T010-07-Praezedenz und docs/SIMULATIONSVERTRAG.md (33,3 ms Frame, 30 ms GPU, 16 ms Tick, 1 KiB je warmem Frame, 1200 Draws, 2 Mio. Dreiecke, 5000 Partikel, 1+4 Lichter, 350 sichtbare/250 simulierte Einheiten, 48 Bones)",
+      "Unterschreiten eines Szenarioziels oder eine degenerative Lastklasse als stiller Scope-Abbau",
+      "Jede neue Abhaengigkeit, externer Dienst, Runtime-Netzwerkzugriff oder Laufzeitshaderkompilierung",
+      "F# oder eine weitere Sprache im Tick-/Frame-Hotpath sowie Reflection-/AOT-feindliche Muster im Runtimecode",
+      "Cross-Build- oder Cross-Plattform-Determinismus- und Hashzusagen ohne echte Messung sowie Windows-/macOS-Scope und Treiberminima (T-011, Q-TEC-002, Q-OPS-002)",
+      "Ersetzung fehlender Referenzhardware durch Diagnose-, Cross-Compile- oder Simulationsergebnisse bei einem Profilbestehen sowie Benennung von Referenzrechnern; die Q-OPS-001-Entscheidung bleibt Projektleitung",
+      "AOT-/CoreCLR-Vergleichsmessungen (Q-TEC-008), M1-Messmethodik (Q-TEC-009) und Streuungstoleranzen (Q-TEC-010, blockiert T-022)",
+      "Uebernahme fachlicher Spielregeln oder Q-GAM-Werte, Save-/Replayformatfestlegungen sowie jede Shipping-Asset-, Promotion-, LFS- oder Cookingentscheidung (T-030/T-031/T-050)",
+      "Oeffentliche Verwendung oder Export des Frame-Evidenzartefakts oder anderer Messmedien; dies verbleibt beim Media-Lab-Prozess mit Projektleitungsautorisierung",
+      "Abschwaechung oder Entfernung eines Abnahmekriteriums oder Gates sowie Veraenderung bestehender Exitcodebedeutungen"
+    ]
+  }
+}

@@ -8,4 +8,4 @@ Erlaubte Zustände:
 
 Zusätzlich kann eine Aufgabe aus jedem aktiven Zustand nach `blocked` oder `cancelled` wechseln. Nur `ready` darf automatisch gestartet werden. Eine KI darf ihren eigenen fachlichen Umfang oder ihre Abnahmekriterien nicht stillschweigend verändern.
 
-Die optionalen Felder `releaseNote` und `reviewNote` tragen datierte Freigabe- und Reviewvermerke mit Run-IDs. Sie sind Dokumentation innerhalb des Manifests und ersetzen niemals Evidenz im Harness-Lauf.
+Die optionalen Felder `releaseNote`, `reviewNote` und `completionNote` tragen datierte Freigabe-, Review- und Abschlussvermerke mit Run-IDs. Sie sind Dokumentation innerhalb des Manifests und ersetzen niemals Evidenz im Harness-Lauf.
