@@ -43,7 +43,33 @@ void rift_bgfx_shutdown(void);
 uint32_t rift_bgfx_frame(void);
 uint32_t rift_bgfx_stats_draw_calls(void); /* Draw-Aufrufe des letzten Frames aus bgfx::Stats. */
 
+/*
+ * T-020-Telemetrie: flache Momentaufnahme von bgfx::Stats des letzten Frames.
+ * Alle Werte sind von bgfx gemessene Groessen; das Struct enthaelt keine
+ * eigenen Berechnungen. gpuTimerFreq == 0 bedeutet: Das aktive Backend stellt
+ * keine GPU-Zeiterfassung bereit; dann sind gpuTimeBegin/gpuTimeEnd ungueltig.
+ */
+typedef struct rift_bgfx_stats_t
+{
+	uint32_t numDraw;              /* bgfx::Stats::numDraw */
+	uint32_t numCompute;           /* bgfx::Stats::numCompute */
+	uint32_t trianglesRendered;    /* bgfx::Stats::numPrims[TriList] */
+	int64_t gpuTimeBegin;          /* bgfx::Stats::gpuTimeBegin */
+	int64_t gpuTimeEnd;            /* bgfx::Stats::gpuTimeEnd */
+	int64_t gpuTimerFreq;          /* bgfx::Stats::gpuTimerFreq (0 == nicht verfuegbar) */
+	int64_t textureMemoryUsed;     /* bgfx::Stats::textureMemoryUsed (Bytes) */
+	int64_t rtMemoryUsed;          /* bgfx::Stats::rtMemoryUsed (Bytes) */
+	int32_t transientVbUsed;       /* bgfx::Stats::transientVbUsed (Bytes) */
+	int32_t transientIbUsed;       /* bgfx::Stats::transientIbUsed (Bytes) */
+} rift_bgfx_stats_t;
+
+/* Liefert RIFT_BGFX_OK bei erfolgreicher Momentaufnahme; out bleibt sonst unveraendert. */
+int32_t rift_bgfx_stats_snapshot(rift_bgfx_stats_t* out);
+
 void rift_view_setup(uint8_t viewId, uint32_t clearColorRgba, uint16_t width, uint16_t height);
+
+/* Setzt View-/Projektionsmatrix eines Views (je 16 floats im bx-Speicherlayout). */
+void rift_view_transform(uint8_t viewId, const float* view16, const float* proj16);
 
 /* Feste Layoutvereinbarung: Position 3x f32 + Color0 4x u8 normalisiert. */
 uint16_t rift_tri_create_vertex_buffer(const void* data, uint32_t sizeInBytes);

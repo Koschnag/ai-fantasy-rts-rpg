@@ -34,7 +34,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-008 | E-001 | überprüfbarer Retail-Era-Forschungs-Showcase mit Press-Kit-Prototyp, Quarantäne-Key-Art und wahrheitsgebundenen Exportregeln | Z-004, Z-005 | M | SHOULD | REVIEW |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
-| T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DRAFT |
+| T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
 | T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DRAFT |
 | T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DRAFT |
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DRAFT |
@@ -111,6 +111,46 @@ Produktionsinfrastruktur priorisiert, soweit deren Abhängigkeiten `READY` sind.
 Der bewusst einfache Belastungsframe ist der erste Beleg für oder gegen die
 Effizienzhypothese; Architektur und Budgets allein gelten nicht als Optimierung
 (ADR 006).
+
+T-020 wurde am 2026-08-24 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) auf `READY` gesetzt. Die Epikabhängigkeit E-002
+ist im für eine isolierte Renderer-Baseline erforderlichen Umfang erfüllt:
+T-010 liefert den nativen linux-x64-Unterbau mit Smoke- und Effizienzvertrag;
+Windows-/macOS-Nachweise bleiben unverändert bei T-011 (Z-003/NF-006). T-011
+bleibt bewusst zurückgestellt: Seine Umsetzung setzt native Windows-/macOS-
+Runner samt Build-, Signier- und Notarisierungsentscheidung voraus
+(Q-OPS-002), die hier nicht vorhanden sind und nicht stillschweigend
+angenommen werden dürfen. Der offenen Frage Q-OPS-001 wird verfahrensmäßig
+begegnet (Klärungsprotokoll in `docs/OFFENE_FRAGEN.md`): Messungen auf dem
+Entwickler-PC (i7-3770/RX 570) gelten als diagnostische Baseline,
+Profilbestehen entsteht nur durch deklarierte Referenzklassenbindung, und
+fehlende Referenzhardware bleibt `NOT-MEASURED` mit Eskalation statt Ersatz;
+rückrollbar durch Benennung der Referenzrechner und Wiederholung desselben
+bench-Befehls. Q-TEC-004/Q-TEC-005 betreffen die Simulation und bleiben
+Blocker von T-021. Der Auftrag liegt als
+`.ai/tasks/T-020-empty-scene-benchmark.json` vor und implementiert den ersten
+ausführbaren Anteil des G-PERF-Gates (`BENCH-EMPTY`) ohne Budgetänderung.
+
+T-020 wurde am 2026-08-24 durch den unabhängigen Review-/Vollendungslauf
+`01M0T2GGVHV79RFDSKNSJ1QV8B` (Akteur `t020-review-completion`) umgesetzt,
+geprüft und auf `DONE` gesetzt: Shim-Erweiterung für bgfx-Statistik (GPU-Zeit,
+verwalteter GPU-Speicher, gerenderte Dreiecke) und Viewtransformation mit
+zweifach byteidentischem `--fresh`-Neubau; öffentlicher Befehl
+`rift.sh bench --scenario bench-empty --report PFAD`; BenchRunner mit
+deterministischem Kameraflugskript, Telemetrie je Kennzahl mit Einheit und
+Methodenkennung, fail-closed Budgetgate ausschließlich gegen dokumentierte
+Grenzwerte, Szenarioregistry (unbekannte/nicht implementierte Szenarien →
+Exitcode 25 ohne Report) und Profilbindungs-Ehrlichkeitsregel; 12 neue Tests
+(Suite 158/158); Doku in `NATIVE_UNTERBAU.md`, `AUTOMATION.md`,
+`PERFORMANCE_BUDGET.md` und Gate-Register aktualisiert. Diagnostischer Lauf:
+p99 2,979 ms, 565 B Allokationen pro warmem Frame, GC-Pausen 0, Working-Set
+max ~195 MiB, 1 Draw, 1 Dreieck, gemessene GPU-Zeit (p99 0,078 ms); alle
+Grenzwerte eingehalten, Reportstruktur zweier Läufe identisch. Im
+Kopflos-Aufbau dieser Sitzung rendert Mesa über llvmpipe statt radeonsi; der
+Renderer-String ist im Report gebunden. Alle Pflichtprofile bleiben
+`NOT-MEASURED`, bis die Projektleitung Referenzrechner benennt (Q-OPS-001
+bleibt `OFFEN`); Abnahmedokument:
+`docs/abnahme/T-020-empty-scene-benchmark.md`.
 
 ## Vorlage für eine Umsetzungseinheit
 

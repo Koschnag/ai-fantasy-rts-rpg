@@ -42,7 +42,13 @@ internal static partial class BgfxShimNative
     internal static partial uint rift_bgfx_stats_draw_calls();
 
     [LibraryImport(LibraryName)]
+    internal static partial int rift_bgfx_stats_snapshot(ref RiftBgfxStats stats);
+
+    [LibraryImport(LibraryName)]
     internal static partial void rift_view_setup(byte viewId, uint clearColorRgba, ushort width, ushort height);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_view_transform(byte viewId, ReadOnlySpan<float> view16, ReadOnlySpan<float> proj16);
 
     [LibraryImport(LibraryName)]
     internal static partial ushort rift_tri_create_vertex_buffer(ReadOnlySpan<byte> data, uint sizeInBytes);
@@ -79,4 +85,23 @@ public struct RiftBgfxInitParams
     public uint Width;
     public uint Height;
     public uint ResetFlags;
+}
+
+/// <summary>
+/// Blittable Abbildung von rift_bgfx_stats_t (T-020-Telemetrie; siehe
+/// riftbgfx_shim.h). Alle Felder sind direkt von bgfx gemessene Groessen.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct RiftBgfxStats
+{
+    public uint NumDraw;
+    public uint NumCompute;
+    public uint TrianglesRendered;
+    public long GpuTimeBegin;
+    public long GpuTimeEnd;
+    public long GpuTimerFreq;
+    public long TextureMemoryUsed;
+    public long RtMemoryUsed;
+    public int TransientVbUsed;
+    public int TransientIbUsed;
 }

@@ -68,7 +68,11 @@ type BgfxApiFake(initResult: int, rendererType: int) =
 
         member _.DrawCalls() = 1u
 
+        member _.TryReadStats(_: BgfxFrameStats byref) = false
+
         member _.ViewSetup(_, _, _, _) = record "viewsetup"
+
+        member _.ViewTransform(_, _, _) = record "viewtransform"
 
         member _.CreateVertexBuffer(_, size) =
             record $"createvb{size}"

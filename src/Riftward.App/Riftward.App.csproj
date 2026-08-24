@@ -9,4 +9,8 @@
     <ProjectReference Include="../Riftward.Platform/Riftward.Platform.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="RiftHarness.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -257,6 +257,14 @@ else
       -f src/Riftward.Shaders/triangle.fs.sc \
       -o "$dist/shaders/triangle.fs.bin" >>"$logs/shaderc.log" 2>&1 \
       || { tail -20 "$logs/shaderc.log" >&2; die "Fragment-Shader-Kompilierung fehlgeschlagen."; }
+    # T-020: Weltkoordinaten-Variante fuer BENCH-EMPTY (u_viewProj); Fragment-
+    # shader bleibt der ungeaenderte triangle.fs.
+    log 'Kompiliere BENCH-EMPTY-Vertexshader offline (shaderc -> GLSL 130).'
+    "$bgfx_bin/shadercRelease" --platform linux -p 130 --type vertex \
+      -i "$bgfx_dir/include" -i "$bgfx_dir/src" \
+      -f src/Riftward.Shaders/bench_empty.vs.sc \
+      -o "$dist/shaders/bench_empty.vs.bin" >>"$logs/shaderc.log" 2>&1 \
+      || { tail -20 "$logs/shaderc.log" >&2; die "BENCH-EMPTY-Shaderkompilierung fehlgeschlagen."; }
   else
     log 'Shaderartefakte vorhanden (Cache).'
   fi

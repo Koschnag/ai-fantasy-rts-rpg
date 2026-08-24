@@ -42,6 +42,12 @@
           "JsonSchema.Net": "[8.0.5, 8.0.5]"
         }
       },
+      "riftward.app": {
+        "type": "Project",
+        "dependencies": {
+          "Riftward.Platform": "[1.0.0, )"
+        }
+      },
       "riftward.platform": {
         "type": "Project"
       }

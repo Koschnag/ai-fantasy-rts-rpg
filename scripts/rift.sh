@@ -201,6 +201,11 @@ case "$rift_command" in
     rift_need_app_output
     exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" effizienzbaseline "$@"
     ;;
+  bench)
+    rift_need_dotnet
+    rift_need_app_output
+    exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" bench "$@"
+    ;;
   harness)
     rift_need_dotnet
     rift_need_build_outputs
@@ -244,7 +249,7 @@ case "$rift_command" in
     rift_harness verify
     find .ai -type f -name '*.json' -not -path '.ai/runtime/*' -exec jq empty {} +
     ;;
-  bench|check|package)
+  check|package)
     rift_unavailable "$rift_command"
     ;;
   help|-h|--help)
@@ -259,6 +264,8 @@ case "$rift_command" in
       '  harness ...   RiftHarness CLI aufrufen' \
       '  plattformsmoke  nativen linux-x64-Smoke (Fenster, GL-3.3-Dreieck) ausführen' \
       '  effizienzbaseline  Effizienzlauf mit Budgetgate und Report ausführen' \
+      '  bench ...  reproduzierbaren Benchmark ausführen (nur bench-empty; unbekannte oder' \
+      '             noch nicht implementierte Szenarien schlagen mit Exitcode 25 fehl)' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \

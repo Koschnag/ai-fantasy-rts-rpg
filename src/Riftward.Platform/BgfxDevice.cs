@@ -155,6 +155,19 @@ public sealed class BgfxDevice : IDisposable
 
     public uint DrawCalls => _api.DrawCalls();
 
+    /// <summary>
+    /// Liest die bgfx-Statistik des letzten Frames (T-020-Telemetrie).
+    /// Liefert false, wenn der Shim noch keine Statistik liefern kann.
+    /// </summary>
+    public bool TryReadStats(out BgfxFrameStats stats) => _api.TryReadStats(out stats);
+
+    /// <summary>Setzt View-/Projektionsmatrix eines Views (je 16 floats, bx-Layout).</summary>
+    public void SetViewTransform(byte viewId, ReadOnlySpan<float> view16, ReadOnlySpan<float> proj16)
+    {
+        ThrowIfNotInitialized();
+        _api.ViewTransform(viewId, view16, proj16);
+    }
+
     /// <summary>Schliesst den aktuellen Frame ab (bgfx::frame, Single-Threaded).</summary>
     public uint RenderFrame() => _api.Frame();
 
@@ -304,3 +317,36 @@ public readonly record struct BgfxInitRequest(
     int Height,
     uint ResetFlags,
     uint ClearColorRgba);
+
+/// <summary>
+/// Verwaltete Momentaufnahme der bgfx-Framestatistik (T-020-Telemetrie).
+/// Alle Werte stammen unveraendert aus bgfx::Stats; keine eigene Berechnung.
+/// GpuTimerFreq == 0 bedeutet: Das Backend stellt keine GPU-Zeit bereit.
+/// </summary>
+public readonly record struct BgfxFrameStats(
+    uint NumDraw,
+    uint NumCompute,
+    uint TrianglesRendered,
+    long GpuTimeBeginTicks,
+    long GpuTimeEndTicks,
+    long GpuTimerFrequency,
+    long TextureMemoryUsedBytes,
+    long RtMemoryUsedBytes,
+    int TransientVbUsedBytes,
+    int TransientIbUsedBytes)
+{
+    /// <summary>Summe der bgfx-verwalteten GPU-Speicherbytes (Textur + Renderziel + transient).</summary>
+    public long ManagedGpuMemoryUsedBytes => TextureMemoryUsedBytes + RtMemoryUsedBytes + TransientVbUsedBytes + TransientIbUsedBytes;
+
+    internal static BgfxFrameStats FromNative(Interop.RiftBgfxStats native) => new(
+        native.NumDraw,
+        native.NumCompute,
+        native.TrianglesRendered,
+        native.GpuTimeBegin,
+        native.GpuTimeEnd,
+        native.GpuTimerFreq,
+        native.TextureMemoryUsed,
+        native.RtMemoryUsed,
+        native.TransientVbUsed,
+        native.TransientIbUsed);
+}

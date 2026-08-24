@@ -157,6 +157,34 @@ extern "C" uint32_t rift_bgfx_stats_draw_calls(void)
 	return stats == nullptr ? 0u : stats->numDraw;
 }
 
+extern "C" int32_t rift_bgfx_stats_snapshot(rift_bgfx_stats_t* out)
+{
+	if (out == nullptr)
+	{
+		return RIFT_BGFX_ERR_INVALID_PARAM;
+	}
+
+	const bgfx::Stats* stats = bgfx::getStats();
+
+	if (stats == nullptr)
+	{
+		return RIFT_BGFX_ERR_NOT_INITIALIZED;
+	}
+
+	out->numDraw           = stats->numDraw;
+	out->numCompute        = stats->numCompute;
+	out->trianglesRendered = stats->numPrims[0]; /* bgfx::Topology::TriList */
+	out->gpuTimeBegin      = stats->gpuTimeBegin;
+	out->gpuTimeEnd        = stats->gpuTimeEnd;
+	out->gpuTimerFreq      = stats->gpuTimerFreq;
+	out->textureMemoryUsed = stats->textureMemoryUsed;
+	out->rtMemoryUsed      = stats->rtMemoryUsed;
+	out->transientVbUsed   = stats->transientVbUsed;
+	out->transientIbUsed   = stats->transientIbUsed;
+
+	return RIFT_BGFX_OK;
+}
+
 extern "C" void rift_view_setup(uint8_t viewId, uint32_t clearColorRgba, uint16_t width, uint16_t height)
 {
 	bgfx::setViewRect(viewId, 0, 0, width, height);
@@ -166,6 +194,16 @@ extern "C" void rift_view_setup(uint8_t viewId, uint32_t clearColorRgba, uint16_
 		clearColorRgba,
 		1.0f,
 		0);
+}
+
+extern "C" void rift_view_transform(uint8_t viewId, const float* view16, const float* proj16)
+{
+	if (view16 == nullptr || proj16 == nullptr)
+	{
+		return;
+	}
+
+	bgfx::setViewTransform(viewId, view16, proj16);
 }
 
 extern "C" uint16_t rift_tri_create_vertex_buffer(const void* data, uint32_t sizeInBytes)
