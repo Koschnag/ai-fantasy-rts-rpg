@@ -18,7 +18,7 @@ namespace Riftward.App;
 /// </summary>
 internal static class BenchRunner
 {
-    private static readonly JsonSerializerOptions ReportJsonOptions = new() { WriteIndented = false };
+    internal static readonly JsonSerializerOptions ReportJsonOptions = new() { WriteIndented = false };
 
     public const int DefaultWidth = 1920;
     public const int DefaultHeight = 1080;
@@ -38,6 +38,12 @@ internal static class BenchRunner
         switch (BenchScenarios.Classify(scenarioId))
         {
             case BenchScenarios.Support.Implemented:
+                if (string.Equals(scenarioId, BenchScenarios.Sim, StringComparison.Ordinal))
+                {
+                    // Headless CPU-Baseline ohne Fenster/Renderer (T-021).
+                    return SimBenchRunner.Run(arguments);
+                }
+
                 break;
 
             case BenchScenarios.Support.RegisteredNotImplemented:
@@ -62,7 +68,7 @@ internal static class BenchRunner
         var seed = (uint)Math.Clamp(arguments.NumberOption("--seed", CameraFlight.DefaultSeed), 0, uint.MaxValue);
         var warmupFrames = (int)Math.Clamp(arguments.NumberOption("--warmup-frames", DefaultWarmupFrames), 30, 5_000);
         var sampleFrames = (int)Math.Clamp(arguments.NumberOption("--sample-frames", DefaultSampleFrames), 60, 20_000);
-        var claimedBindings = ParseBindings(arguments);
+        var claimedBindings = ParseProfileBindings(arguments);
 
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -459,7 +465,7 @@ internal static class BenchRunner
 
     private static long TotalCollectionCount() => GC.CollectionCount(0) + GC.CollectionCount(1) + GC.CollectionCount(2);
 
-    private static List<(string ProfileId, string ClaimedClass)> ParseBindings(CommandLineArgs arguments)
+    internal static List<(string ProfileId, string ClaimedClass)> ParseProfileBindings(CommandLineArgs arguments)
     {
         var bindings = new List<(string ProfileId, string ClaimedClass)>();
 

@@ -205,6 +205,7 @@ erDiagram
 - Jede Schema-Version benötigt Golden Fixtures für: minimal gültig, finalitätsnah gültig, unbekannte Version, fehlende Referenz, Grenzwertverletzung, abgeschnittene Datei und falscher Hash.
 - Save-Migrationen benötigen Vorher-/Nachher-Fixtures und müssen bei wiederholter Ausführung dasselbe Ergebnis liefern.
 - Deterministische Replays speichern mindestens Build-/Contentkennung, Seed, Startzustand und geordnete Befehle; genaues Replayformat ist `OFFEN`.
+- Der `stateHash` der Simulationsbaseline T-021 folgt dem versionierten Vertrag in `docs/SIMULATIONSVERTRAG.md` (kanonischer Relevantzustand, FNV-1a-64-Kette, Hashvertragsklassen ohne Cross-Build-/Cross-Plattform-Zusage); interne Testfixtures dieser Baseline begründen keine Save-/Replayformatfestlegung.
 - Produktionsfixtures enthalten keine Secrets, personenbezogenen Daten oder fremden geschützten Inhalte.
 
 ## Aufbewahrung und Sensibilität

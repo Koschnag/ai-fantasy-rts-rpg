@@ -45,10 +45,14 @@
       "riftward.app": {
         "type": "Project",
         "dependencies": {
-          "Riftward.Platform": "[1.0.0, )"
+          "Riftward.Platform": "[1.0.0, )",
+          "Riftward.Simulation": "[1.0.0, )"
         }
       },
       "riftward.platform": {
+        "type": "Project"
+      },
+      "riftward.simulation": {
         "type": "Project"
       }
     }

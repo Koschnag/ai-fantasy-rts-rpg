@@ -84,6 +84,7 @@ flowchart TB
 - Spieleraktionen werden als validierte, tickbezogene Befehle übergeben. Direkte UI-Mutation an Simulationsobjekten ist verboten.
 - Gleicher Datenstand, Seed und dieselbe geordnete Befehlsfolge müssen innerhalb der noch festzulegenden Numerik-/Plattformtoleranz denselben fachlichen Zustand erzeugen. Numerik und exakter Hashvertrag werden im Technik-Spike festgelegt.
 - Frame- und Simulationsbudgets aus `PERFORMANCE_BUDGET.md` sind API-Anforderungen: unbeschränkte Arbeit, versteckte Allokation und synchrones Rohasset-Laden in Hotpaths sind nicht zulässig.
+- Der Simulationskern der Baseline T-021 (`Riftward.Simulation`) ist BCL-only, referenzfrei von SDL3-, bgfx-, Plattform- und Präsentationstypen und folgt dem versionierten Vertrag in `docs/SIMULATIONSVERTRAG.md` (Festkomma-Numerik Q16.16, Hashvertragsklassen, kanonische Ordnung, hierarchisch budgetierte Pfadsuche); Cross-Build-/Cross-Plattform-Hashgleichheit bleibt bis zu echter Messung unbehauptet.
 
 ### Native Grenze
 

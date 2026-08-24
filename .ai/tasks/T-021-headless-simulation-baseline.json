@@ -1,0 +1,127 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-021",
+  "title": "Headless feste Simulation mit 250 mobilen Testagenten als isolierte Simulationsbaseline",
+  "status": "accepted",
+  "releaseNote": "2026-08-24: draft -> ready durch autonomen Planungsagenten gemaess Autorisierung der Projektleitung vom 2026-08-23. Auswahl: Der tabellarisch fruehere DRAFT T-011 bleibt blockiert, weil seine native Windows-/macOS-Build-/Smoke-/Paketmatrix vorhandene Runner, Signier-/Notarisierungsentscheidungen (Q-OPS-002) und physische Zielhardware voraussetzt, die hier nicht vorhanden sind und nicht stillschweigend angenommen werden duerfen; T-022/T-023 setzen die hier erst zu liefernde Simulation voraus; T-030/T-031 haengen an echten Produktentscheidungen (Q-GAM-*/Q-NAR-*/Q-TEC-006). T-021 folgt damit der ausdruecklichen BACKLOG-Priorisierung der isolierten Baselines T-020/T-021 vor weiterer Produktionsinfrastruktur (ebenso ADR 006). Epikabhaengigkeit E-002 im fuer eine headless-CPU-Baseline erforderlichen Umfang erfuellt (T-010 accepted: nativer linux-x64-Host samt Befehls-/Exitcodevertrag; T-020 accepted: bench-/Telemetrie-/Budgetgate-Vertrag); Z-003/NF-006 bleiben unveraendert bei T-011. Blockerbehandlung gemaess Spike-Klausel in docs/QUALITAET.md (Definition of Ready) und Klaerungsprotokoll docs/OFFENE_FRAGEN.md: Q-TEC-004/Q-TEC-005 sind verfahrensmaessig in den gatenden Vertragsspike Abschnitt 0 dieses Auftrags ueberfuehrt - Numerikmodell, Hashvertragsklassen und Strukturentscheidungen entstehen dort ausschliesslich nach hier fixierten Kriterien, mit Alternativen/Gruenden/Rueckrollweg; eine exakte plattformuebergreifende Hashgarantie bleibt bis zu einer echten Cross-Plattform-Messung untersagt und tolerante Abweichungen werden nicht erfunden. Q-OPS-001 gilt entsprechend der T-020-Behandlung: Entwickler-PC-Laeufe sind diagnostische Baseline, Profilbestehen nur mit deklarierter Referenzklassenbindung auf benannten Referenzrechnern, fehlende Profile bleiben NOT-MEASURED mit Eskalation; rueckrollbar durch Benennung der Referenzmaschinen und Wiederholung desselben bench-Befehls. Von Q-TEC-010 wird nur die Allokationsgrenze je warmem Simulationstick verfahrensmaessig abgeleitet (Arbeitsannahme 'nahe null'; Gatewert hoechstens 1 KiB je warmem Tick, Verschaerfung erlaubt, Lockerung eskaliert); die tolerierte Benchmarkstreuung verbleibt vollstaendig in Q-TEC-010 und blockiert weiterhin T-022. Media-Lab-Pruefung gemaess docs/communication/MEDIA_LAB.md: kein zusaetzliches visuelles Artefakt in diesem Auftrag, weil eine headless-Simulationsbaseline keinen sichtbaren Szenengehalt besitzt und die maschinenlesbare Telemetrie die pruefbare Evidenz ist; Benchmarkvisualisierung bleibt MEDIA-05 mit strengerer Bindung.",
+  "objective": "Die erste isolierte Simulationsbaseline liefert einen deterministischen, headless laufenden C#-Simulationskern mit festem 20-Hz-Tick und genau 250 gleichzeitig vollstaendig simulierten mobilen Testagenten in einer synthetischen Benchmarkwelt, ausgefuehrt nativ auf linux-x64 ueber den oeffentlichen bench-Befehl mit maschinenlesbarem Telemetriereport nach NF-007 und dem QUALITAET-Evidenzvertrag sowie einem fail-closed Budgetgate ausschliesslich gegen dokumentierte Grenzwerte (Tickzeit-Ziel 8 ms beziehungsweise harte Grenze 16 ms bei 20 Hz, allokationsarme warme Ticks). Der gatende erste Abschnitt entscheidet Numerik-/Determinismusvertrag (Q-TEC-004) und Daten-/Navigations-/Schedulingstruktur (Q-TEC-005) nach vollstaendig spezifizierten Kriterien. Laeufe auf dem Entwickler-PC sind diagnostische Baseline nach dem Q-OPS-001-Klaerungsprotokoll; Profilbestehen entsteht nur durch deklarierte Referenzklassenbindung, fehlende Referenzhardware bleibt NOT-MEASURED und eskaliert. Dies ist eine Baseline, keine Optimierungsbehauptung (ADR 006); es entstehen keinerlei fachliche Spielregeln, Saveformate oder Inhalte.",
+  "inScope": [
+    "Abschnitt 0 (gatender Vertragsspike, vor der Hotpath-Implementierung abzuschliessen): Entscheidung des Numerik-/Determinismusvertrags und der Kernstrukturen ausschliesslich nach den im Auftrag fixierten Kriterien und Dokumentation als versionierter Simulationsvertrag unter docs/SIMULATIONSVERTRAG.md mit Alternativen, Begruendung und Rueckrollweg je Wahl: (a) Numerikmodell (Festkomma, kontrolliertes Fliesskomma oder Hybrid) mit bitidentischem Zustands-Hash bei identischen Eingaben im selben Binary, ohne Abhaengigkeit von undefinierter Fliesskommasemantik, von Compilermustern oder von unkontrollierter Reihenfolge, ohne ISA oberhalb x86-64-v2 und ohne Reflection/AOT-Gefaehrdung; (b) explizite Hashvertragsklassen, welche Gleichheit unter welchen Bedingungen garantiert ist (gleicher Prozess, Fresh-Prozess, gleicher gepinnter Build) und dass Cross-Build-/Cross-Plattform-Gleichheit nur nach Messung behauptet wird; (c) deterministische Seedableitung, kanonische Iterations- und Befehlsordnung ohne Einfluss von Hashmap-, Thread- oder Dateisystemreihenfolge; (d) datennahe, allokationsarme Agenten-, Speicher-, Navigations- und Schedulingstruktur ohne Frameworkzwang, Pfadsuche hierarchisch und ueber mehrere Ticks budgetiert; (e) konkrete Allokationsgrenze je warmem Tick von hoechstens 1 KiB, Verschaerfung erlaubt",
+    "Neues C#-Simulationsprojekt als Runtime-Hotpath gemaess ADR 001/ADR 006, referenzfrei von SDL3-, bgfx-, Plattform- und Praesentationstypen: fester 20-Hz-Tick, vom Rendering entkoppelt vertragskonform angelegt (lesbarer Snapshot), genau 250 gleichzeitig vollstaendig simulierte mobile Testagenten mit Fortbewegung, Ausweichverhalten und Gruppenbefehlen auf einer synthetischen Navigationswelt, konkurrierende laengere Wege fuer die budgetierte hierarchische Pfadsuche, deterministischer Zustands-Hash ueber den kanonischen sim-relevanten Zustand",
+    "Headless-Ausfuehrungsmodus im bestehenden Host: neuer oeffentlicher Szenarioid bench-sim im bench-Befehlsvertrag ('./scripts/rift.sh bench --scenario bench-sim --report <Pfad>'), Erweiterung der Szenarioregistry; die Pflichtszenarien BENCH-ARMY/BATTLE/BASE/PATH/LOAD bleiben registriert, nicht implementiert und schlagen weiterhin mit Exitcode 25 ohne Report fehl",
+    "Maschinenlesbarer Telemetriereport nach NF-007 und Evidenzvertrag, konsistent zum T-020-Reportschema versioniert weiterentwickelt: p50/p95/p99 der Tickdauer, Tickanzahl, aktive Agentenzahl, verwaltete Allokationen je warmem Tick, GC-Pausensumme und -anzahl, Working-Set-Stichproben (Min/Max/Endwert), Zustands-Hashketten-Stichproben (Start-, Intervall- und Endhash) sowie Umgebungsbinding (OS/RID, CPU, Pins, Commit, Buildmodus, Szenario-/Seed-ID, Startzustandshash, Befehlsplanhash, Warm-up, Messdauer); je Kennzahl Einheit und Erfassungsmethode; fuer die headless Simulationsbaseline nicht anwendbare Kennzahlen (GPU-Zeit, Draw-/Submit-Aufrufe, sichtbare Dreiecke) sind explizit unavailable mit maschinenlesbarem Grund anzugeben oder laut Schema auszusparen, niemals zu erfinden",
+    "Fail-closed Budgetgate im bench-Befehl ausschliesslich gegen dokumentierte Grenzwerte: p99 der Tickdauer hoechstens 16 ms (harte Grenze aus PERFORMANCE_BUDGET.md) bei ausgewiesener Zielerreichung gegen das 8-ms-Ziel, Allokationen je warmem Tick hoechstens der in Abschnitt 0 festgelegten Grenze (Obergrenze 1 KiB); jede Verletzung ergibt definierten Exitcode ungleich 0 und schreibt den Report dennoch",
+    "Determinismus- und Replay-Pruefinfrastruktur mit Fixtures: gleicher Seed, Startzustand und geordnete Befehlsfolge ergeben in zwei unabhaengigen Fresh-Prozesslaeufen identische Hashketten; geaenderter Seed oder umgeordnete Befehlsfolge erzeugt nachweislich einen anderen Endhash statt stumm gleichem Ergebnis; Golden-Fixtures tragen Schema- und Contentkennung; Determinismustests laufen regulaer ohne Netzwerk und ohne Uhrzufall",
+    "Profilbindungs- und Ehrlichkeitsregel analog T-020: Profilbestehen nur bei deklarierter Bindung an die zugehoerige Referenzklasse auf benannten Referenzrechnern; Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet; ohne gebundene Referenzhardware bleiben Pflichtprofile NOT-MEASURED, das Gate bleibt unbestanden und es erfolgt Eskalation statt Ersatz",
+    "Kontrollierte Fehlerbehandlung an allen neuen Grenzen: nicht schreibbarer Reportpfad, beschaedigte Zwischenmetriken, fehlender App-Build und ungueltige Argumente fuehren zu verstaendlichen Meldungen mit definierten Exitcodes ungleich 0 ohne Absturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb erlaubter Verzeichnisse",
+    "Tests ohne Netzwerk: Percentil- und Gateberechnung mit Golden-Fixtures je Bestehens- und Verletzungsklasse, Reportschema-Pruefung mit Ablehnung erfundener, typenfremder oder grundlos fehlender Felder, Determinismus-/Replay-Fixtures inklusive Negativfaellen, kanonische Ordnungspruefung, Fault-Injection je Fehlerklasse, CLI-Vertragstests mit Positiv- und Negativfaellen sowie Architekturtest, der das Simulationsprojekt frei von Native- und Praesentationstypen haelt und F# vom Tick-Hotpath fernhaelt",
+    "Dokumentation: AUTOMATION.md um den bench-sim-Vertrag erweitert (uebrige Szenarien schlagen weiter explizit fehl), PERFORMANCE_BUDGET.md nennt ohne Aenderung eines Budgetwerts Ort und Methode des Simulationsbaseline-Nachweises, G-PERF-Eintrag in .ai/evals/quality-gates.json fuer bench-sim praezisiert inklusive NOT-MEASURED-Status nach Q-OPS-001, NATIVE_UNTERBAU.md Exitcode- und Reportvertrag bei Erweiterung aktualisiert, ARCHITEKTUR.md und DATENMODELL.md verweisen auf den beschlossenen Simulationsvertrag"
+  ],
+  "outOfScope": [
+    "Die weiteren Pflichtbenchmarks BENCH-ARMY/BENCH-BATTLE/BENCH-BASE/BENCH-PATH/BENCH-LOAD und der integrierte Belastungsframe BENCH-REPRESENTATIVE (T-023); dieser Auftrag liefert ausschliesslich die isolierte Simulationsbaseline bench-sim",
+    "Rendering, GPU-Pfade, Fenster, visuelle Ausgaben jeder Art sowie visuelle Medienartefakte aus Messdaten; deren Aufbereitung bleibt beim Media-Lab-Prozess (MEDIA-05)",
+    "Fachliche Spielregeln und Inhalte: Kampf, Wirtschaft, Gebaeude, Helden, Faehigkeiten, Gegnerarchetypen, Fog of War, Questlogik sowie konkrete Q-GAM-Werte; die Testagenten sind abstrakte Graybox-Bewegungsagenten ohne Namen, Lore oder Fremdbezuege (Clean-Room)",
+    "Save-/Load-System, WorldState-/MissionState-Umfang, Instanz-ID-Encoding, Migrationsfolgen und abschliessendes Replayformat (T-031 und DATENMODELL-OFFEN-Stellen); interne Testfixtures begruenden keine Formatfestlegungen",
+    "Vollstaendige reine F#-Referenzsimulation als Correctness-Oracle; sie folgt mit der fachlichen Simulation gemaess der ADR-006-Sprachrollenbeschreibung und gehoert nicht zu dieser Baseline",
+    "8-Stunden-Soak, Leak-Schwellwerte und tolerierte Benchmarkstreuung (T-022; Streuungsanteil von Q-TEC-010 bleibt offen)",
+    "Cross-Plattform-Determinismusbehauptungen, Windows-/macOS-Builds, Smokes und Paketnachweise sowie Treiberminima (T-011, Q-TEC-002, Q-OPS-002)",
+    "Native-AOT-/CoreCLR-Vergleichsmessungen (Q-TEC-008) und Parallelisierung mit kernzahlabhaengigen Ergebnissen; Testregeln verbieten Kernzahlannahmen",
+    "Audio (Q-TEC-007), Eingabe, UI, HUD und Menues",
+    "Jegliche neue Abhaengigkeit; der Simulationskern bleibt BCL-only",
+    "Benennung konkreter Referenzrechner (Q-OPS-001 bleibt Projektleitung) und jede Ersetzung fehlender Profile durch Diagnose-, Cross-Compile- oder Simulationsergebnisse",
+    "Budgetaenderungen aller Art; 8 ms/16 ms bei 20 Hz, 250 vollstaendig simulierte mobile Einheiten und die Allokations-Obergrenze bleiben unveraendert"
+  ],
+  "requirements": [
+    "Z-002",
+    "NF-001",
+    "NF-007",
+    "NF-008"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T021-01",
+      "statement": "Der gatende Abschnitt 0 ist vor der Hotpath-Implementierung abgeschlossen: docs/SIMULATIONSVERTRAG.md dokumentiert das gewaehlte Numerikmodell, die Hashvertragsklassen, Seed-/Ordnungsschema sowie die Agenten-, Navigations- und Schedulingstruktur jeweils mit Alternativen, Gruenden und Rueckrollweg; jede Wahl haelt die fixierten Kriterien ein (bitidentischer Zustands-Hash bei identischen Eingaben im selben Binary, keine undefinierte Fliekomma- oder Reihenfolgeabhaengigkeit, ISA-Basis x86-64-v2 ohne optionale ISA-Pflicht, AOT-/Trimming-freundlich ohne Reflection, konkrete Allokationsgrenze je warmem Tick hoechstens 1 KiB), und eine exakte plattformuebergreifende Hashgarantie wird nirgends behauptet.",
+      "verification": "Doku-Review mit Pfadangabe im Run; Konsistenzabgleich gegen PERFORMANCE_BUDGET.md, ARCHITEKTUR.md und DATENMODELL.md; Run-Protokoll zeigt Abschluss von Abschnitt 0 vor der Kernimplementierung; Review prueft, dass keine Cross-Plattform-Hashzusage und keine erfundenen Toleranzen enthalten sind"
+    },
+    {
+      "id": "AC-T021-02",
+      "statement": "Der oeffentliche Befehl './scripts/rift.sh bench --scenario bench-sim --report <Pfad>' existiert, fuehrt die deterministische headless Simulation nativ auf linux-x64 im bestehenden Host aus und schreibt einen maschinenlesbaren Report mit Evidenzvertragsfeldern; ein unbekanntes oder noch nicht implementiertes Szenario (einschliesslich BENCH-ARMY/BATTLE/BASE/PATH/LOAD) bricht mit definiertem Exitcode 25 ab, ohne einen Report vorzutaeuschen, und ein fehlender App-Build fuehrt zu einer definierten Fehlerbehandlung.",
+      "verification": "Gate-Ausfuehrung auf dem Entwickler-PC mit Exitcodes und Logs im Run; CLI-Vertragstests mit Positiv- und Negativfaellen (bench-sim, unbekanntes Szenario, registriert-nicht-implementiert, fehlender Build) im regulaeren Testlauf"
+    },
+    {
+      "id": "AC-T021-03",
+      "statement": "Die feste Benchmarkwelt simuliert genau 250 gleichzeitig vollstaendig simulierte mobile Testagenten mit Fortbewegung, Ausweichen und Gruppenbefehlen auf einer synthetischen Navigationswelt inklusive konkurrierender laengerer Wege ueber die budgetierte hierarchische Pfadsuche; Szenario-, Seed-, Startzustands- und Befehlsplankonfiguration sind maschinenlesbar im Report gebunden, die Welt enthaelt keinen Spielinhalt, keine kreativen Assets und keine fremden Titel-, Fraktions- oder Figurenbezuege.",
+      "verification": "Agentenzahl und Szenariokonfiguration als Unit-/Schemaassertion; Review der Benchmarkweltdefinition gegen Clean-Room-Regeln docs/CLEAN_ROOM.md; Szenarioid und Konfigurationswerte im echten Report gebunden"
+    },
+    {
+      "id": "AC-T021-04",
+      "statement": "Der Report enthaelt je Kennzahl Einheit und Erfassungsmethode und mindestens p50/p95/p99 der Tickdauer, Tickanzahl, aktive Agentenzahl, Allokationen je warmem Tick, GC-Pausensumme und -anzahl, Working-Set-Stichproben (Min/Max/Endwert) und Zustands-Hashketten-Stichproben sowie die Umgebungsbinding; fuer headless nicht anwendbare Kennzahlen sind explizit unavailable mit maschinenlesbarem Grund gekennzeichnet oder laut Schema ausgespart; ein erfundener, typenfremder oder grundlos fehlender Wert laesst die Schemapruefung fehlschlagen.",
+      "verification": "Schema- und Golden-Fixture-Tests inklusive Negativfaellen (fehlendes Pflichtfeld, Wert ohne Methodenkennung, unavailable ohne Grund, GPU-Wert ohne Messquelle) im regulaeren Testlauf"
+    },
+    {
+      "id": "AC-T021-05",
+      "statement": "Das Budgetgate entscheidet fail-closed ausschliesslich gegen dokumentierte Grenzwerte: p99 der Tickdauer hoechstens 16 ms harte Grenze mit ausgewiesener Zielerreichung gegen 8 ms, Allokationen je warmem Tick hoechstens der in Abschnitt 0 festgelegten Grenze, die selbst 1 KiB nicht ueberschreitet; jede Verletzung ergibt Exitcode ungleich 0 bei trotzdem geschriebenem Report, und keine Grenze wird gelockert oder umgangen.",
+      "verification": "Gate-Evaluator-Unit-Tests mit synthetischen Metrikfixtures je Bestehens- und Verletzungsklasse; echter Lauf auf dem Entwickler-PC mit Ergebnis im Run; Review gleicht Grenzwerte gegen PERFORMANCE_BUDGET.md und AC-T010-07-Praezedenz ab"
+    },
+    {
+      "id": "AC-T021-06",
+      "statement": "Gleicher Seed, Startzustand und geordnete Befehlsfolge erzeugen in zwei unabhaengigen Fresh-Prozesslaeufen auf demselben Binary identische Zustands-Hashketten; geaenderter Seed oder umgeordnete Befehlsfolge fuehrt nachweislich zu einem anderen Endhash; die garantierten Gleichheitsklassen entsprechen genau dem in Abschnitt 0 dokumentierten Vertrag, ohne Cross-Build- oder Cross-Plattform-Zusagen.",
+      "verification": "Determinismus-/Replay-Tests mit Fixtures im regulaeren Testlauf inklusive Negativfaellen (umgeordnete Befehle, fremder Seed); zweifacher echter Fresh-Prozesslauf mit Hashvergleich im Abschlussrun; Review des Hashvertrags gegen docs/SIMULATIONSVERTRAG.md"
+    },
+    {
+      "id": "AC-T021-07",
+      "statement": "Ein Profilbestehen entsteht nur durch deklarierte Bindung an die zugehoerige Referenzklasse auf benannten Referenzrechnern; ohne Bindung oder bei fehlender Referenzhardware bleiben Pflichtprofile im Report NOT-MEASURED, ein behaupteter Profilbestehen ohne gueltige Bindung wird abgewiesen, und Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet.",
+      "verification": "Unit-Tests der Bindungs- und Ablehnungslogik mit synthetischen Hardwarebeschreibungen (i7-3770/RX-570-Entwickler-PC, GTX-660-Klasse, Apple M1); kein echter Profillauf auf fehlender Hardware erforderlich oder ersetzbar"
+    },
+    {
+      "id": "AC-T021-08",
+      "statement": "Nicht schreibbarer Reportpfad, beschaedigte Zwischenmetriken, fehlender App-Build und ungueltige Argumente fuehren zu verstaendlichen Meldungen mit definierten Exitcodes ungleich 0 ohne Prozessabsturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb der erlaubten Verzeichnisse; bestehende Exitcodebedeutungen bleiben unveraendert.",
+      "verification": "Fault-Injection-Fixtures je Fehlerklasse im regulaeren Testlauf; Mapping-Test haelt den dokumentierten Exitcodevertrag stabil"
+    },
+    {
+      "id": "AC-T021-09",
+      "statement": "rift.sh bootstrap/build/fmt/lint/test/verify/security laufen mit dem neuen Code gruen, es gibt null neue Compiler- und Analyzerwarnungen, es entsteht keine neue Abhaengigkeit (BCL-only), das Simulationsprojekt referenziert keine SDL3-/bgfx-/Plattformtypen, und F# wird nicht in Tick- oder Frame-Hotpaths eingesetzt.",
+      "verification": "Gate-Ausfuehrungen im Abschlussrun mit Exitcodes und Logs; Architekturtest gegen unerlaubte Referenzen ausserhalb der Plattformgrenze; Review gleicht Abhaengigkeitsliste und Sprachrollen mit TOOLCHAIN.md, packages.lock und ADR 001/ADR 006 ab"
+    },
+    {
+      "id": "AC-T021-10",
+      "statement": "Dokumentation und Gate-Register sind konsistent: AUTOMATION.md beschreibt den implementierten bench-sim-Aufruf und das explizite Fehlschlagen der uebrigen Pflichtszenarien, PERFORMANCE_BUDGET.md nennt ohne Aenderung eines Budgetwerts Ort und Methode des Simulationsbaseline-Nachweises, der G-PERF-Eintrag in .ai/evals/quality-gates.json ist fuer bench-sim praezisiert inklusive NOT-MEASURED-Status nach dem Q-OPS-001-Klaerungsprotokoll, NATIVE_UNTERBAU.md bildet den aktualisierten Exitcode- und Reportvertrag ab, und ARCHITEKTUR.md/DATENMODELL.md verweisen auf docs/SIMULATIONSVERTRAG.md.",
+      "verification": "Doku-Review mit Pfad- und Zeilenangaben im Run; rift.sh verify gruen; Konsistenzabgleich der genannten Stellen gegen den implementierten Befehlsvertrag"
+    }
+  ],
+  "dependencies": [
+    "T-010",
+    "T-020"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-PERF",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Konkrete Ergebnisse des Abschnitts-0-Spikes ausschliesslich innerhalb der im Auftrag fixierten Kriterien: Numerikmodell, Hashvertragsklassen, Seedableitungs- und Kanonisierungsschema, Agenten-/Speicher-/Navigations-/Schedulingstrukturen sowie die konkrete Allokationsgrenze je warmem Tick bis hinunter zu null",
+      "Inhalt der synthetischen Benchmarkwelt (Rastergeometrie, Spawnpattern, Bewegungsziele, Gruppenbefehlsskript, Tickanzahl) ohne Spielinhalt, ohne Namen und ohne Fremdbezuege",
+      "Messmethodik konsistent zur T-020-Praxis: Warm-up, Messdauer, Samplingintervalle, Percentilverfahren, Hashketten-Intervall",
+      "Interne Projekt- und Modulstruktur des Simulationskerns sowie Reportformat- und Schemaevolution innerhalb des NF-007-Evidenzvertrags",
+      "Neue Exitcodewerte nach dem dokumentierten Vertrag, ohne bestehende Bedeutungen zu veraendern, sowie Reihenfolge und Aufbau lokaler Fixtures",
+      "Verschaerkung einzelner Grenzwerte"
+    ],
+    "mustEscalate": [
+      "Lockerung, Umgehung oder Aenderung eines Grenzwerts oder Budgetwerts einschliesslich PERFORMANCE_BUDGET.md (8 ms/16 ms bei 20 Hz, 250 vollstaendig simulierte mobile Einheiten, Allokations-Obergrenze 1 KiB je warmem Tick)",
+      "Rendering-, GPU- oder Fensterscope sowie Freigabe visueller Medien aus Messdaten; dies verbleibt beim Media-Lab-Prozess",
+      "Cross-Build- oder Cross-Plattform-Determinismus- und Hashzusagen ohne echte Messung sowie Windows-/macOS-Scope (T-011, Q-TEC-002, Q-OPS-002)",
+      "Uebernahme fachlicher Spielregeln, Q-GAM-Werte, Saveformat- oder abschliessender Replayformatfestlegungen ueber interne Testfixtures hinaus (DATENMODELL-OFFEN-Stellen, T-030/T-031)",
+      "F# oder eine weitere Sprache im Tick-/Frame-Hotpath sowie jede neue Abhaengigkeit, externer Dienst oder Runtime-Netzwerkzugriff",
+      "Parallelisierung, deren Ergebnisse von der CPU-Kernzahl abhaengen, oder jede Verletzung der Kanonisierungsregeln",
+      "Ersetzung fehlender Referenzhardware durch Diagnose-, Cross-Compile- oder Simulationsergebnisse bei einem Profilbestehen sowie Benennung von Referenzrechnern; die Q-OPS-001-Entscheidung bleibt Projektleitung",
+      "Abschwaechung oder Entfernung eines Abnahmekriteriums oder Gates sowie Veraenderung bestehender Exitcodebedeutungen"
+    ]
+  },
+  "reviewNote": "2026-08-24: unabhaengiger Review-/Vollendungslauf 01M0T61A0NT4PBA4CQZKGJS5QC (Akteur t021-review-completion) pruefte die READY-Spezifikation gegen Quellenhierarchie und Clean-Room-Regeln, schloss den gatenden Abschnitt 0 ab (docs/SIMULATIONSVERTRAG.md V1: Festkomma Q16.16 rein ganzzahlig, Hashklassen K1/K2 ohne K3-Zusage, SplitMix64/Xorshift64*-Seedableitung, kanonische Ordnung, SoA-Strukturen mit hierarchisch budgetierter Pfadsuche 768/2048, Allokationsgrenze 0 Bytes je warmem Tick), implementierte Riftward.Simulation (BCL-only C#, 20-Hz-Tick, genau 250 vollstaendig simulierte mobile Testagenten mit Fortbewegung/Ausweichen/Gruppenbefehlen, synthetische Rasterwelt, FNV-1a-64-Kettenhash), den bench-sim-Befehlsvertrag im bestehenden Host (Report Schemaversion 2, fail-closed Budgetgate gegen 16 ms hart/8 ms Ziel und die Abschnitt-0-Allokationsgrenze; Exitcodes 25/26/27/28 unveraendert wiederverwendet) sowie 14 neue Tests (Suite 172/172). Alle AC-T021-01 bis AC-T021-10 mit Evidenz nachgewiesen: zwei Fresh-Prozesslaeufe p99 0.458/0.480 ms, 0.000 B Allokationen je warmem Tick, GC-Pausen 0, identische Hashketten (Start 10e13faf142094db, Ende de43976087a5f6a2, 23 Glieder); fremder Seed/umgeordnete Befehlsfolge aendern den Endhash nachweislich; Pflichtprofile bleiben NOT-MEASURED gemaess Q-OPS-001. Gates fmt/lint/build (0 Warnungen)/test/security/rag-build/verify gruen; keine neue Abhaengigkeit; Architekturtest haelt den Simulationskern frei von SDL/bgfx/Plattformtypen, F# und Fließkomma. Restpunkte: bench-empty-Regressionslauf in dieser kopflosen Sitzung nicht ausfuehrbar (SDL3 ohne Wayland, kein X-Server; Absicherung ueber unveranderten Codespfad und T-020-Suite); Q-TEC-004/Q-TEC-005/Q-OPS-001/Q-TEC-010-Streuung bleiben formal OFFEN. Abnahmedokument: docs/abnahme/T-021-headless-simulation-baseline.md."
+}

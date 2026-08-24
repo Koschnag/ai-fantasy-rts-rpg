@@ -264,8 +264,9 @@ case "$rift_command" in
       '  harness ...   RiftHarness CLI aufrufen' \
       '  plattformsmoke  nativen linux-x64-Smoke (Fenster, GL-3.3-Dreieck) ausführen' \
       '  effizienzbaseline  Effizienzlauf mit Budgetgate und Report ausführen' \
-      '  bench ...  reproduzierbaren Benchmark ausführen (nur bench-empty; unbekannte oder' \
-      '             noch nicht implementierte Szenarien schlagen mit Exitcode 25 fehl)' \
+      '  bench ...  reproduzierbaren Benchmark ausführen (bench-empty und headless' \
+      '             bench-sim; unbekannte oder noch nicht implementierte Szenarien' \
+      '             schlagen mit Exitcode 25 fehl)' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \

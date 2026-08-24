@@ -351,7 +351,10 @@ public static class BenchReportSchema
             ("value", new RBool(false)))));
 
     /// <summary>Prueft einen Reporttext; Rueckgabe ist die Fehlerliste (leer == gueltig).</summary>
-    public static IReadOnlyList<string> Validate(string json)
+    public static IReadOnlyList<string> Validate(string json) => ValidateWith(Root, json);
+
+    /// <summary>Gemeinsame fail-closed-Pruefung eines Reporttexts gegen einen Schemabaum.</summary>
+    internal static IReadOnlyList<string> ValidateWith(ReportNode root, string json)
     {
         var errors = new List<string>();
         JsonDocument document;
@@ -367,7 +370,7 @@ public static class BenchReportSchema
 
         using (document)
         {
-            Root.Check("$", document.RootElement, errors);
+            root.Check("$", document.RootElement, errors);
         }
 
         return errors;

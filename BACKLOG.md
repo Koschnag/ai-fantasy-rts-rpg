@@ -35,7 +35,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
-| T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DRAFT |
+| T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DONE |
 | T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DRAFT |
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DRAFT |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
@@ -151,6 +151,61 @@ Renderer-String ist im Report gebunden. Alle Pflichtprofile bleiben
 `NOT-MEASURED`, bis die Projektleitung Referenzrechner benennt (Q-OPS-001
 bleibt `OFFEN`); Abnahmedokument:
 `docs/abnahme/T-020-empty-scene-benchmark.md`.
+
+T-021 wurde am 2026-08-24 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) auf `READY` gesetzt. Auswahlbegründung: Der
+tabellarisch frühere DRAFT `T-011` bleibt blockiert, weil seine native
+Windows-/macOS-Build-/Smoke-/Paketmatrix vorhandene Runner,
+Signier-/Notarisierungsentscheidungen (Q-OPS-002) und physische Zielhardware
+voraussetzt, die hier nicht vorhanden sind und nicht stillschweigend angenommen
+werden dürfen; `T-022` und `T-023` setzen die erst durch `T-021` zu liefernde
+Simulation voraus; `T-030`/`T-031` hängen an echten Produktentscheidungen.
+Damit ist `T-021` der höchstpriorisierte DRAFT-Auftrag mit erfüllbaren
+Abhängigkeiten und folgt der ausdrücklichen Priorisierung der isolierten
+Baselines T-020/T-021 vor weiterer Produktionsinfrastruktur (ADR 006). Die
+Epikabhängigkeit E-002 ist im für eine headless-CPU-Baseline erforderlichen
+Umfang erfüllt: T-010 liefert den nativen linux-x64-Host samt Befehls-/Exitcode-
+vertrag, T-020 den bench-/Telemetrie-/Budgetgate-Vertrag; Z-003/NF-006 bleiben
+unverändert bei T-011. Die Blocker Q-TEC-004/Q-TEC-005 sind verfahrensmäßig in
+den gatenden Vertragsspike (Abschnitt 0 des Auftrags
+`.ai/tasks/T-021-headless-simulation-baseline.json`) überführt (Spike-Klausel
+`docs/QUALITAET.md`, Klärungsprotokoll in `docs/OFFENE_FRAGEN.md`): Numerik-
+modell, Hashvertragsklassen und Daten-/Navigations-/Schedulingstrukturen
+entstehen dort ausschließlich nach fixierten Kriterien mit Alternativen,
+Gründen und Rückrollweg; eine exakte plattformübergreifende Hashgarantie bleibt
+bis zu einer echten Cross-Plattform-Messung untersagt, tolerante Abweichungen
+werden nicht erfunden. Q-OPS-001 gilt entsprechend der T-020-Behandlung:
+Entwickler-PC-Messungen sind diagnostische Baseline, Pflichtprofile bleiben
+`NOT-MEASURED` mit Eskalation statt Ersatz. Von Q-TEC-010 wird nur die
+Allokationsgrenze je warmem Tick verfahrensmäßig abgeleitet (Arbeitsannahme
+„nahe null“; Gatewert höchstens 1 KiB je warmem Tick, Verschärfung erlaubt);
+die tolerierte Benchmarkstreuung verbleibt vollständig in Q-TEC-010 und
+blockiert weiterhin T-022. Media-Lab-Prüfung gemäß
+`docs/communication/MEDIA_LAB.md`: kein visuelles Artefakt in diesem Auftrag,
+weil eine headless-Simulationsbaseline keinen sichtbaren Szenengehalt besitzt
+und die maschinenlesbare Telemetrie die prüfbare Evidenz ist; die
+Benchmarkvisualisierung bleibt MEDIA-05.
+
+T-021 wurde am 2026-08-24 durch den unabhängigen Review-/Vollendungslauf
+`01M0T61A0NT4PBA4CQZKGJS5QC` (Akteur `t021-review-completion`) geprüft,
+umgesetzt und auf `DONE` gesetzt: Der gatende Abschnitt 0 legte in
+`docs/SIMULATIONSVERTRAG.md` V1 das Numerikmodell (reine Ganzzahl-Festkomma
+Q16.16), die Hashvertragsklassen (K1/K2 garantiert, Cross-Build/-Plattform
+ausdrücklich nicht behauptet), Seedableitung und kanonische Ordnung, datennahe
+Strukturen mit hierarchisch budgetierter Pfadsuche sowie die auf 0 Bytes
+versärfte Allokationsgrenze je warmem Tick fest. Der neue BCL-only-Kern
+`Riftward.Simulation` simuliert genau 250 mobile Testagenten mit
+Fortbewegung, Ausweichen und Gruppenbefehlen bei festem 20-Hz-Tick; der
+öffentliche Befehl `rift.sh bench --scenario bench-sim --report PFAD` liefert
+den Report (Schemaversion 2) mit fail-closed Budgetgate. Zwei Fresh-Prozess-
+läufe bestanden mit p99 0,458/0,480 ms, 0,000 B Allokationen je warmem Tick
+und identischen Hashketten (23 Glieder); fremder Seed und umgeordnete
+Befehlsfolge ändern den Endhash nachweislich. 14 neue Tests (Suite 172/172);
+alle Gates grün; Pflichtprofile bleiben `NOT-MEASURED` (Q-OPS-001). Ein
+`bench-empty`-Regressionslauf war in dieser kopflosen Sitzung displaylos nicht
+ausführbar (SDL3 ohne Wayland); Absicherung über unveränderten Codespfad und
+die vollständige T-020-Suite. Abnahmedokument:
+`docs/abnahme/T-021-headless-simulation-baseline.md`.
 
 ## Vorlage für eine Umsetzungseinheit
 
