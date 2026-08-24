@@ -1935,7 +1935,33 @@ module Program =
               "T-020 structure equality ignores measurement drift but detects shape changes",
               BenchEmptyTests.structureEqualityIgnoresMeasurementDriftButDetectsShapeChanges
               "T-020 rift script bench contract keeps app build guard",
-              BenchEmptyTests.riftScriptBenchContractKeepsAppBuildGuard ]
+              BenchEmptyTests.riftScriptBenchContractKeepsAppBuildGuard
+              "T-021 simulation contract mirrors documented values",
+              BenchSimTests.simulationContractMirrorsDocumentedValues
+              "T-021 world simulates exactly 250 fully simulated agents in spawn zones",
+              BenchSimTests.worldSimulatesExactly250FullySimulatedAgentsInSpawnZones
+              "T-021 determinism identical chains for fresh worlds with golden fixture",
+              BenchSimTests.determinismIdenticalChainsForFreshWorldsWithGoldenFixture
+              "T-021 changed seed or reordered commands change outcome",
+              BenchSimTests.changedSeedOrReorderedCommandsChangeOutcome
+              "T-021 canonical command order is enforced internally",
+              BenchSimTests.canonicalCommandOrderIsEnforcedInternally
+              "T-021 path budget is capped per tick and requests complete",
+              BenchSimTests.pathBudgetIsCappedPerTickAndRequestsComplete
+              "T-021 agents remain on walkable tiles and move substantially",
+              BenchSimTests.agentsRemainOnWalkableTilesAndMoveSubstantially
+              "T-021 report schema accepts golden and rejects fabrication matrix",
+              BenchSimTests.reportSchemaAcceptsGoldenAndRejectsFabricationMatrix
+              "T-021 sim budget gate covers every class fail closed",
+              BenchSimTests.simBudgetGateCoversEveryClassFailClosed
+              "T-021 scenario registry classifies implemented and pending scenarios",
+              BenchSimTests.scenarioRegistryClassifiesImplementedAndPendingScenarios
+              "T-021 CLI contract runs headless simulation with reports",
+              BenchSimTests.cliContractRunsHeadlessSimulationWithReports
+              "T-021 unwritable sim report path fails controlled", BenchSimTests.unwritableSimReportPathFailsControlled
+              "T-021 exit code mapping stays stable including sim reuse",
+              BenchSimTests.exitCodeMappingStaysStableIncludingSimReuse
+              "T-021 architecture keeps simulation project pure", BenchSimTests.architectureKeepsSimulationProjectPure ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

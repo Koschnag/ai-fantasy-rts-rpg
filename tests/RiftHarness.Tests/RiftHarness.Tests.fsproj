@@ -29,6 +29,7 @@
     <Compile Include="ToolchainCheckTests.fs" Condition="Exists('ToolchainCheckTests.fs')" />
     <Compile Include="PlatformInteropTests.fs" Condition="Exists('PlatformInteropTests.fs')" />
     <Compile Include="BenchEmptyTests.fs" Condition="Exists('BenchEmptyTests.fs')" />
+    <Compile Include="BenchSimTests.fs" Condition="Exists('BenchSimTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

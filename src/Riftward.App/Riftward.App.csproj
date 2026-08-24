@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Riftward.Simulation/Riftward.Simulation.csproj" />
     <ProjectReference Include="../Riftward.Platform/Riftward.Platform.csproj" />
   </ItemGroup>
 

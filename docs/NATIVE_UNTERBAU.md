@@ -99,10 +99,10 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 22 | Plattform nicht unterstützt (nur linux-x64 im T-010-Scope) |
 | 23 | Smoke endete ohne gerenderten Frame |
 | 24 | Effizienzbudget verletzt (Report wurde dennoch geschrieben) |
-| 25 | Benchmark-Szenario unbekannt oder noch nicht implementiert (kein Report; T-020) |
-| 26 | Bench-Budget verletzt (Report wurde dennoch geschrieben; T-020) |
-| 27 | Zwischenmetriken oder Report widersprechen dem Schemavertrag (T-020; der Report wird zur Diagnose geschrieben, gilt aber nicht als Beleg) |
-| 28 | Reportpfad nicht schreibbar (T-020) |
+| 25 | Benchmark-Szenario unbekannt oder noch nicht implementiert (kein Report; T-020/T-021) |
+| 26 | Bench-Budget verletzt (Report wurde dennoch geschrieben; T-020/T-021) |
+| 27 | Zwischenmetriken oder Report widersprechen dem Schemavertrag (T-020/T-021; der Report wird zur Diagnose geschrieben, gilt aber nicht als Beleg) |
+| 28 | Reportpfad nicht schreibbar (T-020/T-021) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -114,6 +114,7 @@ dokumentierte Entscheidung und eine Anpassung der Tests
 ./scripts/rift.sh plattformsmoke --report artifacts/t010/smoke.json
 ./scripts/rift.sh effizienzbaseline --report artifacts/t010/effizienz.json
 ./scripts/rift.sh bench --scenario bench-empty --report artifacts/t020/bench-empty.json
+./scripts/rift.sh bench --scenario bench-sim --report artifacts/t021/bench-sim.json
 ```
 
 Beide ersten Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
@@ -133,6 +134,23 @@ Unbekannte oder noch nicht implementierte Szenarien brechen mit Exitcode 25 ab,
 ohne einen Report zu schreiben. Läufe auf dem Entwickler-PC sind diagnostische
 Baseline gemäß dem Q-OPS-001-Klärungsprotokoll; Pflichtprofile bleiben ohne
 benannte Referenzhardware `NOT-MEASURED`.
+
+`bench --scenario bench-sim` (T-021) führt die headless Simulationsbaseline
+rein CPU-seitig nativ auf linux-x64 im bestehenden Host aus — ohne Fenster,
+Renderer oder Netzwerk; die native Artefakte (SDL3/bgfx/Shader) werden dafür
+nicht geladen, der Befehls- und Exitcodevertrag bleibt identisch (25/26/27/28
+wie oben). Der Report bindet Szenario-/Seed-ID, Welt- und Vertragskennungen
+aus `docs/SIMULATIONSVERTRAG.md`, Befehlsplanhash, Startzustandshash und
+Zustands-Hashketten-Stichproben (`fnv1a64-canonical-chain-v1`, Start/Intervall/
+End), Tickzeit-p50/p95/p99, Allokationen je warmem Tick (je-Tick-Delta des
+präzisen GC-Zählers), GC-Pausen, Working-Set-Stichproben über einen
+allokationsarmen `/proc`-Sampler sowie Umgebungsbinding (OS/RID/CPU/Pins/
+Commit/Buildmodus). Headless nicht anwendbare Kennzahlen (GPU-Zeit, Draw-/
+Submit-Aufrufe, sichtbare Dreiecke) sind ausschließlich unavailable mit
+maschinenlesbarem Grund; ein angeblich messender Wert wird vom Schema
+abgewiesen. Das Budgetgate entscheidet fail-closed gegen 16 ms harte
+Tickzeitgrenze mit ausgewiesenem 8-ms-Ziel sowie gegen die im Simulations-
+vertrag fixierte Allokationsgrenze je warmem Tick.
 
 Die Shim-Grenze (`riftbgfx_shim.h`) wurde für T-020 um zwei dokumentierte
 Funktionen erweitert: `rift_bgfx_stats_snapshot` (flache Momentaufnahme von

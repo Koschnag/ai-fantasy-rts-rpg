@@ -96,6 +96,23 @@ Aufrufe je Frame, keine Laufzeitshaderkompilierung, RSS ≤ 300 MB Ziel /
 Messungen ohne deklarierte Bindung an eine Referenzklasse auf benannter
 Referenzhardware bleiben diagnostische Baseline (Q-OPS-001-Klärungsprotokoll).
 
+Die Simulationsbaseline `BENCH-SIM` ist seit T-021 implementiert und über
+`./scripts/rift.sh bench --scenario bench-sim --report PFAD` ausführbar; sie
+misst die Zeile „CPU-Spielsimulation: 8 ms Ziel / 16 ms harte Grenze bei
+20 Hz" der Laufzeitziele. Nachweisort ist der maschinenlesbare Report
+(Schemaversion 2) mit Tickzeit-p50/p95/p99 (Methode: Stoppuhr-Delta je Tick),
+Allokationen je warmem Tick (Methode: `GC.GetTotalAllocatedBytes(precise)`
+Delta je Tick, summiert), GC-Pausen, Working-Set-Stichproben und der
+Zustands-Hashkette gemäß dem in `docs/SIMULATIONSVERTRAG.md` fixierten
+Vertrag. Das Gate entscheidet fail-closed ausschließlich gegen 16 ms harte
+Grenze (8-ms-Ziel ausgewiesen) sowie die dort vertragliche Allokationsgrenze
+je warmem Tick (0 Bytes innerhalb der Auftragsobergrenze von 1 KiB); kein
+Budgetwert dieses Dokuments wird dadurch geändert. Headless nicht anwendbare
+Kennzahlen sind im Report explizit unavailable mit Grund. Auch hier gilt:
+Läufe ohne deklarierte Referenzklassenbindung auf benannter Referenzhardware
+sind diagnostische Baseline (Q-OPS-001), Pflichtprofile bleiben
+`NOT-MEASURED`.
+
 ## Integrierter Repräsentativitätsnachweis
 
 Nach den isolierten Renderer- und Simulationsbaselines kombiniert `BENCH-REPRESENTATIVE` mindestens 350 sichtbare instanzierte Einheiten, den repräsentativen Animationspfad mit mindestens 48 Bones je normaler Einheit, 250 vollständig simulierte mobile Agenten, konkurrierende Gruppenpfade, Landschaft, Sonne, die budgetierten lokalen Schattenlichter und eine Partikelspitze. Der Aufbau darf visuell einfach sein; seine Lastverteilung darf nicht künstlich leer sein.

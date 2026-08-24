@@ -53,9 +53,9 @@
       "id": "G-PERF",
       "purpose": "Betroffene Performancebudgets sind gemessen und eingehalten",
       "requiredFor": ["runtime", "asset", "content"],
-      "command": "./scripts/rift.sh bench --scenario bench-empty",
-      "status": "partial-bench-empty-implemented",
-      "passCondition": "BENCH-EMPTY erfüllt seine p99-, Allokations-, Draw-, Shader- und RSS-Grenzen fail-closed im Report; Pflichtprofilbestehen entsteht ausschließlich durch deklarierte Bindung an die zugehörige Referenzklasse auf von der Projektleitung benannten Referenzrechnern. Bis dahin bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH NOT-MEASURED (Q-OPS-001-Klärungsprotokoll 2026-08-24); Läufe auf dem Entwickler-PC gelten als diagnostische Baseline. Die übrigen Pflichtszenarien (BENCH-ARMY/BATTLE/BASE/PATH/LOAD) und BENCH-REPRESENTATIVE sind noch nicht implementiert und schlagen mit Exitcode 25 fehl"
+      "command": "./scripts/rift.sh bench --scenario bench-empty | bench-sim",
+      "status": "partial-bench-empty-and-bench-sim-implemented",
+      "passCondition": "BENCH-EMPTY erfüllt seine p99-, Allokations-, Draw-, Shader- und RSS-Grenzen fail-closed im Report (Schemaversion 1). BENCH-SIM erfüllt fail-closed die harte Tickzeitgrenze von 16 ms bei ausgewiesenem 8-ms-Ziel sowie die in docs/SIMULATIONSVERTRAG.md fixierte Allokationsgrenze je warmem Tick (0 Bytes, innerhalb der Auftragsobergrenze 1 KiB); Report Schemaversion 2 mit Zustands-Hashkette; headless nicht anwendbare Kennzahlen sind unavailable mit Grund. Pflichtprofilbestehen entsteht ausschließlich durch deklarierte Bindung an die zugehörige Referenzklasse auf von der Projektleitung benannten Referenzrechnern. Bis dahin bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH NOT-MEASURED (Q-OPS-001-Klärungsprotokoll 2026-08-24); Läufe auf dem Entwickler-PC gelten als diagnostische Baseline. Die übrigen Pflichtszenarien (BENCH-ARMY/BATTLE/BASE/PATH/LOAD) und BENCH-REPRESENTATIVE sind noch nicht implementiert und schlagen mit Exitcode 25 fehl"
     },
     {
       "id": "G-VISUAL",
