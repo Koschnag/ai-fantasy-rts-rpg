@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "riftward-soak-chain-fixture-v1",
+  "scenarioId": "soak-replay",
+  "seed": 20260824,
+  "tickCount": 576480,
+  "sampleIntervalTicks": 36000,
+  "simulationContract": {
+    "document": "docs/SIMULATIONSVERTRAG.md",
+    "version": "1",
+    "hashAlgorithm": "fnv1a64-canonical-chain-v1",
+    "commandPlanAlgorithm": "xorshift64star-group-script-v1",
+    "worldId": "riftward-simworld-graybox-v1"
+  },
+  "planHash": "48d6c15d0301cf72",
+  "samples": [
+    {
+      "tick": 0,
+      "hash": "10e13faf142094db"
+    },
+    {
+      "tick": 36000,
+      "hash": "5fcb87bce8b228bb"
+    },
+    {
+      "tick": 72000,
+      "hash": "7887d3adee89da25"
+    },
+    {
+      "tick": 108000,
+      "hash": "4b5e9d64b62d3058"
+    },
+    {
+      "tick": 144000,
+      "hash": "e15a86887cf7c7de"
+    },
+    {
+      "tick": 180000,
+      "hash": "05066f252aa19972"
+    },
+    {
+      "tick": 216000,
+      "hash": "8f6049f68fa464f4"
+    },
+    {
+      "tick": 252000,
+      "hash": "b14c3fcd356065be"
+    },
+    {
+      "tick": 288000,
+      "hash": "491fa1492ee0ee29"
+    },
+    {
+      "tick": 324000,
+      "hash": "90abb8ee94deac90"
+    },
+    {
+      "tick": 360000,
+      "hash": "bbde662bc2f9275f"
+    },
+    {
+      "tick": 396000,
+      "hash": "e5ef31af9a30f578"
+    },
+    {
+      "tick": 432000,
+      "hash": "4bc01666bda44727"
+    },
+    {
+      "tick": 468000,
+      "hash": "e5af3c48fd4f4e23"
+    },
+    {
+      "tick": 504000,
+      "hash": "68601280b2e7a5a3"
+    },
+    {
+      "tick": 540000,
+      "hash": "d455f27613c6affb"
+    },
+    {
+      "tick": 576000,
+      "hash": "f97dbc6976be0549"
+    },
+    {
+      "tick": 576480,
+      "hash": "4e2470332254c5ad"
+    }
+  ]
+}

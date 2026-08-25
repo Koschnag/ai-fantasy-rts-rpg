@@ -10,6 +10,20 @@ public sealed class CommandLineArgs
 
     public string? Next() => _position < _arguments.Length ? _arguments[_position++] : null;
 
+    /// <summary>Prueft, ob ein Schalter ohne Wert gesetzt wurde.</summary>
+    public bool HasFlag(string name)
+    {
+        foreach (var argument in _arguments)
+        {
+            if (string.Equals(argument, name, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public string? Option(string name)
     {
         for (var index = 0; index < _arguments.Length - 1; index++)

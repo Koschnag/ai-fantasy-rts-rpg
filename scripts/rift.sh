@@ -206,6 +206,11 @@ case "$rift_command" in
     rift_need_app_output
     exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" bench "$@"
     ;;
+  soak)
+    rift_need_dotnet
+    rift_need_app_output
+    exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" soak "$@"
+    ;;
   harness)
     rift_need_dotnet
     rift_need_build_outputs
@@ -267,6 +272,10 @@ case "$rift_command" in
       '  bench ...  reproduzierbaren Benchmark ausführen (bench-empty,' \
       '             bench-sim und bench-representative; unbekannte oder noch nicht' \
       '             implementierte Szenarien schlagen mit Exitcode 25 fehl)' \
+      '  soak ...  deterministischen Zuverlässigkeits-Soak ausführen' \
+      '             (soak-replay; Abschnitt-0-Kalibrierung via soak-calibration;' \
+      '             unbekannte oder noch nicht implementierte Szenarien' \
+      '             schlagen mit Exitcode 32 fehl)' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \

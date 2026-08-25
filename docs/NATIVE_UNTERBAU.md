@@ -104,6 +104,9 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 27 | Zwischenmetriken oder Report widersprechen dem Schemavertrag (T-020/T-021/T-023; der Report wird zur Diagnose geschrieben, gilt aber nicht als Beleg) |
 | 28 | Reportpfad nicht schreibbar (T-020/T-021/T-023) |
 | 29 | Opt-in Frame-Evidenzartefakt fehlgeschlagen; der Report wurde dennoch geschrieben und bindet `captured=false` mit Grund (T-023) |
+| 30 | Soak-Zuverlässigkeitsgate verletzt (Wachstum, Trend, Watchdog-Stall, Warm-tick-Allokation, Kettenabweichung); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-022) |
+| 31 | Soaklauf unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-022) |
+| 32 | Soak-Szenario unbekannt oder noch nicht implementiert; kein Report (T-022) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -117,6 +120,7 @@ dokumentierte Entscheidung und eine Anpassung der Tests
 ./scripts/rift.sh bench --scenario bench-empty --report artifacts/t020/bench-empty.json
 ./scripts/rift.sh bench --scenario bench-sim --report artifacts/t021/bench-sim.json
 ./scripts/rift.sh bench --scenario bench-representative --report artifacts/t023/bench-representative.json
+./scripts/rift.sh soak --scenario soak-replay --report artifacts/t022/soak-replay-authoritative.json
 ```
 
 Beide ersten Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
@@ -207,3 +211,44 @@ Shipping-Beleg; öffentliche Verwendung nur über die Bedingungen in
 Flag entsteht kein Bild; das Messverhalten ist identisch. Ein fehlgeschlagener
 Abgriff ergibt Exitcode 29, schreibt den Report jedoch mit `captured=false`
 und maschinenlesbarem Grund.
+
+## soak-replay (T-022) — Zuverlässigkeitsvertrag
+
+`soak --scenario soak-replay` führt den deterministischen Replay-Soak nativ
+auf linux-x64 im bestehenden Host rein CPU-seitig aus — ohne Fenster,
+Renderer und Netzwerk; die nativen SDL3-/bgfx-Artefakte werden nicht geladen.
+Evidenzmodell nach Soakvertrag `docs/SOAKVERTRAG.md` V2
+(Projektleitungsentscheidung 2026-08-25): NF-002 wird durch mindestens drei
+unabhängige Fresh-Prozess-Wiederholungsläufe über den kompletten skriptierten
+Planhorizont des Simulationsvertrags V1 (576000 Messsticks plus Warm-up,
+genau 250 vollständig simulierte Agenten) in Release-naher Konfiguration
+nachgewiesen. Die beschleunigte Taktung (`--diagnostic-accelerated`, voller
+Horizont) ist dafür zulässig, weil die Pacing-Unabhängigkeit durch Test
+belegt ist; jeder bestandene Lauf ist im Report als Evidenzeinheit markiert.
+Horizontverkürzte Läufe (`--horizon-ticks N`) sind ausschließlich diagnostisch
+und werden als keine Evidenzeinheit gekennzeichnet. `--reference-out`
+erzeugt eine Golden-Fixture der Kettenstichproben, ist aber unabhängig vom
+gewählten Horizont immer eine separate diagnostische Referenzemission
+(`accelerated-reference-emission-diagnostic-v1`) und niemals Evidenz; erst ein
+Fresh-Prozess-Folgelauf darf gegen die versionierte Fixture vergleichen. Der
+frühere autoritative Achtstunden-Realzeitlauf wurde
+absichtlich per SIGTERM abgebrochen und darf nicht neu gestartet werden;
+das Restrisiko des nicht nachgewiesenen zusammenhängenden
+Achtstunden-Echtzeitbetriebs ist im Soakvertrag Abschnitt 6 ausgewiesen.
+
+Der Report bindet Soakvertrag (V2), Golden-Fixture mit SHA-256 und
+Vergleichsergebnis je Stichprobe, Working-Set-Fensterstichproben, strenge
+Per-Tick-Allokationen gemäß Simulationsvertrag §5 (zusätzlich gatefreie
+Fensterdeltas als Telemetrie), GC-Pausen, Fortschritts-Watchdog, die
+gatefrei diagnostischen Tickzeitdriftfelder sowie die maschinenlesbare
+Aussage, dass die tolerierte Benchmarkstreuung (Q-TEC-010) offen bleibt.
+Im Reportabschnitt `execution` zählen `ticksExecuted` und `requiredTicks`
+einschließlich der Warm-up-Ticks (`warmupTicks`); der gatende Messhorizont
+ohne Warm-up steht in `gate.limits.requiredTicks`.
+Das Gate entscheidet fail-closed ausschließlich gegen die absoluten
+Grenzwerte des Soakvertrags; Verletzungen ergeben Exitcode 30 bei trotzdem
+geschriebenem, als nicht bestanden markiertem Report. Ein vorzeitiger Abbruch
+ergibt Exitcode 31 mit einem als keine Evidenz gekennzeichneten Teilreport;
+unbekannte oder noch nicht implementierte Soakszenarien brechen mit
+Exitcode 32 ohne Report ab. Läufe auf dem Entwickler-PC sind diagnostische
+Baseline gemäß Q-OPS-001; Pflichtprofile bleiben `NOT-MEASURED`.
