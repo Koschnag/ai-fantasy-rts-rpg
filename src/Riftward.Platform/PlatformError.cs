@@ -59,6 +59,15 @@ public enum PlatformErrorCode
 
     /// <summary>Opt-in Frame-Evidenzartefakt fehlgeschlagen (T-023); Report wurde dennoch geschrieben.</summary>
     FrameArtifactFailed = 29,
+
+    /// <summary>Soak-Zuverlaessigkeitsgate verletzt (T-022); Report wurde dennoch geschrieben und klar als nicht bestanden markiert.</summary>
+    SoakGateViolated = 30,
+
+    /// <summary>Soaklauf unvollstaendig oder vorzeitig beendet (T-022); der Teilreport gilt ausdruecklich nicht als Evidenz.</summary>
+    SoakRunIncomplete = 31,
+
+    /// <summary>Soak-Szenario unbekannt oder noch nicht implementiert (T-022); kein Report.</summary>
+    SoakScenarioUnavailable = 32,
 }
 
 /// <summary>Ein einzelner kontrollierter Fehler mit Code, Meldung und Detailpfad.</summary>

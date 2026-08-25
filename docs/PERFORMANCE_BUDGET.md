@@ -137,3 +137,23 @@ Report weist diese Zeile als nicht anwendbar aus. Kein Budgetwert wird dadurch
 geändert. Bis die Projektleitung Referenzrechner benennt (Q-OPS-001), bleiben
 alle Pflichtprofile für dieses Szenario `NOT-MEASURED`; Läufe auf dem
 Entwickler-PC gelten als diagnostische Baseline.
+
+## Zuverlässigkeitsnachweis (NF-002)
+
+Der 8-Stunden-Soak aus `ANFORDERUNGEN.md` NF-002 wird über
+`./scripts/rift.sh soak --scenario soak-replay --report PFAD` nativ auf
+linux-x64 nachgewiesen. Nachweisort und Methode des genauen numerischen
+Leak-Schwellwerts sind ausschließlich der versionierte Soakvertrag
+`docs/SOAKVERTRAG.md` (V2, Abschnitt 0: doppelte Schwellwertform aus
+absolutem Wachstum und Trendkriterium mit Konsistenzbedingung,
+Hangkriterium als Fortschritts-Watchdog; Abschnitt 4:
+wiederholungsbasiertes Evidenzmodell mit mindestens drei Fresh-Prozess-
+Läufen über den kompletten Planhorizont laut Projektleitungsentscheidung
+2026-08-25; Abschnitt 6: ausgewiesenes Restrisiko des nicht nachgewiesenen
+zusammenhängenden Achtstunden-Echtzeitbetriebs). Dieses Dokument dient
+dabei nur als obere Grenze: Kein Budgetwert dieser Tabelle wird durch den
+Soak geändert, erweitert oder als Soak-Erlaubnis umgedeutet; die
+Allokationsgrenze je warmem Tick bleibt unverändert an den
+Simulationsvertrag V1 gebunden. Läufe auf dem Entwickler-PC sind
+diagnostische Baseline gemäß Q-OPS-001; Pflichtprofile bleiben ohne
+benannte Referenzhardware `NOT-MEASURED`.

@@ -46,3 +46,52 @@ Knotenerweiterungen je Tick), kein Agent jemals fälschlich `Unreachable`.
   `01M0T2GGVHV79RFDSKNSJ1QV8B`).
 - Keine visuellen Medienartefakte in diesem Auftrag (Media-Lab-Prüfung gemäß
   Auftragsbegründung; Telemetrie ist die prüfbare Evidenz).
+
+## Amendment 2026-08-25: Scheduling-Robustheit des CLI-Vertragstests
+
+Ein unabhängiger Review-Lauf (Harness-Run `01M0XD6NWC5V01CJ8HVQNJPQXF`)
+reproduzierte einen Last-Flake im Test „T-021 CLI contract runs headless
+simulation with reports": Unter CPU-Konkurrenz auf dem Gate-Host verletzte
+der wanduhrabhängige Tickzeit-Anteil des Simulationsbudgetgates (p99 über
+nur 120 Messsticks; harte 16-ms-Grenze, Exitcode 26) sporadisch bereits bei
+normaler Review-Arbeit. Der Defekt lag in der Suite, nicht im Produkt: Das
+Gate entschied korrekt fail-closed.
+
+Reparatur ohne jede Abschwächung: Der Fresh-Prozesslauf wird ausschließlich
+bei Exit 26 genau einmal wiederholt. Die Kennzahl ist lastempfindlich,
+während die Allokationsgrenze und alle Zustandsketten deterministisch sind —
+eine echte Regression verletzt das Gate deshalb reproduzierbar in beiden
+Versuchen und failt weiterhin; Schema-, Agentenbindungs-, Hashketten- und
+Fremdseed-Klauseln sind unverändert. Umgebungskontrakt der Suite ist ein im
+Übrigen ruhender Gate-Host; unter dauerhaft schwerer CPU-Auslastung scheitert
+der Lauf ehrlich, weil dort keine belastbare Timing-Evidenz möglich ist.
+Belastungsnachweis dieser Sitzung: 5 von 8 Kernen künstlich belegt → 205/205;
+die zuvor reproduzierbare Laststörung trat nicht mehr auf. Alle übrigen
+Gates unverändert grün.
+
+## Präzisierung 2026-08-26: Klauselunspezifischer Exit 26
+
+Der unabhängige Folgereview (Harness-Run `01M0XH1YTNDSG8E5HXRCGBYEF5`) maß
+unter anhaltender Host-Last (Load Average
+13–18 bei 8 Threads, aktive Desktop-Workloads) neun direkte `bench-sim`-
+Läufe desselben Binärtexts: Das Kettenende war in allen Läufen identisch
+(`9460439405e08b0c`), die Tickzeit blieb mit p99 höchstens 2,318 ms weit
+unter der harten 16-ms-Grenze, und in sieben Läufen blieb die Allokation
+exakt 0 Bytes je warmem Tick. In zwei Läufen schlug die Allokationsklausel
+transient mit 6 beziehungsweise 8,4 Bytes je warmem Tick an (Gate-Report:
+`managed-allocations-per-warm-tick-bytes:>0`, Exitcode 26).
+
+Damit ist der Reparaturtext vom Vortag in einem Punkt zu eng: Exit 26 ist
+**klauselunspezifisch**, und auch der prozessweite Allokationszähler
+(`GC.GetTotalAllocatedBytes(precise: true)` über alle Threads) kann unter
+starker Host-Konkurrenz transientes Laufzeitrauschen fremder Threads
+innerhalb der je-Tick-Messfenster zeigen — etwa nachgeladenes Tiered-JIT.
+Produktallokationen des deterministischen Simulationskerns wären dagegen je
+Tick wiederholt und größenordnungsweise konstant (Vertragsspike: exakt
+0 Bytes über 1200 Messsticks) und würden beide Versuche reproduzierbar
+verletzen. Die einmalige Wiederholung gilt daher für jeden Exit 26
+unabhängig von der auslösenden Klausel; ihre Rechtfertigung lautet
+„transientes, hostinduziertes Fehlansprechen des fail-closed Budgetgates“,
+nicht mehr „ausschließlich Tickzeit“. Anhaltende Verletzungen jeder Klausel
+scheitern weiterhin reproduzierbar in beiden Versuchen; Grenzwerte,
+Exitcodes und alle übrigen Klauseln sind unverändert.

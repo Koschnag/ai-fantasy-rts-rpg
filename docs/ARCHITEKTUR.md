@@ -85,6 +85,7 @@ flowchart TB
 - Gleicher Datenstand, Seed und dieselbe geordnete Befehlsfolge müssen innerhalb der noch festzulegenden Numerik-/Plattformtoleranz denselben fachlichen Zustand erzeugen. Numerik und exakter Hashvertrag werden im Technik-Spike festgelegt.
 - Frame- und Simulationsbudgets aus `PERFORMANCE_BUDGET.md` sind API-Anforderungen: unbeschränkte Arbeit, versteckte Allokation und synchrones Rohasset-Laden in Hotpaths sind nicht zulässig.
 - Der Simulationskern der Baseline T-021 (`Riftward.Simulation`) ist BCL-only, referenzfrei von SDL3-, bgfx-, Plattform- und Präsentationstypen und folgt dem versionierten Vertrag in `docs/SIMULATIONSVERTRAG.md` (Festkomma-Numerik Q16.16, Hashvertragsklassen, kanonische Ordnung, hierarchisch budgetierte Pfadsuche); Cross-Build-/Cross-Plattform-Hashgleichheit bleibt bis zu echter Messung unbehauptet.
+- Der Zuverlässigkeitsnachweis NF-002 (T-022) führt denselben unveränderten Simulationskern als wiederholungsbasierten Replay-Soak aus und folgt dem versionierten Soakvertrag in `docs/SOAKVERTRAG.md` (V2: mindestens drei Fresh-Prozess-Läufe über den kompletten Planhorizont, absolute Leak-Schwellwerte mit Konsistenzbedingung, Fortschritts-Watchdog, ausgewiesenes Restrisiko); der Simulationszustand bleibt dabei frei von Uhr-, Umgebungs- und Kernzahlabhängigkeit, die Taktquelle treibt nur die Ausführungsdichte.
 
 ### Native Grenze
 

@@ -92,7 +92,7 @@ Ein als `NICHT VERFÜGBAR` markiertes Gate ist keine bestandene Prüfung. Ein Ta
 - Der deterministische Gameplay-Smoke erreicht definierte Zustandsprüfpunkte für Erkundung, Questwahl, Standort, Basis, Armee, Boss und Abschluss.
 - Ein Save-Roundtrip erhält alle sim-relevanten Zustände; ein beschädigter oder inkompatibler Save ersetzt niemals den aktiven oder letzten gültigen Stand.
 - Jeder bestätigte Spielerbefehl wird ausgeführt oder mit einer fachlichen Ursache abgelehnt. Endlose Pending-Orders und missionsblockierende Softlocks sind `BLOCKER`.
-- Der 8-Stunden-Soak darf nicht abstürzen, hängen oder fortschreitend Speicher verlieren. Der genaue numerische Leak-Schwellwert bleibt bis zum Baseline-Spike `OFFEN`.
+- Der 8-Stunden-Soak darf nicht abstürzen, hängen oder fortschreitend Speicher verlieren. Der genaue numerische Leak-Schwellwert ist durch den Baseline-Spike T-022 als versionierter Soakvertrag (`docs/SOAKVERTRAG.md`, doppelte Schwellwertform mit Konsistenzbedingung) festgelegt; jede Lockerung eskaliert an die Projektleitung.
 
 ### Performance
 

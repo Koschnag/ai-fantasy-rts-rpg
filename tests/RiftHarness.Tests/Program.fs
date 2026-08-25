@@ -1892,8 +1892,9 @@ module Program =
               RunProvenanceTests.retentionPlansAreReadOnlyAndExecutionsStayGuarded
               "T-004 evidence payloads redact secrets and reject foreign fields",
               RunProvenanceTests.evidencePayloadsRedactSecretsAndRejectForeignFields
-              "T-010 toolchain pins, licenses and cohort pass the check",
+              "T-010 toolchain pins and read-only bootstrap contract pass",
               ToolchainCheckTests.repositoryToolchainPassesAllChecks
+              "T-010 bootstrap rejects a colliding PATH file", ToolchainCheckTests.dotnetBootstrapRejectsCollidingPath
               "T-010 tampered source hash is rejected", ToolchainCheckTests.tamperedSourceHashIsRejected
               "T-010 intact cache passes the source crosscheck", ToolchainCheckTests.intactCachePassesCrosscheck
               "T-010 missing license entry is rejected", ToolchainCheckTests.missingLicenseEntryIsRejected
@@ -1985,7 +1986,35 @@ module Program =
               "T-023 CLI contract keeps registry and error paths controlled",
               BenchRepresentativeTests.cliContractKeepsRegistryAndErrorPathsControlled
               "T-023 architecture keeps snapshot direction and hot path discipline",
-              BenchRepresentativeTests.architectureKeepsSnapshotDirectionAndHotPathDiscipline ]
+              BenchRepresentativeTests.architectureKeepsSnapshotDirectionAndHotPathDiscipline
+              "T-022 soak plan math is pure and contract bound", SoakTests.soakPlanMathIsPureAndContractBound
+              "T-022 progress watchdog detects stalls with injected clock",
+              SoakTests.progressWatchdogDetectsStallsWithInjectedClock
+              "T-022 memory analysis separates trend from noise", SoakTests.memoryAnalysisSeparatesTrendFromNoise
+              "T-022 window series matches telemetry math and enforces order",
+              SoakTests.windowSeriesMatchesTelemetryMathAndEnforcesOrder
+              "T-022 pacing independence identical chains between modes",
+              SoakTests.pacingIndependenceIdenticalChainsBetweenModes
+              "T-022 foreign seed changes engine outcome", SoakTests.foreignSeedChangesEngineOutcome
+              "T-022 engine binds simulation contract", SoakTests.engineBindsSimulationContract
+              "T-022 soak scenario registry classifies explicitly", SoakTests.soakScenarioRegistryClassifiesExplicitly
+              "T-022 exit code mapping includes soak codes", SoakTests.exitCodeMappingIncludesSoakCodes
+              "T-022 rift script soak contract keeps app build guard",
+              SoakTests.riftScriptSoakContractKeepsAppBuildGuard
+              "T-022 architecture keeps soak clock free and layered", SoakTests.architectureKeepsSoakClockFreeAndLayered
+              "T-022 soak contract mirrors documented values", SoakTests.soakContractMirrorsDocumentedValues
+              "T-022 soak gate covers every class fail closed", SoakTests.soakGateCoversEveryClassFailClosed
+              "T-022 soak report schema accepts golden and rejects fabrication matrix",
+              SoakTests.soakReportSchemaAcceptsGoldenAndRejectsFabricationMatrix
+              "T-022 tracked evidence fixture stays portable without host paths",
+              SoakTests.soakTrackedEvidenceFixtureStaysPortableWithoutHostPaths
+              "T-022 soak chain fixture is bound to contract and plan",
+              SoakTests.soakChainFixtureIsBoundToContractAndPlan
+              "T-022 CLI contract runs diagnostic soak with reports", SoakTests.cliContractRunsDiagnosticSoakWithReports
+              "T-022 evidence unit classification is fail closed", SoakTests.soakEvidenceUnitClassificationIsFailClosed
+              "T-022 exit mapping is stable and documented", SoakTests.soakExitMappingIsStableAndDocumented
+              "T-022 watchdog stall with frozen progress and running clock",
+              SoakTests.watchdogStallWithFrozenProgressAndRunningClock ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

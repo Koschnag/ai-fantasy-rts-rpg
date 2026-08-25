@@ -36,7 +36,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
 | T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DONE |
-| T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | READY |
+| T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DONE |
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DONE |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DRAFT |
@@ -104,6 +104,30 @@ CI-Evidenzschema) wurden über die dokumentierte Regeneration neu verankert;
 die generierten Assets blieben byteidentisch. Windows-/macOS-Builds, Smokes
 und Paketnachweise bleiben gemäß Auftrag an T-011 überwiesen; Abnahmedokument:
 `docs/abnahme/T-010-native-walking-skeleton.md`.
+
+Am 2026-08-25 prüfte und vollendete ein unabhängiger Review-Lauf
+(Harness-Run `01M0XD6NWC5V01CJ8HVQNJPQXF`, Akteur
+`t010-bootstrap-review-completion`) den vorgefundenen Arbeitsstand zum
+Bootstrap-Werkzeugvertrag und reparierte zwei In-Scope-Defekte:
+(1) `scripts/bootstrap-dotnet.sh` akzeptiert eine bereits korrekte
+PATH-Verknüpfung jetzt idempotent ohne Schreibzugriff (read-only eingehängte
+Werkzeugbäume in CI-/Agent-Sandboxen) und bricht bei einer kollidierenden,
+nicht-symlinkschen PATH-Datei kontrolliert mit Exitcode 1 ab, statt sie zuvor
+nur zu vermelden und trotzdem Erfolg zu melden; ein falscher Pass wird damit
+ausgeschlossen. Zwei hermetische Tests binden den Vertrag (idempotente
+Annahme mit adversarialem `ln`-Stellvertreter und schreibgeschütztem
+Zielverzeichnis; Kollisionsabbruch mit Unverändertheitsnachweis).
+(2) Der T-021-CLI-Vertragstest für `bench-sim` wiederholt den Fresh-Prozesslauf
+genau einmal bei Exitcode 26 des dokumentierten Budgetgates. Der Exitcode ist
+klauselunspezifisch: Neben der lastempfindlichen Tickzeit kann unter starker
+Host-Konkurrenz auch der prozessweite Allokationszähler transient falsch
+anschlagen (Folgereview 2026-08-26, Harness-Run `01M0XH1YTNDSG8E5HXRCGBYEF5`:
+einstellige Bytes je warmem Tick bei Last
+13–18; Kettenende in allen Messläufen identisch, Produktallokation exakt 0).
+Anhaltende Verletzungen jeder Klausel – Tickzeitregression oder
+Produktallokation – scheitern weiterhin reproduzierbar in beiden Versuchen;
+alle übrigen Klauseln sind unverändert. Suite 204 → 205;
+alle lokalen Gates grün; Details in beiden Abnahmedokumenten.
 
 Nach T-010 werden die isolierten Baselines T-020/T-021 und anschließend der
 integrierte Repräsentativitätsnachweis T-023 gegenüber weiterer allgemeiner
