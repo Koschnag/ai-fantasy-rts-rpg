@@ -2005,6 +2005,8 @@ module Program =
               "T-022 soak gate covers every class fail closed", SoakTests.soakGateCoversEveryClassFailClosed
               "T-022 soak report schema accepts golden and rejects fabrication matrix",
               SoakTests.soakReportSchemaAcceptsGoldenAndRejectsFabricationMatrix
+              "T-022 tracked evidence fixture stays portable without host paths",
+              SoakTests.soakTrackedEvidenceFixtureStaysPortableWithoutHostPaths
               "T-022 soak chain fixture is bound to contract and plan",
               SoakTests.soakChainFixtureIsBoundToContractAndPlan
               "T-022 CLI contract runs diagnostic soak with reports", SoakTests.cliContractRunsDiagnosticSoakWithReports

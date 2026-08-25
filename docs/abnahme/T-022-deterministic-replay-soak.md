@@ -87,6 +87,99 @@ vollständigem Wiederholungsbündel von drei Evidenzeinheiten, 2026-08-25)
   das Restrisiko nach Abschnitt 6 bleibt ausgewiesen. Der Auftrag wird
   angenommen.**
 
+- **2026-08-25, Review-Sitzung nach gescheiterter Integrationspruefung
+  (PR 11):** Die verpflichtende GitHub-Integration schlug fehl (Verify-Run
+  `32878616983` und Asset-Kalibrierlauf `32878616891`, je Exitcode 1 auf dem
+  Kandidaten `a31093b8`; Merge-Baum `refs/pull/11/merge` ist byteidentisch
+  zum Kandidatenbaum). Eigenstaendige Diagnose und Reproduktion: die
+  Schema-Fabrikationsmatrix las den **gitignorierten** Laufzeitreport
+  `artifacts/t022/bundle/repetition-1.json` und scheiterte im frischen
+  Checkout mit FileNotFound — lokal reproduziert als 202/203 mit
+  Exitcode 1 nach kontrolliertem Wegparken der Datei (Bundle zuvor
+  gesichert und byteidentisch restauriert). In-Scope-Reparatur ohne
+  Beschwaechung: (1) die Evidenzform liegt jetzt als versionierte,
+  sanierte Fixture `tests/fixtures/soak/t022-evidence-report-fixture.json`
+  vor — abgeleitet aus dem echten akzeptierten Report, mit neutralisierten
+  Hostpfad-, CPU- und Kernelangaben und repo-relativ gebundenem
+  Golden-Fixture-Pfad, alle strukturellen Mess-, Ketten- und Planfelder
+  unveraendert; der Test traegt zusaetzliche Echtheitswaechter
+  (Evidenzeinheit, Vollhorizont, bestandener Lauf) und die unveraenderte
+  Fabrikationsmatrix arbeitet gegen diese Fixture; (2) der bereits
+  versionierte Inline-Goldenreport enthielt denselben lokalen Hostpfad —
+  entfernt und durch den repo-relativen Pfad ersetzt; (3) neuer Test
+  „tracked evidence fixture stays portable without host paths“ verhindert
+  Host-/Sitzungspfad-Leakage in getrackten Soakvertragstexten dauerhaft.
+  Die Laufzeitevidenz selbst bleibt gitignoriert; ein Force-Add erfolgte
+  nicht. Hermetiebeweis im frischen-Checkout-Zustand (geparktes Bundle):
+  Tests 204/204, Exitcode 0. Die schnellen Gates wurden danach vollstaendig
+  wiederholt und sind gruen (lint PASS mit 0 Befunden, Release-Build
+  0 Warnungen, Tests 204/204, security PASS, rag-build PASS,
+  `rift.sh verify` valid inklusive Assets-Check); die abschliessenden reinen
+  Textergaenzungen dieses Abschlusses sind per JSON-/Sanitizationspruefung
+  abgedeckt, die vollstaendige Gate-Wiederholung auf den committed Bytes
+  erzeugt das fingerprint-gebundene Pre-Push-Gate der Integration
+  (fresh-checkout-test + dotnet-asset-calibration-ci.sh).
+
+- **2026-08-25, unabhängige Review-Sitzung zur Reparaturverifikation
+  (Run `01M0X3D16397NVSKFE9PX172GA`, Akteur
+  `t022-integration-repair-review`):** Eigenständige Verifikation der
+  Integrationsreparatur ohne Übernahme der Vorbehauptungen: (1)
+  Strukturvergleich der Evidence-Fixture gegen den echten akzeptierten
+  Runtime-Report `artifacts/t022/bundle/repetition-1.json` zeigt exakt
+  drei Differenzen (`environment.cpu.model` → `fixture-cpu`,
+  `environment.os.kernelRelease` → `fixture-kernel`,
+  `metrics.goldenFixture.path` → repo-relativ); alle Mess-, Ketten-,
+  Plan-, Gate- und Profilfelder sind unverändert. (2) Hostpfad-Scan über
+  sämtliche getrackten Repositorydateien (`/home/…`, lokaler
+  Arbeitsverzeichnisname) ohne Befund; der einzige Treffer in der
+  Testdatei ist das Detektionsliteral des neuen Portabilitätstests.
+  (3) Hermetiebeweis reproduziert: das gitignorierte Bundle
+  `artifacts/t022/bundle/` wurde mit SHA-256-Protokoll wegparkiert, die
+  Suite läuft im Frisch-Checkout-Zustand 204/204 mit Exitcode 0, danach
+  wurde das Bundle byteidentisch restauriert (`sha256sum -c` je Datei
+  OK). Ein dabei gefundener rein kosmetischer Markdown-Einzugsfehler in
+  diesem Dokument wurde korrigiert. Alle schnellen Gates wurden von
+  dieser Sitzung vollständig selbst ausgeführt und sind grün: lint PASS
+  (0 Befunde), Release-Build 0 Warnungen, Tests 204/204, security PASS,
+  rag-build PASS, `rift.sh verify` valid. Keine Schwellwert-, Kriterien-
+  oder Vertragsänderung; die Laufzeitevidenz bleibt gitignoriert. Der
+  unveränderte Kandidat ist für die frische Promoter-Sitzung markiert;
+  Staging, Commit und Push bleiben getrennten Autoritäten vorbehalten.
+
+- **2026-08-25, unabhängige frische Review-Sitzung mit explizitem
+  Fresh-Checkout-/Clean-Archive-Nachweis (Run
+  `01M0X6NMXX35RGHSTJZBR6DVZ3`, Akteur `t022-fresh-review`):**
+  Eigenständige Nachprüfung der Integrationsreparatur ohne Übernahme der
+  Vorbehauptungen, mit zusätzlicher lokaler Ausführung des für Änderungen
+  an Tests/Fixtures vorgeschriebenen Portabilitätsvertrags: (1)
+  Strukturvergleich der Evidence-Fixture gegen den echten Runtime-Report
+  `artifacts/t022/bundle/repetition-1.json` reproduziert exakt drei
+  Differenzen (`environment.cpu.model`, `environment.os.kernelRelease`,
+  repo-relativer `metrics.goldenFixture.path`); alle Mess-, Ketten-,
+  Plan-, Gate- und Profilfelder unverändert. (2) Hostpfad-Scan über
+  ausschließlich getrackte Dateien erneut ohne Befund (nur
+  Detektionsliterale des Portabilitätstests). (3) Verschärfter
+  Hermetiebeweis: das **gesamte** gitignorierte `artifacts/`-Verzeichnis
+  (5438 Dateien) wurde mit SHA-256-Vollprotokoll wegparkiert, die Suite
+  lief im Frisch-Checkout-Zustand 204/204 mit Exitcode 0, danach wurde
+  der Bestand anhand des Vollprotokolls byteidentisch restauriert. (4)
+  Clean-Archive-Vertrag lokal am unverarbeiteten Kandidaten ausgeführt,
+  ohne Staging oder Commit: aus HEAD
+  `a31093b8ab30b113bd0539af929026594a716ec9` plus Arbeitsbaum wurde per
+  indexfreier Git-Plumbing-Rekonstruktion der hypothetische
+  Kandidatenbaum `dc85033fcaa8f26df16bf94d1921910194d26f3e` erzeugt
+  (Baumdiff gegen HEAD exakt die fünf Auftragspfade), per
+  `git archive` in ein isoliertes Verzeichnis ohne Laufzeitevidenz
+  extrahiert und dort der volle Gate-Zug ausschließlich aus diesen Bytes
+  gefahren: Restore/Build/Harness-Init, Release-Build 0 Warnungen, lint
+  PASS 0 Befunde, Tests 204/204 Exitcode 0 (einschließlich
+  Evidenz-Fixture- und Portabilitätstest), assets-check PASS, rag-build
+  PASS, verify valid. Der echte Index blieb währenddessen unverändert.
+  Keine Schwellwert-, Kriterien-, Vertrags- oder Produktcodeänderung;
+  die Laufzeitevidenz bleibt gitignoriert. Der unveränderte Kandidat ist
+  für die frische Promoter-Sitzung markiert; Staging, Commit und Push
+  bleiben getrennten Autoritäten vorbehalten.
+
 ## Ergebnis gegen die Abnahmekriterien
 
 | Kriterium | Ergebnis | Evidenz |

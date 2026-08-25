@@ -498,9 +498,8 @@ let private goldenSoakReport =
     + "od\":\"gc-collection-count-gen0-to2-delta\",\"value\":0},\"activeAgents\":{\"unit\":\"count\",\"method\":\"soa"
     + "-agent-count-fixed\",\"value\":250},\"stateHashChain\":{\"unit\":\"hex64\",\"method\":\"fnv1a64-canonical-ch"
     + "ain-v1\",\"start\":\"10e13faf142094db\",\"intervalSampleTicks\":[],\"intervalHashes\":[],\"end\":\"c8a3717a0"
-    + "4cc47a4\"},\"goldenFixture\":{\"emitted\":false,\"path\":\"/home/cong/ki-projekt/src/Riftward.App/Soak/s"
-    + "oak-replay-chain-v1.json\",\"sha256\":\"5e1a6a20cb7e46adf2a1f37679a15ab66766decedb3a555480783a3767a4"
-    + "dd76\",\"schemaId\":\"riftward-soak-chain-fixture-v1\",\"sampleCount\":18,\"samplesMatched\":1,\"sampleMis"
+    + "4cc47a4\"},\"goldenFixture\":{\"emitted\":false,\"path\":\"src/Riftward.App/Soak/soak-replay-chain-v1"
+    + ".json\",\"sha256\":\"5e1a6a20cb7e46adf2a1f37679a15ab66766decedb3a555480783a3767a4dd76\",\"schemaId\":\"riftward-soak-chain-fixture-v1\",\"sampleCount\":18,\"samplesMatched\":1,\"sampleMis"
     + "matches\":0,\"sampleSkipped\":1,\"matched\":true},\"watchdog\":{\"unit\":\"seconds\",\"method\":\"progress-wat"
     + "chdog-tick-index-window\",\"windowSeconds\":120,\"checks\":5,\"maxObservedProgressGapSeconds\":0.273,\"s"
     + "talled\":false},\"tickTimeDriftDiagnostic\":{\"unit\":\"ms\",\"method\":\"stopwatch-tick-delta-per-window-"
@@ -852,9 +851,36 @@ let soakReportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
 
     // Ein realer, akzeptierter Vollhorizontreport bleibt gueltig; seine
     // Abdeckungs-, Ketten- und Planbehauptungen sind aber nicht einzeln
-    // faelschbar.
+    // faelschbar. Die Evidenzform liegt als versionierte, sanierte Fixture
+    // unter tests/fixtures/soak vor: Hostpfade und Hardwarekennung sind
+    // neutralisiert, alle strukturellen Mess-, Ketten- und Planfelder bleiben
+    // unveraendert. Das haelt den Test im frischen Checkout hermetisch, ohne
+    // die gitignorierte Laufzeitevidenz zu versionieren oder zu abschwaechen.
     let evidenceReport =
-        File.ReadAllText(Path.Combine(repositoryRootSoak, "artifacts", "t022", "bundle", "repetition-1.json"))
+        File.ReadAllText(
+            Path.Combine(repositoryRootSoak, "tests", "fixtures", "soak", "t022-evidence-report-fixture.json")
+        )
+
+    let evidenceDocument = JsonNode.Parse(evidenceReport).AsObject()
+    let evidenceExecution = evidenceDocument["execution"].AsObject()
+    let evidenceScenario = evidenceDocument["scenario"].AsObject()
+    let evidenceGate = evidenceDocument["gate"].AsObject()
+    let evidenceTicksExecuted = evidenceExecution["ticksExecuted"].GetValue<int64>()
+    let evidenceRequiredTicks = evidenceExecution["requiredTicks"].GetValue<int64>()
+    let evidenceModeId = evidenceScenario["executionModeId"].GetValue<string>()
+    let evidenceReasonNode = evidenceExecution["evidenceReason"]
+
+    if
+        not (evidenceExecution["evidenceUnit"].GetValue<bool>())
+        || not (evidenceExecution["isEvidence"].GetValue<bool>())
+        || not (evidenceExecution["complete"].GetValue<bool>())
+        || (not (isNull evidenceReasonNode)
+            && evidenceReasonNode.GetValueKind() <> JsonValueKind.Null)
+        || evidenceTicksExecuted <> evidenceRequiredTicks
+        || not (evidenceGate["pass"].GetValue<bool>())
+        || evidenceModeId <> SoakContract.AcceleratedEvidenceModeId
+    then
+        failwith "Evidence-Fixture traegt nicht mehr die echte Evidenzeinheitsform (Vollhorizont, bestandener Lauf)."
 
     let evidenceErrors = SoakReportSchema.Validate(evidenceReport)
 
@@ -902,6 +928,41 @@ let soakReportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
         "Vertragssseed und kanonischen Befehlsplan"
         (foreignPlan.ToJsonString())
         "Fremder Befehlsplan wurde als Evidenz akzeptiert"
+
+/// Portabilitaet der getrackten Soakvertragstexte: die versionierte
+/// Evidence-Fixture und der Inline-Goldenreport duerfen keine Host-, Sitz-
+/// oder lokalen Pfaddaten versionieren und binden den Golden-Fixture-Pfad
+/// ausschliesslich repo-relativ (Fresh-Checkout-Hermetik, kein Host-Leak).
+let soakTrackedEvidenceFixtureStaysPortableWithoutHostPaths () =
+    let expectedRelativeFixturePath = "src/Riftward.App/Soak/soak-replay-chain-v1.json"
+
+    if not (File.Exists(Path.Combine(repositoryRootSoak, expectedRelativeFixturePath))) then
+        failwith "Golden-Fixture ist nicht am gebundenen repo-relativen Pfad vorhanden."
+
+    let trackedTexts =
+        [ "tests/fixtures/soak/t022-evidence-report-fixture.json",
+          File.ReadAllText(
+              Path.Combine(repositoryRootSoak, "tests", "fixtures", "soak", "t022-evidence-report-fixture.json")
+          )
+          "inline golden report", goldenSoakReport ]
+
+    for label, text in trackedTexts do
+        if
+            text.Contains("/home/", StringComparison.Ordinal)
+            || text.Contains("ki-projekt", StringComparison.Ordinal)
+        then
+            failwith $"%s{label} versioniert einen Host- oder lokalen Pfad."
+
+        if text.Contains('\\') then
+            failwith $"%s{label} versioniert einen Windows-artigen Pfad."
+
+        let parsedDocument = JsonNode.Parse(text).AsObject()
+        let parsedMetrics = parsedDocument["metrics"].AsObject()
+        let parsedFixture = parsedMetrics["goldenFixture"].AsObject()
+        let boundPath = parsedFixture["path"].GetValue<string>()
+
+        if boundPath <> expectedRelativeFixturePath then
+            failwith $"{label} bindet den Golden-Fixture-Pfad nicht repo-relativ: {boundPath}"
 
 /// Golden-Fixture: Schema-/Contentbindung gegen die versionierte Datei (AC-T022-07).
 let soakChainFixtureIsBoundToContractAndPlan () =
