@@ -32,14 +32,27 @@ rift_data_root=${XDG_DATA_HOME:-"$HOME/.local/share"}
 rift_install_dir=${RIFT_DOTNET_DIR:-"$rift_data_root/dotnet"}
 rift_dotnet="$rift_install_dir/dotnet"
 
+rift_ensure_dotnet_link() {
+  # A correct pre-existing link already satisfies the bootstrap contract.
+  # Do not replace it: the toolchain may intentionally be mounted read-only
+  # inside CI or an agent sandbox.
+  if [ -L "$1" ] \
+    && [ "$(readlink "$1" 2>/dev/null || printf '')" = "$2" ]; then
+    return 0
+  fi
+
+  if [ -e "$1" ] && [ ! -L "$1" ]; then
+    printf '%s existiert und ist kein Symlink; Bootstrap abgebrochen.\n' "$1" >&2
+    return 1
+  fi
+
+  ln -sfn "$2" "$1"
+}
+
 if [ -x "$rift_dotnet" ] && [ "$($rift_dotnet --version)" = "$rift_sdk_version" ]; then
   mkdir -p "$HOME/.local/bin"
   rift_link="$HOME/.local/bin/dotnet"
-  if [ -e "$rift_link" ] && [ ! -L "$rift_link" ]; then
-    printf '%s existiert und ist kein Symlink; PATH-Verknüpfung nicht verändert.\n' "$rift_link" >&2
-  else
-    ln -sfn "$rift_dotnet" "$rift_link"
-  fi
+  rift_ensure_dotnet_link "$rift_link" "$rift_dotnet"
   printf '.NET SDK %s ist bereits unter %s installiert.\n' "$rift_sdk_version" "$rift_install_dir"
   exit 0
 fi
@@ -70,10 +83,6 @@ mkdir -p "$rift_install_dir" "$HOME/.local/bin"
 tar -xzf "$rift_download" -C "$rift_install_dir"
 
 rift_link="$HOME/.local/bin/dotnet"
-if [ -e "$rift_link" ] && [ ! -L "$rift_link" ]; then
-  printf '%s existiert und ist kein Symlink; PATH-Verknüpfung nicht verändert.\n' "$rift_link" >&2
-else
-  ln -sfn "$rift_dotnet" "$rift_link"
-fi
+rift_ensure_dotnet_link "$rift_link" "$rift_dotnet"
 
 "$rift_dotnet" --version

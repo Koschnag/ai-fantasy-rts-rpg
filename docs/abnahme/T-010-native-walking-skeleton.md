@@ -85,3 +85,36 @@ gebundenen Hashes der Kalibrierungskette. Gemäß dokumentierter Regeneration:
   Report erfolgt über den `GL_RENDERER`-String.
 - Mesa stellt einen 4.6-Core-Kontext bereit; der bgfx-Pfad ist am Pin auf die
   3.3-Core-Funktionsmenge fixiert (keine optionalen Erweiterungen nötig).
+
+## Amendment 2026-08-25: Bootstrap-Vertrag read-only-idempotent und fail-closed
+
+Ein unabhängiger Review-Lauf (Harness-Run `01M0XD6NWC5V01CJ8HVQNJPQXF`,
+Akteur `t010-bootstrap-review-completion`) prüfte den vorgefundenen
+Arbeitsstand zu `scripts/bootstrap-dotnet.sh` und vollendete ihn:
+
+- **Idempotente Annahme korrekter Verknüpfung:** Existiert
+  `~/.local/bin/dotnet` bereits als Symlink mit exakt dem erwarteten Ziel,
+  kehrt der Bootstrap ohne Schreibzugriff zurück. Damit läuft der Bootstrap
+  auch, wenn das Werkzeugverzeichnis in CI-/Agent-Sandboxen absichtlich
+  read-only eingehängt ist (Bubblewrap-Mount-Namespace); zuvor schlug
+  `ln -sfn` dort fehl.
+- **Kollisionsabbruch statt Fehlpass:** Eine existierende, nicht-symlinksche
+  PATH-Datei bricht den Bootstrap jetzt mit Exitcode 1 ab. Zuvor wurde sie nur
+  auf stderr vermeldet und der Lauf endete trotzdem mit Exitcode 0 – der PATH
+  hätte danach still eine fremde `dotnet`-Datei vor dem gepinnten SDK
+  auflösen können (verbotener Fehlpass). Ein falsches oder totes
+  Symlink-Ziel wird weiterhin korrigiert.
+- **Tests:** Neuer hermetischer Vertragstest „T-010 bootstrap rejects a
+  colliding PATH file" (Kollisionsabbruch mit Exitcode ≠ 0 und
+  Byte-Unverändertheitsnachweis) sowie erweiterte Bestehensklausel im
+  Toolchain-Test: idempotente Annahme einer korrekten Verknüpfung unter
+  adversarialem `ln`-Stellvertreter (Exit 91) in einem
+  schreibgeschützten `~/.local/bin`; beide ohne Netzwerk und ohne
+  ignorierten Runtime-State. Suite 204 → 205.
+- **Unverändert:** SDK-Pin 10.0.110 samt Plattform-SHA-512-Werten,
+  Lockfile-Bindung (`install`-Pfad), öffentlicher Befehlsvertrag.
+
+Direktproben außerhalb der Test-Suite bestätigten alle drei Pfade
+(korrekt-Read-only → Exit 0 ohne `ln`-Aufruf; Kollision → Exit 1 mit
+unveränderter Datei; falsches Ziel → korrigiert). Gates: build 0 Warnungen,
+lint/security PASS, test 205/205, rag-build/verify grün.

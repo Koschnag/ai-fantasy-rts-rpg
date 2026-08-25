@@ -1,6 +1,7 @@
 module ToolchainCheckTests
 
 open System
+open System.Diagnostics
 open System.IO
 open RiftHarness
 
@@ -80,11 +81,134 @@ let private assertFinding (codePrefix: string) (report: ToolchainCheck.Report) =
         let codes = report.Findings |> List.map (fun finding -> finding.Code)
         failwith $"Erwartete Finding '{codePrefix}', erhalten: {codes}"
 
+let private assertDotnetBootstrapAcceptsCorrectReadOnlyLink () =
+    if not (OperatingSystem.IsWindows()) then
+        let root =
+            Path.Combine(Path.GetTempPath(), "RiftDotnetBootstrap-" + Guid.NewGuid().ToString("N"))
+
+        let fakeHome = Path.Combine(root, "home")
+        let homeBin = Path.Combine(fakeHome, ".local", "bin")
+        let sdkRoot = Path.Combine(root, "sdk")
+        let fakeDotnet = Path.Combine(sdkRoot, "dotnet")
+        let dotnetLink = Path.Combine(homeBin, "dotnet")
+        let fakeBin = Path.Combine(root, "fake-bin")
+        let forbiddenLn = Path.Combine(fakeBin, "ln")
+
+        let writableMode =
+            UnixFileMode.UserRead ||| UnixFileMode.UserWrite ||| UnixFileMode.UserExecute
+
+        Directory.CreateDirectory(homeBin) |> ignore
+        Directory.CreateDirectory(sdkRoot) |> ignore
+        Directory.CreateDirectory(fakeBin) |> ignore
+        File.WriteAllText(fakeDotnet, "#!/bin/sh\nprintf '10.0.110\\n'\n")
+        File.WriteAllText(forbiddenLn, "#!/bin/sh\nprintf 'ln must not be invoked\\n' >&2\nexit 91\n")
+        File.SetUnixFileMode(fakeDotnet, writableMode)
+        File.SetUnixFileMode(forbiddenLn, writableMode)
+        File.CreateSymbolicLink(dotnetLink, fakeDotnet) |> ignore
+        File.SetUnixFileMode(homeBin, UnixFileMode.UserRead ||| UnixFileMode.UserExecute)
+
+        try
+            let startInfo = ProcessStartInfo("/bin/sh")
+            startInfo.WorkingDirectory <- repositoryRoot
+            startInfo.UseShellExecute <- false
+            startInfo.RedirectStandardOutput <- true
+            startInfo.RedirectStandardError <- true
+            startInfo.ArgumentList.Add(Path.Combine(repositoryRoot, "scripts", "bootstrap-dotnet.sh"))
+            startInfo.Environment["HOME"] <- fakeHome
+            startInfo.Environment["RIFT_DOTNET_DIR"] <- sdkRoot
+
+            startInfo.Environment["PATH"] <-
+                fakeBin + string Path.PathSeparator + Environment.GetEnvironmentVariable("PATH")
+
+            use child =
+                match Process.Start(startInfo) with
+                | null -> failwith "Dotnet-Bootstrap-Testprozess konnte nicht gestartet werden."
+                | startedChild -> startedChild
+
+            let stdoutTask = child.StandardOutput.ReadToEndAsync()
+            let stderrTask = child.StandardError.ReadToEndAsync()
+
+            if not (child.WaitForExit(30_000)) then
+                child.Kill(true)
+                failwith "Dotnet-Bootstrap-Testprozess lief in einen Timeout."
+
+            let stdout = stdoutTask.GetAwaiter().GetResult()
+            let stderr = stderrTask.GetAwaiter().GetResult()
+
+            if child.ExitCode <> 0 then
+                failwith
+                    $"Korrekte Read-only-Dotnet-Verknüpfung wurde nicht idempotent akzeptiert: exit={child.ExitCode}; stdout={stdout}; stderr={stderr}"
+
+            if FileInfo(dotnetLink).LinkTarget <> fakeDotnet then
+                failwith "Dotnet-Bootstrap veränderte die bereits korrekte Verknüpfung."
+        finally
+            if Directory.Exists(homeBin) then
+                File.SetUnixFileMode(homeBin, writableMode)
+
+            if Directory.Exists(root) then
+                Directory.Delete(root, true)
+
 let repositoryToolchainPassesAllChecks () =
     let report = ToolchainCheck.check repositoryRoot
 
     if not report.Valid then
         failwith $"Repository-Lockfile ist ungueltig: {ToolchainCheck.reportJson report}"
+
+    assertDotnetBootstrapAcceptsCorrectReadOnlyLink ()
+
+let dotnetBootstrapRejectsCollidingPath () =
+    if not (OperatingSystem.IsWindows()) then
+        let root =
+            Path.Combine(Path.GetTempPath(), "RiftDotnetBootstrapCollision-" + Guid.NewGuid().ToString("N"))
+
+        let fakeHome = Path.Combine(root, "home")
+        let homeBin = Path.Combine(fakeHome, ".local", "bin")
+        let sdkRoot = Path.Combine(root, "sdk")
+        let fakeDotnet = Path.Combine(sdkRoot, "dotnet")
+        let dotnetCollision = Path.Combine(homeBin, "dotnet")
+
+        let executableMode =
+            UnixFileMode.UserRead ||| UnixFileMode.UserWrite ||| UnixFileMode.UserExecute
+
+        Directory.CreateDirectory(homeBin) |> ignore
+        Directory.CreateDirectory(sdkRoot) |> ignore
+        File.WriteAllText(fakeDotnet, "#!/bin/sh\nprintf '10.0.110\\n'\n")
+        File.SetUnixFileMode(fakeDotnet, executableMode)
+        File.WriteAllText(dotnetCollision, "user-owned-command\n")
+
+        try
+            let startInfo = ProcessStartInfo("/bin/sh")
+            startInfo.WorkingDirectory <- repositoryRoot
+            startInfo.UseShellExecute <- false
+            startInfo.RedirectStandardOutput <- true
+            startInfo.RedirectStandardError <- true
+            startInfo.ArgumentList.Add(Path.Combine(repositoryRoot, "scripts", "bootstrap-dotnet.sh"))
+            startInfo.Environment["HOME"] <- fakeHome
+            startInfo.Environment["RIFT_DOTNET_DIR"] <- sdkRoot
+
+            use child =
+                match Process.Start(startInfo) with
+                | null -> failwith "Dotnet-Bootstrap-Kollisionstest konnte nicht gestartet werden."
+                | startedChild -> startedChild
+
+            let stdoutTask = child.StandardOutput.ReadToEndAsync()
+            let stderrTask = child.StandardError.ReadToEndAsync()
+
+            if not (child.WaitForExit(30_000)) then
+                child.Kill(true)
+                failwith "Dotnet-Bootstrap-Kollisionstest lief in einen Timeout."
+
+            let stdout = stdoutTask.GetAwaiter().GetResult()
+            let stderr = stderrTask.GetAwaiter().GetResult()
+
+            if child.ExitCode = 0 then
+                failwith $"Kollidierende PATH-Datei wurde als Erfolg gemeldet: stdout={stdout}; stderr={stderr}"
+
+            if File.ReadAllText(dotnetCollision) <> "user-owned-command\n" then
+                failwith "Dotnet-Bootstrap veränderte die kollidierende PATH-Datei."
+        finally
+            if Directory.Exists(root) then
+                Directory.Delete(root, true)
 
 let tamperedSourceHashIsRejected () =
     // Eine nach ihrer Bindung manipulierte Cache-Fixture muss die

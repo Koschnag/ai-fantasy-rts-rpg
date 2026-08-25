@@ -1892,8 +1892,9 @@ module Program =
               RunProvenanceTests.retentionPlansAreReadOnlyAndExecutionsStayGuarded
               "T-004 evidence payloads redact secrets and reject foreign fields",
               RunProvenanceTests.evidencePayloadsRedactSecretsAndRejectForeignFields
-              "T-010 toolchain pins, licenses and cohort pass the check",
+              "T-010 toolchain pins and read-only bootstrap contract pass",
               ToolchainCheckTests.repositoryToolchainPassesAllChecks
+              "T-010 bootstrap rejects a colliding PATH file", ToolchainCheckTests.dotnetBootstrapRejectsCollidingPath
               "T-010 tampered source hash is rejected", ToolchainCheckTests.tamperedSourceHashIsRejected
               "T-010 intact cache passes the source crosscheck", ToolchainCheckTests.intactCachePassesCrosscheck
               "T-010 missing license entry is rejected", ToolchainCheckTests.missingLicenseEntryIsRejected
