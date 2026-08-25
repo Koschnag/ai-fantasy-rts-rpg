@@ -38,7 +38,7 @@ flowchart TB
 ```
 
 - Simulation und Gameplay kennen keine SDL3-, bgfx- oder Betriebssystemtypen.
-- Darstellung konsumiert Simulations-Snapshots und erzeugt Spielerbefehle; sie verändert den Weltzustand nicht direkt.
+- Darstellung konsumiert Simulations-Snapshots und erzeugt Spielerbefehle; sie verändert den Weltzustand nicht direkt. Für Lastpfade mit Allokationsbudget (T-023) ist der äquivalente schreibgeschützte Zugriff auf die öffentlichen Zustandsleser des Simulationskerns zugelassen; mutierende Aufrufe bleiben der Lauf-Treiberschicht vorbehalten.
 - Quelldaten und Rohassets gelangen nie ungeprüft in das Runtime-Paket.
 - Offline-Werkzeuge dürfen mehr Komfort und JIT verwenden; der Clientkern bleibt AOT-/Trimming-freundlich.
 

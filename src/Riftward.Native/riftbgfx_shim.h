@@ -39,6 +39,7 @@ void rift_bgfx_gl_strings(
 	const char** outRenderer,      /* GL_RENDERER (GPU-Bezeichnung). */
 	const char** outSlVersion);    /* GL_SHADING_LANGUAGE_VERSION. */
 uint32_t rift_bgfx_gpu_ids(void);      /* hi16 vendorId, lo16 deviceId */
+uint64_t rift_bgfx_caps(void);         /* bgfx::Caps::supported-Bitmaske */
 void rift_bgfx_shutdown(void);
 uint32_t rift_bgfx_frame(void);
 uint32_t rift_bgfx_stats_draw_calls(void); /* Draw-Aufrufe des letzten Frames aus bgfx::Stats. */
@@ -83,6 +84,88 @@ void rift_tri_destroy_shader(uint16_t shaderIdx);
 void rift_tri_destroy_vertex_buffer(uint16_t vertexBufferIdx);
 
 void rift_tri_submit(uint8_t viewId, uint16_t programIdx, uint16_t vertexBufferIdx);
+
+/*
+ * T-023-Erweiterung (integrierter Belastungsframe): Instancing, Uniforms,
+ * Texturen, Schatten-/Capture-Renderziele und GPU-Readback. Die Erweiterung
+ * folgt demselben Reproduzierbarkeitsvertrag wie der Grundumfang; es findet
+ * weiterhin keine Shaderkompilierung zur Laufzeit statt.
+ */
+
+/* Eigene Formatkennungen des Shims; Abbildung bleibt bgfx-intern. */
+enum
+{
+	RIFT_TEX_FMT_RGBA8 = 0,
+	RIFT_TEX_FMT_RGBA32F = 1
+};
+
+/* bgfx::UniformType-Kennungen fuer die Shim-Grenze. */
+enum
+{
+	RIFT_UNIFORM_VEC4 = 0,
+	RIFT_UNIFORM_MAT4 = 1,
+	RIFT_UNIFORM_SAMPLER = 2
+};
+
+/* Ungueltige Handleindizes bleiben 0xFFFF. */
+#define RIFT_INVALID_HANDLE 0xFFFFu
+
+/*
+ * Erstellt eine Textur. data darf NULL sein (uninitialisiertes RT);
+ * sonst wird sizeInBytes als initiale Uploadgroesse kopiert.
+ */
+uint16_t rift_tex_create_2d(uint16_t width, uint16_t height, int32_t format, uint64_t flags,
+	const void* data, uint32_t sizeInBytes);
+
+/* Teilbereichsupdate einer dynamischen Textur; pitch ist die Zeilenbreite in Bytes. */
+void rift_tex_update_2d(uint16_t texIdx, uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+	const void* data, uint32_t sizeInBytes, uint16_t pitch);
+
+void rift_tex_destroy(uint16_t texIdx);
+
+/* Framebuffer aus genau einer Farbtextur (RT); Freigabe vor der Textur. */
+uint16_t rift_fb_create_single(uint16_t texIdx);
+void rift_fb_destroy(uint16_t fbIdx);
+
+/* Bindet einen Framebuffer an einen View; 0xFFFF loest die Bindung. */
+void rift_view_frame_buffer(uint8_t viewId, uint16_t fbIdx);
+
+/* Vollflaechiger Blit einer Textur in eine andere (gleiche Groesse erforderlich). */
+void rift_blit_full(uint8_t viewId, uint16_t dstIdx, uint16_t srcIdx, uint16_t width, uint16_t height);
+
+/* Fordert ein Readback an; Rueckgabe ist der Frame, ab dem die Daten gueltig sind. */
+uint32_t rift_read_texture_begin(uint16_t texIdx, void* outBuffer, uint32_t bufferSizeBytes);
+
+uint16_t rift_uniform_create(const char* name, int32_t type, uint16_t count);
+void rift_uniform_destroy(uint16_t uniformIdx);
+void rift_set_uniform_vec4(uint16_t uniformIdx, const float* values, uint16_t count);
+void rift_set_uniform_mat4(uint16_t uniformIdx, const float* values16);
+
+/* Bindet eine Textur an eine Sampler-Uniform eines Stages. */
+void rift_set_texture(uint8_t stage, uint16_t uniformIdx, uint16_t texIdx, uint32_t samplerFlags);
+
+/* Erstellt einen statischen Index-Buffer; uint32Indices != 0 waehlt 32-Bit-Indizes. */
+uint16_t rift_ib_create(const void* data, uint32_t sizeInBytes, int32_t uint32Indices);
+void rift_ib_destroy(uint16_t ibIdx);
+
+/*
+ * Erstellt einen Vertex-Buffer mit einem der festen Graybox-Layouts:
+ * 0 = Einheitenmesh (pos 3xf32, normal 4xu8n, indices 4xu8, weight 4xu8n),
+ * 1 = Landschaft (pos 3xf32, normal 4xu8n, color0 4xu8n),
+ * 2 = Partikelquad (pos 2xf32, texcoord0 2xf32).
+ */
+uint16_t rift_vb_create_layout(const void* data, uint32_t sizeInBytes, uint8_t layoutId);
+
+/*
+ * Flexibler Draw-Submit: Vertex- und optionaler Index-Buffer, optional
+ * Instanzdaten (Stride muss Vielfaches von 16 sein), Renderzustand.
+ * instanceData == NULL bedeutet nicht instanziert; dann zaehlt
+ * elementCount Vertices, sonst Instanzen bzw. Indizes je nach Index-Buffer.
+ */
+void rift_draw_submit(uint8_t viewId, uint16_t programIdx,
+	uint16_t vertexBufferIdx, uint16_t indexBufferIdx, uint32_t elementCount,
+	const void* instanceData, uint32_t instanceCount,
+	uint16_t instanceStride, uint64_t state);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -44,6 +44,12 @@ internal static class BenchRunner
                     return SimBenchRunner.Run(arguments);
                 }
 
+                if (string.Equals(scenarioId, BenchScenarios.Representative, StringComparison.Ordinal))
+                {
+                    // Integrierter Belastungsframe (T-023).
+                    return RepBenchRunner.Run(arguments);
+                }
+
                 break;
 
             case BenchScenarios.Support.RegisteredNotImplemented:

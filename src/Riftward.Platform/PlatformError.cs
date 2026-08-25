@@ -56,6 +56,9 @@ public enum PlatformErrorCode
 
     /// <summary>Reportpfad ist nicht schreibbar.</summary>
     ReportNotWritable = 28,
+
+    /// <summary>Opt-in Frame-Evidenzartefakt fehlgeschlagen (T-023); Report wurde dennoch geschrieben.</summary>
+    FrameArtifactFailed = 29,
 }
 
 /// <summary>Ein einzelner kontrollierter Fehler mit Code, Meldung und Detailpfad.</summary>

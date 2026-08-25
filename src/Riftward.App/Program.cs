@@ -47,14 +47,20 @@ static int PrintUsage(string message)
         + Environment.NewLine
         + "      [--sample-frames N] [--artifacts-dir VERZ] [--manifest DATEI] [--lock DATEI]"
         + Environment.NewLine
-        + "  Riftward.App bench --scenario bench-empty --report PFAD [--seed N] [--warmup-frames N]"
-        + Environment.NewLine
-        + "      [--sample-frames N] [--bind-profile PROFIL=KLASSE] [--artifacts-dir VERZ] [--manifest DATEI]"
-        + Environment.NewLine
-        + "      [--lock DATEI]"
-        + Environment.NewLine
-        + "  Riftward.App bench --scenario bench-sim --report PFAD [--seed N] [--warmup-ticks N]"
-        + Environment.NewLine
-        + "      [--sample-ticks N] [--bind-profile PROFIL=KLASSE] [--lock DATEI]");
+    + "  Riftward.App bench --scenario bench-empty --report PFAD [--seed N] [--warmup-frames N]"
+    + Environment.NewLine
+    + "      [--sample-frames N] [--bind-profile PROFIL=KLASSE] [--artifacts-dir VERZ] [--manifest DATEI]"
+    + Environment.NewLine
+    + "      [--lock DATEI]"
+    + Environment.NewLine
+    + "  Riftward.App bench --scenario bench-sim --report PFAD [--seed N] [--warmup-ticks N]"
+    + Environment.NewLine
+    + "      [--sample-ticks N] [--bind-profile PROFIL=KLASSE] [--lock DATEI]"
+    + Environment.NewLine
+    + "  Riftward.App bench --scenario bench-representative --report PFAD [--seed N]"
+    + Environment.NewLine
+    + "      [--warmup-frames N] [--sample-frames N] [--capture-frame PFAD]"
+    + Environment.NewLine
+    + "      [--bind-profile PROFIL=KLASSE] [--artifacts-dir VERZ] [--manifest DATEI] [--lock DATEI]");
     return ExitCodes.Usage;
 }

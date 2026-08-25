@@ -33,6 +33,9 @@ internal static partial class BgfxShimNative
     internal static partial uint rift_bgfx_gpu_ids();
 
     [LibraryImport(LibraryName)]
+    internal static partial ulong rift_bgfx_caps();
+
+    [LibraryImport(LibraryName)]
     internal static partial void rift_bgfx_shutdown();
 
     [LibraryImport(LibraryName)]
@@ -52,6 +55,9 @@ internal static partial class BgfxShimNative
 
     [LibraryImport(LibraryName)]
     internal static partial ushort rift_tri_create_vertex_buffer(ReadOnlySpan<byte> data, uint sizeInBytes);
+
+    [LibraryImport(LibraryName)]
+    internal static partial ushort rift_vb_create_layout(ReadOnlySpan<byte> data, uint sizeInBytes, byte layoutId);
 
     [LibraryImport(LibraryName)]
     internal static partial ushort rift_tri_create_shader(ReadOnlySpan<byte> data, uint sizeInBytes);
@@ -74,6 +80,102 @@ internal static partial class BgfxShimNative
 
     [LibraryImport(LibraryName)]
     internal static partial void rift_tri_submit(byte viewId, ushort programIndex, ushort vertexBufferIndex);
+
+    // ---------------------------------------------------- T-023-Shim-Erweiterung
+
+    [LibraryImport(LibraryName)]
+    internal static partial ushort rift_tex_create_2d(
+        ushort width,
+        ushort height,
+        int format,
+        ulong flags,
+        ReadOnlySpan<byte> data,
+        uint sizeInBytes);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_tex_update_2d(
+        ushort textureIndex,
+        ushort x,
+        ushort y,
+        ushort width,
+        ushort height,
+        ReadOnlySpan<float> data,
+        uint sizeInBytes,
+        ushort pitch);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_tex_destroy(ushort textureIndex);
+
+    [LibraryImport(LibraryName)]
+    internal static partial ushort rift_fb_create_single(ushort textureIndex);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_fb_destroy(ushort frameBufferIndex);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_view_frame_buffer(byte viewId, ushort frameBufferIndex);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_blit_full(
+        byte viewId,
+        ushort destinationIndex,
+        ushort sourceIndex,
+        ushort width,
+        ushort height);
+
+    [LibraryImport(LibraryName)]
+    internal static partial uint rift_read_texture_begin(
+        ushort textureIndex,
+        nint outBuffer,
+        uint bufferSizeBytes);
+
+    [LibraryImport(LibraryName, StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial ushort rift_uniform_create(
+        string name,
+        int type,
+        ushort count);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_uniform_destroy(ushort uniformIndex);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_set_uniform_vec4(
+        ushort uniformIndex,
+        ReadOnlySpan<float> values,
+        ushort count);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_set_uniform_mat4(
+        ushort uniformIndex,
+        ReadOnlySpan<float> values16);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_set_texture(
+        byte stage,
+        ushort uniformIndex,
+        ushort textureIndex,
+        uint samplerFlags);
+
+    [LibraryImport(LibraryName)]
+    internal static partial ushort rift_ib_create(
+        ReadOnlySpan<byte> data,
+        uint sizeInBytes,
+        int uint32Indices);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_ib_destroy(ushort indexBufferIndex);
+
+    [LibraryImport(LibraryName)]
+    internal static partial void rift_draw_submit(
+        byte viewId,
+        ushort programIndex,
+        ushort vertexBufferIndex,
+        ushort indexBufferIndex,
+        uint elementCount,
+        nint instanceData,
+        uint instanceCount,
+        ushort instanceStride,
+        ulong state);
 }
 
 /// <summary>Blittable Abbildung von rift_bgfx_init_params_t (siehe riftbgfx_shim.h).</summary>

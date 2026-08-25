@@ -1,9 +1,10 @@
 namespace Riftward.App.Bench;
 
 /// <summary>
-/// Oeffentlicher Szenariokatalog des bench-Befehls (T-020/T-021).
-/// Implementiert sind <see cref="Empty"/> (leere Renderer-Szene) und
-/// <see cref="Sim"/> (headless Simulationsbaseline); die uebrigen
+/// Oeffentlicher Szenariokatalog des bench-Befehls (T-020/T-021/T-023).
+/// Implementiert sind <see cref="Empty"/> (leere Renderer-Szene),
+/// <see cref="Sim"/> (headless Simulationsbaseline) und
+/// <see cref="Representative"/> (integrierter Belastungsframe); die uebrigen
 /// Pflichtszenarien sind registriert und schlagen mit definiertem Exitcode
 /// explizit fehl, statt einen kosmetischen Gruenerfolg zu liefern.
 /// </summary>
@@ -11,6 +12,7 @@ public static class BenchScenarios
 {
     public const string Empty = "bench-empty";
     public const string Sim = "bench-sim";
+    public const string Representative = "bench-representative";
     public const string Army = "bench-army";
     public const string Battle = "bench-battle";
     public const string Base = "bench-base";
@@ -22,6 +24,7 @@ public static class BenchScenarios
     [
         Empty,
         Sim,
+        Representative,
         Army,
         Battle,
         Base,
@@ -49,7 +52,8 @@ public static class BenchScenarios
         }
 
         if (string.Equals(scenarioId, Empty, StringComparison.Ordinal)
-            || string.Equals(scenarioId, Sim, StringComparison.Ordinal))
+            || string.Equals(scenarioId, Sim, StringComparison.Ordinal)
+            || string.Equals(scenarioId, Representative, StringComparison.Ordinal))
         {
             return Support.Implemented;
         }
