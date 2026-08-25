@@ -98,6 +98,45 @@ type BgfxApiFake(initResult: int, rendererType: int) =
         member _.Submit(viewId, program, buffer) =
             record $"submit{viewId}:{program}:{buffer}"
 
+        // T-023-Erweiterungen: Fixtures halten die neuen Grenzen kontrolliert
+        // untaetig; der T-010-Besitzvertrag wird dadurch nicht beruehrt.
+        member _.Caps() = 0UL
+
+        member _.CreateLayoutVertexBuffer(_, _) = 0xFFFFus
+
+        member _.CreateTexture2D(_, _, _, _, _) = 0xFFFFus
+
+        member _.UpdateTexture2DRgba32F(_, _, _, _, _, _) = ()
+
+        member _.DestroyTexture(texture) = record $"destroytexture{texture}"
+
+        member _.CreateFrameBufferFromTexture(_) = 0xFFFFus
+
+        member _.DestroyFrameBuffer(frameBuffer) =
+            record $"destroyframebuffer{frameBuffer}"
+
+        member _.SetViewFrameBuffer(_, _) = record "setviewframebuffer"
+
+        member _.BlitFull(_, _, _, _, _) = record "blitfull"
+
+        member _.ReadTextureBegin(_, _, _) = 0u
+
+        member _.CreateUniform(_, _, _) = 0xFFFFus
+
+        member _.DestroyUniform(uniform) = record $"destroyuniform{uniform}"
+
+        member _.SetUniformVec4(_, _) = record "setuniformvec4"
+
+        member _.SetUniformMat4(_, _) = record "setuniformmat4"
+
+        member _.SetTexture(_, _, _, _) = record "settexture"
+
+        member _.CreateIndexBuffer(_, _) = 0xFFFFus
+
+        member _.DestroyIndexBuffer(buffer) = record $"destroyib{buffer}"
+
+        member _.DrawSubmit(_, _, _, _, _, _, _, _, _) = record "drawsubmit"
+
 let private expectPlatformException (code: PlatformErrorCode) (action: unit -> unit) (message: string) =
     try
         action ()

@@ -118,3 +118,22 @@ sind diagnostische Baseline (Q-OPS-001), Pflichtprofile bleiben
 Nach den isolierten Renderer- und Simulationsbaselines kombiniert `BENCH-REPRESENTATIVE` mindestens 350 sichtbare instanzierte Einheiten, den repräsentativen Animationspfad mit mindestens 48 Bones je normaler Einheit, 250 vollständig simulierte mobile Agenten, konkurrierende Gruppenpfade, Landschaft, Sonne, die budgetierten lokalen Schattenlichter und eine Partikelspitze. Der Aufbau darf visuell einfach sein; seine Lastverteilung darf nicht künstlich leer sein.
 
 Der Nachweis protokolliert mindestens p50/p95/p99 von Frame-, GPU- und Simulationszeit, Allokationen und GC-Pausen, Working Set, VRAM beziehungsweise Unified Memory, Draw-/Submit-Aufrufe, sichtbare Dreiecke und Ladezeit. Außerdem bindet er Rohmessung, Warm-up, Laufdauer, Szenen-/Seed-ID, Commit, Buildmodus, Runtimeprofil, Hardware, OS und Treiber. `BENCH-REPRESENTATIVE` muss auf `HW-PC-MIN` und `HW-MAC-MIN` bestehen, bevor die zentrale Effizienzhypothese als bestätigt gilt.
+
+Seit T-023 ist das Szenario als
+`./scripts/rift.sh bench --scenario bench-representative --report PFAD`
+implementiert (Report Schemaversion 3): Die Komposition ist codegebunden an
+die obige Szenebudgettabelle gebunden (350 sichtbare/250 simulierte Einheiten,
+48 Bones, 1+4 Lichter mit aktiven Schattenpaessen, Partikelspitze am
+Budgetpeak von 5000), die simulierte Komponente wiederverwendet den
+Simulationsvertrag V1 unverändert, und das Budgetgate entscheidet fail-closed
+ausschließlich gegen die oben fixierten Werte (33,3 ms Frame-p99 der
+Minimumprofile, GPU 14 ms Ziel/30 ms hart, Tick 8 ms Ziel/16 ms hart,
+Allokationen ≤ 1 KiB je warmem Frame gemäß AC-T010-07/T-020-Praezedenz,
+≤ 1200 Draw-/Submit-Aufrufe, ≤ 2 Mio. sichtbare Dreiecke Low ohne
+Schattenwiederholung, ≤ 5000 Partikel, null Laufzeitshaderkompilierungen,
+Arbeitssatz gegen die Prozesszeile 3,5 GB Ziel/4,5 GB hart). Der Nachweisort
+der Kartenlade-Budgetzeile bleibt ausschließlich `BENCH-LOAD`; der integrierte
+Report weist diese Zeile als nicht anwendbar aus. Kein Budgetwert wird dadurch
+geändert. Bis die Projektleitung Referenzrechner benennt (Q-OPS-001), bleiben
+alle Pflichtprofile für dieses Szenario `NOT-MEASURED`; Läufe auf dem
+Entwickler-PC gelten als diagnostische Baseline.

@@ -1961,7 +1961,31 @@ module Program =
               "T-021 unwritable sim report path fails controlled", BenchSimTests.unwritableSimReportPathFailsControlled
               "T-021 exit code mapping stays stable including sim reuse",
               BenchSimTests.exitCodeMappingStaysStableIncludingSimReuse
-              "T-021 architecture keeps simulation project pure", BenchSimTests.architectureKeepsSimulationProjectPure ]
+              "T-021 architecture keeps simulation project pure", BenchSimTests.architectureKeepsSimulationProjectPure
+              "T-023 scenario config mirrors documented budget table",
+              BenchRepresentativeTests.scenarioConfigMirrorsDocumentedBudgetTable
+              "T-023 composition targets produce non-degenerate geometry",
+              BenchRepresentativeTests.compositionTargetsProduceNonDegenerateGeometry
+              "T-023 landscape height field is deterministic and walkable aware",
+              BenchRepresentativeTests.landscapeHeightFieldIsDeterministicAndWalkableAware
+              "T-023 rig evaluates 48 bone palette deterministically",
+              BenchRepresentativeTests.rigEvaluatesFortyEightBonePaletteDeterministically
+              "T-023 camera flight is deterministic and canonical",
+              BenchRepresentativeTests.cameraFlightIsDeterministicAndCanonical
+              "T-023 schedule math binds ticks to frames and capture after window",
+              BenchRepresentativeTests.scheduleMathBindsTicksToFramesAndCaptureAfterWindow
+              "T-023 representative budget gate covers every class fail closed",
+              BenchRepresentativeTests.representativeBudgetGateCoversEveryClassFailClosed
+              "T-023 frame evidence encoder and policy are bound",
+              BenchRepresentativeTests.frameEvidenceEncoderAndPolicyAreBound
+              "T-023 report schema accepts golden and rejects fabrication matrix",
+              BenchRepresentativeTests.reportSchemaAcceptsGoldenAndRejectsFabricationMatrix
+              "T-023 profile binding stays honest for representative scenario",
+              BenchRepresentativeTests.profileBindingStaysHonestForRepresentativeScenario
+              "T-023 CLI contract keeps registry and error paths controlled",
+              BenchRepresentativeTests.cliContractKeepsRegistryAndErrorPathsControlled
+              "T-023 architecture keeps snapshot direction and hot path discipline",
+              BenchRepresentativeTests.architectureKeepsSnapshotDirectionAndHotPathDiscipline ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

@@ -4,7 +4,11 @@
     {
       "id": "G-SPEC",
       "purpose": "Auftrag, Anforderungen und Abnahmekriterien sind nachverfolgbar",
-      "requiredFor": ["code", "content", "asset"],
+      "requiredFor": [
+        "code",
+        "content",
+        "asset"
+      ],
       "command": null,
       "status": "manual-baseline",
       "passCondition": "Task ist schemakonform, quellenverknüpft und besitzt testbare Kriterien sowie Entscheidungshoheit"
@@ -12,7 +16,10 @@
     {
       "id": "G-FORMAT",
       "purpose": "Formatierung ist deterministisch und unverändert",
-      "requiredFor": ["code", "data"],
+      "requiredFor": [
+        "code",
+        "data"
+      ],
       "command": "./scripts/rift.sh lint",
       "status": "implemented-for-fsharp",
       "passCondition": "Exit 0"
@@ -20,7 +27,10 @@
     {
       "id": "G-STATIC",
       "purpose": "Compiler, Analyzer, Schema- und AOT-Warnungen bestehen",
-      "requiredFor": ["code", "data"],
+      "requiredFor": [
+        "code",
+        "data"
+      ],
       "command": "./scripts/rift.sh build",
       "status": "implemented-for-current-solution",
       "passCondition": "Exit 0 und keine ungeklärten Warnungen; zusätzliche aufgabenspezifische Validatoren bestehen"
@@ -28,7 +38,10 @@
     {
       "id": "G-TEST",
       "purpose": "Relevante Unit-, Integrations- und Replay-Tests bestehen",
-      "requiredFor": ["code", "gameplay"],
+      "requiredFor": [
+        "code",
+        "gameplay"
+      ],
       "command": "./scripts/rift.sh test",
       "status": "implemented-for-harness",
       "passCondition": "Exit 0, keine ungeklärten Skips oder Flakes"
@@ -36,7 +49,11 @@
     {
       "id": "G-HARNESS",
       "purpose": "Runs, Hashketten, RAG-Quellen und Index sind integer",
-      "requiredFor": ["tooling", "memory", "autonomous-run"],
+      "requiredFor": [
+        "tooling",
+        "memory",
+        "autonomous-run"
+      ],
       "command": "./scripts/rift.sh verify",
       "status": "implemented-for-current-harness",
       "passCondition": "Exit 0 und valid=true"
@@ -44,7 +61,11 @@
     {
       "id": "G-DATA",
       "purpose": "Schemas, Referenzen, Lokalisierung und persistente Fixtures sind gültig",
-      "requiredFor": ["data", "content", "save"],
+      "requiredFor": [
+        "data",
+        "content",
+        "save"
+      ],
       "command": null,
       "status": "partial",
       "passCondition": "Alle für den Task betroffenen Schemas und Referenzen sind validiert"
@@ -52,15 +73,24 @@
     {
       "id": "G-PERF",
       "purpose": "Betroffene Performancebudgets sind gemessen und eingehalten",
-      "requiredFor": ["runtime", "asset", "content"],
-      "command": "./scripts/rift.sh bench --scenario bench-empty | bench-sim",
-      "status": "partial-bench-empty-and-bench-sim-implemented",
-      "passCondition": "BENCH-EMPTY erfüllt seine p99-, Allokations-, Draw-, Shader- und RSS-Grenzen fail-closed im Report (Schemaversion 1). BENCH-SIM erfüllt fail-closed die harte Tickzeitgrenze von 16 ms bei ausgewiesenem 8-ms-Ziel sowie die in docs/SIMULATIONSVERTRAG.md fixierte Allokationsgrenze je warmem Tick (0 Bytes, innerhalb der Auftragsobergrenze 1 KiB); Report Schemaversion 2 mit Zustands-Hashkette; headless nicht anwendbare Kennzahlen sind unavailable mit Grund. Pflichtprofilbestehen entsteht ausschließlich durch deklarierte Bindung an die zugehörige Referenzklasse auf von der Projektleitung benannten Referenzrechnern. Bis dahin bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH NOT-MEASURED (Q-OPS-001-Klärungsprotokoll 2026-08-24); Läufe auf dem Entwickler-PC gelten als diagnostische Baseline. Die übrigen Pflichtszenarien (BENCH-ARMY/BATTLE/BASE/PATH/LOAD) und BENCH-REPRESENTATIVE sind noch nicht implementiert und schlagen mit Exitcode 25 fehl"
+      "requiredFor": [
+        "runtime",
+        "asset",
+        "content"
+      ],
+      "command": "./scripts/rift.sh bench --scenario bench-empty | bench-sim | bench-representative",
+      "status": "partial-bench-empty-bench-sim-and-representative-implemented",
+      "passCondition": "BENCH-EMPTY erfüllt seine p99-, Allokations-, Draw-, Shader- und RSS-Grenzen fail-closed im Report (Schemaversion 1). BENCH-SIM erfüllt fail-closed die harte Tickzeitgrenze von 16 ms bei ausgewiesenem 8-ms-Ziel sowie die in docs/SIMULATIONSVERTRAG.md fixierte Allokationsgrenze je warmem Tick (0 Bytes, innerhalb der Auftragsobergrenze 1 KiB); Report Schemaversion 2 mit Zustands-Hashkette; headless nicht anwendbare Kennzahlen sind unavailable mit Grund. BENCH-REPRESENTATIVE (T-023, Report Schemaversion 3) verbindet die Komposition der Szenebudgettabelle codegebunden (350 sichtbare/250 simulierte Einheiten, 48 Bones je normaler Einheit, eine Sonne plus vier lokale Schattenlichter mit aktiven Schattenpaessen, Partikelspitze am Budgetpeak 5000) und entscheidet fail-closed ausschließlich gegen PERFORMANCE_BUDGET.md und den AC-T010-07/T-020/T-021-Praezedenz (33,3 ms Frame-p99, GPU 14 ms Ziel/30 ms hart, Tick 8 ms Ziel/16 ms hart, ≤1 KiB Allokationen je warmem Frame, ≤1200 Draw-/Submit-Aufrufe, ≤2 Mio. sichtbare Dreiecke Low ohne Schattenwiederholung, ≤5000 Partikel, null Laufzeitshaderkompilierungen, Arbeitssatz 3500 MiB Ziel/4500 MiB hart); die Kartenlade-Budgetzeile bleibt Eigentum von BENCH-LOAD. Pflichtprofilbestehen entsteht ausschließlich durch deklarierte Bindung an die zugehörige Referenzklasse auf von der Projektleitung benannten Referenzrechnern. Bis dahin bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH NOT-MEASURED (Q-OPS-001-Klärungsprotokoll 2026-08-24); Läufe auf dem Entwickler-PC gelten als diagnostische Baseline. Die übrigen Pflichtszenarien (BENCH-ARMY/BATTLE/BASE/PATH/LOAD) sind noch nicht implementiert und schlagen mit Exitcode 25 fehl"
     },
     {
       "id": "G-VISUAL",
       "purpose": "Golden-Szenen, Lesbarkeit, Atmosphäre und Originalität bestehen",
-      "requiredFor": ["rendering", "ui", "asset", "content"],
+      "requiredFor": [
+        "rendering",
+        "ui",
+        "asset",
+        "content"
+      ],
       "command": null,
       "status": "rubric-only",
       "passCondition": "ATMOSPHAERE.md-Rubrik mindestens 80/100, kein Bereich unter 7 und Originalitätsgate bestanden"
@@ -68,7 +98,11 @@
     {
       "id": "G-PROVENANCE",
       "purpose": "Lizenz, Ursprung, Version und Hash sind vollständig",
-      "requiredFor": ["dependency", "asset", "model"],
+      "requiredFor": [
+        "dependency",
+        "asset",
+        "model"
+      ],
       "command": "./scripts/rift.sh assets-check",
       "status": "implemented-for-assets",
       "passCondition": "Exit 0; für Shipping zusätzlich globaler Lauf mit --require-local --require-approved und shippingReady=true"
@@ -76,17 +110,30 @@
     {
       "id": "G-SECURITY",
       "purpose": "Secrets, Eingabegrenzen und relevante Bedrohungen sind geprüft",
-      "requiredFor": ["code", "tooling", "release"],
+      "requiredFor": [
+        "code",
+        "tooling",
+        "release"
+      ],
       "command": "./scripts/rift.sh security",
       "status": "baseline-implemented",
-      "coverage": ["secret-heuristics", "nuget-audit", "json-syntax", "git-lfs-pointer-fsck"],
+      "coverage": [
+        "secret-heuristics",
+        "nuget-audit",
+        "json-syntax",
+        "git-lfs-pointer-fsck"
+      ],
       "passCondition": "Exit 0; aufgabenspezifische Threat-, Lizenz- und Releaseprüfungen zusätzlich erfüllt",
       "releaseSufficient": false
     },
     {
       "id": "G-PLATFORM",
       "purpose": "Betroffene RIDs bauen nativ und bestehen ABI-/Gameplay-Smokes",
-      "requiredFor": ["runtime", "interop", "release"],
+      "requiredFor": [
+        "runtime",
+        "interop",
+        "release"
+      ],
       "command": null,
       "status": "unavailable",
       "passCondition": "Jeder betroffene RID besitzt einen nativen grünen Build- und Smoke-Nachweis"
@@ -94,7 +141,9 @@
     {
       "id": "G-PACKAGE",
       "purpose": "Releasepakete sind reproduzierbar, vollständig und startfähig",
-      "requiredFor": ["release"],
+      "requiredFor": [
+        "release"
+      ],
       "command": "./scripts/rift.sh package",
       "status": "unavailable",
       "passCondition": "Artefakt, Manifest, Hash, Lizenztexte, Signierung und Installationssmoke sind grün"

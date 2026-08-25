@@ -33,19 +33,44 @@ public static class CameraMath
     /// </summary>
     public static double[] LookAt(Vec3 eye, Vec3 at, Vec3 up)
     {
+        var result = new double[16];
+        LookAt(eye, at, up, result);
+        return result;
+    }
+
+    /// <summary>
+    /// Allokationsfreie Variante von <see cref="LookAt"/> fuer Frame-Hotpaths:
+    /// schreibt in den vom Aufrufer gestellten Zielpuffer (16 Elemente).
+    /// </summary>
+    public static void LookAt(Vec3 eye, Vec3 at, Vec3 up, Span<double> target16)
+    {
+        if (target16.Length != 16)
+        {
+            throw new ArgumentException("Zielpuffer benoetigt genau 16 Elemente.", nameof(target16));
+        }
+
         // Left-handed: Blickrichtung zeigt von eye Richtung at.
         var view = Normalize(at - eye);
         var uxv = Cross(up, view);
         var right = uxv.Dot(uxv) == 0.0 ? new Vec3(1, 0, 0) : Normalize(uxv);
         var up2 = Cross(view, right);
 
-        return
-        [
-            right.X, up2.X, view.X, 0.0,
-            right.Y, up2.Y, view.Y, 0.0,
-            right.Z, up2.Z, view.Z, 0.0,
-            -right.Dot(eye), -up2.Dot(eye), -view.Dot(eye), 1.0,
-        ];
+        target16[0] = right.X;
+        target16[1] = up2.X;
+        target16[2] = view.X;
+        target16[3] = 0.0;
+        target16[4] = right.Y;
+        target16[5] = up2.Y;
+        target16[6] = view.Y;
+        target16[7] = 0.0;
+        target16[8] = right.Z;
+        target16[9] = up2.Z;
+        target16[10] = view.Z;
+        target16[11] = 0.0;
+        target16[12] = -right.Dot(eye);
+        target16[13] = -up2.Dot(eye);
+        target16[14] = -view.Dot(eye);
+        target16[15] = 1.0;
     }
 
     /// <summary>
@@ -93,6 +118,23 @@ public static class CameraMath
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Allokationsfreie Konversion fuer Frame-Hotpaths: schreibt die
+    /// double-Matrix in den vom Aufrufer gestellten float-Zielpuffer.
+    /// </summary>
+    public static void ToFloat16(ReadOnlySpan<double> matrix16, Span<float> target16)
+    {
+        if (matrix16.Length != 16 || target16.Length != 16)
+        {
+            throw new ArgumentException("Matrix und Zielpuffer benoetigen genau 16 Elemente.");
+        }
+
+        for (var index = 0; index < 16; index++)
+        {
+            target16[index] = (float)matrix16[index];
+        }
     }
 
     public static string FormatInvariant(double value) => value.ToString("R", CultureInfo.InvariantCulture);

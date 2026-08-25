@@ -99,10 +99,11 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 22 | Plattform nicht unterstützt (nur linux-x64 im T-010-Scope) |
 | 23 | Smoke endete ohne gerenderten Frame |
 | 24 | Effizienzbudget verletzt (Report wurde dennoch geschrieben) |
-| 25 | Benchmark-Szenario unbekannt oder noch nicht implementiert (kein Report; T-020/T-021) |
-| 26 | Bench-Budget verletzt (Report wurde dennoch geschrieben; T-020/T-021) |
-| 27 | Zwischenmetriken oder Report widersprechen dem Schemavertrag (T-020/T-021; der Report wird zur Diagnose geschrieben, gilt aber nicht als Beleg) |
-| 28 | Reportpfad nicht schreibbar (T-020/T-021) |
+| 25 | Benchmark-Szenario unbekannt oder noch nicht implementiert (kein Report; T-020/T-021/T-023) |
+| 26 | Bench-Budget verletzt (Report wurde dennoch geschrieben; T-020/T-021/T-023) |
+| 27 | Zwischenmetriken oder Report widersprechen dem Schemavertrag (T-020/T-021/T-023; der Report wird zur Diagnose geschrieben, gilt aber nicht als Beleg) |
+| 28 | Reportpfad nicht schreibbar (T-020/T-021/T-023) |
+| 29 | Opt-in Frame-Evidenzartefakt fehlgeschlagen; der Report wurde dennoch geschrieben und bindet `captured=false` mit Grund (T-023) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -115,6 +116,7 @@ dokumentierte Entscheidung und eine Anpassung der Tests
 ./scripts/rift.sh effizienzbaseline --report artifacts/t010/effizienz.json
 ./scripts/rift.sh bench --scenario bench-empty --report artifacts/t020/bench-empty.json
 ./scripts/rift.sh bench --scenario bench-sim --report artifacts/t021/bench-sim.json
+./scripts/rift.sh bench --scenario bench-representative --report artifacts/t023/bench-representative.json
 ```
 
 Beide ersten Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
@@ -158,3 +160,50 @@ Funktionen erweitert: `rift_bgfx_stats_snapshot` (flache Momentaufnahme von
 und `rift_view_transform` (View-/Projektionsmatrix eines Views). Die Erweiterung
 folgt demselben Reproduzierbarkeitsvertrag; zwei aufeinanderfolgende
 `--fresh`-Neubauten bleiben byteidentisch.
+
+Für T-023 wurde die Shim-Grenze erneut unter demselben Reproduzierbarkeits-
+vertrag erweitert (`rift_tex_*`, `rift_fb_*`, `rift_view_frame_buffer`,
+`rift_blit_full`, `rift_read_texture_begin`, `rift_uniform_*`,
+`rift_set_texture`, `rift_ib_create`/`-destroy`, `rift_vb_create_layout`,
+`rift_draw_submit`, `rift_bgfx_caps`). Die Erweiterung bringt ausschließlich
+flache bgfx-Aufrufe an die C#-Grenze: Instanzdaten werden je Submit aus einem
+vom Host festgepinnten Puffer in den bgfx-Ringkopiert, Knochenpaletten laufen
+als RGBA32F-Textur, Schattenpaesse nutzen eigene Renderziele mit gespeicherter
+Lichtdistanz, und der opt-in Einzelabgriff folgt dem Muster Renderziel → Blit →
+Readback. Besitzregeln der neuen Handles (Freigabe Framebuffer → Textur →
+Uniform → Index-/Vertex-Buffer, gesamt vor dem bgfx-Shutdown) liegen bei
+`Riftward.App.Bench.RepBenchRunner/SceneResources`; `BgfxDevice` prüft
+Handlegültigkeit und Initialisierung. Es findet weiterhin keine
+Shaderkompilierung zur Laufzeit statt; alle T-023-Shader werden offline mit
+dem gepinnten shaderc für GLSL 130 übersetzt.
+
+## bench-representative (T-023) — Befehls-, Exitcode- und Abgriffvertrag
+
+`bench --scenario bench-representative` führt den integrierten Belastungsframe
+aus: 1920×1080, Low-Anzeigeprofil, GL-3.3-Core-Pflichtpfad ohne stillen
+Backend-Fallback, VSync-Policy wie die Effizienzbaseline. Die Simulation wird
+unverändert gemäß `docs/SIMULATIONSVERTRAG.md` V1 wiederverwendet und über
+eine feste Frame-zu-Tick-Zuordnung (alle zwei Frames ein Tick) deterministisch
+getaktet; die Darstellung liest ausschließlich schreibgeschützte Zugriffe des
+Simulationskerns und mutiert den Zustand nie. Der Report (Schemaversion 3)
+bindet Kompositionsziele und -istzaehler, p50/p95/p99 von Frame-, GPU- und
+Tickzeit, Allokationen je warmem Frame, GC-Pausen, Working Set,
+bgfx-verwalteten GPU-Speicher (diskreter VRAM bleibt unavailable mit Grund),
+Draw-/Submit-Aufrufe, sichtbare Dreiecke (Hauptansicht ohne
+Schattenwiederholung sowie bgfx-Globalwert), gleichzeitige Partikel,
+Szenenaufbauzeit mit ausdrücklicher Nichtanwendbarkeit der Kartenlade-Budget-
+zeile (Eigentum von BENCH-LOAD), die Zustands-Hashkette als
+K2-Regressionsanker sowie die volle Umgebungsbinding. Das Budgetgate
+entscheidet fail-closed ausschließlich gegen `docs/PERFORMANCE_BUDGET.md`,
+den AC-T010-07/T-020/T-021-Praezedenz und die Szenebudgettabelle.
+
+Der opt-in Parameter `--capture-frame PFAD` schreibt nach Abschluss des
+Messfensters genau einen 1920×1080-Einzelabgriff einer deterministischen
+Kameraposition an festem Frameindex als unkomprimiertes 32-Bit-BMP; Report
+binden Hash, Abmessungen, Format, Szenario-/Seed-/Commitbinding und die
+Aussagegrenze (Graybox-Lastbelegung, niemals Gameplay-, Atmosphären- oder
+Shipping-Beleg; öffentliche Verwendung nur über die Bedingungen in
+`docs/communication/MEDIA_LAB.md` plus Projektleitungsautorisierung). Ohne
+Flag entsteht kein Bild; das Messverhalten ist identisch. Ein fehlgeschlagener
+Abgriff ergibt Exitcode 29, schreibt den Report jedoch mit `captured=false`
+und maschinenlesbarem Grund.

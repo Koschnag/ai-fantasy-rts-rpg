@@ -37,7 +37,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
 | T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DONE |
 | T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DRAFT |
-| T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | READY |
+| T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DONE |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DRAFT |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
@@ -260,6 +260,35 @@ weiterhin `OFFEN`, statt sie still als „abgenommen" zu behaupten. Alle lokalen
 Gates grün (fmt/lint/build mit 0 Warnungen, Tests 172/172, security PASS,
 rag-build, verify über alle Runs). Zu diesem Prüfzeitpunkt hatte die
 Implementierung noch nicht begonnen; der Taskstatus bleibt `ready`.
+
+T-023 wurde am 2026-08-25 durch den unabhängigen Review-/Vollendungslauf
+`01M0V8V4RVW9V77S94AXVK9EXK` (Akteur `t023-review-completion`) geprüft,
+vollendet und auf `DONE` gesetzt: Der Implementierungslauf
+`01M0TWMNGRTYQJA414M5DCEEYE` hatte Code, Tests und Doku geliefert, den
+fensterpflichtigen Nachweis aber kontrolliert offen gelassen (kopflose Sitzung,
+Exit 19). Die Reparatur umfasst zehn In-Scope-Defekte, darunter die fachlich
+gewichtigen: Terrain-Indexpuffer mit INDEX32-Flag über Uint16-Daten
+(Hauptansicht praktisch leer), Renderzustandsbits außerhalb der Pin-Bedeutung
+(Cull/WriteZ/Blend), Kameraflug mit Augen­höhen bis −60 m unterhalb der
+Landschaft, Captureindex hinter dem vorrechneten Kamerahorizont,
+Tickzeitmesspunkt nach statt vor der Komposition sowie 234 KiB Hotpath-
+Allokationen je Warmframe (Kameraprefix-Regeneration O(n²), Partikeltint- und
+Platzierungsarrayallokationen) gegenüber dem Grenzwert 1 KiB. Der native Build
+stellt Shim-Artefakte jetzt eingabehashgesteuert neu (keine stale `.so` mehr).
+Evidenz auf dem Entwickler-PC (i7-3770/RX 570, Mesa radeonsi via virtuellem
+kwin_wayland/Xwayland): zwei Fresh-Prozessläufe mit Gate pass und identischen
+Hashketten (Ende `56d98265914d9196…`), Fremdseed ändert den Endhash
+nachweislich; Frame-p99 ≈ 18 ms (vsyncgebunden), Tick-p99 ≈ 1,03 ms,
+GPU-p99 ≈ 2,11 ms, Allokationen 1,3 B je Warmframe, GC-Pausen 0. Opt-in
+Einzelabgriff als 1920×1080-BMP an Frame 1470 strikt nach dem Messfenster,
+artefakthashgebunden, Aussagegrenze Graybox-Lastbelegung; Pflichtprofile
+bleiben `NOT-MEASURED` (Q-OPS-001). Abnahmedokument:
+`docs/abnahme/T-023-representative-load-frame.md`.
+
+Nach T-010–T-023 stehen die isolierten und integrierten Performancebaselines
+des G-PERF-Kerns; die verbleibenden DRAFT-Einheiten hängen an Referenzhardware-
+Benennung (Q-OPS-001/Q-OPS-002 für T-011), der Q-TEC-010-Streuung (T-022)
+beziehungsweise echten Produktentscheidungen (T-030/T-031).
 
 ## Vorlage für eine Umsetzungseinheit
 

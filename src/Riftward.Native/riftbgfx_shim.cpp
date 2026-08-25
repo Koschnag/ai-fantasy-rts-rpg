@@ -3,9 +3,10 @@
  *
  * Zweck: bgfx besitzt keine stabile exportierte C-ABI. Diese eigene,
  * extrem kleine Übersetzungseinheit exportiert genau die Aufrufe, die der
- * T-010-Walking-Skeleton-Host benötigt, als flache C-Symbole. Sie enthält
- * keinerlei Spiellogik, keinen Zustand außer den von bgfx verwalteten
- * Handles und keine Speicherverwaltung eigener Objekte.
+ * T-010-Walking-Skeleton-Host und die Benchmark-Szenarien (T-020 leere
+ * Szene, T-023 integrierter Belastungsframe) benötigen, als flache
+ * C-Symbole. Sie enthält keinerlei Spiellogik, keinen Zustand außer den von
+ * bgfx verwalteten Handles und keine Speicherverwaltung eigener Objekte.
  *
  * Besitzregeln:
  * - Shader-, Programm- und Vertex-Buffer-Handles gehören bgfx; Freigabe
@@ -139,6 +140,13 @@ extern "C" uint32_t rift_bgfx_gpu_ids(void)
 	}
 
 	return (static_cast<uint32_t>(caps->vendorId) << 16) | static_cast<uint32_t>(caps->deviceId);
+}
+
+extern "C" uint64_t rift_bgfx_caps(void)
+{
+	const bgfx::Caps* caps = bgfx::getCaps();
+
+	return caps == nullptr ? 0u : caps->supported;
 }
 
 extern "C" void rift_bgfx_shutdown(void)
@@ -286,5 +294,300 @@ extern "C" void rift_tri_destroy_vertex_buffer(uint16_t vertexBufferIdx)
 extern "C" void rift_tri_submit(uint8_t viewId, uint16_t programIdx, uint16_t vertexBufferIdx)
 {
 	bgfx::setVertexBuffer(0, bgfx::VertexBufferHandle{ vertexBufferIdx });
+	bgfx::submit(viewId, bgfx::ProgramHandle{ programIdx });
+}
+
+/* -------------------------------------------------------------- T-023-Erweiterung */
+
+namespace
+{
+	constexpr uint16_t encodeTexture(bgfx::TextureHandle handle)
+	{
+		return handle.idx;
+	}
+
+	constexpr uint16_t encodeFrameBuffer(bgfx::FrameBufferHandle handle)
+	{
+		return handle.idx;
+	}
+
+	constexpr uint16_t encodeUniform(bgfx::UniformHandle handle)
+	{
+		return handle.idx;
+	}
+
+	constexpr uint16_t encodeIndexBuffer(bgfx::IndexBufferHandle handle)
+	{
+		return handle.idx;
+	}
+
+	bgfx::TextureFormat::Enum toTextureFormat(int32_t format)
+	{
+		switch (format)
+		{
+			case RIFT_TEX_FMT_RGBA32F:
+				return bgfx::TextureFormat::RGBA32F;
+			case RIFT_TEX_FMT_RGBA8:
+			default:
+				return bgfx::TextureFormat::RGBA8;
+		}
+	}
+
+	bgfx::UniformType::Enum toUniformType(int32_t type)
+	{
+		switch (type)
+		{
+			case RIFT_UNIFORM_MAT4:
+				return bgfx::UniformType::Mat4;
+			case RIFT_UNIFORM_SAMPLER:
+				return bgfx::UniformType::Sampler;
+			case RIFT_UNIFORM_VEC4:
+			default:
+				return bgfx::UniformType::Vec4;
+		}
+	}
+} // namespace
+
+extern "C" uint16_t rift_tex_create_2d(uint16_t width, uint16_t height, int32_t format, uint64_t flags,
+	const void* data, uint32_t sizeInBytes)
+{
+	const bgfx::Memory* memory = nullptr;
+
+	if (data != nullptr && sizeInBytes != 0u)
+	{
+		memory = bgfx::copy(data, sizeInBytes);
+
+		if (memory == nullptr)
+		{
+			return RiftInvalidHandle;
+		}
+	}
+
+	return encodeTexture(
+		bgfx::createTexture2D(width, height, false, 1, toTextureFormat(format), flags, memory));
+}
+
+extern "C" void rift_tex_update_2d(uint16_t texIdx, uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+	const void* data, uint32_t sizeInBytes, uint16_t pitch)
+{
+	if (data == nullptr || sizeInBytes == 0u)
+	{
+		return;
+	}
+
+	const bgfx::Memory* memory = bgfx::copy(data, sizeInBytes);
+
+	if (memory == nullptr)
+	{
+		return;
+	}
+
+	bgfx::updateTexture2D(
+		bgfx::TextureHandle{ texIdx }, 0, 0, x, y, width, height, memory, pitch);
+}
+
+extern "C" void rift_tex_destroy(uint16_t texIdx)
+{
+	bgfx::destroy(bgfx::TextureHandle{ texIdx });
+}
+
+extern "C" uint16_t rift_fb_create_single(uint16_t texIdx)
+{
+	bgfx::TextureHandle texture{ texIdx };
+	return encodeFrameBuffer(bgfx::createFrameBuffer(1, &texture, false));
+}
+
+extern "C" void rift_fb_destroy(uint16_t fbIdx)
+{
+	bgfx::destroy(bgfx::FrameBufferHandle{ fbIdx });
+}
+
+extern "C" void rift_view_frame_buffer(uint8_t viewId, uint16_t fbIdx)
+{
+	if (fbIdx == RiftInvalidHandle)
+	{
+		bgfx::setViewFrameBuffer(viewId, BGFX_INVALID_HANDLE);
+		return;
+	}
+
+	bgfx::setViewFrameBuffer(viewId, bgfx::FrameBufferHandle{ fbIdx });
+}
+
+extern "C" void rift_blit_full(uint8_t viewId, uint16_t dstIdx, uint16_t srcIdx, uint16_t width, uint16_t height)
+{
+	bgfx::blit(
+		viewId,
+		bgfx::TextureHandle{ dstIdx },
+		0,
+		0,
+		bgfx::TextureHandle{ srcIdx },
+		0,
+		0,
+		width,
+		height);
+}
+
+extern "C" uint32_t rift_read_texture_begin(uint16_t texIdx, void* outBuffer, uint32_t bufferSizeBytes)
+{
+	if (outBuffer == nullptr || bufferSizeBytes == 0u)
+	{
+		return 0u;
+	}
+
+	return bgfx::readTexture(bgfx::TextureHandle{ texIdx }, outBuffer);
+}
+
+extern "C" uint16_t rift_uniform_create(const char* name, int32_t type, uint16_t count)
+{
+	if (name == nullptr || count == 0u)
+	{
+		return RiftInvalidHandle;
+	}
+
+	return encodeUniform(bgfx::createUniform(name, toUniformType(type), count));
+}
+
+extern "C" void rift_uniform_destroy(uint16_t uniformIdx)
+{
+	bgfx::destroy(bgfx::UniformHandle{ uniformIdx });
+}
+
+extern "C" void rift_set_uniform_vec4(uint16_t uniformIdx, const float* values, uint16_t count)
+{
+	if (values == nullptr)
+	{
+		return;
+	}
+
+	bgfx::setUniform(bgfx::UniformHandle{ uniformIdx }, values, count);
+}
+
+extern "C" void rift_set_uniform_mat4(uint16_t uniformIdx, const float* values16)
+{
+	if (values16 == nullptr)
+	{
+		return;
+	}
+
+	bgfx::setUniform(bgfx::UniformHandle{ uniformIdx }, values16);
+}
+
+extern "C" void rift_set_texture(uint8_t stage, uint16_t uniformIdx, uint16_t texIdx, uint32_t samplerFlags)
+{
+	bgfx::setTexture(stage, bgfx::UniformHandle{ uniformIdx }, bgfx::TextureHandle{ texIdx }, samplerFlags);
+}
+
+extern "C" uint16_t rift_ib_create(const void* data, uint32_t sizeInBytes, int32_t uint32Indices)
+{
+	if (data == nullptr || sizeInBytes == 0u)
+	{
+		return RiftInvalidHandle;
+	}
+
+	const bgfx::Memory* memory = bgfx::copy(data, sizeInBytes);
+
+	if (memory == nullptr)
+	{
+		return RiftInvalidHandle;
+	}
+
+	const uint16_t flags = uint32Indices != 0 ? static_cast<uint16_t>(BGFX_BUFFER_INDEX32)
+											  : static_cast<uint16_t>(BGFX_BUFFER_NONE);
+
+	return encodeIndexBuffer(bgfx::createIndexBuffer(memory, flags));
+}
+
+extern "C" uint16_t rift_vb_create_layout(const void* data, uint32_t sizeInBytes, uint8_t layoutId)
+{
+	if (data == nullptr || sizeInBytes == 0u)
+	{
+		return RiftInvalidHandle;
+	}
+
+	bgfx::VertexLayout layout;
+
+	switch (layoutId)
+	{
+		case 0:
+			layout.begin()
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Normal, 4, bgfx::AttribType::Uint8, true)
+				.add(bgfx::Attrib::Indices, 4, bgfx::AttribType::Uint8)
+				.add(bgfx::Attrib::Weight, 4, bgfx::AttribType::Uint8, true)
+				.end();
+			break;
+
+		case 1:
+			layout.begin()
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Normal, 4, bgfx::AttribType::Uint8, true)
+				.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
+				.end();
+			break;
+
+		case 2:
+			layout.begin()
+				.add(bgfx::Attrib::Position, 2, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+				.end();
+			break;
+
+		default:
+			return RiftInvalidHandle;
+	}
+
+	const bgfx::Memory* memory = bgfx::copy(data, sizeInBytes);
+
+	if (memory == nullptr)
+	{
+		return RiftInvalidHandle;
+	}
+
+	return encodeVertex(bgfx::createVertexBuffer(memory, layout));
+}
+
+extern "C" void rift_ib_destroy(uint16_t ibIdx)
+{
+	bgfx::destroy(bgfx::IndexBufferHandle{ ibIdx });
+}
+
+extern "C" void rift_draw_submit(uint8_t viewId, uint16_t programIdx,
+	uint16_t vertexBufferIdx, uint16_t indexBufferIdx, uint32_t elementCount,
+	const void* instanceData, uint32_t instanceCount,
+	uint16_t instanceStride, uint64_t state)
+{
+	if (vertexBufferIdx == RiftInvalidHandle
+		|| (instanceData == nullptr && instanceCount != 0u)
+		|| (instanceData != nullptr && (instanceStride % 16u) != 0u))
+	{
+		return; /* Vertrag: Instanzstride muss Vielfaches von 16 sein. */
+	}
+
+	bgfx::setState(state);
+
+	if (indexBufferIdx != RiftInvalidHandle)
+	{
+		bgfx::setIndexBuffer(bgfx::IndexBufferHandle{ indexBufferIdx }, 0u, elementCount);
+		bgfx::setVertexBuffer(0, bgfx::VertexBufferHandle{ vertexBufferIdx });
+	}
+	else
+	{
+		bgfx::setVertexBuffer(0, bgfx::VertexBufferHandle{ vertexBufferIdx }, 0u, elementCount);
+	}
+
+	if (instanceData != nullptr && instanceCount > 0u)
+	{
+		bgfx::InstanceDataBuffer idb;
+		bgfx::allocInstanceDataBuffer(&idb, instanceCount, instanceStride);
+
+		if (idb.data == nullptr)
+		{
+			return;
+		}
+
+		memcpy(idb.data, instanceData, idb.size);
+		bgfx::setInstanceDataBuffer(&idb);
+	}
+
 	bgfx::submit(viewId, bgfx::ProgramHandle{ programIdx });
 }

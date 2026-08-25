@@ -223,7 +223,24 @@ else
   [ -x "$bgfx_bin/shadercRelease" ] || die "shaderc wurde nicht gebaut."
 
   # ------------------------------------------------------ Shim (libriftbgfx)
+  # Eingabehash ueber Shim-Quellen und Pins: verhindert stale Artefakte bei
+  # inkrementellen Sitzungen (Quelländerung erzwingt Neubau); bei unveraenderten
+  # Eingaben bleibt der Neubau unter fixiertem SOURCE_DATE_EPOCH byteidentisch.
+  shim_input_stamp="$dist/lib/libriftbgfx.inputs.sha256"
+  shim_input_hash=$(sha256sum \
+    src/Riftward.Native/riftbgfx_shim.cpp \
+    src/Riftward.Native/riftbgfx_shim.h \
+    "$lock" 2>/dev/null | sha256sum | cut -d' ' -f1)
+  shim_needs_build=0
+
   if [ ! -f "$dist/lib/libriftbgfx.so" ] || [ "$mode" = fresh ]; then
+    shim_needs_build=1
+  elif [ ! -f "$shim_input_stamp" ] || [ "$(cut -d' ' -f1 "$shim_input_stamp" 2>/dev/null)" != "$shim_input_hash" ]; then
+    log 'Shim-Eingaben geaendert; baue libriftbgfx.so neu.'
+    shim_needs_build=1
+  fi
+
+  if [ "$shim_needs_build" = 1 ]; then
     log 'Baue eigenen bgfx-Shim (libriftbgfx.so).'
     # Desktop-GL-Soname direkt binden (-l:<datei> findet die Laufzeitbibliothek
     # auch ohne Entwicklerpaket): liefert glGetString fuer die Diagnoseabfrage
@@ -240,34 +257,54 @@ else
       -o "$dist/lib/libriftbgfx.so" \
       >"$logs/shim-build.log" 2>&1 \
       || { tail -40 "$logs/shim-build.log" >&2; die "Shim-Build fehlgeschlagen."; }
+    printf '%s  libriftbgfx.inputs\n' "$shim_input_hash" >"$shim_input_stamp"
   else
-    log 'Shim-Artefakt vorhanden (Cache).'
+    log 'Shim-Artefakt vorhanden (Cache, Eingabehash unveraendert).'
   fi
 
   # ------------------------------------------- Shader offline kompilieren
-  if [ ! -f "$dist/shaders/triangle.vs.bin" ] || [ ! -f "$dist/shaders/triangle.fs.bin" ] || [ "$mode" = fresh ]; then
-    log 'Kompiliere Dreiecksshader offline (shaderc -> GLSL 130 / GL 3.3 Core).'
-    "$bgfx_bin/shadercRelease" --platform linux -p 130 --type vertex \
-      -i "$bgfx_dir/include" -i "$bgfx_dir/src" \
-      -f src/Riftward.Shaders/triangle.vs.sc \
-      -o "$dist/shaders/triangle.vs.bin" >>"$logs/shaderc.log" 2>&1 \
-      || { tail -20 "$logs/shaderc.log" >&2; die "Vertex-Shader-Kompilierung fehlgeschlagen."; }
-    "$bgfx_bin/shadercRelease" --platform linux -p 130 --type fragment \
-      -i "$bgfx_dir/include" -i "$bgfx_dir/src" \
-      -f src/Riftward.Shaders/triangle.fs.sc \
-      -o "$dist/shaders/triangle.fs.bin" >>"$logs/shaderc.log" 2>&1 \
-      || { tail -20 "$logs/shaderc.log" >&2; die "Fragment-Shader-Kompilierung fehlgeschlagen."; }
-    # T-020: Weltkoordinaten-Variante fuer BENCH-EMPTY (u_viewProj); Fragment-
-    # shader bleibt der ungeaenderte triangle.fs.
-    log 'Kompiliere BENCH-EMPTY-Vertexshader offline (shaderc -> GLSL 130).'
-    "$bgfx_bin/shadercRelease" --platform linux -p 130 --type vertex \
-      -i "$bgfx_dir/include" -i "$bgfx_dir/src" \
-      -f src/Riftward.Shaders/bench_empty.vs.sc \
-      -o "$dist/shaders/bench_empty.vs.bin" >>"$logs/shaderc.log" 2>&1 \
-      || { tail -20 "$logs/shaderc.log" >&2; die "BENCH-EMPTY-Shaderkompilierung fehlgeschlagen."; }
-  else
-    log 'Shaderartefakte vorhanden (Cache).'
-  fi
+  # Alle Shader werden offline mit dem gepinnten shaderc fuer GLSL 130
+  # uebersetzt; es findet keine Shaderkompilierung zur Laufzeit statt.
+  # Einzelne Artefakte werden nur bei Fehlen bzw. --fresh neu uebersetzt;
+  # der Reproduzierbarkeitsvertrag gilt unveraendert (byteidentische
+  # Neubauten unter fixiertem SOURCE_DATE_EPOCH).
+  compile_shader() {
+    id=$1; type=$2; source=$3; varyingdef=${4:-}
+    if [ "$mode" = fresh ] || [ ! -s "$dist/shaders/$id.bin" ]; then
+      log "Kompiliere Shader '$source' ($type) offline (shaderc -> GLSL 130)."
+      extra=""
+      if [ -n "$varyingdef" ]; then
+        extra="--varyingdef src/Riftward.Shaders/$varyingdef"
+      fi
+      # shellcheck disable=SC2086
+      "$bgfx_bin/shadercRelease" --platform linux -p 130 --type "$type" \
+        -i "$bgfx_dir/include" -i "$bgfx_dir/src" \
+        -i src/Riftward.Shaders \
+        $extra \
+        -f "src/Riftward.Shaders/$source" \
+        -o "$dist/shaders/$id.bin" >>"$logs/shaderc.log" 2>&1 \
+        || { tail -20 "$logs/shaderc.log" >&2; die "Shaderkompilierung fehlgeschlagen: $source"; }
+    else
+      log "Shaderartefakt vorhanden (Cache): $id.bin"
+    fi
+  }
+
+  compile_shader triangle.vs vertex triangle.vs.sc
+  compile_shader triangle.fs fragment triangle.fs.sc
+  compile_shader bench_empty.vs vertex bench_empty.vs.sc
+
+  # T-023: Graybox-Belastungsframe (Terrain, Einheiten mit 48-Bone-Palette,
+  # Schattenpaesse, Partikel). fs_lit wird je Programm mit passendem
+  # varying.def kompiliert und erzeugt zwei Zieldateien.
+  compile_shader terrain.vs vertex vs_terrain.sc lit_varying.def.sc
+  compile_shader lit_terrain.fs fragment fs_lit.sc lit_varying.def.sc
+  compile_shader unit.vs vertex vs_unit.sc unit_varying.def.sc
+  compile_shader lit_unit.fs fragment fs_lit.sc unit_varying.def.sc
+  compile_shader depth_static.vs vertex vs_depth_static.sc depth_varying.def.sc
+  compile_shader depth_instanced.vs vertex vs_depth_instanced.sc depth_instanced_varying.def.sc
+  compile_shader depth.fs fragment fs_depth.sc depth_instanced_varying.def.sc
+  compile_shader particle.vs vertex vs_particle.sc particle_varying.def.sc
+  compile_shader particle.fs fragment fs_particle.sc particle_varying.def.sc
 fi
 
 # ----------------------------------------------------- ISA-/Flag-Nachweis
