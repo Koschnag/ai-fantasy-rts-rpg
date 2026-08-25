@@ -36,7 +36,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
 | T-021 | E-003 | headless feste Simulation mit 250 mobilen Testagenten | Z-002 | L | MUST | DONE |
-| T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DRAFT |
+| T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | READY |
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DONE |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DRAFT |
@@ -286,9 +286,80 @@ bleiben `NOT-MEASURED` (Q-OPS-001). Abnahmedokument:
 `docs/abnahme/T-023-representative-load-frame.md`.
 
 Nach T-010–T-023 stehen die isolierten und integrierten Performancebaselines
-des G-PERF-Kerns; die verbleibenden DRAFT-Einheiten hängen an Referenzhardware-
-Benennung (Q-OPS-001/Q-OPS-002 für T-011), der Q-TEC-010-Streuung (T-022)
-beziehungsweise echten Produktentscheidungen (T-030/T-031).
+des G-PERF-Kerns.
+
+T-022 wurde am 2026-08-25 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) auf `READY` gesetzt. Auswahlkette über alle
+DRAFT-Einträge: Der tabellarisch frühere DRAFT `T-011` bleibt blockiert, weil
+seine native Windows-/macOS-Build-/Smoke-/Paketmatrix vorhandene Runner,
+Signier-/Notarisierungsentscheidungen (Q-OPS-002/Q-OPS-003) und physische
+Zielhardware voraussetzt, die hier nicht vorhanden sind und nicht
+stillschweigend angenommen werden dürfen; `T-030`/`T-031` hängen an echten
+Produktentscheidungen (Q-GAM-001 bis Q-GAM-007, Q-NAR-002, Q-TEC-006), die
+einem Agenten nicht delegierbar sind; `T-040`/`T-041` liegen hinter
+E-004/E-005; `T-050`/`T-051` liegen hinter den getrennten Generator-,
+Storage-/Backup- und LFS-Freigaben (Q-AST-001/Q-AST-002) sowie hinter
+E-005/E-006; `T-008` steht auf `REVIEW` und ist kein DRAFT. Damit ist `T-022`
+der höchstpriorisierte DRAFT-Auftrag mit erfüllten Abhängigkeiten (`T-010`,
+`T-020`, `T-021` sind `DONE`; Simulationskern, bench-Befehlsvertrag,
+Telemetrie- und Budgetgate-Muster existieren). Blockerbehandlung ohne stille
+Produktannahme: Q-TEC-004 gilt als verfahrensmäßig behandelt — der
+Simulationsvertrag V1 wird unverändert wiederverwendet, seine Ratifizierung
+bleibt über Q-TEC-004 ausdrücklich `OFFEN` (Präzedenz T-023); Q-OPS-001 folgt
+der protokollierten T-020-/T-021-/T-023-Behandlung (Entwickler-PC-Läufe sind
+diagnostische Baseline, Pflichtprofile bleiben `NOT-MEASURED` mit Eskalation).
+Die tolerierte Benchmarkstreuung (Rest von Q-TEC-010) wird in diesem Auftrag
+weder definiert noch verbraucht: sämtliche Soak-Gates entscheiden
+ausschließlich gegen absolute Grenzwerte (kein Absturz, Fortschritts-Watchdog,
+Speicherwachstum, Allokationsgrenze je warmem Tick laut Simulationsvertrag,
+Hashkettenintegrität gegen eine Golden-Fixture), und die fensterweise
+Tickzeitdrift wird rein diagnostisch ohne Gatekopplung ausgewiesen; sie
+blockiert den Auftrag daher nicht mehr (Klärungsprotokoll 2026-08-25,
+rückrollbar). Der numerische Leak-Schwellwert ist gemäß NF-002 („genaue
+Schwelle im Spike") und `QUALITAET.md` („bis zum Baseline-Spike OFFEN")
+ausdrücklich spike-designiert und entsteht im gatenden Abschnitt 0 als
+versionierter Soakvertrag `docs/SOAKVERTRAG.md` nach dort vollständig fixierten
+Kriterien (Kalibrierbasis, doppelte Schwellwertform, Kapselung, Verschärfung
+erlaubt, jede Lockerung eskaliert). Media-Lab-Prüfung gemäß
+`docs/communication/MEDIA_LAB.md`: kein visuelles Artefakt, weil ein headless
+Zuverlässigkeitslauf keinen sichtbaren Szenengehalt besitzt und die
+maschinenlesbare Telemetrie die prüfbare Evidenz ist; eine Kurvenvisualisierung
+bleibt MEDIA-05 vorbehalten. Der Auftrag liegt als
+`.ai/tasks/T-022-deterministic-replay-soak.json` vor, ist gegen
+`.ai/schemas/task.schema.json` gültig und implementiert den
+Zuverlässigkeitsanteil von Z-002/NF-002 ohne Budgetänderung; dieser
+Freigabelauf hat keinen Produktcode implementiert. Da das .NET-SDK in der
+Planungssitzung nicht verfügbar war, bleibt die Ausführung der lokalen Gates
+(fmt/lint/build/test/security/verify) ausdrücklicher Pflichtteil des
+Implementierungs- und Reviewlaufs.
+
+Die Spezifikation wurde am 2026-08-25 durch den unabhängigen Reviewlauf
+`01M0VCJZ0KRSA2Y1ZSMRWSV2RW` (Akteur `t022-spec-reviewer`) geprüft: Task-
+Manifest gegen `.ai/schemas/task.schema.json` gültig (13/13 Manifeste unter
+`.ai/tasks/`); Soak-Gateanker zeichengleich gegen NF-002 in
+`ANFORDERUNGEN.md`, die Spike-Klausel in `QUALITAET.md` (Leak-Schwellwert
+bleibt bis zum Baseline-Spike `OFFEN`), `PERFORMANCE_BUDGET.md` (Budgetlinien
+dienen ausschließlich als obere Grenzen; kein Budgetwert berührt),
+`docs/SIMULATIONSVERTRAG.md` V1 (genau 250 vollständige Agenten, 20-Hz-Tick,
+`fnv1a64-canonical-chain-v1`, `xorshift64star-group-script-v1`,
+Allokationsgrenze 0 Bytes je warmem Tick) und den Exitcodevertrag in
+`NATIVE_UNTERBAU.md`; Auswahlkette über alle DRAFT-Einträge und die
+Blockerbehandlung sind konsistent zu `OFFENE_FRAGEN.md`; die tolerierte
+Benchmarkstreuung (Q-TEC-010) bleibt ausdrücklich offen und wird weder
+definiert noch verbraucht, und die fensterweise Tickzeitdrift bleibt ohne
+Gatekopplung diagnostisch. Clean-Room-Scan ohne Befund (keine Fremdtitel,
+keine Stilvorgaben, keine Drittmedien, keine Secrets). Reparatur im Scope:
+Freigabevermerk-Tippfehler im Manifest korrigiert (`gemuess` → `gemaess`,
+MEDIA-05-Kasus). Alle lokalen Gates grün (fmt/lint PASS, build mit 0
+Warnungen, Tests 184/184, security PASS, rag-build, verify über alle Runs;
+das .NET SDK 10.0.110 wurde hierfür gemäß gepinntem Bootstrap SHA-512-geprüft
+beschafft). Zu diesem Prüfzeitpunkt hatte die Implementierung nicht begonnen;
+der Taskstatus bleibt `ready`.
+
+Die verbleibenden DRAFT-Einheiten hängen an Referenzhardware- und
+Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`), an getrennten
+Generator- und Storage-/Backup-Freigaben (`T-050`/`T-051`) beziehungsweise an
+echten Produktentscheidungen (`T-030`/`T-031`, dahinter `T-040`/`T-041`).
 
 ## Vorlage für eine Umsetzungseinheit
 

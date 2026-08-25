@@ -1,0 +1,139 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-022",
+  "title": "Deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach",
+  "status": "ready",
+  "releaseNote": "2026-08-25: draft -> ready durch autonomen Planungsagenten gemaess Autorisierung der Projektleitung vom 2026-08-23. Auswahl ueber alle DRAFT-Eintraege: Der tabellarisch fruehere DRAFT T-011 bleibt blockiert, weil seine native Windows-/macOS-Build-/Smoke-/Paketmatrix vorhandene Runner, Signier-/Notarisierungsentscheidungen (Q-OPS-002/Q-OPS-003) und physische Zielhardware voraussetzt, die hier nicht vorhanden sind und nicht stillschweigend angenommen werden duerfen; T-030/T-031 haengen an echten Produktentscheidungen (Q-GAM-001 bis Q-GAM-007, Q-NAR-002, Q-TEC-006), die einem Agenten nicht delegierbar sind; T-040/T-041 liegen hinter E-004/E-005; T-050/T-051 liegen hinter den getrennten Generator-, Storage-/Backup- und LFS-Freigaben (Q-AST-001/Q-AST-002) sowie hinter E-005/E-006; T-008 ist REVIEW und kein DRAFT. Damit ist T-022 der hoechstpriorisierte DRAFT-Auftrag mit erfuellten Abhaengigkeiten (T-010, T-020, T-021 sind DONE; der Simulationskern Riftward.Simulation und der bench-Vertrag existieren) und folgt der BACKLOG-Priorisierung des Zuverlaessigkeitsnachweises innerhalb E-003. Blockerbehandlung ohne stille Produktannahme: Q-TEC-004 gilt als verfahrensmaessig behandelt - der Simulationsvertrag V1 (docs/SIMULATIONSVERTRAG.md) wird unveraendert wiederverwendet, seine Ratifizierung bleibt ueber Q-TEC-004 ausdruecklich OFFEN (Praezedenz T-023). Q-OPS-001 gilt entsprechend der protokollierten T-020-/T-021-/T-023-Behandlung: Entwickler-PC-Laefe sind diagnostische Baseline, Profilbestehen nur mit deklarierter Referenzklassenbindung auf benannten Referenzrechnern, fehlende Profile bleiben NOT-MEASURED mit Eskalation. Q-TEC-010-Streuung wird nicht entschieden und nicht verbraucht: saemtliche Soak-Gates sind absolute Grenzwerte (Tickzeit hart, Allokation je warmem Tick laut Simulationsvertrag, Speicherwachstum, Watchdog); die fensterweise Driftmessung ist rein diagnostisch ohne Gatekopplung, sodass die offen bleibende tolerierte Benchmarkstreuung diesen Auftrag nicht blockiert (Klaerungsprotokoll 2026-08-25, rueckrollbar). Der numerische Leak-Schwellwert ist gemaess NF-002 ('genaue Schwelle im Spike') und QUALITAET.md ('bis zum Baseline-Spike OFFEN') ausdruecklich spike-designiert und wird im gatenden Abschnitt 0 nach hier vollstaendig fixierten Kriterien in docs/SOAKVERTRAG.md festgelegt; jede Lockerung eskaliert. Media-Lab-Pruefung gemaess docs/communication/MEDIA_LAB.md: kein visuelles Artefakt in diesem Auftrag, weil ein headless Zuverlaessigkeitslauf keinen sichtbaren Szenengehalt besitzt und die maschinenlesbare Telemetrie die pruefbare Evidenz ist; eine Kurvenvisualisierung bleibt dem MEDIA-05-Prozess vorbehalten. Dieser Lauf implementiert keinen Produktcode; die .NET-basierten lokalen Gates sind in dieser Planungssitzung nicht ausfuehrbar (SDK nicht installiert), ihre Ausfuehrung bleibt Pflichtteil des Implementierungs- und Reviewlaufs. Das Manifest wurde gegen .ai/schemas/task.schema.json mit einem aequivalenten Pruefer validiert.",
+  "reviewNote": "2026-08-25: Unabhaengiger Reviewlauf 01M0VCJZ0KRSA2Y1ZSMRWSV2RW (Akteur t022-spec-reviewer) bestaetigt die READY-Spezifikation: Task-Manifest gegen .ai/schemas/task.schema.json validiert (13/13 Manifeste unter .ai/tasks/); Auswahlkette ueber alle DRAFT-Einträge und Blockerbehandlung konsistent zu BACKLOG.md und docs/OFFENE_FRAGEN.md (T-011/Q-OPS-002+Q-OPS-003, T-030/T-031/Q-GAM-001..007/Q-NAR-002/Q-TEC-006, T-040/T-041 hinter E-004/E-005, T-050/T-051 hinter Q-AST-001/Q-AST-002, T-008 REVIEW); Soak-Gateanker zeichengleich gegen NF-002, QUALITAET.md (Spike-Klausel; Leak-Schwellwert bis zum Baseline-Spike OFFEN), PERFORMANCE_BUDGET.md (Budgetlinien nur als obere Grenzen, kein Budgetwert beruehrt), docs/SIMULATIONSVERTRAG.md V1 (250 Agenten, 20-Hz-Tick, fnv1a64-canonical-chain-v1, xorshift64star-group-script-v1, Allokationsgrenze 0 Bytes je warmem Tick) und den Exitcodevertrag in docs/NATIVE_UNTERBAU.md; Q-TEC-010-Streuung bleibt OFFEN und wird weder definiert noch verbraucht; die fensterweise Tickzeitdrift ist gatefrei diagnostisch (Negativpruefung der Gatekopplung im Auftragsumfang). Clean-Room-Scan ohne Befund. In-Scope-Reparatur: releaseNote-Tippfehler korrigiert ('gemuess' -> 'gemaess'; MEDIA-05-Kasus). Alle lokalen Gates gruen (build 0 Warnungen, lint PASS, Tests 184/184, security PASS, rag-build, verify). Implementierung nicht begonnen; der Taskstatus bleibt ready.",
+  "objective": "Der erste Zuverlaessigkeitsnachweis fuehrt die vorhandene deterministische Simulation (Riftward.Simulation, Simulationsvertrag V1 unveraendert) als achtstündigen Realzeit-Replay-Soak nativ auf linux-x64 aus und weist fail-closed nach, dass der Prozess dabei nicht abstuerzt, nicht haengt und nicht fortschreitend Speicher verliert (NF-002). Ein gatender erster Abschnitt legt den numerischen Leak-/Wachstumsschwellwert, das Hangkriterium und den Ausfuehrungsvertrag nach vollstaendig spezifizierten Kriterien als versionierten Soakvertrag (docs/SOAKVERTRAG.md) fest; saemtliche Gates entscheiden ausschliesslich gegen dokumentierte absolute Grenzwerte, Benchmarkvarianz (Q-TEC-010-Streuung) bleibt unberuehrt. Laeufe auf dem Entwickler-PC sind diagnostische Baseline nach dem Q-OPS-001-Klaerungsprotokoll; dies ist ein Stabilitaetsnachweis, keine Optimierungs- oder Performancebehauptung (ADR 006). Es entstehen keinerlei fachliche Spielregeln, Save-/Replaydateiformate oder Inhalte.",
+  "inScope": [
+    "Abschnitt 0 (gatender Vertragsspike, vor der Soakimplementierung abzuschliessen): Festlegung des versionierten Soakvertrags docs/SOAKVERTRAG.md mit Alternativen, Begruendung und Rueckrollweg je Wahl, ausschliesslich nach den hier fixierten Kriterien: (a) numerischer Leak-Schwellwert in doppelter, verpflichtender Form - absolutes Wachstumsziel (Endwert minus Startwert der Speicherkennzahl) und Trendkriterium (fensterbasierte Steigung der letzten gegen die erste Stunde), abgeleitet aus mindestens zwei Kalibrierlaeufen von je mindestens 30 Minuten Wanduhr auf dem Entwickler-PC als Vielfaches des dort beobachteten Messrauschens, gekapselt auf hoechstens 4 bis 64 MiB absolutes Wachstum, mit Konsistenzbedingung Trendschwelle mal 8 h kleiner gleich absoluter Schwelle; (b) Hangkriterium als Fortschritts-Watchdog (Tickfortschritt je Wanduhrfenster, Fenstergroesse zwischen 30 und 300 Sekunden aus Kalibriervielfachen abgeleitet); (c) Ausfuehrungsvertrag: autoritativer Modus als ein einziger zusammenhaengender Realzeitprozess von mindestens 8 h Wanduhr bei 20 Hz ueber den kompletten skriptierten Replayplan, beschleunigter Modus ausschliesslich diagnostisch; (d) Anker unveraenderlich: Budgetlinien aus PERFORMANCE_BUDGET.md dienen nur als obere Grenzen, niemals als Soak-Erlaubnis; die Allokationsgrenze je warmem Tick bleibt an Simulationsvertrag V1 Abschnitt 5 (0 Bytes) gebunden; Verschärfung jederzeit erlaubt, jede Lockerung gegenueber dem abgeleiteten Wert eskaliert an die Projektleitung",
+    "Neuer oeffentlicher Befehl im bestehenden Host: './scripts/rift.sh soak --scenario soak-replay --report <Pfad>' mit optionalem Diagnoseflag fuer den beschleunigten Modus; Szenarioregistry-Muster wie bei bench; native linux-x64-Ausfuehrung rein CPU-seitig ohne Fenster/Renderer/Netzwerk; die nativen SDL3-/bgfx-Artefakte werden wie bei bench-sim nicht geladen; unbekannte oder noch nicht implementierte Soakszenarien brechen mit definiertem Exitcode ab, ohne einen Report vorzutaeuschen; bestehende Exitcodebedeutungen bleiben unveraendert, neue soak-spezifische Codes werden dokumentiert und getestet",
+    "Autoritativer Soaklauf: genau ein zusammenhaengender Prozess, mindestens 8 h Wanduhr, Realzeit-Taktung bei festem 20-Hz-Tick mit entkoppeltem, deterministischem Schrittwerk (keine Uhrabhängigkeit im Zustand), kompletter Replayplan gemaess xorshift64star-group-script-v1 ueber die unveränderte Welt und die genau 250 vollstaendig simulierten mobilen Testagenten des Simulationsvertrags V1; Release-nahe Buildkonfiguration; Abbruch oder Wiederaufnahme ergibt niemals autoritative Evidenz, sondern hoechstens einen klar markierten Diagnoseteilreport",
+    "Maschinenlesbarer Telemetriereport konsistent zur bestehenden Reportlinie versioniert weiterentwickelt: Laufdauer (Start/Ende Wanduhr, Tickanzahl, Taktmodus, Autoritativkennung mit Grund bei Diagnose), Working-Set-Stichproben (Min/Max/Endwert plus Fensterstatistik), verwaltete Allokationen je Fenster (Methode GC-Zaehler-Delta, Erfassung ausserhalb der Heisspfadfenster), GC-Pausenzahl und -summe, Zustands-Hashketten-Stichproben (Start/Intervall/Ende) mit Referenz auf die Golden-Fixture und deren Hash, Fensterweise Tickzeit-p50/p95/p99 von Anfang/Mitte/Ende als ausdruecklich diagnostische Felder ohne Gatekopplung, Umgebungsbinding (OS/RID, CPU, Pins, Commit, Buildmodus, Szenario-/Seed-ID, Befehlsplanhash, Kalibrierreferenz) sowie je Kennzahl Einheit und Erfassungsmethode; headless nicht anwendbare Kennzahlen sind explizit unavailable mit maschinenlesbarem Grund oder laut Schema ausgespart",
+    "Fail-closed Soak-Gate ausschliesslich gegen dokumentierte absolute Grenzwerte: kein Absturz (unerwartete Beendigung ist Verletzung), kein Haengen (Watchdogfenster gemaess Soakvertrag), Speicherwachstum gegen beide Schwellwertformen aus Abschnitt 0, warme Ticks gegen die Allokationsgrenze des Simulationsvertrags, Hashkettenintegritaet gegen die Golden-Fixture; jede Verletzung ergibt definierten Exitcode ungleich 0 und schreibt den dennoch als nicht-bestanden gekennzeichneten Report; die diagnostischen Driftfelder gehen zu keinem Zeitpunkt in die Gateentscheidung ein",
+    "Determinismus- und Replay-Pruefinfrastruktur: Golden-Fixture der Hashketten-Stichproben, erzeugt aus einem unabhaengigen Referenzlauf ueber den identischen skriptierten Plan, mit Schema- und Contentkennung versioniert; Nachweis der Pacing-Unabhaengigkeit durch identische Praefixketten zwischen getaktetem und beschleunigtem Kurzlauf im regulaeren Testlauf; fremder Seed aendert den Endhash nachweislich (Negativfixture)",
+    "Profilbindungs- und Ehrlichkeitsregel analog T-020/T-021/T-023: Profilbestehen nur bei deklarierter Bindung an die zugehoerige Referenzklasse auf benannten Referenzrechnern; Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet; ohne gebundene Referenzhardware bleiben Pflichtprofile NOT-MEASURED, das Gate bleibt unbestanden und es erfolgt Eskalation statt Ersatz",
+    "Kontrollierte Fehlerbehandlung an allen neuen Grenzen: nicht schreibbarer Reportpfad, beschaedigte Zwischenmetriken oder Schemawiderspruch, ungueltige Argumente, fehlender App-Build und vorzeitiger Abbruch fuehren zu verstaendlichen Meldungen mit definierten Exitcodes ungleich 0 ohne Absturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb erlaubter Verzeichnisse; Teilreports sind maschinenlesbar als keine Evidenz markiert",
+    "Tests ohne Netzwerk und ohne echte 8-h-Wartezeiten im Regellauf: Gate-Evaluator mit Fixtures je Bestehens- und Verletzungsklasse (Wachstum, Trend, Watchdog-Stall, Warm-tick-Allokation, Hashabweichung, Abbruchmarkierung), Watchdoglogik mit injizierten kurzen Fenstern, Pacing-Unabhaengigkeit, Fremdseed-Negativfall, Reportschema-Pruefung mit Ablehnung erfundener, typenfremder oder grundlos fehlender Felder, CLI-Vertragstests mit Positiv- und Negativfaellen, Exitcode-Mapping-Stabilitaet sowie Architekturtest, der den Soaklaeufer frei von SDL3-/bgfx-/Plattformtypen haelt, F# vom Hotpath fernhaelt und Uhr-, Umgebungs- und Kernzahlabhaengigkeit des Zustands ausschliesst",
+    "Dokumentation: AUTOMATION.md um den soak-Befehlsvertrag erweitert, NATIVE_UNTERBAU.md bildet Befehl und Exitcodes ab, PERFORMANCE_BUDGET.md nennt ohne Aenderung eines Budgetwerts Ort und Methode des Zuverlaessigkeitsnachweises inklusive Ort des NF-002-Schwellwerts, der G-PERF-Eintrag in .ai/evals/quality-gates.json praezisiert den Soaknachweis inklusive NOT-MEASURED-Status nach Q-OPS-001, ARCHITEKTUR.md verweist auf den Soakvertrag; Abnahmedokument unter docs/abnahme/"
+  ],
+  "outOfScope": [
+    "Entscheidung der tolerierten Benchmarkstreuung (Rest von Q-TEC-010): sie bleibt OFFEN, wird hier weder definiert noch verbraucht und gehoert zu kuenftigen vergleichenden Messungen (praeregistrierte A/B-Benchmarks gemaess Z-006, Regressionsbaselines); die diagnostischen Driftfelder begruenden keine Toleranz",
+    "Ratifizierung des Simulationsvertrags V1 (Q-TEC-004 bleibt Simulation Lead); die Simulation wird unveraendert wiederverwendet, keine Aenderung an Numerik, Hashklassen, Ordnung oder Strukturen",
+    "Die weiteren Pflichtbenchmarks BENCH-ARMY/BENCH-BATTLE/BENCH-BASE/BENCH-PATH/BENCH-LOAD sowie Aenderungen an bench-empty/bench-sim/bench-representative; deren Szenarien und Gates bleiben unberuehrt",
+    "Rendering, GPU-Pfade, Fenster, visuelle Ausgaben jeder Art sowie visuelle Medienartefakte aus Soakdaten; eine Kurvenvisualisierung bleibt beim Media-Lab-Prozess (MEDIA-05)",
+    "Fachliche Spielregeln und Inhalte, Q-GAM-Werte, Save-/Load-System, WorldState-/MissionState-Umfang und abschliessende Replaydateiformate (T-030/T-031, Q-TEC-006, DATENMODELL-OFFEN-Stellen); interne Fixtures und der skriptierte Befehlsplan begruenden keine Formatfestlegungen",
+    "Windows-/macOS-Ausfuehrung, Cross-Plattform-Determinismusbehauptungen und Treiberminima (T-011, Q-TEC-002, Q-OPS-002); der Nachweis erfolgt nativ linux-x64 analog den Baselines",
+    "Native-AOT-/CoreCLR-Vergleichsmessungen (Q-TEC-008), M1-Messverfahren (Q-TEC-009) und Parallelisierung mit kernzahlabhaengigen Ergebnissen",
+    "Verteilte oder sharduebergreifende Soaks, Checkpoint-/Resume-Semantik fuer autoritative Laeufe sowie verkuerzte autoritative Varianten; jede Autoritativverkuerzung ist eine Eskalation, keine Entscheidung dieses Auftrags",
+    "Audio (Q-TEC-007), Eingabe, UI, HUD und Menues; jegliche neue Abhaengigkeit (BCL-only); Benennung konkreter Referenzrechner (Q-OPS-001 bleibt Projektleitung)",
+    "Budgetaenderungen aller Art; Tickbudget 8 ms Ziel/16 ms hart, 250 vollstaendig simulierte mobile Einheiten, Allokationsgrenze 0 Bytes je warmem Tick und die Prozessspeicherzeilen aus PERFORMANCE_BUDGET.md bleiben unveraendert"
+  ],
+  "requirements": [
+    "Z-002",
+    "NF-001",
+    "NF-002",
+    "NF-007",
+    "NF-008"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T022-01",
+      "statement": "Der gatende Abschnitt 0 ist vor der Soakimplementierung abgeschlossen: docs/SOAKVERTRAG.md dokumentiert als versionierter Vertrag den numerischen Leak-Schwellwert in doppelter Form (absolutes Wachstum zwischen 4 und 64 MiB gekapselt, Trendkriterium mit Konsistenzbedingung Trendschwelle mal 8 h kleiner gleich absoluter Schwelle), das Hangkriterium (Watchdogfenster 30 bis 300 Sekunden) und den Ausfuehrungsvertrag (autoritativ: ein zusammenhaengender Realzeitprozess mindestens 8 h Wanduhr bei 20 Hz; beschleunigt: nur diagnostisch) jeweils mit Alternativen, Gruenden und Rueckrollweg; die Werte sind aus mindestens zwei Kalibrierlaeufen von je mindestens 30 Minuten auf dem Entwickler-PC als Vielfaches des beobachteten Messrauschens abgeleitet; Budgetlinien dienen nur als obere Grenzen, die Allokationsgrenze je warmem Tick folgt unveraendert Simulationsvertrag V1; es wird keinerlei Benchmarkstreuung (Q-TEC-010) festgelegt.",
+      "verification": "Doku-Review mit Pfad- und Zeilenangaben im Run; Konsistenzabgleich gegen PERFORMANCE_BUDGET.md, docs/SIMULATIONSVERTRAG.md, NF-002 in ANFORDERUNGEN.md und QUALITAET.md; Run-Protokoll zeigt Abschluss von Abschnitt 0 vor der Implementierung; Review prueft die Einhaltung der fixierten Kriterien und die Abwesenheit einer Streuungsentscheidung"
+    },
+    {
+      "id": "AC-T022-02",
+      "statement": "Der oeffentliche Befehl './scripts/rift.sh soak --scenario soak-replay --report <Pfad>' existiert, fuehrt den Soak nativ auf linux-x64 im bestehenden Host rein CPU-seitig ohne Fenster, Renderer und Netzwerk aus, laedt die nativen SDL3-/bgfx-Artefakte nicht und schreibt einen maschinenlesbaren Report mit Evidenzvertragsfeldern; ein unbekanntes oder noch nicht implementiertes Soakszenario bricht mit definiertem Exitcode ab, ohne einen Report vorzutaeuschen; ein fehlender App-Build fuehrt zu kontrollierter Fehlerbehandlung; alle bestehenden Exitcodebedeutungen bleiben unveraendert und neue soak-spezifische Codes sind dokumentiert und getestet.",
+      "verification": "Gate-Ausfuehrung auf dem Entwickler-PC mit Exitcodes und Logs im Run; CLI-Vertragstests mit Positiv- und Negativfaellen (gueltiges Szenario, unbekanntes Szenario, fehlender Build) im regulaeren Testlauf; Erweiterung des stabilen Exitcode-Mapping-Tests"
+    },
+    {
+      "id": "AC-T022-03",
+      "statement": "Der autoritative Soaklauf ist ein einziger zusammenhaengender Prozess von mindestens 8 Stunden Wanduhr mit Realzeit-Taktung bei festem 20-Hz-Tick, der den kompletten skriptierten Replayplan gemaess Simulationsvertrag V1 (unveraenderte Welt, genau 250 vollstaendig simulierte mobile Testagenten, kanonische Befehlsordnung) in Release-naher Buildkonfiguration abarbeitet; der Zustand bleibt frei von Wanduhr-, Umgebungs- und Kernzahlabhaengigkeit; der beschleunigte Modus ist im Report eindeutig als diagnostisch mit Grund markiert (authoritative=false) und zaehlt zu keinem Zeitpunkt als NF-002-Nachweis; ein abgebrochener oder wiederaufgenommener Lauf ergibt niemals autoritative Evidenz.",
+      "verification": "Reportbinding von Dauer, Tickzahl, Taktmodus und Autoritativkennung geprueft; Unit-Tests zur Moduskennzeichnung und zur Uhrfreiheit des Zustands; echter autoritativer Lauf mit Log und Report im Abschlussrun"
+    },
+    {
+      "id": "AC-T022-04",
+      "statement": "Kein Absturz: der autoritative Prozess bleibt ueber die gesamte Laufdauer lebendig; jede unerwartete Beendigung ergibt Exitcode ungleich 0 sowie einen maschinenlesbar als unvollstaendig und nicht als Evidenz gekennzeichneten Teilreport; ein kosmetisch gruenes Ergebnis aus unvollstaendiger Laufdauer ist ausgeschlossen.",
+      "verification": "Fault-Injection auf die Beendigungsbehandlung im regulaeren Testlauf; Pruefung der Mindestlaufdauer- und Vollstaendigkeitsmarkierung im echten Report; Review der fail-closed-Logik"
+    },
+    {
+      "id": "AC-T022-05",
+      "statement": "Kein Haengen: ein Fortschritts-Watchdog misst ausserhalb des Heisspfads den Tickfortschritt je Wanduhrfenster gemaess Soakvertrag; ein Stall jenseits des Fensters ergibt einen definierten Exitcode ungleich 0 bei trotzdem geschriebenem, nicht-bestandenem Report; die Watchdogparameter entsprechen exakt dem in Abschnitt 0 dokumentierten Kriterium.",
+      "verification": "Watchdog-Unit-Tests mit injizierten Stalls und kurzen Fenstern im regulaeren Testlauf; Parameterabgleich gegen docs/SOAKVERTRAG.md; Verhalten im echten Lauf als Evidenz"
+    },
+    {
+      "id": "AC-T022-06",
+      "statement": "Das Speicher- und Allokationsgate entscheidet fail-closed ausschliesslich gegen dokumentierte absolute Grenzwerte: Speicherwachstum gegen beide Schwellwertformen aus Abschnitt 0, warme Ticks gegen die Allokationsgrenze des Simulationsvertrags (0 Bytes je warmem Tick nach Warm-up); der Report enthaelt Working-Set-Stichproben (Min/Max/Endwert plus Fensterstatistik), verwaltete Allokationen je Fenster, GC-Pausenzahl und -summe, je Kennzahl Einheit und Erfassungsmethode, Sampling ausserhalb der Heisspfadfenster, und weist nicht anwendbare Kennzahlen explizit unavailable mit Grund aus; jede Verletzung ergibt Exitcode ungleich 0 bei trotzdem geschriebenem Report.",
+      "verification": "Gate-Evaluator-Unit-Tests mit synthetischen Metrikfixtures je Bestehens- und Verletzungsklasse (Wachstum, Trend, Warm-tick-Allokation); echter Lauf mit Ergebnis im Run; Review gleicht Anker gegen PERFORMANCE_BUDGET.md und SIMULATIONSVERTRAG.md ab"
+    },
+    {
+      "id": "AC-T022-07",
+      "statement": "Determinismus und Replay: die im Soak gesampelten Zustands-Hashketten-Stichproben (Start, Intervall, Ende gemaess fnv1a64-canonical-chain-v1) entsprechen byteidentisch einer versionierten Golden-Fixture mit Schema- und Contentkennung, die aus einem unabhaengigen Referenzlauf ueber den identischen skriptierten Plan erzeugt wurde; die Pacing-Unabhaengigkeit ist durch identische Praefixketten zwischen getaktetem und beschleunigtem Kurzlauf im regulaeren Testlauf belegt; ein fremder Seed aendert den Endhash nachweislich; die Fixturehash-Bindung steht im Soakreport.",
+      "verification": "Determinismus-/Replay-Fixtures inklusive Negativfaellen im regulaeren Testlauf; Fixturehash und Kettenstichproben im echten Report gebunden; Review des Vergleichsvertrags gegen docs/SIMULATIONSVERTRAG.md"
+    },
+    {
+      "id": "AC-T022-08",
+      "statement": "Die fensterweise Tickzeit-p50/p95/p99 von Anfang, Mitte und Ende werden im Report ausschliesslich als diagnostische Felder ausgewiesen, gehen zu keinem Zeitpunkt in die Gateentscheidung ein, und der Report dokumentiert maschinenlesbar, dass die tolerierte Benchmarkstreuung (Q-TEC-010) offen bleibt und in diesem Auftrag weder definiert noch verbraucht wird.",
+      "verification": "Schema- und Fixture-Tests zeigen die fehlende Kopplung zwischen Driftfeldern und Gateergebnis einschliesslich Negativfall; Doku-Review der Kennzeichnung"
+    },
+    {
+      "id": "AC-T022-09",
+      "statement": "Ein Profilbestehen entsteht nur durch deklarierte Bindung an die zugehoerige Referenzklasse auf benannten Referenzrechnern; ohne Bindung oder bei fehlender Referenzhardware bleiben Pflichtprofile im Report NOT-MEASURED, ein behaupteter Profilbestehen ohne gueltige Bindung wird abgewiesen, und Entwickler-PC-Laeufe sind als diagnostische Baseline gekennzeichnet.",
+      "verification": "Unit-Tests der Bindungs- und Ablehnungslogik mit synthetischen Hardwarebeschreibungen (i7-3770/RX-570-Entwickler-PC, GTX-660-Klasse, Apple M1); kein echter Profillauf auf fehlender Hardware erforderlich oder ersetzbar"
+    },
+    {
+      "id": "AC-T022-10",
+      "statement": "Nicht schreibbarer Reportpfad, beschaedigte Zwischenmetriken oder Schemawiderspruch, ungueltige Argumente, fehlender App-Build und vorzeitiger Abbruch fuehren zu verstaendlichen Meldungen mit definierten Exitcodes ungleich 0 ohne Prozessabsturz, Haengen, Netzwerkzugriff oder Schreibvorgang ausserhalb erlaubter Verzeichnisse; bestehende Exitcodebedeutungen bleiben unveraendert und Teilreports sind klar als keine Evidenz markiert.",
+      "verification": "Fault-Injection-Fixtures je Fehlerklasse im regulaeren Testlauf; Mapping-Test haelt den dokumentierten Exitcodevertrag stabil; Review des Markierungsvertrags"
+    },
+    {
+      "id": "AC-T022-11",
+      "statement": "rift.sh bootstrap/build/fmt/lint/test/security/verify laufen mit dem neuen Code gruen, es gibt null neue Compiler- und Analyzerwarnungen, es entsteht keine neue Abhaengigkeit (BCL-only), der Soaklaeufer referenziert keine SDL3-/bgfx-/Plattformtypen, F# wird nicht in Tick- oder Frame-Hotpaths eingesetzt, und keine Ergebnisse haengen an CPU-Kernzahl, lokaler Zeitzone oder Dateisystemreihenfolge.",
+      "verification": "Gate-Ausfuehrungen im Abschlussrun mit Exitcodes und Logs; Architekturtest gegen unerlaubte Referenzen und Uhr-/Umgebungsabhaengigkeit; Review gleicht Abhaengigkeitsliste und Sprachrollen mit TOOLCHAIN.md, packages.lock und ADR 001/ADR 006 ab"
+    },
+    {
+      "id": "AC-T022-12",
+      "statement": "Dokumentation und Gate-Register sind konsistent: AUTOMATION.md beschreibt den implementierten soak-Aufruf und das explizite Fehlschlagen unbekannter Szenarien, NATIVE_UNTERBAU.md bildet Befehl und Exitcodevertrag ab, PERFORMANCE_BUDGET.md nennt ohne Aenderung eines Budgetwerts Ort und Methode des Zuverlaessigkeitsnachweises inklusive des Orts des NF-002-Schwellwerts, der G-PERF-Eintrag in .ai/evals/quality-gates.json ist fuer den Soak praezisiert inklusive NOT-MEASURED-Status nach dem Q-OPS-001-Klaerungsprotokoll, ARCHITEKTUR.md/DATENMODELL.md verweisen ohne Formatfestlegung auf den Soakvertrag, und das Abnahmedokument unter docs/abnahme/ verknuepft jedes Kriterium mit Evidenz.",
+      "verification": "Doku-Review mit Pfad- und Zeilenangaben im Run; rift.sh verify gruen; Konsistenzabgleich der genannten Stellen gegen den implementierten Befehlsvertrag"
+    }
+  ],
+  "dependencies": [
+    "T-010",
+    "T-020",
+    "T-021"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-PERF",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Konkrete Ergebnisse des Abschnitts-0-Spikes ausschliesslich innerhalb der im Auftrag fixierten Kriterien: numerischer Leak-Schwellwert (absolut innerhalb 4 bis 64 MiB, Trendkonsistenz eingehalten), Watchdogfenster (30 bis 300 Sekunden), Kalibrierdauer und -anzahl oberhalb der Minima, Faktorwahl gegenueber dem beobachteten Messrauschen",
+      "Pacing- und Nachholmechanik der Realzeit-Taktung ohne Zustandsabhaengigkeit von der Wanduhr, Samplingintervalle, Kettenstichprobenintervall und Groesse der Golden-Fixture",
+      "Interne Projekt- und Modulstruktur des Soaklaeufers sowie Reportformat- und Schemaevolution konsistent zur bestehenden Reportlinie innerhalb des NF-007-Evidenzvertrags",
+      "Neue Exitcodewerte nach dem dokumentierten Vertrag, ohne bestehende Bedeutungen zu veraendern, sowie Reihenfolge und Aufbau lokaler Fixtures",
+      "Verschaerkung einzelner Grenzwerte (Watchdogfenster, Schwellwerte) bleibt jederzeit zulassig; die Mindestkalibrierpflichten (zwei Laeufe, je mindestens 30 Minuten Wanduhr) sind Untergrenzen und duerfen nicht unterschritten werden",
+      "Gestaltung des beschleunigten Diagnosemodus einschliesslich seiner klaren Nicht-Evidenz-Kennzeichnung"
+    ],
+    "mustEscalate": [
+      "Jede Lockerung, Umgehung oder Nachjustierung eines Soak-Schwellwerts, des Watchdogfensters oder eines sonstigen Grenzwerts einschliesslich PERFORMANCE_BUDGET.md und Simulationsvertrag V1; insbesondere die Behandlung eines fehlgeschlagenen autoritativen Laufs durch Schwellwertänderung statt Defektbehebung",
+      "Jede Definition, Festlegung oder verbrauchende Verwendung der tolerierten Benchmarkstreuung (Rest von Q-TEC-010, Performance Lead) sowie jede Ratifizierung des Simulationsvertrags (Q-TEC-004, Simulation Lead)",
+      "Verkuerzte, gestutzte, sharduebergreifende oder wiederaufgenommene autoritative Laeufe; der 8-h-Wanduhrmodus ist unverrueckbar",
+      "Save-/Replaydateiformatfestlegungen, fachliche Spielregeln oder Q-GAM-Werte ueber interne Fixtures hinaus (T-030/T-031, DATENMODELL-OFFEN-Stellen)",
+      "Rendering-, GPU- oder Fensterscope sowie Freigabe visueller Medien aus Soakdaten; dies verbleibt beim Media-Lab-Prozess",
+      "Cross-Build- oder Cross-Plattform-Determinismus- und Stabilitaetszusagen sowie Windows-/macOS-Scope (T-011, Q-TEC-002, Q-OPS-002)",
+      "F# oder eine weitere Sprache im Tick-/Frame-Hotpath, jede neue Abhaengigkeit, jeder externe Dienst oder Runtime-Netzwerkzugriff",
+      "Parallelisierung, deren Ergebnisse von der CPU-Kernzahl abhaengen, oder jede Verletzung der Kanonisierungsregeln",
+      "Ersetzung fehlender Referenzhardware durch Diagnose-, Cross-Compile- oder Simulationsergebnisse bei einem Profilbestehen sowie Benennung von Referenzrechnern; die Q-OPS-001-Entscheidung bleibt Projektleitung",
+      "Abschwaechung oder Entfernung eines Abnahmekriteriums oder Gates sowie Veraenderung bestehender Exitcodebedeutungen"
+    ]
+  }
+}
