@@ -46,11 +46,18 @@
         "type": "Project",
         "dependencies": {
           "Riftward.Platform": "[1.0.0, )",
+          "Riftward.Save": "[1.0.0, )",
           "Riftward.Simulation": "[1.0.0, )"
         }
       },
       "riftward.platform": {
         "type": "Project"
+      },
+      "riftward.save": {
+        "type": "Project",
+        "dependencies": {
+          "Riftward.Simulation": "[1.0.0, )"
+        }
       },
       "riftward.simulation": {
         "type": "Project"

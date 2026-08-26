@@ -66,9 +66,9 @@
         "content",
         "save"
       ],
-      "command": null,
-      "status": "partial",
-      "passCondition": "Alle für den Task betroffenen Schemas und Referenzen sind validiert"
+      "command": "./scripts/rift.sh savecheck --report PFAD (Save-Fixture-Anteil); übrige Anteile aufgabenspezifische Validatoren",
+      "status": "partial-save-fixtures-implemented-via-savevertrag-t031",
+      "passCondition": "Alle für den Task betroffenen Schemas und Referenzen sind validiert. Für den Save-Fixture-Anteil (T-031) gilt: Der Savevertrag docs/SAVEVERTRAG.md V1 ist implementiert; ./scripts/rift.sh savecheck besteht fail-closed die unterscheidbare Korruptionsmatrix gemäß DATENMODELL-Fixturliste mit dokumentierter Zurückstellung der Klasse finalitätsnah gültig zugunsten der Contentstufe, Roundtrip-, Fortsetzungs-, Atomaritäts- und Migrationsprüfungen sowie den aus Kalibrierläufen abgeleiteten Größen-Sanity-Schwellwert; die OFFEN-Stellen für Cooked-Paket-, Definitions- und Replayformate bleiben unberührt"
     },
     {
       "id": "G-PERF",

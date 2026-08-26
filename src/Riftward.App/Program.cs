@@ -5,7 +5,7 @@ using Riftward.Platform;
 if (OperatingSystem.IsLinux()
     && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture != System.Runtime.InteropServices.Architecture.X64)
 {
-    Console.Error.WriteLine("plattformsmoke/effizienzbaseline/bench/soak: nur linux-x64 im T-010-/T-020-/T-022-Scope.");
+    Console.Error.WriteLine("plattformsmoke/effizienzbaseline/bench/soak/savecheck: nur linux-x64 im T-010-/T-020-/T-022-/T-031-Scope.");
     return ExitCodes.Map(PlatformErrorCode.UnsupportedPlatform);
 }
 
@@ -20,6 +20,7 @@ try
         "effizienzbaseline" => EfficiencyRunner.Run(arguments),
         "bench" => BenchRunner.Run(arguments),
         "soak" => SoakRunner.Run(arguments),
+        "savecheck" => SavecheckRunner.Run(arguments),
         _ => PrintUsage($"Unbekannter Modus '{mode ?? "<fehlt>"}'."),
     };
 }
@@ -69,6 +70,10 @@ static int PrintUsage(string message)
     + Environment.NewLine
     + "      [--diagnostic-accelerated [--horizon-ticks N]] [--reference-out PFAD]"
     + Environment.NewLine
-    + "      [--bind-profile PROFIL=KLASSE] [--lock DATEI]");
+    + "      [--bind-profile PROFIL=KLASSE] [--lock DATEI]"
+    + Environment.NewLine
+    + "  Riftward.App savecheck --report PFAD [--work VERZ] [--seed N] [--plan-ticks N]"
+    + Environment.NewLine
+    + "      [--safe-tick N] [--sample-interval-ticks N] [--lock DATEI]");
     return ExitCodes.Usage;
 }

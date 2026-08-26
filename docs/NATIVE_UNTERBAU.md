@@ -107,6 +107,8 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 30 | Soak-Zuverlässigkeitsgate verletzt (Wachstum, Trend, Watchdog-Stall, Warm-tick-Allokation, Kettenabweichung); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-022) |
 | 31 | Soaklauf unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-022) |
 | 32 | Soak-Szenario unbekannt oder noch nicht implementiert; kein Report (T-022) |
+| 33 | Save-Gate verletzt (Prüfklassenmatrix, Größen-Sanity, Fortsetzung); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-031) |
+| 34 | Savecheck unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-031) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -121,6 +123,7 @@ dokumentierte Entscheidung und eine Anpassung der Tests
 ./scripts/rift.sh bench --scenario bench-sim --report artifacts/t021/bench-sim.json
 ./scripts/rift.sh bench --scenario bench-representative --report artifacts/t023/bench-representative.json
 ./scripts/rift.sh soak --scenario soak-replay --report artifacts/t022/soak-replay-authoritative.json
+./scripts/rift.sh savecheck --report artifacts/t031/savecheck.json
 ```
 
 Beide ersten Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
@@ -252,3 +255,25 @@ ergibt Exitcode 31 mit einem als keine Evidenz gekennzeichneten Teilreport;
 unbekannte oder noch nicht implementierte Soakszenarien brechen mit
 Exitcode 32 ohne Report ab. Läufe auf dem Entwickler-PC sind diagnostische
 Baseline gemäß Q-OPS-001; Pflichtprofile bleiben `NOT-MEASURED`.
+
+## savecheck (T-031) — Save-/Ladevertrag
+
+`savecheck --report PFAD [--work VERZ] [--seed N] [--plan-ticks N]
+[--safe-tick N] [--sample-interval-ticks N]` führt den versionierten,
+atomaren Save/Lade-Nachweis nativ auf linux-x64 im bestehenden Host rein
+CPU-seitig aus — ohne Fenster, Renderer und Netzwerk; die nativen
+SDL3-/bgfx-Artefakte werden nicht geladen. Format, Atomarprotokoll,
+Größen-Sanity-Schwellwert (Kalibrierfaktor im Band 2× bis 16×),
+Fortsetzungshorizont (Mindestanteil die Hälfte des Planhorizonts) und die
+unterscheidbaren Verletzungsklassen sind im Savevertrag
+`docs/SAVEVERTRAG.md` V1 fixiert; der Report (Schemaversion 1) bindet
+Umgebung, Planhash, Snapshotgröße mit Kalibrierbasis, `payloadHash`- und
+Slotdatei-Anker, Prüfklassenmatrix sowie Fortsetzungskette und entscheidet
+fail-closed ausschließlich gegen die Savevertragsgarantien. Dauern sind
+ausnahmslos diagnostisch (`gateCoupled=false`). Gateverletzungen ergeben
+Exitcode 33 bei trotzdem geschriebenen, als nicht bestanden markierten
+Report; ein unvollständiger Lauf ergibt Exitcode 34 mit einem als keine
+Evidenz markierten Teilreport; Schemawidersprüche nutzen Code 27, nicht
+schreibbare Reportpfade Code 28. Läufe auf dem Entwickler-PC sind
+diagnostische Baseline gemäß Q-OPS-001; Pflichtprofile bleiben
+`NOT-MEASURED`.

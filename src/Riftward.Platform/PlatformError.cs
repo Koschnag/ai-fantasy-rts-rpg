@@ -68,6 +68,12 @@ public enum PlatformErrorCode
 
     /// <summary>Soak-Szenario unbekannt oder noch nicht implementiert (T-022); kein Report.</summary>
     SoakScenarioUnavailable = 32,
+
+    /// <summary>Save-Gate verletzt (T-031); Report wurde dennoch geschrieben und klar als nicht bestanden markiert.</summary>
+    SaveGateViolated = 33,
+
+    /// <summary>Savecheck unvollstaendig oder vorzeitig beendet (T-031); der Teilreport gilt ausdruecklich nicht als Evidenz.</summary>
+    SaveRunIncomplete = 34,
 }
 
 /// <summary>Ein einzelner kontrollierter Fehler mit Code, Meldung und Detailpfad.</summary>

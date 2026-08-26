@@ -54,7 +54,7 @@ flowchart TB
 | Gameplay / Mission | Helden, Fähigkeiten, Ausrüstung, Aufgaben, Dialoge, Entscheidungen, Basis und Missionsregeln | versionierte Content-Definitionen und Simulationsereignisse | keine | ANGENOMMEN |
 | Präsentation / UI | Kamera, Auswahl, Befehlsfeedback, HUD, Menüs, Untertitel und Minimap | lesbare Snapshots; semantische Aktionen statt Gerätescancodes | Eingabebelegung lokal | ANGENOMMEN |
 | Content-Lader | validierte, gecookte Definitionen und Assets laden; Handle-/ID-Auflösung | read-only Spielpaket mit Schema- und Paketversion | keine | ANGENOMMEN; Paketformat OFFEN |
-| Save-System | atomar speichern/laden, Version prüfen, Korruption kontrolliert melden | lokaler Spielstand gemäß `DATENMODELL.md` | Spielverlauf, Einstellungen | ANGENOMMEN; Serialisierungsformat OFFEN |
+| Save-System | atomar speichern/laden, Version prüfen, Korruption kontrolliert melden | lokaler Spielstand gemäß `DATENMODELL.md` und Savevertrag `SAVEVERTRAG.md` | Spielverlauf, Einstellungen | ANGENOMMEN; Simulationszustand durch Savevertrag V1 festgelegt; Cooked-Paket-, Definitions-, Replay- und Einstellungsformate OFFEN |
 | Entwicklungs-Telemetrie | Frame-, Tick-, Allokations-, Agenten-, Draw-, RAM-/VRAM- und Streamingwerte | maschinenlesbare lokale Messartefakte | Geräte-/Pfadangaben minimieren | ANGENOMMEN |
 | Rift Harness | Runs, Hashkette, BM25-RAG, Zitate und Prüfevidenz | `.ai/`-Verträge und CLI aus `HARNESS.md` | Prompts/Logs können Secrets enthalten und werden bereinigt | ENTSCHIEDEN, ADR 003 |
 | Content-/Asset-Pipeline | Quelldaten validieren, Originalassets normalisieren, LOD/Material/Rig prüfen und cooken | Asset-Manifeste, Hashes, Blender-/CLI-Artefakte | optionale Provider-Credentials außerhalb des Repos | ANGENOMMEN |
@@ -68,7 +68,7 @@ flowchart TB
 | Fenster / Eingabe / Plattform | SDL3 | ADR 002 | ENTSCHIEDEN |
 | Rendering | bgfx; Windows D3D11, Linux OpenGL 3.3, macOS Metal; Vulkan nur optional nach Messung | ADR 002 | ENTSCHIEDEN |
 | Audio | Spike zwischen SDL3-Core-Audio und SDL3_mixer; nur benötigte Decoder ausliefern | ADR 002 | OFFEN |
-| Persistenz | lokale versionierte Saves, Einstellungen und Checkpoints; keine Runtime-Datenbank | Anforderungen F-005/F-006 | ANGENOMMEN; Binär-/Textformat OFFEN |
+| Persistenz | lokale versionierte Saves, Einstellungen und Checkpoints; keine Runtime-Datenbank; der Save-Umschlag/das Persistenzformat des Simulationszustands folgt dem versionierten Savevertrag (`docs/SAVEVERTRAG.md`, T-031) mit kanonischer Binärcodierung, doppeltem Hashanker und atomarem Slotprotokoll | Anforderungen F-005/F-006; ADR 006 | ANGENOMMEN; Cooked-Paket-, Definitions- und Replayformate bleiben OFFEN |
 | Produktion | lokales F#-Harness, JSONL-Ereignisse und BM25-RAG; kein Pflicht-Cloud-Dienst | ADR 003 | ENTSCHIEDEN |
 | Performancebeweis | Budgets bleiben Hypothesen bis zum Release-nahen Lauf auf realer Referenzhardware; isolierte Baselines plus integrierter Repräsentativitätsnachweis | ADR 006 | ENTSCHIEDEN |
 | Sprachrollen | C# für ausgelieferte Runtime; F# für typisierte Offline-Spezifikation, Compiler, Referenzmodelle und Verifikation; Python nur optionaler untrusted Offline-Adapter | ADR 001, ADR 006 | ENTSCHIEDEN |
@@ -99,8 +99,8 @@ flowchart TB
 - Der Client liest nur validierte Cooked-Assets und versionierte Definitionen; Source-Assets bleiben Produktionsdaten.
 - Content-Verweise erfolgen über stabile IDs, nie über UI-Namen oder zufällige Dateisystemreihenfolge.
 - Unbekannte Pflichtfelder, fehlende Referenzen oder Hashfehler blockieren das Paket beim Build. Laufzeitfehler werden ohne Absturz bis zum Hauptmenü gemeldet, sofern sicheres Fortsetzen möglich ist.
-- Spielstände werden zunächst in eine temporäre Datei geschrieben, validiert und dann atomar ersetzt. Der letzte gültige Stand wird bei einem fehlgeschlagenen Schreibvorgang nicht überschrieben.
-- Save-Migrationen sind explizite, getestete Schritte; stilles Verwerfen unbekannter Daten ist unzulässig.
+- Spielstände werden zunächst in eine temporäre Datei geschrieben, validiert und dann atomar ersetzt. Der letzte gültige Stand wird bei einem fehlgeschlagenen Schreibvorgang nicht überschrieben. Für den Simulationszustand ist dieses Atomarprotokoll zusammen mit Kodierung, Hashankern, Größen-Sanity-Schwellwert, Migrationsregeln und Verletzungsklassen im versionierten Savevertrag (`docs/SAVEVERTRAG.md`) festgelegt; offene Formatfragen (Cooked-Paket, Definitionen, Replay) bleiben unberührt.
+- Save-Migrationen sind explizite, getestete Schritte; stilles Verwerfen unbekannter Daten ist unzulässig. Bis zu registrierten Schritten werden frühere und zukünftige Schemaversionen kontrolliert ohne Migrationserfindung abgewiesen.
 
 ## Produktions- und Vertrauensgrenzen
 

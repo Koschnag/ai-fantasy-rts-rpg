@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="../../tools/RiftHarness/RiftHarness.fsproj" />
     <ProjectReference Include="../../src/Riftward.Platform/Riftward.Platform.csproj" />
+    <ProjectReference Include="../../src/Riftward.Save/Riftward.Save.csproj" />
     <ProjectReference Include="../../src/Riftward.App/Riftward.App.csproj" />
   </ItemGroup>
 
@@ -32,6 +33,7 @@
     <Compile Include="BenchSimTests.fs" Condition="Exists('BenchSimTests.fs')" />
     <Compile Include="BenchRepresentativeTests.fs" Condition="Exists('BenchRepresentativeTests.fs')" />
     <Compile Include="SoakTests.fs" Condition="Exists('SoakTests.fs')" />
+    <Compile Include="SaveTests.fs" Condition="Exists('SaveTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

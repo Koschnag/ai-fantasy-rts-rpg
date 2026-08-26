@@ -124,6 +124,8 @@ Ob Gameplay-Numerik intern Festkomma, kontrollierte Fließkommazahlen oder eine 
 
 Spielstandintegrität dient der Fehlererkennung. Eine Signatur oder Anti-Cheat-Grenze ist für das Offline-Einzelspiel kein Ziel.
 
+Die konkrete Ausprägung dieses Umschlags für den Simulationszustand ist im versionierten Savevertrag (`docs/SAVEVERTRAG.md`, V1, T-031) festgelegt: kanonische Binärcodierung mit zuerst lesbarer Schemaversion, `payloadHash` (SHA-256) über die kanonischen Payloadbytes zusätzlich zum Kopfanker `metaHash`, ausdrücklich leere/unavailable Vertragsfelder für Content-Paketreferenzen und Anzeigeort sowie ein atomares Slotprotokoll mit vollständiger Validierung vor Ersetzung. Felder ohne existierende Datenquelle werden dort niemals erfunden.
+
 ### `PlayerSettings`
 
 | Gruppe | Inhalt | Regel |
@@ -202,8 +204,8 @@ erDiagram
 ## Migration und Testdaten
 
 - Es gibt keine zu übernehmende Altdatenquelle. Fremde Spielstände oder Inhalte werden nicht importiert.
-- Jede Schema-Version benötigt Golden Fixtures für: minimal gültig, finalitätsnah gültig, unbekannte Version, fehlende Referenz, Grenzwertverletzung, abgeschnittene Datei und falscher Hash.
-- Save-Migrationen benötigen Vorher-/Nachher-Fixtures und müssen bei wiederholter Ausführung dasselbe Ergebnis liefern.
+- Jede Schema-Version benötigt Golden Fixtures für: minimal gültig, finalitätsnah gültig, unbekannte Version, fehlende Referenz, Grenzwertverletzung, abgeschnittene Datei und falscher Hash. Für den Simulationszustand sind diese Klassen je unterscheidbarer Verletzungsklasse im Savevertrag (`docs/SAVEVERTRAG.md` Abschnitt 11) und in dessen Prüfklassenmatrix implementiert; die Klasse „finalitätsnah gültig“ bleibt dort ausdrücklich der Contentstufe vorbehalten (dokumentierte Zurückstellung ohne Abschwächung) und wird bei Aufkommen des Inhalts nachgeholt.
+- Save-Migrationen benötigen Vorher-/Nachher-Fixtures und müssen bei wiederholter Ausführung dasselbe Ergebnis liefern. Der Savevertrag V1 registriert keinen Migrationsschritt; frühere und zukünftige Schemaversionen werden kontrolliert ohne Migrationserfindung abgewiesen. Die Idempotenz ist an einem rein internen synthetischen Zwei-Version-Fixturepaar nachgewiesen, das keine Produktmigrations- oder Altdatenzusagen begründet.
 - Deterministische Replays speichern mindestens Build-/Contentkennung, Seed, Startzustand und geordnete Befehle; genaues Replayformat ist `OFFEN`.
 - Der `stateHash` der Simulationsbaseline T-021 folgt dem versionierten Vertrag in `docs/SIMULATIONSVERTRAG.md` (kanonischer Relevantzustand, FNV-1a-64-Kette, Hashvertragsklassen ohne Cross-Build-/Cross-Plattform-Zusage); interne Testfixtures dieser Baseline begründen keine Save-/Replayformatfestlegung.
 - Der Zuverlässigkeits-Soak T-022 vergleicht Kettenstichproben desselben `stateHash` gegen eine versionierte Golden-Fixture gemäß `docs/SOAKVERTRAG.md`; diese interne Prüfinfrastruktur begründet ebenfalls keine Save-, Replay- oder Telemetrieformatfestlegung für das Spiel.
