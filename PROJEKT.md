@@ -84,6 +84,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 | Datenschutz / Datenstandort | keine Onlinepflicht im Spiel; Produktionsdienste führen keine geheimen oder fremden Daten | ANGENOMMEN |
 | Bestehende Systeme / Schnittstellen | keine Runtime-Cloudabhängigkeit | ANGENOMMEN |
 | Technologie | .NET 10 LTS, C# + F#, Native AOT für Release evaluieren, kleine native FOSS-Bibliotheken | ENTSCHIEDEN |
+| Qualität | Quality-First-Direktive (ADR 007): Gameplay, Grafik, Atmosphäre, Performance und Softwarequalität sind gleichwertige Pflichtdimensionen; reversible Spiel-/Gestaltungsentscheidungen brauchen Alternativen, Hypothesen, Playtestkriterien und Rückrollweg; Lange Gates laufen asynchron nur auf eingefrorenen Kandidaten; ein Termin erzeugt keine Freigabe | ANGENOMMEN (Projektleitung 2026-08-25) |
 | Barrierefreiheit | frei belegbare Eingaben, skalierbare UI, Untertitel, keine reine Farbcodierung | ANGENOMMEN |
 | Sprachen / Regionen | Architektur für Lokalisierung; Vertical Slice zunächst Deutsch und Englisch | ANGENOMMEN |
 
