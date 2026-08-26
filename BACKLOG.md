@@ -39,7 +39,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DONE |
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DONE |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
-| T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DRAFT |
+| T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -380,10 +380,82 @@ das .NET SDK 10.0.110 wurde hierfür gemäß gepinntem Bootstrap SHA-512-geprüf
 beschafft). Zu diesem Prüfzeitpunkt hatte die Implementierung nicht begonnen;
 der Taskstatus bleibt `ready`.
 
+Am 2026-08-26 übernahm der autonome Planungsagent (Autorisierung der
+Projektleitung vom 2026-08-23) die am 2026-08-25 bestätigte
+Quality-First-Direktive als akzeptierte querschnittliche Entscheidung in
+`PROJEKT.md` und das ADR-Register (`docs/entscheidungen/
+007-quality-first-produktdirektive.md`), getrennt von jeder Taskarbeit:
+Gameplay, Grafik, Atmosphäre, Performance und Softwarequalität bleiben
+gleichwertige Pflichtdimensionen; reversible Spiel-/Gestaltungsentscheidungen
+brauchen Alternativen, Hypothesen, Playtestkriterien und Rückrollweg; Lange
+Gates laufen asynchron nur auf eingefrorenen Kandidaten; ein Termin erzeugt
+keine Freigabe.
+
+T-031 wurde am 2026-08-26 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) auf `READY` gesetzt. Auswahlkette über alle
+DRAFT-Einträge: `T-011` bleibt blockiert, weil seine native Windows-/macOS-
+Build-/Smoke-/Paketmatrix vorhandene Runner, Signier-/Notarisierungs-
+entscheidungen (Q-OPS-002/Q-OPS-003) und physische Zielhardware voraussetzt,
+die hier nicht vorhanden sind und nicht stillschweigend angenommen werden
+dürfen; `T-030` bleibt an echten kreativen Produktentscheidungen gebunden
+(Q-GAM-001 bis Q-GAM-007, Q-NAR-002) — sie bestimmen konkrete Inhaltssubstanz
+und wären gemäß ADR 007 nur mit Alternativen, begründeten Hypothesen,
+Playtestkriterien und Rückrollweg auf bespielbaren Artefakten zu treffen, nicht
+massenhaft in einem Freigabelauf; `T-040`/`T-041` liegen hinter E-004/E-005;
+`T-050`/`T-051` hinter den getrennten Generator-, Storage-/Backup- und
+LFS-Freigaben (Q-AST-001/Q-AST-002); `T-008` ist `REVIEW`. Damit ist `T-031`
+der höchstpriorisierte DRAFT-Auftrag mit erfüllten Abhängigkeiten (`T-010`
+liefert Host-, Befehls- und Exitcodevertrag, `T-021` den unverändert
+wiederverwendeten Simulationskern samt Zustands-Hashvertrag; Präzedenz
+T-022/T-023). Blockerbehandlung ohne stille Produktannahme: Q-TEC-006 wird
+ausschließlich im Teilaspekt Save-Umschlag/Persistenzformat verfahrensmäßig in
+den gatenden Abschnitt 0 des Auftrags `.ai/tasks/T-031-atomic-save-load.json`
+überführt (versionierter Savevertrag `docs/SAVEVERTRAG.md` nach fixierten
+Kriterien mit Alternativen, Gründen und Rückrollweg; Spike-Klausel in
+`docs/QUALITAET.md`, Klärungsprotokoll in `docs/OFFENE_FRAGEN.md`); die Anteile
+Cooked-Paket-, Definitions- und Replayformat bleiben ausdrücklich OFFEN.
+Q-GAM-007 blockiert nachweislich nicht: Mechanik und Garantien (atomare
+Ersetzung, Validierung vor Aktivierung, Erhalt des letzten gültigen Standes,
+Korruptionsabweisung) sind bereits durch die akzeptierten UF-002-Fehlerfälle,
+den DATENMODELL-Lebenszyklus und ARCHITEKTUR.md verbindlich festgelegt und
+hängen an keiner Inkapazitäts-/Checkpointpolitik; die Frage bleibt OFFEN und
+out of scope. Media-Lab-Prüfung: kein visuelles Artefakt, weil persistente
+Zustandsdaten keinen sichtbaren Szenengehalt besitzen. Der Auftrag folgt ADR
+007 als Infrastruktur-Evidenz vor Contentskalierung; dieser Freigabelauf hat
+keinen Produktcode implementiert und keinen Commit erstellt — die formale
+Schema-Validierung mit Repository-Werkzeug bleibt Pflichtteil des
+Spec-Reviewlaufs.
+
+Die Spezifikation wurde am 2026-08-26 durch den unabhängigen Reviewlauf
+`01M0XNCAJETH6R619V1TCK6QFP` (Akteur `t031-spec-reviewer`) geprüft: Das Task-
+Manifest ist gegen `.ai/schemas/task.schema.json` mit dem gepinnten
+JsonSchema.Net 8.0.5 gültig (14/14 Manifeste unter `.ai/tasks/`, inklusive
+`T-031`); Auswahlkette über alle DRAFT-Einträge und Blockerbehandlung sind
+konsistent zu `OFFENE_FRAGEN.md`; die Belege wurden gegen `ANFORDERUNGEN.md`
+(F-005, NF-002, NF-003, NF-007, NF-008), `USER_FLOWS.md` UF-002-Fehlerfälle,
+`DATENMODELL.md` (SaveEnvelope-Pflichtfelder, Spielstand-Lebenszyklus,
+Golden-Fixturliste), `ARCHITEKTUR.md` (Persistenzzeile,
+Vertrauensgrenzentabelle), `SIMULATIONSVERTRAG.md` V1
+(`fnv1a64-canonical-chain-v1`), die Spike-Klausel in `QUALITAET.md`, den
+Befehls-/Exitcodevertrag in `NATIVE_UNTERBAU.md` sowie
+`communication/MEDIA_LAB.md` geprüft; ADR 007 wurde zeichentreu gegen die am
+2026-08-25 bestätigte Quality-First-Direktive übernommen; Clean-Room- und
+Secret-Scan ohne Befund. Reparatur im Scope des neuen Manifests: `AC-T031-06`
+und die Testmatrix beriefen sich auf die DATENMODELL-Fixturliste, verschwiegen
+deren Klasse „finalitätsnah gültig“ aber stillschweigend; beide Stellen nennen
+die vor T-030-/T-051-Inhalt nicht darstellbare Klasse jetzt ausdrücklich als
+dokumentierte Zurückstellung ohne Abschwächung. Eine davon unabhängige zweite
+Reparatur wurde bewusst nicht vorgenommen. Test-, Fixture-, Build-, CI- oder
+Evidenzpfade wurden nicht berührt, daher ist der Fresh-Checkout-/Clean-Archive-
+Vertrag durch diesen Lauf nicht ausgelöst. Alle lokalen Gates grün (fmt/lint
+PASS, build mit 0 Warnungen, Tests 205/205, security PASS, rag-build, Schema
+14/14, verify über alle Runs). Zu diesem Prüfzeitpunkt hatte die
+Implementierung nicht begonnen; der Taskstatus bleibt `ready`.
+
 Die verbleibenden DRAFT-Einheiten hängen an Referenzhardware- und
-Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`), an getrennten
-Generator- und Storage-/Backup-Freigaben (`T-050`/`T-051`) beziehungsweise an
-echten Produktentscheidungen (`T-030`/`T-031`, dahinter `T-040`/`T-041`).
+Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`) sowie an echten kreativen
+Produktentscheidungen (`T-030`, dahinter `T-040`/`T-041`) beziehungsweise an
+getrennten Generator- und Storage-/Backup-Freigaben (`T-050`/`T-051`).
 
 ## Vorlage für eine Umsetzungseinheit
 
