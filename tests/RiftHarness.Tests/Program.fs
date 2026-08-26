@@ -2014,7 +2014,31 @@ module Program =
               "T-022 evidence unit classification is fail closed", SoakTests.soakEvidenceUnitClassificationIsFailClosed
               "T-022 exit mapping is stable and documented", SoakTests.soakExitMappingIsStableAndDocumented
               "T-022 watchdog stall with frozen progress and running clock",
-              SoakTests.watchdogStallWithFrozenProgressAndRunningClock ]
+              SoakTests.watchdogStallWithFrozenProgressAndRunningClock
+              "T-031 save contract mirrors documented values", SaveTests.saveContractMirrorsDocumentedValues
+              "T-031 payload byte identity and metadata delineation",
+              SaveTests.payloadByteIdentityAndMetadataDelineation
+              "T-031 continuation equality against interrupted reference run",
+              SaveTests.continuationEqualityAgainstReferenceRun
+              "T-031 corruption matrix rejects every class distinctly",
+              SaveTests.corruptionMatrixRejectsEveryClassDistinctly
+              "T-031 display metadata remains readable without payload",
+              SaveTests.displayMetadataRemainsReadableWithoutPayload
+              "T-031 slot protocol fault injection preserves last valid state",
+              SaveTests.slotProtocolFaultInjectionPreservesLastValidState
+              "T-031 savecheck gate covers every class fail closed", SaveTests.savecheckGateCoversEveryClassFailClosed
+              "T-031 migration rules are strictly monotonic and idempotent on copy",
+              SaveTests.migrationRulesAreStrictlyMonotonicAndIdempotentOnCopy
+              "T-031 report schema accepts golden and rejects fabrication matrix",
+              SaveTests.reportSchemaAcceptsGoldenAndRejectsFabricationMatrix
+              "T-031 exit code mapping stays stable including save codes",
+              SaveTests.exitCodeMappingStaysStableIncludingSaveCodes
+              "T-031 architecture keeps save project pure and binds sim state access",
+              SaveTests.architectureKeepsSaveProjectPureAndBindsSimStateAccess
+              "T-031 rift script savecheck contract keeps app build guard",
+              SaveTests.riftScriptSavecheckContractKeepsAppBuildGuard
+              "T-031 CLI contract runs savecheck with reports and controlled failures",
+              SaveTests.cliContractRunsSavecheckWithReportsAndControlledFailures ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

@@ -5,6 +5,12 @@
       "riftward.platform": {
         "type": "Project"
       },
+      "riftward.save": {
+        "type": "Project",
+        "dependencies": {
+          "Riftward.Simulation": "[1.0.0, )"
+        }
+      },
       "riftward.simulation": {
         "type": "Project"
       }

@@ -748,7 +748,10 @@ let architectureKeepsSnapshotDirectionAndHotPathDiscipline () =
             sawDriver <- true
 
         let tickDriverAllowlist =
-            [ "RepBenchRunner.cs"; "SimBenchRunner.cs"; "SoakEngine.cs" ]
+            [ "RepBenchRunner.cs"
+              "SimBenchRunner.cs"
+              "SoakEngine.cs"
+              "SavecheckEngine.cs" ]
 
         if
             not (List.contains fileName tickDriverAllowlist)
@@ -757,7 +760,10 @@ let architectureKeepsSnapshotDirectionAndHotPathDiscipline () =
             failwith $"Simulationstick ausserhalb der Lauf-Treiber aufgerufen: {fileName}"
 
         let commandDriverAllowlist =
-            [ "RepBenchRunner.cs"; "SimBenchRunner.cs"; "SoakEngine.cs" ]
+            [ "RepBenchRunner.cs"
+              "SimBenchRunner.cs"
+              "SoakEngine.cs"
+              "SavecheckEngine.cs" ]
 
         if List.contains fileName commandDriverAllowlist then
             ()

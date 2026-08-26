@@ -39,7 +39,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-022 | E-003 | deterministischer 8-Stunden-Replay-Soak weist Stabilität und begrenztes Speicherwachstum nach | Z-002, NF-002 | M | MUST | DONE |
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DONE |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
-| T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | READY |
+| T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DONE |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -451,6 +451,36 @@ Vertrag durch diesen Lauf nicht ausgelöst. Alle lokalen Gates grün (fmt/lint
 PASS, build mit 0 Warnungen, Tests 205/205, security PASS, rag-build, Schema
 14/14, verify über alle Runs). Zu diesem Prüfzeitpunkt hatte die
 Implementierung nicht begonnen; der Taskstatus bleibt `ready`.
+
+T-031 wurde am 2026-08-26 durch den unabhängigen Review-/Vollendungslauf
+`01M0XYZEQJSGJSFEHKJ4GVCV2N` (Akteur `t031-review-completion`) geprüft,
+vollendet und auf `DONE` gesetzt: Der Builder-Lauf
+`01M0XYH3VXYBXRTGV1BP0JKEAS` hatte Savevertrag V1 (`docs/SAVEVERTRAG.md`),
+das BCL-only-Runtimeprojekt `Riftward.Save` (kanonische Binärcodierung,
+doppelter SHA-256-Anker, strikter Einzelpass-Validator mit neun
+unterscheidbaren Verletzungsklassen, atomares Slotprotokoll, Migrationsregel
+ohne Erfindung, UnsafeAccessor-Zustandsbindung am unveränderten
+Simulationskern), den Befehl `rift.sh savecheck` mit NF-007-Report und 13 neue
+Tests geliefert. Die Review-Sitzung führte alle Gates selbst aus (lint PASS,
+Release-Build 0 Warnungen, Tests 218/218, security PASS) und reparierte drei
+In-Scope-Defekte des Primärslices ohne Berührung eines zweiten bereits
+akzeptierten Task-Manifests: das nur dokumentierte, nie implementierte
+Phantom-Flag `--continuation-ticks` wurde aus dem Befehlsvertrag entfernt; der
+in keinem Test belegte Verzeichnis-Sync-Schritt wurde aus Atomarprotokoll und
+Savevertrag genommen und als explizites Restrisiko mit Rückrollweg geführt
+(BCL-Primitive fehlt; der T-010-Architekturtest hält Native-Imports in der
+Plattformsschicht — ein libc-PInvoke-Versuch scheiterte dort kontrolliert);
+der Vertragsspiegeltest wurde von einer toten Verzweigung befreit und bindet
+jetzt alle vier maschinenlesbaren Kennungen. AC-T031-05 blieb unangetastet.
+Eigener autoritativer Lauf: Exitcode 0, Gate pass, 19/19 Prüfklassen,
+Kalibrierbasis 30040/30040 Bytes (Faktor 4 → Grenzwert 120160),
+`payloadHash` builderidentisch, Fortsetzungskette byteidentisch zum
+unterbrochenen Referenzlauf; `Riftward.Simulation`, Budgetdatei und
+`.ai/tasks/` byteidentisch unverändert. Der Fresh-Checkout-/Clean-Archive-
+Nachweis gemäß Präzedenz T-022-fresh-review wurde am hypothetischen
+Kandidatenbaum ausgeführt; Details im Abnahmedokument
+`docs/abnahme/T-031-atomic-save-load.md`. F-005 bleibt anteilig offen
+(Content-Payload erst mit T-030/T-051); Q-TEC-006/Q-TEC-004 bleiben OFFEN.
 
 Die verbleibenden DRAFT-Einheiten hängen an Referenzhardware- und
 Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`) sowie an echten kreativen
