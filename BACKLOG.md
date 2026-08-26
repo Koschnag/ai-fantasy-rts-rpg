@@ -40,6 +40,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DONE |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DONE |
+| T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -482,10 +483,84 @@ Kandidatenbaum ausgeführt; Details im Abnahmedokument
 `docs/abnahme/T-031-atomic-save-load.md`. F-005 bleibt anteilig offen
 (Content-Payload erst mit T-030/T-051); Q-TEC-006/Q-TEC-004 bleiben OFFEN.
 
+T-032 wurde am 2026-08-26 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) als erster Slice der T-030-Zerlegung auf `READY`
+gesetzt. Auswahlkette über alle DRAFT-Einträge: `T-011` bleibt blockiert, weil
+seine native Windows-/macOS-Build-/Smoke-/Paketmatrix vorhandene Runner,
+Signier-/Notarisierungsentscheidungen (Q-OPS-002/Q-OPS-003) und physische
+Zielhardware voraussetzt, die hier nicht vorhanden sind und nicht
+stillschweigend angenommen werden dürfen; `T-008` ist `REVIEW`;
+`T-040`/`T-041` liegen hinter E-004/E-005; `T-050`/`T-051` hinter den
+getrennten Generator-, Storage-/Backup- und LFS-Freigaben (Q-AST-001/
+Q-AST-002) sowie hinter E-005/E-006. Der XL-Gesamtauftrag `T-030` bleibt
+bewusst `DRAFT`: Seine sieben verschränkten kreativen Entscheidungen
+(Q-GAM-001 bis Q-GAM-007, Q-NAR-002) bestimmen konkrete Inhaltssubstanz und
+wären gemäß ADR 007 nur mit Alternativen, begründeten Hypothesen,
+Playtestkriterien und Rückrollweg auf bespielbaren Artefakten zu treffen, und
+der ungeschnittene Umfang verstößt gegen die DoR-Schnittregel in
+`QUALITAET.md`. Stattdessen wurde die dokumentiert rückrollbare Zerlegung von
+`T-030` in geordnete Slices beschlossen (Klärungsprotokoll 2026-08-26 in
+`docs/OFFENE_FRAGEN.md`); T-032 ist ihr erster Abschnitt und erzeugt genau das
+bislang fehlende bespielbare Prerequisite für alle playtestbasierten
+Kreativentscheidungen, ohne eine einzige von ihnen vorwegzunehmen: Er benutzt
+ausschließlich die akzeptierten Arbeitsannahmen und Verträge — den
+unveränderten Simulationskern mit seinem bestehenden öffentlichen
+Befehlssurface (`SimCommandKind.GroupMoveToZone`, Gruppen-/Zonengranularität),
+die Vertragswelt `riftward-simworld-graybox-v1`, den T-010-Host- und
+Eingabevertrag sowie die T-020/T-023-Telemetrie-, Gate- und Abgriffmuster.
+Die minimale Verbmenge (Punktauswahl, Rahmenauswahl, Deselektion,
+Gruppenbewegung zur Zone) entsteht als vorregistrierte Testhypothese im
+gatenden Abschnitt 0 des Auftrags `.ai/tasks/T-032-graybox-command-loop.json`
+(versionierter Kommandovertrag `docs/KOMMANDOVERTRAG.md`, Spike-Klausel in
+`docs/QUALITAET.md`); Q-GAM-001 bis Q-GAM-004, die Q-GAM-005-Details,
+Q-GAM-006, Q-GAM-007 und Q-NAR-002 bleiben ausdrücklich `OFFEN`; Q-OPS-001
+folgt der protokollierten T-020-/T-021-/T-022-/T-023-Behandlung; Q-TEC-004/
+Q-TEC-006/Q-TEC-010 werden nicht berührt. Media-Lab-Prüfung gemäß
+`docs/communication/MEDIA_LAB.md`: ein begrenztes visuelles Evidenzartefakt
+ist — wie bereits beim T-023-Belastungsframe mit Graybox-Lastbelegung —
+angezeigt und wieder als opt-in Einzelabgriff nach demselben Muster
+vorgesehen, weil interaktiver Auswahl-/Markerzustand visuell prüfbarer ist;
+es bleibt lokal, hashgebunden, auf Graybox-Zustandsbelegung beschränkt und
+niemals Gameplay-, Atmosphären- oder Shipping-Beleg. Das Manifest ist gegen
+`.ai/schemas/task.schema.json` mit dem gepinnten JsonSchema.Net 8.0.5 gültig
+(15/15 Manifeste unter `.ai/tasks/`); dieser Freigabelauf hat keinen
+Produktcode implementiert und keinen Commit erstellt.
+
+Die Spezifikation wurde am 2026-08-26 durch den unabhängigen Reviewlauf
+`01M0Y4W40T5ZPESPWN2H0XH1N2` (Akteur `t032-spec-reviewer`) geprüft: Das Task-
+Manifest ist gegen `.ai/schemas/task.schema.json` mit dem gepinnten
+JsonSchema.Net 8.0.5 gültig (15/15 Manifeste unter `.ai/tasks/`); alle fachlichen
+Anker wurden eigenständig gegen Code und Verträge belegt (`SimCommandKind.
+GroupMoveToZone` mit kanonischer Ordnung in `Riftward.Simulation`, Welt
+`riftward-simworld-graybox-v1`, `NavWorld.ZoneCount = 6`, Budgetzeile
+Eingabe-zu-Reaktion 100 ms Ziel/150 ms hart in `PERFORMANCE_BUDGET.md`,
+freie Exitcodes 35 bis 38 bei dokumentiertem Bestand bis 34 inklusive
+wiederverwendeter Codes 19/27/28, Abhängigkeiten T-010/T-020/T-021/T-023
+durchweg `DONE`); die Auswahlkette über alle DRAFT-Einträge, die T-030-
+Zerlegungsentscheidung mit Klärungsprotokoll und die Offenhaltung von Q-GAM-001
+bis Q-GAM-007 sowie Q-NAR-002 sind konsistent zu `OFFENE_FRAGEN.md`, ADR 007,
+der DoR-Schnittregel und Spike-Klausel in `QUALITAET.md`; GS-007 ist als
+GAME_DESIGN-Pfeiler existent; Media-Lab-Bindung des opt-in Einzelabgriffs nach
+T-023-Muster ist vertragsgemäß. Clean-Room- und Secret-Scan ohne Befund
+(keine Fremdtitel, keine Drittmedien, keine lokalen Pfade). Reparaturen im
+Scope des neuen Materials: die historisch falsche Behauptung, ein visuelles
+Evidenzartefakt sei „hier erstmals angezeigt“ (T-023 lieferte bereits einen
+opt-in Einzelabgriff mit Aussagegrenze Graybox-Lastbelegung), wurde in
+Manifest und Freigabeabsatz auf die ausdrückliche T-023-Präzedenz umformuliert;
+der Doppeltippfehler „als als“ im Manifest wurde behoben. Kein zweites
+bereits akzeptiertes Task-Manifest wurde angetastet; eine unabhängige zweite
+Reparatur liegt nicht vor. Test-, Fixture-, Build-, CI- oder Evidenzpfade
+wurden nicht berührt, daher ist der Fresh-Checkout-/Clean-Archive-Vertrag
+durch diesen Lauf nicht ausgelöst. Alle lokalen Gates grün (fmt/lint PASS,
+build mit 0 Warnungen, Tests 218/218, security PASS, rag-build, Schema 15/15).
+Zu diesem Prüfzeitpunkt hatte die Implementierung nicht begonnen; der
+Taskstatus bleibt `ready`.
+
 Die verbleibenden DRAFT-Einheiten hängen an Referenzhardware- und
 Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`) sowie an echten kreativen
-Produktentscheidungen (`T-030`, dahinter `T-040`/`T-041`) beziehungsweise an
-getrennten Generator- und Storage-/Backup-Freigaben (`T-050`/`T-051`).
+Produktentscheidungen (`T-030` samt seiner geplanten Folgeslices, dahinter
+`T-040`/`T-041`) beziehungsweise an getrennten Generator- und Storage-/Backup-
+Freigaben (`T-050`/`T-051`).
 
 ## Vorlage für eine Umsetzungseinheit
 
