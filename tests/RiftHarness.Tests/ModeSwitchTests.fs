@@ -694,7 +694,7 @@ let switchesNearHorizonStayBoundAsIneffective () =
 
     // Wechsel erzeugen zu keinem Zeitpunkt einen Kernbefehl.
     if result.KernelCommandsTotal <> 0 then
-        failwith "Horizontwechte erzeugten Kernelbefehle."
+        failwith "Horizontwechsel erzeugten Kernelbefehle."
 
 let heroDirectionSteeringResolvesExactlyWithExplicitTieBreak () =
     // Exakte Ganzzahlarithmetik (Modevertrag §3): bei Gleichstand des
