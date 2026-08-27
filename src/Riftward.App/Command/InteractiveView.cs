@@ -237,19 +237,33 @@ public static class InteractiveCameraMath
 
     public const double FarPlane = 500.0;
 
-    /// <summary>Auge-Punkt der Kamera fuer einen Kamerazustand.</summary>
+    /// <summary>
+    /// Auge-Punkt der Kamera fuer einen Kamerazustand. Die Kamera lebt im
+    /// Render-Raum der Szene (T-020/T-023-Praezedenz: Landschafts-, Einheiten-
+    /// und Marker-Meshes sind um den Ursprung zentriert); Simulationsmeter
+    /// werden ueber <see cref="RepresentativeLandscape.ToWorldX"/> und
+    /// <see cref="RepresentativeLandscape.ToWorldZ"/> konvertiert. Die
+    /// Terrainhoehe wird am konvertierten Punkt gesampelt; ein Sampling mit
+    /// Sim-Koordinaten wuerde ausserhalb des Kachelrasters lesen.
+    /// </summary>
     public static (double X, double Y, double Z) EyePosition(GrayboxCamera camera)
     {
-        var groundY = RepresentativeLandscape.HeightAt(camera.CenterXMeters, camera.CenterZMeters);
+        var worldX = RepresentativeLandscape.ToWorldX(camera.CenterXMeters);
+        var worldZ = RepresentativeLandscape.ToWorldZ(camera.CenterZMeters);
+        var groundY = RepresentativeLandscape.HeightAt(worldX, worldZ);
         return (
-            camera.CenterXMeters,
+            worldX,
             groundY + (Math.Sin(PitchRadians) * camera.DistanceMeters),
-            camera.CenterZMeters + (Math.Cos(PitchRadians) * camera.DistanceMeters));
+            worldZ + (Math.Cos(PitchRadians) * camera.DistanceMeters));
     }
 
-    /// <summary>Blickziel (Mittelpunkt am Boden).</summary>
-    public static (double X, double Y, double Z) CenterPosition(GrayboxCamera camera) =>
-        (camera.CenterXMeters, RepresentativeLandscape.HeightAt(camera.CenterXMeters, camera.CenterZMeters), camera.CenterZMeters);
+    /// <summary>Blickziel (Mittelpunkt am Boden) im Render-Raum der Szene.</summary>
+    public static (double X, double Y, double Z) CenterPosition(GrayboxCamera camera)
+    {
+        var worldX = RepresentativeLandscape.ToWorldX(camera.CenterXMeters);
+        var worldZ = RepresentativeLandscape.ToWorldZ(camera.CenterZMeters);
+        return (worldX, RepresentativeLandscape.HeightAt(worldX, worldZ), worldZ);
+    }
 
     /// <summary>Projektion (float16) fuer das aktuelle Seitenverhaeltnis.</summary>
     public static float[] Projection(int width, int height) =>
@@ -281,7 +295,13 @@ public static class InteractiveCameraMath
             new CameraMath.Vec3(center.Item1, center.Item2, center.Item3),
             new CameraMath.Vec3(0, 1, 0));
         var projection = CameraMath.PerspectiveFov(FieldOfViewDegrees, width / (double)height, NearPlane, FarPlane);
-        var inverse = Invert(Multiply(view, projection));
+        // Die gepinnte bgfx-Kette komponiert clip = proj*view (renderer.h:
+        // float4x4_mul(m_viewProj, view, proj) mit bx-Zeilenvektor-Semantik)
+        // und wendet sie im Shader als mul(u_viewProj, pos) an. Die inverse
+        // Abbildung braucht daher exakt diese Kombinationsreihenfolge; die
+        // vertauschte Reihenfolge entartet zu einem nahezu konstanten
+        // Bodenpunkt und waere als Auswahl unklickbar.
+        var inverse = Invert(Multiply(projection, view));
 
         if (inverse is null)
         {

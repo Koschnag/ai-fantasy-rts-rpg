@@ -781,11 +781,14 @@ internal static class CommandLoopRunner
             switch (Keymap.Resolve(scancode))
             {
                 case "pan-up":
-                    camera.PanSteps(0, +1);
+                    // Vertraglich nordaufwaerts (Kommandovertrag §4, feste
+                    // Nordausrichtung): Bildschirm oben ist Norden (-Z),
+                    // konsistent zum Rand-Schwenken am oberen Fensterrand.
+                    camera.PanSteps(0, -1);
                     break;
 
                 case "pan-down":
-                    camera.PanSteps(0, -1);
+                    camera.PanSteps(0, +1);
                     break;
 
                 case "pan-left":
