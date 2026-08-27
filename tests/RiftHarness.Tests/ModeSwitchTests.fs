@@ -481,6 +481,15 @@ let sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo () =
     if pipeline.SwitchProtocol.Count <> 1 then
         failwith "Wechselprotokoll verlor den Same-Tick-Wechsel."
 
+    // Ohne Vorauswahl sind die Bewegungen an 40/41 kontextgültig (vorheriger
+    // Modus) und scheitern erst an der Auswahlprüfung; die Bewegung an M
+    // scheitert kontextuell im persönlichen Modus.
+    if pipeline.MoveWithoutSelectionTotal <> 2L then
+        failwith "Same-Tick-Bewegungen im vorherigen Modus wurden nicht kontextgültig geprüft."
+
+    if pipeline.StrategyIntentsRejectedInPersonalModeTotal <> 1L then
+        failwith "Zähler strategischer Abweisungen im persönlichen Modus falsch."
+
     let entry = pipeline.SwitchProtocol.[0]
 
     if entry.IntentTick <> 40L || entry.EffectiveBoundaryTick <> 42L || entry.SwitchReactionTicks <> 2L then
@@ -490,8 +499,150 @@ let sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo () =
         failwith "Wechselrichtung falsch."
 
 // ---------------------------------------------------------------------------
-// Twin-Kontinuität und Kernbefehlsäquivalenz (AC-T033-02/03).
+// Interaktivpfad-Bindungen (AC-T033-06): Schema des Abgriffpaars/HUD und
+// Quellverdrahtung (Anzeigepflicht); das Verhalten selbst bleibt einer
+// Displaysession vorbehalten (displayloser kontrollierter Code-19-Abbruch).
 // ---------------------------------------------------------------------------
+
+let private assertSchemaError (needle: string) (json: string) (message: string) =
+    if CommandReportSchema.Validate(json).Count = 0 then
+        failwith $"{message}: Schemaprüfung akzeptierte den Report unerwartet."
+
+    let errors = String.concat "; " (CommandReportSchema.Validate(json))
+
+    if not (errors.Contains(needle, StringComparison.Ordinal)) then
+        failwith $"{message}: Fehler enthielten nicht '{needle}', sondern: {errors}"
+
+let private hex64OfA = String.replicate 64 "a"
+
+let private captureEntry (mode: string) =
+    "{\"mode\":\""
+    + mode
+    + "\",\"sha256\":\""
+    + hex64OfA
+    + "\",\"width\":1920,\"height\":1080,\"format\":\"bmp-32bpp-bottom-up\",\"statementLimit\":\"graybox-state-occupancy-not-gameplay-atmosphere-or-shipping\"}"
+
+let interactiveReportSchemaBindsCapturePairAndHud () =
+    // Interaktive Reportvariante aus dem headless Golden abgeleitet: exakt
+    // die Felder, die der Moduswechsel der Ausführungsart ändert (Display,
+    // Renderkennzahlen, Kettenkriterium, HUD, Abgriffpaar).
+    let interactive =
+        CommandLoopTests.goldenReport
+            .Replace("\"executionMode\":\"headless\"", "\"executionMode\":\"interactive\"")
+            .Replace(
+                "\"display\":{\"measured\":false,\"reason\":\"headless-mode-native-artifacts-not-loaded\"}",
+                "\"display\":{\"measured\":true,\"renderer\":\"fixture-gl-renderer\",\"vendorId\":4098,\"deviceId\":26968,\"glVersion\":\"GL 3.3 fixture\"}"
+            )
+            .Replace(
+                "\"frameTimeMs\":{\"measured\":false,\"reason\":\"headless-cpu-scenario-no-renderer\"}",
+                "\"frameTimeMs\":{\"unit\":\"ms\",\"method\":\"stopwatch-delta-around-windowed-simulation-tick-including-allocation-probes\",\"p50\":1.0,\"p95\":2.0,\"p99\":3.0,\"gateCoupled\":false}"
+            )
+            .Replace(
+                "\"gpuTimeMs\":{\"measured\":false,\"reason\":\"headless-cpu-scenario-no-renderer\"}",
+                "\"gpuTimeMs\":{\"measured\":true,\"unit\":\"ms\",\"method\":\"bgfx-stats-gpu-timer-p99\",\"p99\":1.5,\"timerFreqHz\":1000,\"gateCoupled\":false}"
+            )
+            .Replace(
+                "\"drawSubmitCallsPerFrame\":{\"measured\":false,\"reason\":\"headless-cpu-scenario-no-renderer\"}",
+                "\"drawSubmitCallsPerFrame\":{\"unit\":\"count\",\"method\":\"bgfx-stats-numdraw-max-including-shadow-passes\",\"value\":10,\"gateCoupled\":false}"
+            )
+            .Replace(
+                "\"visibleTrianglesPerFrame\":{\"measured\":false,\"reason\":\"headless-cpu-scenario-no-renderer\"}",
+                "\"visibleTrianglesPerFrame\":{\"unit\":\"count\",\"method\":\"bgfx-stats-numprims-trilist-max-including-shadow-passes\",\"value\":1000,\"gateCoupled\":false}"
+            )
+            .Replace(
+                "\"concurrentMarkers\":{\"measured\":false,\"reason\":\"headless-cpu-scenario-no-renderer\"}",
+                "\"concurrentMarkers\":{\"unit\":\"count\",\"method\":\"marker-instance-count-max-per-frame\",\"peak\":5,\"gateCoupled\":false}"
+            )
+            .Replace(
+                "\"stateChainSelfConsistency\":{\"evaluated\":true}",
+                "\"stateChainSelfConsistency\":{\"evaluated\":false,\"reason\":\"live-inputs-nondeterministic-criterion-not-asserted\"}"
+            )
+            .Replace(
+                "\"hud\":{\"measured\":false,\"kind\":\"title-hud-mode-herozone-v1\",\"reason\":\"headless-run-without-window\"}",
+                "\"hud\":{\"measured\":true,\"kind\":\"title-hud-mode-herozone-v1\",\"fields\":{\"mode\":\"strategic\",\"heroZone\":2}}"
+            )
+            .Replace(
+                "\"frameEvidence\":{\"captured\":false,\"reason\":\"capture-not-requested\"}",
+                "\"frameEvidence\":{\"captured\":true,\"afterMeasurementWindow\":true,\"boundTick\":420,\"boundStateHash\":\"978aab19406daa26\",\"captures\":["
+                + captureEntry "strategic"
+                + ","
+                + captureEntry "personal"
+                + "]}"
+            )
+
+    if CommandReportSchema.Validate(interactive).Count <> 0 then
+        failwith (
+            "Interaktiver Report mit Abgriffpaar und HUD verletzte den Schemavertrag: "
+            + String.concat "; " (CommandReportSchema.Validate(interactive))
+        )
+
+    // Negativmatrix: weniger als zwei Abgriffe, fremder Modusname und
+    // fehlender gebundener Weltzustand sind unzulaessig.
+    assertSchemaError
+        "exakt zwei"
+        (interactive.Replace("," + captureEntry "personal", String.Empty))
+        "Einzelabgriff ohne Paar akzeptiert"
+
+    assertSchemaError
+        "konstanter Wert"
+        (interactive.Replace("\"mode\":\"personal\"", "\"mode\":\"dritter-modus\""))
+        "Fremder Abgriffmodusname akzeptiert"
+
+    assertSchemaError
+        "Pflichtfeld"
+        (interactive.Replace("\"boundStateHash\":\"978aab19406daa26\"", String.Empty))
+        "Abgriffpaar ohne gebundenen Weltzustand akzeptiert"
+
+let interactiveHybridWiringIsBoundToSources () =
+    // Quelltextbindung nach T-032-Präzedenz (rift.sh-/Runner-Vertragstests):
+    // der fensterpflichtige Hybridmodus ist verdrahtet — Umschaltaktion,
+    // Lenkung, kontextsichtbare Abweisung, Verfolgungskamera, Titel-HUD und
+    // Abgriffpaar haben Consumer im Live-Pfad; ohne Display bricht der Modus
+    // kontrolliert ab (Code 19), statt Interaktivverhalten zu simulieren.
+    let runnerText =
+        File.ReadAllText(Path.Combine(repositoryRoot, "src", "Riftward.App", "Command", "CommandLoopRunner.cs"))
+
+    let viewText =
+        File.ReadAllText(Path.Combine(repositoryRoot, "src", "Riftward.App", "Command", "InteractiveView.cs"))
+
+    for fragment in
+        [ "ModeContract.SwitchActionName"
+          "GrayboxIntentKind.SwitchMode"
+          "GrayboxIntentKind.SteerGroupToZone"
+          "HeroDirectionSteering.ResolveZone"
+          "HeroChaseCamera"
+          "HeroTracker.ZoneIndexOf"
+          "ModeContract.RejectReasonStrategyIntentInPersonalMode"
+          "ModeContract.RejectReasonSteerDirectionWithoutZone"
+          "InteractiveContextRejections"
+          "ExecuteCapturePair"
+          "SuffixArtifactPath"
+          "\"-strategisch\""
+          "\"-persoenlich\""
+          "SetTitle("
+          "Riftward Graybox — Modus: "
+          "— Heldenzone: " ] do
+        if not (runnerText.Contains(fragment, StringComparison.Ordinal)) then
+            failwith $"CommandLoopRunner verdrahtet den Interaktiv-Hybridmodus nicht ({fragment})."
+
+    for fragment in
+        [ "0.45f"
+          "0.85f"
+          "1.00f"
+          "0.20f"
+          "WriteFrameState(SimWorld world, long tickIndex, SessionMode visualMode)" ] do
+        if not (viewText.Contains(fragment, StringComparison.Ordinal)) then
+            failwith $"InteractiveView bindet den Held-/Modus-Badgekanal nicht ({fragment})."
+
+    // Strukturelle Nichterreichbarkeit: Der einzige interaktive Lenkkanal ist
+    // die richtungsgelenkte Lenkung im persönlichen Modus — ein Lenk-Intent
+    // kann im strategischen Modus an keiner Stelle der Eingabeübersetzung
+    // entstehen (genau ein Definitionsort plus vier Pan-Richtungsaufrufe).
+    let steeringCallSites =
+        (runnerText.Split("EnqueueDirectionalSteering(")).Length - 1
+
+    if steeringCallSites <> 5 then
+        failwith $"Interaktive Lenkung hat {steeringCallSites} statt 5 Bindungsorten (Definition plus vier Richtungen)."
 
 let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     // Modevertrag Abschnitt 4 (2)+(4): Wechsel an Ticks S und S+1 werden
@@ -501,10 +652,10 @@ let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     // wirksam an S+2. Strategische Intents an 40/41 bleiben im vorherigen
     // Modus gültig, an M=42 wird der persönliche Modus kontextbildend.
     let intents =
-        [| GrayboxIntent(40, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: Kernbefehl
+        [| GrayboxIntent(40, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: kontextgültig
            GrayboxIntent(40, GrayboxIntentKind.SwitchMode)
            GrayboxIntent(41, GrayboxIntentKind.SwitchMode) // gleicher Zielmodus
-           GrayboxIntent(41, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: Dedupe gegen Tick 40
+           GrayboxIntent(41, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: kontextgültig
            GrayboxIntent(42, GrayboxIntentKind.GroupMoveToZone, 1L) |] // M: persönlich abgewiesen
 
     let world, pipeline = newPipeline(20260826u, intents)
@@ -519,8 +670,20 @@ let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     if pipeline.CurrentEffectiveMode <> SessionMode.Personal then
         failwith "Zwei Folgetick-Wechsel mit gleichem Zielmodus endeten nicht im persönlichen Modus."
 
+    // Ohne Vorauswahl scheitern die Bewegungen an 40/41 erst an der
+    // Auswahlprüfung (kontextgültig im vorherigen Modus); die Bewegung an
+    // M = 42 scheitert kontextuell im persönlichen Modus.
     if rejectedInPersonal <> 1 then
         failwith "Bewegung an M = S + 2 war nicht im persönlichen Modus abgewiesen."
+
+    if pipeline.MoveWithoutSelectionTotal <> 2L then
+        failwith "Folgetick-Bewegungen im vorherigen Modus wurden nicht kontextgültig geprüft."
+
+    if pipeline.StrategyIntentsRejectedInPersonalModeTotal <> 1L then
+        failwith "Zähler strategischer Abweisungen im persönlichen Modus falsch."
+
+    if pipeline.AppliedCommandsTotal <> 0L then
+        failwith "Ohne Vorauswahl durfte kein Kernbefehl entstehen."
 
     if pipeline.SwitchProtocol.Count <> 2 then
         failwith "Wechselprotokoll verlor einen der beiden Folgetick-Wechsel."
@@ -528,7 +691,9 @@ let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     let first = pipeline.SwitchProtocol.[0]
     let second = pipeline.SwitchProtocol.[1]
 
-    // Beide Auswertungen basieren auf dem dann gültigen vorherigen Modus.
+    // Beide Auswertungen basieren auf dem dann gültigen vorherigen Modus
+    // (Modevertrag Abschnitt 4 (2): die erste Modusänderung ist an S+1
+    // weder wirksam noch kontextbildend).
     for entry in [ first; second ] do
         if entry.PreviousMode <> SessionMode.Strategic || entry.NewMode <> SessionMode.Personal then
             failwith "Folgetick-Wechsel wurden nicht im gültigen vorherigen Modus ausgewertet."
@@ -542,10 +707,9 @@ let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     if second.IntentTick <> 41L || second.EffectiveBoundaryTick <> 43L then
         failwith "Zweiter Folgetick-Wechsel verletzte M = S + 2."
 
-    // Beide Bewegungen im vorherigen Modus trafen denselben Kernzustand:
-    // genau ein Kernbefehl (zweiter Move ist Dedupe gegen Tick 40).
-    if pipeline.AppliedCommandsTotal <> 1L then
-        failwith "Folgetick-Fenster erzeugte nicht exakt einen Kernbefehl."
+// ---------------------------------------------------------------------------
+// Twin-Kontinuität und Kernbefehlsäquivalenz (AC-T033-02/03).
+// ---------------------------------------------------------------------------
 
 let hybridFlowTwinContinuityIdenticalChainsAndEndHash () =
     // Hybrid-Flow mit drei Wechseln (vollständiger persönlich → strategisch →

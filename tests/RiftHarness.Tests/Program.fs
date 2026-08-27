@@ -2103,6 +2103,12 @@ module Program =
               ModeSwitchTests.contextRejectionMatrixBindsDistinctDispositionsWithoutKernelCommands
               "T-033 same-tick switch is evaluated last and effective at S+2",
               ModeSwitchTests.sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo
+              "T-033 consecutive tick switches follow the canonical evaluation basis",
+              ModeSwitchTests.consecutiveTickSwitchesFollowCanonicalEvaluationBasis
+              "T-033 interactive report schema binds capture pair and hud",
+              ModeSwitchTests.interactiveReportSchemaBindsCapturePairAndHud
+              "T-033 interactive hybrid wiring is bound to sources",
+              ModeSwitchTests.interactiveHybridWiringIsBoundToSources
               "T-033 hybrid flow twin continuity identical chains and end hash",
               ModeSwitchTests.hybridFlowTwinContinuityIdenticalChainsAndEndHash
               "T-033 steering produces the kernel command equivalent to the direct surface",
