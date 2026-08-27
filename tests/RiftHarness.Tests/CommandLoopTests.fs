@@ -528,14 +528,69 @@ let reactionGatePositiveProofAndFaultInjectionMatrix () =
         failwith "Interaktive Nichtauswertbarkeit durfte das Gate nicht falten."
 
 let allocationStrictnessRegression () =
-    let result = runEngine defaultSeed (engineIntents ())
+    // Frische Prozessisolierung (Nebenreparatur für die Schlussfreigabe): Der
+    // strenge 0-Bytes-Nachweis misst vertragstreu prozessweit mit
+    // GC.GetTotalAllocatedBytes; läuft er spät im monolithischen
+    // Suiteprozess, fallen zufällige Runtime-/Hintergrundthread-Allokationen
+    // in das enge Messfenster (beobachtet: 30,24 Bytes statt 0). Das
+    // Messfenster läuft deshalb in einem dedizierten Fresh-Prozess der
+    // Test-DLL mit dem vertraglichen Messfenster 240/1200 und den Intents im
+    // Fenster; die Exakt-Null-Assertion und die GC-Pausenprüfung bleiben
+    // unverändert, kein Schwellwert, kein per-thread-Zähler, kein Retry.
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), "rift-t032-allocprobe-" + Guid.NewGuid().ToString("N") + ".json")
 
-    if result.Metrics.AllocationsPerWarmTickBytes <> 0.0 then
-        failwith
-            $"Allokation je warmem Tick war {result.Metrics.AllocationsPerWarmTickBytes}, Vertrag verlangt exakt 0."
+    try
+        let startInfo = ProcessStartInfo("dotnet")
+        startInfo.UseShellExecute <- false
+        startInfo.RedirectStandardError <- true
+        startInfo.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "RiftHarness.Tests.dll"))
+        startInfo.ArgumentList.Add("--t032-allocation-probe")
+        startInfo.ArgumentList.Add(reportPath)
 
-    if result.Metrics.GcPauseCount <> 0L then
-        failwith "Messfenster erzeugte GC-Pausen."
+        use processHandle = Process.Start(startInfo)
+        let probeError = processHandle.StandardError.ReadToEnd()
+        processHandle.WaitForExit()
+
+        if processHandle.ExitCode <> 0 then
+            failwith $"Allokationsprobe brach kontrolliert ab: {probeError}"
+
+        use document = JsonDocument.Parse(File.ReadAllText(reportPath))
+        let perWarmTick = document.RootElement.GetProperty("perWarmTick").GetDouble()
+        let gcPauseCount = document.RootElement.GetProperty("gcPauseCount").GetInt64()
+
+        if perWarmTick <> 0.0 then
+            failwith $"Allokation je warmem Tick war {perWarmTick}, Vertrag verlangt exakt 0."
+
+        if gcPauseCount <> 0L then
+            failwith "Messfenster erzeugte GC-Pausen."
+    finally
+        File.Delete(reportPath)
+
+/// <summary>
+/// Frisch-Prozess-Eingang der Allokationsprobe (--t032-allocation-probe):
+/// unveränderte exakte-0-Messbasis der SessionEngine (240/1200, Intents im
+/// Messfenster, Selbstkonsistenzpass), Schreibt perWarmTick und GC-Pausen
+/// als einzeiliges JSON-Report.
+/// </summary>
+let runT032AllocationProbe (reportPath: string) =
+    let probeIntents () : GrayboxIntent[] =
+        [| GrayboxIntent(300, GrayboxIntentKind.BoxSelect, 1000L, 1000L, 159000L, 89000L)
+           GrayboxIntent(305, GrayboxIntentKind.GroupMoveToZone, 2L)
+           GrayboxIntent(320, GrayboxIntentKind.Clear)
+           GrayboxIntent(330, GrayboxIntentKind.PointSelect, 20000L, 30000L)
+           GrayboxIntent(340, GrayboxIntentKind.GroupMoveToZone, 4L) |]
+
+    let result =
+        SessionEngine.Run(SessionRunRequest(defaultSeed, probeIntents (), 240, 1200, true))
+
+    let perWarmTick =
+        result.Metrics.AllocationsPerWarmTickBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+
+    File.WriteAllText(
+        reportPath,
+        $"{{\"perWarmTick\":{perWarmTick},\"gcPauseCount\":{result.Metrics.GcPauseCount}}}"
+    )
 
 let cameraModelClampsWorldEdgesAndZoom () =
     let camera = GrayboxCamera()

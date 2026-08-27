@@ -2122,7 +2122,13 @@ module Program =
               "T-033 CLI contract runs v2 hybrid headless with mode report and twin",
               ModeSwitchTests.cliContractRunsV2HybridHeadlessWithModeReportAndTwin ]
 
-        if arguments.Length = 2 && arguments[0] = "--generator-probe" then
+        if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
+            // Frisch-Prozess-Eingang der Allokationsprobe: läuft die
+            // exakte-0-Messbasis in einem eigenen Prozess, kann keine fremde
+            // Suiteprozess-Allokation in das vertragliche Messfenster fallen.
+            CommandLoopTests.runT032AllocationProbe arguments[1]
+            0
+        else if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]
             let jobId = "01KZY44M2P2RNSA5XNGM4P9EMY"
             let stage = $".ai/runtime/asset-jobs/{jobId}/stage/quarantine"
