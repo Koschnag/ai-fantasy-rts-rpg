@@ -595,8 +595,8 @@ let cameraModelClampsWorldEdgesAndZoom () =
     if not centerPick.HasValue then
         failwith "Bildmitte (starker Probe) ergab keinen Bodenstrahl."
     elif
-        abs (centerPick.Value.SimX - (float NavWorld.TilesX / 2.0)) > 3.0
-        || abs (centerPick.Value.SimZ - (float NavWorld.TilesY / 2.0)) > 3.0
+        abs (centerPick.Value.SimX - camera.CenterXMeters) > 3.0
+        || abs (centerPick.Value.SimZ - camera.CenterZMeters) > 3.0
     then
         failwith $"Bildmitte trifft nicht das Kamerazentrum: ({centerPick.Value.SimX:F2}, {centerPick.Value.SimZ:F2})."
 
@@ -855,11 +855,14 @@ let panDirectionsMatchEdgePanAndNorthUpContract () =
     let contractText =
         File.ReadAllText(Path.Combine(repositoryRoot, "docs", "KOMMANDOVERTRAG.md"))
 
+    let normalizedContract =
+        System.Text.RegularExpressions.Regex.Replace(contractText, "\s+", " ")
+
     for fragment in
         [ "Bildschirm oben ist Norden"
           "dieselbe Himmelsrichtung"
-          "Osten am linken Bildschirmrand" ] do
-        if not (contractText.Contains(fragment, StringComparison.Ordinal)) then
+          "Osten erscheint am linken Bildschirmrand" ] do
+        if not (normalizedContract.Contains(fragment, StringComparison.Ordinal)) then
             failwith $"Kommandovertrag §4 bindet die Richtungskohärenz nicht ({fragment})."
 
 let private runAppHost (arguments: string[]) =
