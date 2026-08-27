@@ -2089,8 +2089,7 @@ module Program =
               CommandLoopTests.contractNamesTheRejectionCausesVerbatim
               "T-032 runner surfaces the rejection causes on their live paths",
               CommandLoopTests.runnerSurfacesTheRejectionCausesOnTheirLivePaths
-              "T-033 mode contract mirrors documented values",
-              ModeSwitchTests.modeContractMirrorsDocumentedValues
+              "T-033 mode contract mirrors documented values", ModeSwitchTests.modeContractMirrorsDocumentedValues
               "T-033 keymap binds mode-switch without collisions",
               ModeSwitchTests.keymapBindsModeSwitchWithoutCollisions
               "T-033 v2 parser accepts superset grammar and binds hashes",

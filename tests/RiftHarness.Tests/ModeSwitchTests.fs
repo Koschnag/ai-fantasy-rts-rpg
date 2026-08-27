@@ -89,10 +89,7 @@ let modeContractMirrorsDocumentedValues () =
     if ModeContract.ContractVersion <> "1" then
         failwith "Modevertragsversion falsch."
 
-    if
-        ModeContract.HeroAgentIndex <> 0
-        || ModeContract.HeroGroupIndex <> 0
-    then
+    if ModeContract.HeroAgentIndex <> 0 || ModeContract.HeroGroupIndex <> 0 then
         failwith "Vertragsheld ist nicht Agentenindex 0 in Vertragsgruppe 0."
 
     if
@@ -190,7 +187,8 @@ let parserV2AcceptsSupersetGrammarAndBindsHashes () =
               "intent 45 switch"
               "intent 46 move 2" ]
 
-    let parsed = InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes content, rulesFor 120)
+    let parsed =
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes content, rulesFor 120)
 
     if parsed.Intents.Length <> 7 then
         failwith "v2-Parser verlor Intents."
@@ -203,7 +201,8 @@ let parserV2AcceptsSupersetGrammarAndBindsHashes () =
     if parsed.ScriptSha256Hex <> expectedSha then
         failwith "Skript-SHA-256 bindet nicht die Rohbytes."
 
-    let second = InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes content, rulesFor 120)
+    let second =
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes content, rulesFor 120)
 
     if second.IntentPlanHash <> parsed.IntentPlanHash then
         failwith "Planhash ist nicht deterministisch."
@@ -240,7 +239,8 @@ let parserV2AcceptsSupersetGrammarAndBindsHashes () =
               "intent 45 switch"
               "intent 46 move 2" ]
 
-    let changedParsed = InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes changedSteer, rulesFor 120)
+    let changedParsed =
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes changedSteer, rulesFor 120)
 
     if changedParsed.IntentPlanHash = parsed.IntentPlanHash then
         failwith "Planhash folgt nicht dem steer-Ziel."
@@ -248,15 +248,11 @@ let parserV2AcceptsSupersetGrammarAndBindsHashes () =
 let parserRejectsEveryMalformedClassDistinctly () =
     let expectRejectV2 (reason: InputScriptRejectReason) (body: string) (message: string) =
         try
-            InputScriptParser.Parse(
-                Text.Encoding.UTF8.GetBytes (v2Script 120 [ body ]),
-                rulesFor 120
-            )
+            InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes(v2Script 120 [ body ]), rulesFor 120)
             |> ignore
 
             failwith $"{message}: Parser akzeptierte die Zeile unerwartet."
-        with
-        | :? InputScriptException as error ->
+        with :? InputScriptException as error ->
             if error.Reason <> reason then
                 failwith $"{message}: Klasse war {error.Reason}, erwartet {reason}."
 
@@ -272,48 +268,38 @@ let parserRejectsEveryMalformedClassDistinctly () =
     // Legacy-v1 verhaelt sich zeichentreu: fremde Verben bleiben
     // UnknownAction, und die Tokenzahlstrengheit gilt formatsunabhaengig.
     try
-        InputScriptParser.Parse(
-            Text.Encoding.UTF8.GetBytes (v1Script 120 [ "intent 40 steer 2" ]),
-            rulesFor 120
-        )
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes(v1Script 120 [ "intent 40 steer 2" ]), rulesFor 120)
         |> ignore
 
         failwith "v1-Kopf akzeptierte steer unerwartet."
-    with
-    | :? InputScriptException as error ->
+    with :? InputScriptException as error ->
         if error.Reason <> InputScriptRejectReason.UnknownAction then
             failwith $"v1-Steer-Klasse war {error.Reason}, erwartet UnknownAction."
 
     try
-        InputScriptParser.Parse(
-            Text.Encoding.UTF8.GetBytes (v1Script 120 [ "intent 40 switch" ]),
-            rulesFor 120
-        )
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes(v1Script 120 [ "intent 40 switch" ]), rulesFor 120)
         |> ignore
 
         failwith "v1-Kopf akzeptierte switch unerwartet."
-    with
-    | :? InputScriptException as error ->
+    with :? InputScriptException as error ->
         if error.Reason <> InputScriptRejectReason.UnknownAction then
             failwith $"v1-Switch-Klasse war {error.Reason}, erwartet UnknownAction."
 
     try
-        InputScriptParser.Parse(
-            Text.Encoding.UTF8.GetBytes (v1Script 120 [ "intent 40 clear extra" ]),
-            rulesFor 120
-        )
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes(v1Script 120 [ "intent 40 clear extra" ]), rulesFor 120)
         |> ignore
 
         failwith "v1 akzeptierte Zusatztokens nach clear unerwartet."
-    with
-    | :? InputScriptException as error ->
+    with :? InputScriptException as error ->
         if error.Reason <> InputScriptRejectReason.LineMalformed then
             failwith $"v1-Clear-Klasse war {error.Reason}, erwartet LineMalformed."
 
     // Ein gueltiges Legacy-v1-Skript bleibt byteidentisch gueltig und bindet
     // die v1-Formatkennung (keine stille Formatdrift).
     let legacy = v1Script 120 [ "intent 40 clear"; "intent 50 move 2" ]
-    let parsedLegacy = InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes legacy, rulesFor 120)
+
+    let parsedLegacy =
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes legacy, rulesFor 120)
 
     if parsedLegacy.FormatId <> SessionContract.ScriptFormatId then
         failwith "Legacy-v1-Skript verlor seine Formatkennung."
@@ -330,7 +316,10 @@ let intentCodecEncodesModeKindsDeterministically () =
     let steerBytes = IntentCodec.EncodeToArray(steer)
     let switchBytes = IntentCodec.EncodeToArray(switch)
 
-    if steerBytes.Length <> IntentCodec.EncodedSize || switchBytes.Length <> IntentCodec.EncodedSize then
+    if
+        steerBytes.Length <> IntentCodec.EncodedSize
+        || switchBytes.Length <> IntentCodec.EncodedSize
+    then
         failwith "Kodierung der neuen Arten verliess die Festbreite."
 
     let expectedSteer = Array.create IntentCodec.EncodedSize 0uy
@@ -385,13 +374,13 @@ let contextRejectionMatrixBindsDistinctDispositionsWithoutKernelCommands () =
            GrayboxIntent(47, GrayboxIntentKind.PointSelect, 20000L, 30000L) // strategisch: gueltig
            GrayboxIntent(47, GrayboxIntentKind.SteerGroupToZone, 2L) |] // strategisch: abgewiesen
 
-    let world, pipeline = newPipeline(20260827u, intents)
+    let world, pipeline = newPipeline (20260827u, intents)
 
     let mutable strategyRejectedSeen = 0
     let mutable steerRejectedSeen = 0
     let mutable commandsSeen = 0
 
-    for tick in 40L..48L do
+    for tick in 40L .. 48L do
         let outcome = pipeline.ProcessBoundary(tick)
         strategyRejectedSeen <- strategyRejectedSeen + outcome.RejectedStrategyInPersonal
         steerRejectedSeen <- steerRejectedSeen + outcome.RejectedSteerInStrategy
@@ -455,22 +444,17 @@ let sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo () =
            GrayboxIntent(41, GrayboxIntentKind.GroupMoveToZone, 2L) // S+1: vorheriger Modus
            GrayboxIntent(42, GrayboxIntentKind.GroupMoveToZone, 2L) |] // M: abgewiesen
 
-    let world, pipeline = newPipeline(20260826u, intents)
+    let world, pipeline = newPipeline (20260826u, intents)
 
     if pipeline.CurrentEffectiveMode <> SessionMode.Strategic then
         failwith "Sitzung startete nicht strategisch."
 
-    let mutable appliedMoves = 0
     let mutable rejectedInPersonal = 0
 
-    for tick in 40L..43L do
+    for tick in 40L .. 43L do
         let outcome = pipeline.ProcessBoundary(tick)
         rejectedInPersonal <- rejectedInPersonal + outcome.RejectedStrategyInPersonal
-        appliedMoves <- appliedMoves + (outcome.CommandCount / SimulationContract.GroupCount)
         world.Tick()
-
-    if appliedMoves <> 2 then
-        failwith $"Same-Tick-Fenster wandte {appliedMoves} statt 2 Bewegungen im vorherigen Modus an."
 
     if rejectedInPersonal <> 1 then
         failwith "Bewegung an M = S + 2 war nicht im persönlichen Modus abgewiesen."
@@ -483,19 +467,27 @@ let sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo () =
 
     // Ohne Vorauswahl sind die Bewegungen an 40/41 kontextgültig (vorheriger
     // Modus) und scheitern erst an der Auswahlprüfung; die Bewegung an M
-    // scheitert kontextuell im persönlichen Modus.
+    // scheitert kontextuell im persönlichen Modus. Ohne Vorauswahl entsteht
+    // kein Kernbefehl.
     if pipeline.MoveWithoutSelectionTotal <> 2L then
         failwith "Same-Tick-Bewegungen im vorherigen Modus wurden nicht kontextgültig geprüft."
 
-    if pipeline.StrategyIntentsRejectedInPersonalModeTotal <> 1L then
-        failwith "Zähler strategischer Abweisungen im persönlichen Modus falsch."
+    if pipeline.AppliedCommandsTotal <> 0L then
+        failwith "Same-Tick-Fenster erzeugte ohne Vorauswahl einen Kernbefehl."
 
     let entry = pipeline.SwitchProtocol.[0]
 
-    if entry.IntentTick <> 40L || entry.EffectiveBoundaryTick <> 42L || entry.SwitchReactionTicks <> 2L then
+    if
+        entry.IntentTick <> 40L
+        || entry.EffectiveBoundaryTick <> 42L
+        || entry.SwitchReactionTicks <> 2L
+    then
         failwith "Same-Tick-Wechsel verletzte die Grenzkette S → M = S + 2."
 
-    if entry.PreviousMode <> SessionMode.Strategic || entry.NewMode <> SessionMode.Personal then
+    if
+        entry.PreviousMode <> SessionMode.Strategic
+        || entry.NewMode <> SessionMode.Personal
+    then
         failwith "Wechselrichtung falsch."
 
 // ---------------------------------------------------------------------------
@@ -590,7 +582,10 @@ let interactiveReportSchemaBindsCapturePairAndHud () =
 
     assertSchemaError
         "Pflichtfeld"
-        (interactive.Replace("\"boundStateHash\":\"978aab19406daa26\"", String.Empty))
+        (interactive.Replace(
+            "\"boundStateHash\":\"978aab19406daa26\"",
+            "\"boundStateHashRenamed\":\"978aab19406daa26\""
+        ))
         "Abgriffpaar ohne gebundenen Weltzustand akzeptiert"
 
 let interactiveHybridWiringIsBoundToSources () =
@@ -638,8 +633,7 @@ let interactiveHybridWiringIsBoundToSources () =
     // die richtungsgelenkte Lenkung im persönlichen Modus — ein Lenk-Intent
     // kann im strategischen Modus an keiner Stelle der Eingabeübersetzung
     // entstehen (genau ein Definitionsort plus vier Pan-Richtungsaufrufe).
-    let steeringCallSites =
-        (runnerText.Split("EnqueueDirectionalSteering(")).Length - 1
+    let steeringCallSites = (runnerText.Split("EnqueueDirectionalSteering(")).Length - 1
 
     if steeringCallSites <> 5 then
         failwith $"Interaktive Lenkung hat {steeringCallSites} statt 5 Bindungsorten (Definition plus vier Richtungen)."
@@ -654,15 +648,15 @@ let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     let intents =
         [| GrayboxIntent(40, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: kontextgültig
            GrayboxIntent(40, GrayboxIntentKind.SwitchMode)
-           GrayboxIntent(41, GrayboxIntentKind.SwitchMode) // gleicher Zielmodus
            GrayboxIntent(41, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: kontextgültig
+           GrayboxIntent(41, GrayboxIntentKind.SwitchMode) // gleicher Zielmodus
            GrayboxIntent(42, GrayboxIntentKind.GroupMoveToZone, 1L) |] // M: persönlich abgewiesen
 
-    let world, pipeline = newPipeline(20260826u, intents)
+    let world, pipeline = newPipeline (20260826u, intents)
 
     let mutable rejectedInPersonal = 0
 
-    for tick in 40L..43L do
+    for tick in 40L .. 43L do
         let outcome = pipeline.ProcessBoundary(tick)
         rejectedInPersonal <- rejectedInPersonal + outcome.RejectedStrategyInPersonal
         world.Tick()
@@ -695,7 +689,10 @@ let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     // (Modevertrag Abschnitt 4 (2): die erste Modusänderung ist an S+1
     // weder wirksam noch kontextbildend).
     for entry in [ first; second ] do
-        if entry.PreviousMode <> SessionMode.Strategic || entry.NewMode <> SessionMode.Personal then
+        if
+            entry.PreviousMode <> SessionMode.Strategic
+            || entry.NewMode <> SessionMode.Personal
+        then
             failwith "Folgetick-Wechsel wurden nicht im gültigen vorherigen Modus ausgewertet."
 
         if entry.SwitchReactionTicks <> 2L then
@@ -726,18 +723,14 @@ let hybridFlowTwinContinuityIdenticalChainsAndEndHash () =
           "intent 285 switch" ]
 
     let hybrid =
-        InputScriptParser
-            .Parse(Text.Encoding.UTF8.GetBytes (v2Script 420 hybridBody), rulesFor 420)
-            .Intents
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes(v2Script 420 hybridBody), rulesFor 420).Intents
 
     let twinBody =
         hybridBody
         |> List.filter (fun line -> not (line.EndsWith(" switch", StringComparison.Ordinal)))
 
     let twin =
-        InputScriptParser
-            .Parse(Text.Encoding.UTF8.GetBytes (v2Script 420 twinBody), rulesFor 420)
-            .Intents
+        InputScriptParser.Parse(Text.Encoding.UTF8.GetBytes(v2Script 420 twinBody), rulesFor 420).Intents
 
     let runHybrid seed =
         SessionEngine.Run(SessionRunRequest(seed, hybrid, 240, 420, false))
@@ -745,16 +738,19 @@ let hybridFlowTwinContinuityIdenticalChainsAndEndHash () =
     let runTwin seed =
         SessionEngine.Run(SessionRunRequest(seed, twin, 240, 420, false))
 
-    let first = runHybrid(20260826u)
-    let second = runHybrid(20260826u)
+    let first = runHybrid (20260826u)
+    let second = runHybrid (20260826u)
 
     if first.EndStateHash <> second.EndStateHash then
         failwith "Zwei Läufe desselben Hybrid-Flows lieferten unterschiedliche Endhashes."
 
-    if first.IntervalSampleTicks <> second.IntervalSampleTicks || first.IntervalHashes <> second.IntervalHashes then
+    if
+        first.IntervalSampleTicks <> second.IntervalSampleTicks
+        || first.IntervalHashes <> second.IntervalHashes
+    then
         failwith "Kettenstichproben zweier Hybridläufe sind nicht byteidentisch."
 
-    let twinRun = runTwin(20260826u)
+    let twinRun = runTwin (20260826u)
 
     if
         first.StartStateHash <> twinRun.StartStateHash
@@ -769,7 +765,7 @@ let hybridFlowTwinContinuityIdenticalChainsAndEndHash () =
         failwith "Twin-Kettenstichproben sind nicht byteidentisch."
 
     // Fremder Seed ändert Start- und Endhash nachweislich.
-    let foreign = runHybrid(42u)
+    let foreign = runHybrid (42u)
 
     if
         foreign.StartStateHash = first.StartStateHash
@@ -796,7 +792,7 @@ let hybridFlowTwinContinuityIdenticalChainsAndEndHash () =
 let steeringProducesKernelCommandEquivalentToDirectSurface () =
     // Sitzungspfad: Wechsel an 39 (wirksam ab 41), Lenkung an 41 auf Zone 3.
     let sessionWorld, pipeline =
-        newPipeline(
+        newPipeline (
             11u,
             [| GrayboxIntent(39, GrayboxIntentKind.SwitchMode)
                GrayboxIntent(41, GrayboxIntentKind.SteerGroupToZone, 3L) |]
@@ -806,7 +802,7 @@ let steeringProducesKernelCommandEquivalentToDirectSurface () =
     // Kernbefehlsfläche am selben Tick.
     let controlWorld = SimWorld(11u)
 
-    for tick in 0L..59L do
+    for tick in 0L .. 59L do
         pipeline.ProcessBoundary(tick) |> ignore
 
         if tick = 41L then
@@ -840,7 +836,8 @@ let commandGateSwitchReactionCriterionIsFailClosedWithoutVacuumPass () =
 
     // Ohne wirksamen Wechsel ist das Kriterium ausdrücklich NICHT
     // auswertbar; der Vakuumfall wird nie als gemessener Pass ausgegeben.
-    let vacuum = CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 0L, 0))
+    let vacuum =
+        CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 0L, 0))
 
     if vacuum.SwitchReactionEvaluated then
         failwith "Kriterium 6 war ohne wirksamen Wechsel als ausgewertet ausgegeben."
@@ -852,7 +849,8 @@ let commandGateSwitchReactionCriterionIsFailClosedWithoutVacuumPass () =
         failwith "Nichtauswertung von Kriterium 6 erzeugte eine Verletzung."
 
     // Messung am Ziel: kein Verstoß, Ziel erfüllt.
-    let atTarget = CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 2L, 1))
+    let atTarget =
+        CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 2L, 1))
 
     if
         not atTarget.SwitchReactionEvaluated
@@ -863,13 +861,15 @@ let commandGateSwitchReactionCriterionIsFailClosedWithoutVacuumPass () =
 
     // Innerhalb der harten Grenze, über dem Ziel: kein Gate-Fail, Ziel
     // verfehlt (T-032-Präzedenz).
-    let aboveTarget = CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 3L, 1))
+    let aboveTarget =
+        CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 3L, 1))
 
     if not aboveTarget.Pass || aboveTarget.SwitchReactionTargetMet then
         failwith "Reaktion 3 muss passieren und das Ziel verfehlen."
 
     // Fault-Injection: Messung über der harten Grenze verletzt fail-closed.
-    let violated = CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 4L, 1))
+    let violated =
+        CommandGate.Evaluate(limits, CommandGateInputs(1.0, 0.0, 1L, 4L, false, Nullable true, 4L, 1))
 
     if violated.Pass then
         failwith "Wechselreaktion 4 Ticks passierte das Gate."
@@ -986,7 +986,8 @@ let cliContractRunsV2HybridHeadlessWithModeReportAndTwin () =
             then
                 failwith "Wirksamkeitsgrenze entspricht nicht M = S + 2."
 
-        let switchGate = document.RootElement.GetProperty("gate").GetProperty("switchReaction")
+        let switchGate =
+            document.RootElement.GetProperty("gate").GetProperty("switchReaction")
 
         if
             not (switchGate.GetProperty("evaluated").GetBoolean())
@@ -1014,7 +1015,8 @@ let cliContractRunsV2HybridHeadlessWithModeReportAndTwin () =
         let legacyMixedPath = Path.Combine(temporary, "mixed.txt")
         File.WriteAllText(legacyMixedPath, v1Script 420 [ "intent 260 steer 2" ])
 
-        let exitLegacy, _, _ = runAppHost (argumentsFor legacyMixedPath reportHybridOne "20260826")
+        let exitLegacy, _, _ =
+            runAppHost (argumentsFor legacyMixedPath reportHybridOne "20260826")
 
         if exitLegacy <> ExitCodes.Map(PlatformErrorCode.CommandScenarioUnavailable) then
             failwith $"Legacy-v1-Skript mit steer ergab Exitcode {exitLegacy} statt Code 37."

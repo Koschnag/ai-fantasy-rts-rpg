@@ -1165,7 +1165,10 @@ let reportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
 
     assertHasError
         "konstanter Wert"
-        (goldenReport.Replace("\"scriptFormat\":\"graybox-input-script-v1\"", "\"scriptFormat\":\"graybox-input-script-v9\""))
+        (goldenReport.Replace(
+            "\"scriptFormat\":\"graybox-input-script-v1\"",
+            "\"scriptFormat\":\"graybox-input-script-v9\""
+        ))
         "Fremde Skriptformatkennung akzeptiert"
 
     // Titel-HUD-Bindung (T-033): Nichtauswertung ohne Grund und ein gemessener
@@ -1376,7 +1379,9 @@ let interactiveCommandPulseRendersThenExpires () =
             failwith "Angemeldeter Befehlspuls fehlte im Markerzustand."
 
         let expiringTick = 1000L + int64 InteractiveView.CommandPulseTicks
-        let expiredMarkerCount = view.WriteFrameState(world, expiringTick, SessionMode.Strategic)
+
+        let expiredMarkerCount =
+            view.WriteFrameState(world, expiringTick, SessionMode.Strategic)
 
         if expiredMarkerCount <> 1 then
             failwith "Der Befehlspuls lief vertraglich nie ab."
