@@ -109,6 +109,10 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 32 | Soak-Szenario unbekannt oder noch nicht implementiert; kein Report (T-022) |
 | 33 | Save-Gate verletzt (Prüfklassenmatrix, Größen-Sanity, Fortsetzung); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-031) |
 | 34 | Savecheck unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-031) |
+| 35 | Kommandoschleifen-Gate verletzt (Tickzeit, Warm-tick-Allokation, Reaktionsticks, Laufzeitshaderkompilierung, Kettenkonsistenz); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-032) |
+| 36 | Kommandoschleifenlauf unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-032) |
+| 37 | Kommandoschleifen-Szenario unbekannt oder Eingabeskript unlesbar/malformiert/außerhalb Wertebereiche; kein Report (T-032) |
+| 38 | Opt-in Einzelabgriff der Kommandoschleife fehlgeschlagen; der Report wurde dennoch geschrieben und bindet `captured=false` mit Grund (T-032) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -277,3 +281,51 @@ Evidenz markierten Teilreport; Schemawidersprüche nutzen Code 27, nicht
 schreibbare Reportpfade Code 28. Läufe auf dem Entwickler-PC sind
 diagnostische Baseline gemäß Q-OPS-001; Pflichtprofile bleiben
 `NOT-MEASURED`.
+
+## kommandoschleife (T-032) — Kommandovertrag
+
+`kommandoschleife --scenario kommando-graybox --input-script PFAD --seed N
+--report PFAD [--interactive] [--capture-frame PFAD] [--warmup-ticks N]
+[--horizon-ticks N] [--lock DATEI]` führt die erste interaktive
+Graybox-Kommandoschleife nativ auf linux-x64 im bestehenden Host aus. Ohne
+`--interactive` läuft der Befehl rein CPU-seitig ohne Fenster, Renderer und
+Netzwerk; die nativen SDL3-/bgfx-Artefakte werden nicht geladen. Der
+Sitzungskern `Riftward.Session` ist BCL-only, bildet validierte Intents
+ausschließlich auf die unveränderte öffentliche Kernbefehlsfläche
+(`SimCommandKind.GroupMoveToZone`, kanonische Ordnung) ab und folgt dem
+versionierten Kommandovertrag `docs/KOMMANDOVERTRAG.md` V1.
+
+Der Report (Schemaversion 1) bindet Skript-SHA-256 und Intent-Planhash,
+Start-/Endzustands-Hash samt Kettenstichproben (`fnv1a64-canonical-chain-v1`),
+Tickzeit-p50/p95/p99, strenge Warm-tick-Allokation nach Simulationsvertrag §5,
+GC-Pausen sowie die Reaktionssticksverteilung von Befehlstick bis erstem
+Effektsnapshot mit Einheit und Methode; alle Diagnosefelder tragen
+maschinenlesbar `gateCoupled=false`, und der Report weist Q-TEC-010 sowie die
+Q-GAM-Fragen als offen aus. Das Ketten-Selbstkonsistenzkriterium wird unter
+`gate.stateChainSelfConsistency` ausgewiesen: headless `evaluated=true`
+(Ergebnis über `gate.pass`/`violations`), im Interaktivmodus ausdrücklich
+`evaluated=false` mit maschinenlesbarem Grund statt Behauptung. Das Gate
+entscheidet fail-closed ausschließlich
+gegen 16 ms harte Tickzeitgrenze (8-ms-Ziel ausgewiesen), 0 Bytes Allokation je
+warmem Tick, die abgeleitete harte Reaktionsgrenze von 3 Ticks (Ziel 2),
+null Laufzeitshaderkompilierungen und — headless — die Ketten-Selbstkonsistenz
+eines zweiten frischen Durchlaufs im selben Prozess. Unbekannte Szenarien oder
+unlesbare/malformierte Skripte brechen mit Exitcode 37 ohne Report ab;
+Gateverletzungen ergeben 35 bei trotzdem geschriebenen, klar als nicht
+bestanden markierten Reports; ein vorzeitiger Abbruch ergibt 36 mit einem als
+keine Evidenz gekennzeichneten Teilreport; Schemawidersprüche nutzen Code 27,
+nicht schreibbare Reportpfade Code 28.
+
+Mit `--interactive` bedient derselbe Pipelinepfad den fensterpflichtigen Modus:
+T-010 liefert Maus-/Tastaturereignisse, die Übersetzung erzeugt dieselben
+Intents, die Graybox-Darstellung folgt den T-023-Rendermustern (offline
+kompilierte Shader, keine Laufzeitkompilierung), Auswahlmarker und
+Befehlsrueckmeldung laufen über mindestens zwei unterscheidbare visuelle Kanäle
+(Form plus Farbe, NF-005), die Kamera ist geclippt (Weltrand, Zoom), und ohne
+nutzbares Display bricht der Modus kontrolliert mit Code 19 ab statt zu
+simulieren. Der opt-in `--capture-frame PFAD` schreibt strikt nach dem
+Messfenster genau einen hashgebundenen 1920×1080-Einzelabgriff nach dem
+T-023-/Media-Lab-Muster mit maschinenlesbarer Aussagegrenze Graybox-
+Zustandsbelegung; ein fehlgeschlagener Abgriff ergibt Code 38 mit
+`captured=false` und Grund. Läufe auf dem Entwickler-PC sind diagnostische
+Baseline gemäß Q-OPS-001; Pflichtprofile bleiben `NOT-MEASURED`.

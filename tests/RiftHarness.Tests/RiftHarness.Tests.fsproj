@@ -34,6 +34,7 @@
     <Compile Include="BenchRepresentativeTests.fs" Condition="Exists('BenchRepresentativeTests.fs')" />
     <Compile Include="SoakTests.fs" Condition="Exists('SoakTests.fs')" />
     <Compile Include="SaveTests.fs" Condition="Exists('SaveTests.fs')" />
+    <Compile Include="CommandLoopTests.fs" Condition="Exists('CommandLoopTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,1565 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using Riftward.App.Bench;
+using Riftward.Platform;
+using Riftward.Platform.Interop;
+using Riftward.Session;
+using Riftward.Simulation;
+
+namespace Riftward.App.Command;
+
+/// <summary>
+/// KOMMANDO-GRAYBOX (T-032): erste interaktive Graybox-Kommandoschleife als
+/// Sitzungsmodus des bestehenden Hosts. Headless laeuft der Befehl nativ auf
+/// linux-x64 rein CPU-seitig ohne Fenster/Renderer/Netzwerk und ohne Laden
+/// der nativen SDL3-/bgfx-Artefakte; der Report ist die pruefbare Evidenz
+/// nach NF-007 mit fail-closed Gate gegen docs/KOMMANDOVERTRAG.md,
+/// Simulationsvertrag V1 und PERFORMANCE_BUDGET.md. Der Interaktivmodus
+/// bedient denselben Pipelinepfad mit T-010-Fenstereingaben, Graybox-
+/// darstellung nach T-023-Mustern und vertraglicher Zweikanal-Rueckmeldung.
+/// Budgetverletzungen ergeben definierte Exitcodes; der Report wird
+/// trotzdem geschrieben und klar markiert.
+/// </summary>
+internal static class CommandLoopRunner
+{
+    public const string CommandName = "./scripts/rift.sh kommandoschleife";
+
+    public const int DefaultSeed = unchecked((int)CameraFlight.DefaultSeed);
+
+    private const int EdgePanMarginPixels = 8;
+
+    private const int BoxDragThresholdPixels = 6;
+
+    private const int MaxCatchUpTicksPerFrame = 3;
+
+    public static int Run(CommandLineArgs arguments)
+    {
+        var interactive = arguments.HasFlag("--interactive");
+        var reportPath = arguments.Option("--report");
+
+        if (string.IsNullOrWhiteSpace(reportPath))
+        {
+            Console.Error.WriteLine("kommandoschleife: --report PFAD ist erforderlich.");
+            return ExitCodes.Usage;
+        }
+
+        // Szenario- und Skriptpruefung vor jedem teuren Schritt: unbekanntes
+        // Szenario oder unlesbares/malformiertes Skript bricht ohne Report ab
+        // (Code 37), statt einen Scheinbericht zu erzeugen.
+        var scenarioId = arguments.Option("--scenario");
+
+        if (!string.Equals(scenarioId, SessionContract.ScenarioId, StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine(
+                $"kommandoschleife: unbekanntes Szenario '{scenarioId ?? "<fehlt>"}'. Implementiert: {SessionContract.ScenarioId}.");
+            return ExitCodes.Map(PlatformErrorCode.CommandScenarioUnavailable);
+        }
+
+        var scriptPath = arguments.Option("--input-script");
+
+        if (string.IsNullOrWhiteSpace(scriptPath))
+        {
+            Console.Error.WriteLine("kommandoschleife: --input-script PFAD ist erforderlich.");
+            return ExitCodes.Usage;
+        }
+
+        var seedValue = arguments.NumberOption("--seed", DefaultSeed);
+
+        if (arguments.Option("--seed") is { } rawSeed && rawSeed.TrimStart('-').Length > 0 && seedValue < 0)
+        {
+            Console.Error.WriteLine("kommandoschleife: --seed erwartet eine nichtnegative Ganzzahl.");
+            return ExitCodes.Usage;
+        }
+
+        var seed = unchecked((uint)seedValue);
+        var horizonTicks = (int)Math.Clamp(
+            arguments.NumberOption("--horizon-ticks", SessionContract.DefaultHorizonTicks),
+            SessionContract.DefaultWarmupTicks + 60,
+            SessionContract.HorizonTicksMax);
+        var warmupTicks = (int)Math.Clamp(
+            arguments.NumberOption("--warmup-ticks", SessionContract.DefaultWarmupTicks),
+            30,
+            Math.Min(SessionContract.WarmupTicksMax, horizonTicks - 60));
+
+        ParsedInputScript parsed;
+
+        try
+        {
+            parsed = InputScriptParser.Parse(
+                ReadInputScriptBytes(scriptPath),
+                new ScriptWindowRules(WarmupTicks: warmupTicks, HorizonTicks: horizonTicks));
+        }
+        catch (InputScriptException exception)
+        {
+            Console.Error.WriteLine(exception.Message);
+            return ExitCodes.Map(PlatformErrorCode.CommandScenarioUnavailable);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Eingabeskript nicht lesbar: {exception.Message}");
+            return ExitCodes.Map(PlatformErrorCode.CommandScenarioUnavailable);
+        }
+
+        return interactive
+            ? RunInteractive(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks)
+            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks);
+    }
+
+    /* ------------------------------------------------------------- Headless */
+
+    private static int RunHeadless(
+        CommandLineArgs arguments,
+        string reportPath,
+        uint seed,
+        ParsedInputScript parsed,
+        int warmupTicks,
+        int horizonTicks)
+    {
+        var environment = SystemInfo.Capture();
+        var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+        var commit = BenchEnvironment.CommitId();
+        var buildMode = BenchEnvironment.BuildMode();
+        IReadOnlyList<ToolchainPin> pins;
+
+        try
+        {
+            pins = ToolchainLockReader.ReadNativeComponents(arguments.Option("--lock") ?? "toolchain.lock.json");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Toolchain-Lock nicht lesbar: {exception.Message}");
+            return ExitCodes.Map(PlatformErrorCode.ArtifactManifestInvalid);
+        }
+
+        SessionRunResult result;
+
+        try
+        {
+            result = SessionEngine.Run(new SessionRunRequest(
+                Seed: seed,
+                ScriptedIntents: parsed.Intents,
+                WarmupTicks: warmupTicks,
+                HorizonTicks: horizonTicks,
+                RunSelfConsistencyPass: true));
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
+            return WriteIncompleteReport(
+                reportPath, CommandReportSchema.ExecutionHeadless, seed, parsed, warmupTicks, horizonTicks,
+                commit, buildMode, environment);
+        }
+
+        var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
+            P99TickTimeMs: result.Metrics.P99TickTimeMs,
+            ManagedAllocationsPerWarmTickBytes: result.Metrics.AllocationsPerWarmTickBytes,
+            MaxReactionTicks: result.Metrics.MaxReactionTicks,
+            ReactionSampleCount: result.Metrics.ReactionSampleCount,
+            RuntimeShaderCompilationObserved: false,
+            StateChainSelfConsistent: result.StateChainSelfConsistent));
+
+        var gateExitCode = verdict.Pass ? ExitCodes.Ok : ExitCodes.Map(PlatformErrorCode.CommandGateViolated);
+        var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
+            ExecutionMode: CommandReportSchema.ExecutionHeadless,
+            Seed: seed,
+            Parsed: parsed,
+            WarmupTicks: warmupTicks,
+            HorizonTicks: horizonTicks,
+            ProcessStart: processStart,
+            Commit: commit,
+            BuildMode: buildMode,
+            Environment: environment,
+            Pins: pins,
+            Metrics: result.Metrics,
+            StartHash: result.StartStateHash,
+            EndHash: result.EndStateHash,
+            IntervalSampleTicks: result.IntervalSampleTicks,
+            IntervalHashes: result.IntervalHashes,
+            AppliedIntents: result.AppliedIntents,
+            RejectedIntents: result.RejectedIntents,
+            EmptyPointDeselects: result.EmptyPointDeselects,
+            MoveWithoutSelectionRejects: result.MoveWithoutSelectionRejects,
+            NoZoneRejects: 0,
+            KernelCommandsTotal: result.KernelCommandsTotal,
+            Verdict: verdict,
+            WindowCompleted: true,
+            Capture: NotRequestedCapture(),
+            Display: null,
+            WorkingSet: WorkingSetFrom(result),
+            ExitCode: gateExitCode)), BenchRunner.ReportJsonOptions) + "\n";
+
+        return FinishReport(reportPath, reportJson, gateExitCode);
+    }
+
+    /// <summary>
+    /// Liest das untrusted Eingabeskript als exakt begrenzten Rohbytepuffer
+    /// (Vertrag Abschnitt 5): Die vertragliche Bytegrenze wird waehrend des
+    /// Lesens durchgesetzt, sodass uebergrosse Dateien und endlos liefernde
+    /// Spezialdateien kontrolliert mit der Klasse <c>ScriptTooLarge</c>
+    /// abgewiesen werden, bevor beliebig viele Bytes materialisiert werden.
+    /// Der Schreibzugriff bleibt auf den Reportpfad beschraenkt; es wird nie
+    /// aus dem Skript ausgefuehrt. Nicht existierende oder nicht lesbare
+    /// Quellen propagieren ihre ueblichen IO-Ausnahmen an den kontrollierten
+    /// Code-37-Abbruch des Runners.
+    /// </summary>
+    internal static byte[] ReadInputScriptBytes(string path)
+    {
+        var maxBytes = checked((int)SessionContract.ScriptBytesMax);
+
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var buffer = new byte[maxBytes + 1];
+        var total = 0;
+
+        int chunk;
+        while (total <= maxBytes && (chunk = stream.Read(buffer, total, buffer.Length - total)) > 0)
+        {
+            total += chunk;
+        }
+
+        if (total > maxBytes)
+        {
+            throw new InputScriptException(
+                InputScriptRejectReason.ScriptTooLarge,
+                0,
+                $"Skript ist groesser als die erlaubten {maxBytes} Bytes; die Bytegrenze wird am Rohmaterial durchgesetzt.");
+        }
+
+        return total == buffer.Length ? buffer : buffer.AsSpan(0, total).ToArray();
+    }
+
+    internal static WorkingSetSamples WorkingSetFrom(SessionRunResult result)
+    {
+        // Der headless Lauf erhebt den Arbeitssatz als Stichprobenreihe im
+        // Engine-Durchlauf nicht; er bleibt hier unavailable mit wahrheits-
+        // treuem Grund, damit kein behaupteter Messwert ohne Quelle entsteht.
+        // Der Grund ist Bestandteil des vertraglichen Reportinhalts und wird
+        // durch einen Suiteeintrag gegen die Kennung gebunden (T-032).
+        return new WorkingSetSamples(false, null, null, null, "headless-session-does-not-sample-rss");
+    }
+
+    /* ----------------------------------------------------------- Interaktiv */
+
+    private sealed class InputState
+    {
+        public bool QuitRequested;
+
+        public readonly HashSet<int> HeldScancodes = new();
+
+        public double CursorX = BenchRunner.DefaultWidth / 2.0;
+
+        public double CursorY = BenchRunner.DefaultHeight / 2.0;
+
+        public bool MiddleDragging;
+
+        public double LastMiddleX;
+
+        public double LastMiddleY;
+
+        public bool LeftDragging;
+
+        public double BoxStartX;
+
+        public double BoxStartY;
+
+        public long NoZoneRejects;
+    }
+
+    private sealed class InteractiveMeasurement
+    {
+        public readonly List<double> TickTimes = new();
+        public readonly List<double> FrameTimes = new();
+        public readonly List<double> GpuTimes = new();
+        public readonly List<long> ReactionTimes = new();
+        public readonly List<long> RssSamples = new();
+        public readonly long[] IntervalSampleTicks;
+        public readonly ulong[] IntervalHashes;
+        public int HashCursor = 1;
+        public long MaxReactionTicks;
+        public long PeakMarkers;
+        public bool WindowStarted;
+        public bool WindowCompleted;
+        public long DrawCallsMax;
+
+        public long TrianglesMax;
+
+        public long GpuTimerFrequencyHz;
+
+        public long AllocationSumBytes;
+
+        public double GcPauseSumMs;
+        public long GcPauseCount;
+
+        public InteractiveMeasurement(int windowTicks)
+        {
+            var capacity = (windowTicks / SessionContract.HashSampleIntervalTicks) + 2;
+            IntervalSampleTicks = new long[capacity];
+            IntervalHashes = new ulong[capacity];
+        }
+    }
+
+    private static int RunInteractive(
+        CommandLineArgs arguments,
+        string reportPath,
+        uint seed,
+        ParsedInputScript parsed,
+        int warmupTicks,
+        int horizonTicks)
+    {
+        var environment = SystemInfo.Capture();
+        var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+        var commit = BenchEnvironment.CommitId();
+        var buildMode = BenchEnvironment.BuildMode();
+        IReadOnlyList<ToolchainPin> pins;
+
+        try
+        {
+            pins = ToolchainLockReader.ReadNativeComponents(arguments.Option("--lock") ?? "toolchain.lock.json");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Toolchain-Lock nicht lesbar: {exception.Message}");
+            return ExitCodes.Map(PlatformErrorCode.ArtifactManifestInvalid);
+        }
+
+        var capturePath = arguments.Option("--capture-frame");
+        HostBootstrap.Context? context = null;
+        InteractiveSceneResources? resources = null;
+        InteractiveView? view = null;
+        string glVersion;
+        string glRenderer;
+        uint gpuIds;
+
+        try
+        {
+            context = HostBootstrap.Start(arguments, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight, vsync: true);
+            (glVersion, glRenderer, _) = NativeApi.Instance.GlStrings();
+            gpuIds = NativeApi.Instance.GpuIds();
+
+            resources = InteractiveSceneResources.Build(context.Device, arguments);
+            resources.ConfigureViews(context.Device);
+
+            var world = new SimWorld(seed);
+            var selectionGroups = SessionEngine.ReadAgentGroups(world);
+            var selection = new SelectionModel(selectionGroups);
+            var pipeline = new SessionPipeline(world, selection, parsed.Intents);
+            view = new InteractiveView();
+            view.BindAgentGroups(selectionGroups);
+            view.BindSelection(selection);
+
+            var projection = InteractiveCameraMath.Projection(BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
+            var camera = new GrayboxCamera();
+            var input = new InputState();
+            SdlEventBuffer eventBuffer = default;
+
+            var measurement = RunInteractiveLoop(
+                context.Device, resources, view, world, pipeline, camera, input,
+                ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks);
+
+            CaptureOutcome capture;
+
+            if (capturePath is null)
+            {
+                capture = NotRequestedCapture();
+            }
+            else if (!measurement.WindowCompleted)
+            {
+                capture = new CaptureOutcome(true, false, true, "window-not-completed-no-capture");
+            }
+            else if (!context.Device.IsReadBackSupported() || !context.Device.IsBlitSupported())
+            {
+                capture = new CaptureOutcome(true, false, true, "readback-or-blit-unsupported-by-backend");
+            }
+            else
+            {
+                capture = ExecuteCapture(context.Device, resources, view, world, camera, projection, capturePath!);
+            }
+
+            var allocationsPerWarmTick = AllocationsPerWarmTick(measurement);
+
+            var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
+                P99TickTimeMs: PercentileOrDefault(measurement.TickTimes, 0.99),
+                ManagedAllocationsPerWarmTickBytes: allocationsPerWarmTick,
+                MaxReactionTicks: measurement.MaxReactionTicks,
+                ReactionSampleCount: measurement.ReactionTimes.Count,
+                RuntimeShaderCompilationObserved: false,
+                StateChainSelfConsistent: null));
+
+            var gateExitCode = verdict.Pass ? ExitCodes.Ok : ExitCodes.Map(PlatformErrorCode.CommandGateViolated);
+
+            // Vorzeitiger Abbruch vor Fensterabschluss ist vertraglich ein
+            // unvollstaendiger Lauf (Code 36), niemals ein Erfolgscodes 0 —
+            // auch wenn Teilmetriken zufaellig innerhalb der Grenzen liegen.
+            // Der Report traegt bereits gate.pass=false mit der Verletzung
+            // run-incomplete-no-evidence und gilt damit nicht als Evidenz.
+            var exitCode = ResolveInteractiveExitCode(
+                measurement.WindowCompleted, capture.Failed, gateExitCode);
+
+            var displayBinding = new
+            {
+                measured = true,
+                renderer = glRenderer,
+                vendorId = gpuIds >> 16,
+                deviceId = gpuIds & 0xFFFFu,
+                glVersion,
+            };
+
+            var workingSet = measurement.RssSamples.Count >= 2
+                ? new WorkingSetSamples(true, measurement.RssSamples.Min(), measurement.RssSamples.Max(), measurement.RssSamples[^1], null)
+                : new WorkingSetSamples(false, null, null, null, "rss-sampler-unavailable");
+
+            var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
+                ExecutionMode: CommandReportSchema.ExecutionInteractive,
+                Seed: seed,
+                Parsed: parsed,
+                WarmupTicks: warmupTicks,
+                HorizonTicks: horizonTicks,
+                ProcessStart: processStart,
+                Commit: commit,
+                BuildMode: buildMode,
+                Environment: environment,
+                Pins: pins,
+                Metrics: new SessionMetrics(
+                    P50TickTimeMs: PercentileOrDefault(measurement.TickTimes, 0.50),
+                    P95TickTimeMs: PercentileOrDefault(measurement.TickTimes, 0.95),
+                    P99TickTimeMs: PercentileOrDefault(measurement.TickTimes, 0.99),
+                    AllocationsPerWarmTickBytes: allocationsPerWarmTick,
+                    GcPauseSumMs: measurement.GcPauseSumMs,
+                    GcPauseCount: measurement.GcPauseCount,
+                    MaxReactionTicks: measurement.MaxReactionTicks,
+                    ReactionP50Ticks: SessionMath.Percentile(measurement.ReactionTimes, 0.50),
+                    ReactionP95Ticks: SessionMath.Percentile(measurement.ReactionTimes, 0.95),
+                    ReactionP99Ticks: SessionMath.Percentile(measurement.ReactionTimes, 0.99),
+                    ReactionSampleCount: measurement.ReactionTimes.Count),
+                StartHash: measurement.IntervalHashes.Length > 0 ? measurement.IntervalHashes[0] : 0UL,
+                EndHash: world.ComputeStateHash(),
+                IntervalSampleTicks: measurement.IntervalSampleTicks.AsSpan(0, Math.Max(1, measurement.HashCursor)).ToArray(),
+                IntervalHashes: measurement.IntervalHashes.AsSpan(0, Math.Max(1, measurement.HashCursor)).ToArray(),
+                AppliedIntents: (int)pipeline.AppliedIntentsTotal,
+                RejectedIntents: (int)pipeline.RejectedIntentsTotal,
+                EmptyPointDeselects: (int)pipeline.EmptyPointDeselectTotal,
+                MoveWithoutSelectionRejects: (int)pipeline.MoveWithoutSelectionTotal,
+                NoZoneRejects: (int)input.NoZoneRejects,
+                KernelCommandsTotal: (int)pipeline.AppliedCommandsTotal,
+                Verdict: verdict,
+                WindowCompleted: measurement.WindowCompleted,
+                Capture: capture,
+                Display: displayBinding,
+                WorkingSet: workingSet,
+                ExitCode: exitCode,
+                InteractiveExtras: new InteractiveExtras(
+                    FrameBand: new FrameBandValues(
+                        PercentileOrDefault(measurement.FrameTimes, 0.50),
+                        PercentileOrDefault(measurement.FrameTimes, 0.95),
+                        PercentileOrDefault(measurement.FrameTimes, 0.99)),
+                    GpuTimeMeasured: measurement.GpuTimes.Count > 0,
+                    GpuTimeP99Ms: measurement.GpuTimes.Count > 0 ? SessionMath.Percentile(measurement.GpuTimes, 0.99) : 0.0,
+                    GpuTimerFrequencyHz: measurement.GpuTimerFrequencyHz,
+                    DrawCallsMax: measurement.DrawCallsMax,
+                    TrianglesMax: measurement.TrianglesMax,
+                    PeakMarkers: measurement.PeakMarkers))), BenchRunner.ReportJsonOptions) + "\n";
+
+            return FinishReport(reportPath, reportJson, exitCode);
+        }
+        catch (PlatformException exception)
+        {
+            // Enthaelt insbesondere den dokumentierten Code-19-Abbruch ohne
+            // nutzbares Display statt simulierter Interaktion.
+            Console.Error.WriteLine(exception.Error.ToString());
+            return ExitCodes.Map(exception.Error.Code);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
+            return WriteIncompleteReport(
+                reportPath, CommandReportSchema.ExecutionInteractive, seed, parsed, warmupTicks, horizonTicks,
+                commit, buildMode, environment);
+        }
+        finally
+        {
+            view?.Dispose();
+
+            if (context is not null)
+            {
+                resources?.Dispose();
+                HostBootstrap.Stop(context);
+            }
+        }
+    }
+
+    private static double PercentileOrDefault(List<double> values, double fraction) =>
+        values.Count == 0 ? 0.0 : SessionMath.Percentile(values, fraction);
+
+    private static double AllocationsPerWarmTick(InteractiveMeasurement measurement) =>
+        measurement.TickTimes.Count == 0
+            ? 0.0
+            : measurement.AllocationSumBytes / (double)measurement.TickTimes.Count;
+
+    /// <summary>
+    /// Interaktive Hauptschleife: Ereignispumpe, Intent-Uebersetzung,
+    /// wanduhrgebundene 20-Hz-Tickfolge mit Messfenster [warmup, horizon),
+    /// Zweikanaldarstellung und kontrolliertem Beenden.
+    /// </summary>
+    private static InteractiveMeasurement RunInteractiveLoop(
+        BgfxDevice device,
+        InteractiveSceneResources resources,
+        InteractiveView view,
+        SimWorld world,
+        SessionPipeline pipeline,
+        GrayboxCamera camera,
+        InputState input,
+        ref SdlEventBuffer eventBuffer,
+        NativeApi api,
+        float[] projection,
+        int warmupTicks,
+        int horizonTicks)
+    {
+        var windowTicks = horizonTicks - warmupTicks;
+        var measurement = new InteractiveMeasurement(windowTicks);
+        var pauseSumBeforeMs = GC.GetTotalPauseDuration().TotalMilliseconds;
+        var collectionCountBefore = GcCollectionTotal();
+
+        measurement.IntervalSampleTicks[0] = world.TickIndex;
+        measurement.IntervalHashes[0] = world.ComputeStateHash();
+
+        using var rssSampler = RssSampler.TryCreate();
+        var lastTickTimestamp = Stopwatch.GetTimestamp();
+        var tickInterval = Stopwatch.Frequency / SimulationContract.TickRateHz;
+
+        while (!input.QuitRequested)
+        {
+            PumpEvents(input, ref eventBuffer, api, camera, pipeline, world);
+
+            if (input.QuitRequested)
+            {
+                break;
+            }
+
+            ApplyHeldKeys(input, camera);
+            ApplyEdgePan(input, camera);
+
+            var catchUp = 0;
+            var now = Stopwatch.GetTimestamp();
+
+            while (now - lastTickTimestamp >= tickInterval
+                && catchUp < MaxCatchUpTicksPerFrame
+                && !input.QuitRequested)
+            {
+                lastTickTimestamp += tickInterval;
+                var tick = world.TickIndex;
+                var outcome = pipeline.ProcessBoundary(tick);
+                var consumed = outcome.AppliedCount > 0;
+
+                if (outcome.RejectedMoveWithoutSelection > 0)
+                {
+                    // UF-001-Fehlerzeile mit dem vertraglichen Grund
+                    // (Kommandovertrag Abschnitt 2): die Abweisung ist
+                    // sichtbar, nicht nur als Zaehler gebunden.
+                    Console.Error.WriteLine(
+                        $"kommandoschleife: Befehl abgewiesen - {SessionContract.RejectReasonMoveWithoutSelection} bei Tick {tick}.");
+                }
+
+                if (consumed)
+                {
+                    // Vertragliche Zweikanalrueckmeldung (Kommandovertrag
+                    // Abschnitt 3, NF-005): je angewendetem Bewegungsintent
+                    // erhaelt die Darstellung einen Befehlspuls; abgewiesene
+                    // Intents erscheinen nie.
+                    foreach (var issuedZone in pipeline.DispatchedMoveZonesOfLastBoundary)
+                    {
+                        view.NotifyCommandIssued(tick, issuedZone);
+                    }
+                }
+
+                var frameStart = Stopwatch.GetTimestamp();
+                var windowed = tick >= warmupTicks && tick < horizonTicks;
+                var allocationBefore = windowed ? GC.GetTotalAllocatedBytes(precise: true) : 0L;
+                var tickStart = Stopwatch.GetTimestamp();
+                world.Tick();
+                var tickEnd = Stopwatch.GetTimestamp();
+                var allocationAfter = windowed ? GC.GetTotalAllocatedBytes(precise: true) : 0L;
+
+                if (windowed)
+                {
+                    measurement.WindowStarted |= tick == warmupTicks;
+                    measurement.AllocationSumBytes += allocationAfter - allocationBefore;
+                    measurement.TickTimes.Add(SessionMath.TimestampDeltaToMilliseconds(tickStart, tickEnd));
+                    measurement.FrameTimes.Add(SessionMath.TimestampDeltaToMilliseconds(frameStart, Stopwatch.GetTimestamp()));
+
+                    if (consumed)
+                    {
+                        var reactionTicks = world.TickIndex - tick;
+                        measurement.MaxReactionTicks = Math.Max(measurement.MaxReactionTicks, reactionTicks);
+
+                        for (var slot = 0; slot < outcome.AppliedCount; slot++)
+                        {
+                            measurement.ReactionTimes.Add(reactionTicks);
+                        }
+                    }
+
+                    if (world.TickIndex % SessionContract.HashSampleIntervalTicks == 0
+                        && measurement.HashCursor < measurement.IntervalSampleTicks.Length)
+                    {
+                        measurement.IntervalSampleTicks[measurement.HashCursor] = world.TickIndex;
+                        measurement.IntervalHashes[measurement.HashCursor] = world.ComputeStateHash();
+                        measurement.HashCursor++;
+                    }
+
+                    if (rssSampler is not null
+                        && measurement.TickTimes.Count % SessionContract.RssSampleIntervalTicks == 0)
+                    {
+                        rssSampler.Sample();
+                    }
+                }
+
+                catchUp++;
+                now = Stopwatch.GetTimestamp();
+
+                if (!measurement.WindowCompleted && world.TickIndex >= horizonTicks)
+                {
+                    measurement.WindowCompleted = true;
+                }
+            }
+
+            var markerCount = RenderFrame(device, resources, view, world, camera, projection);
+            measurement.PeakMarkers = Math.Max(measurement.PeakMarkers, markerCount);
+
+            if (device.TryReadStats(out var stats))
+            {
+                measurement.DrawCallsMax = Math.Max(measurement.DrawCallsMax, stats.NumDraw);
+                measurement.TrianglesMax = Math.Max(measurement.TrianglesMax, stats.TrianglesRendered);
+
+                if (stats.GpuTimerFrequency > 0)
+                {
+                    measurement.GpuTimerFrequencyHz = stats.GpuTimerFrequency;
+                    measurement.GpuTimes.Add(
+                        (stats.GpuTimeEndTicks - stats.GpuTimeBeginTicks) * 1000.0 / stats.GpuTimerFrequency);
+                }
+            }
+        }
+
+        measurement.GcPauseSumMs = GC.GetTotalPauseDuration().TotalMilliseconds - pauseSumBeforeMs;
+        measurement.GcPauseCount = GcCollectionTotal() - collectionCountBefore;
+        return measurement;
+    }
+
+    private static int RenderFrame(
+        BgfxDevice device,
+        InteractiveSceneResources resources,
+        InteractiveView view,
+        SimWorld world,
+        GrayboxCamera camera,
+        float[] projection)
+    {
+        var markerCount = view.WriteFrameState(world, world.TickIndex);
+
+        device.UpdateTexture2DRgba32F(
+            resources.PaletteTexture,
+            0,
+            0,
+            RepresentativeScenario.BonesPerNormalUnit * 3,
+            SimulationContract.AgentCount,
+            view.Palette);
+
+        resources.SubmitShadowPasses(device, view.UnitsPointer, SimulationContract.AgentCount);
+
+        var view16 = InteractiveCameraMath.View16(camera);
+        var basis = InteractiveCameraMath.BillboardBasis(camera);
+
+        resources.SubmitCompositePass(
+            device,
+            InteractiveViews.ViewMain,
+            view16,
+            projection,
+            basis,
+            view.UnitsPointer,
+            SimulationContract.AgentCount,
+            view.MarkersPointer,
+            (uint)markerCount);
+
+        device.RenderFrame();
+        return markerCount;
+    }
+
+    private static void PumpEvents(
+        InputState input,
+        ref SdlEventBuffer eventBuffer,
+        NativeApi api,
+        GrayboxCamera camera,
+        SessionPipeline pipeline,
+        SimWorld world)
+    {
+        while (api.PollEvent(ref eventBuffer))
+        {
+            var inputView = SdlInputEventView.FromBuffer(ref eventBuffer);
+
+            switch (inputView.Type)
+            {
+                case SdlEventCodes.Quit:
+                case SdlEventCodes.WindowCloseRequested:
+                    input.QuitRequested = true;
+                    return;
+
+                case SdlEventCodes.KeyDown:
+                case SdlEventCodes.KeyUp:
+                    HandleKey(input, camera, inputView);
+                    break;
+
+                case SdlEventCodes.MouseMotion:
+                    HandleMotion(input, camera, inputView);
+                    break;
+
+                case SdlEventCodes.MouseButtonDown:
+                case SdlEventCodes.MouseButtonUp:
+                    HandleButton(input, camera, pipeline, world, inputView);
+                    break;
+
+                case SdlEventCodes.MouseWheel:
+                    // Rad nach vorn (SDL: WheelY > 0) zoomt heran (+1),
+                    // Rad zurueck zoomt heraus; konsistent zur Keymap.
+                    camera.ZoomSteps(inputView.WheelY > 0 ? +1 : -1);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+    }
+
+    private static void HandleKey(InputState input, GrayboxCamera camera, SdlInputEventView inputView)
+    {
+        var action = Keymap.Resolve(inputView.Scancode);
+
+        if (action is null)
+        {
+            return;
+        }
+
+        if (action == "quit")
+        {
+            if (inputView.Type == SdlEventCodes.KeyDown && !inputView.KeyIsRepeat)
+            {
+                input.QuitRequested = true;
+            }
+
+            return;
+        }
+
+        if (inputView.Type == SdlEventCodes.KeyDown)
+        {
+            if (inputView.KeyIsRepeat)
+            {
+                return;
+            }
+
+            switch (action)
+            {
+                case "zoom-in":
+                    // Vertraglich getestete Richtung: +1 verkleinert die
+                    // Anzeigedistanz (heranzoomen); siehe GrayboxCamera.
+                    camera.ZoomSteps(+1);
+                    return;
+
+                case "zoom-out":
+                    camera.ZoomSteps(-1);
+                    return;
+
+                default:
+                    input.HeldScancodes.Add(inputView.Scancode);
+                    return;
+            }
+        }
+
+        input.HeldScancodes.Remove(inputView.Scancode);
+    }
+
+    private static void ApplyHeldKeys(InputState input, GrayboxCamera camera)
+    {
+        foreach (var scancode in input.HeldScancodes)
+        {
+            switch (Keymap.Resolve(scancode))
+            {
+                case "pan-up":
+                    // Vertraglich nordaufwaerts (Kommandovertrag §4, feste
+                    // Nordausrichtung): Bildschirm oben ist Norden (-Z),
+                    // konsistent zum Rand-Schwenken am oberen Fensterrand.
+                    camera.PanSteps(0, -1);
+                    break;
+
+                case "pan-down":
+                    camera.PanSteps(0, +1);
+                    break;
+
+                case "pan-left":
+                    camera.PanSteps(-1, 0);
+                    break;
+
+                case "pan-right":
+                    camera.PanSteps(+1, 0);
+                    break;
+            }
+        }
+    }
+
+    private static void ApplyEdgePan(InputState input, GrayboxCamera camera)
+    {
+        var stepsX = 0.0;
+        var stepsY = 0.0;
+
+        if (input.CursorX <= EdgePanMarginPixels)
+        {
+            stepsX -= 1;
+        }
+        else if (input.CursorX >= BenchRunner.DefaultWidth - EdgePanMarginPixels)
+        {
+            stepsX += 1;
+        }
+
+        if (input.CursorY <= EdgePanMarginPixels)
+        {
+            stepsY -= 1;
+        }
+        else if (input.CursorY >= BenchRunner.DefaultHeight - EdgePanMarginPixels)
+        {
+            stepsY += 1;
+        }
+
+        if (stepsX != 0.0 || stepsY != 0.0)
+        {
+            camera.PanSteps(stepsX * 0.25, stepsY * 0.25);
+        }
+    }
+
+    private static void HandleMotion(InputState input, GrayboxCamera camera, SdlInputEventView inputView)
+    {
+        input.CursorX = inputView.PositionX;
+        input.CursorY = inputView.PositionY;
+
+        if (input.MiddleDragging)
+        {
+            // Ziehen bewegt die Welt mit dem Zeiger: Kameramittelpunkt entgegen.
+            var metersPerPixel = camera.DistanceMeters / 700.0;
+            camera.Pan(
+                -(inputView.PositionX - input.LastMiddleX) * metersPerPixel,
+                -(inputView.PositionY - input.LastMiddleY) * metersPerPixel);
+        }
+
+        input.LastMiddleX = inputView.PositionX;
+        input.LastMiddleY = inputView.PositionY;
+    }
+
+    private static void HandleButton(
+        InputState input,
+        GrayboxCamera camera,
+        SessionPipeline pipeline,
+        SimWorld world,
+        SdlInputEventView inputView)
+    {
+        var pressed = inputView.Type == SdlEventCodes.MouseButtonDown;
+
+        switch (inputView.ButtonIndex)
+        {
+            case SdlMouseButtons.Left:
+                if (pressed)
+                {
+                    input.LeftDragging = true;
+                    input.BoxStartX = inputView.PositionX;
+                    input.BoxStartY = inputView.PositionY;
+                }
+                else if (input.LeftDragging)
+                {
+                    input.LeftDragging = false;
+                    EnqueueBoxOrPoint(input, camera, pipeline, world, inputView.PositionX, inputView.PositionY);
+                }
+
+                break;
+
+            case SdlMouseButtons.Middle:
+                input.MiddleDragging = pressed;
+                input.LastMiddleX = inputView.PositionX;
+                input.LastMiddleY = inputView.PositionY;
+                break;
+
+            case SdlMouseButtons.Right:
+                if (pressed)
+                {
+                    EnqueueMoveAtCursor(input, camera, pipeline, world, inputView.PositionX, inputView.PositionY);
+                }
+
+                break;
+        }
+    }
+
+    private static void EnqueueBoxOrPoint(
+        InputState input,
+        GrayboxCamera camera,
+        SessionPipeline pipeline,
+        SimWorld world,
+        double endX,
+        double endY)
+    {
+        var draggedPixels = Math.Sqrt(
+            ((endX - input.BoxStartX) * (endX - input.BoxStartX))
+            + ((endY - input.BoxStartY) * (endY - input.BoxStartY)));
+        var startGround = ScreenToGroundOrNothing(camera, input.BoxStartX, input.BoxStartY);
+        var endGround = ScreenToGroundOrNothing(camera, endX, endY);
+
+        if (startGround is null || endGround is null)
+        {
+            return;
+        }
+
+        if (draggedPixels < BoxDragThresholdPixels)
+        {
+            pipeline.EnqueueLiveIntent(new GrayboxIntent(
+                (int)world.TickIndex,
+                GrayboxIntentKind.PointSelect,
+                ToMillimeters(startGround.Value.SimX, SessionContract.WorldWidthMillimeters),
+                ToMillimeters(startGround.Value.SimZ, SessionContract.WorldHeightMillimeters)));
+            return;
+        }
+
+        pipeline.EnqueueLiveIntent(new GrayboxIntent(
+            (int)world.TickIndex,
+            GrayboxIntentKind.BoxSelect,
+            ToMillimeters(Math.Min(startGround.Value.SimX, endGround.Value.SimX), SessionContract.WorldWidthMillimeters),
+            ToMillimeters(Math.Min(startGround.Value.SimZ, endGround.Value.SimZ), SessionContract.WorldHeightMillimeters),
+            ToMillimeters(Math.Max(startGround.Value.SimX, endGround.Value.SimX), SessionContract.WorldWidthMillimeters),
+            ToMillimeters(Math.Max(startGround.Value.SimZ, endGround.Value.SimZ), SessionContract.WorldHeightMillimeters)));
+    }
+
+    private static void EnqueueMoveAtCursor(
+        InputState input,
+        GrayboxCamera camera,
+        SessionPipeline pipeline,
+        SimWorld world,
+        double pixelX,
+        double pixelY)
+    {
+        var ground = ScreenToGroundOrNothing(camera, pixelX, pixelY);
+
+        if (ground is null)
+        {
+            return;
+        }
+
+        var zone = InteractiveCameraMath.ZoneAtGroundPoint(ground.Value.SimX, ground.Value.SimZ);
+
+        if (zone < 0)
+        {
+            // Kontrollierte fachliche Abweisung statt stiller Annahme;
+            // die vertragliche Kennung (Kommandovertrag Abschnitt 9) wird
+            // als UF-001-Fehlerzeile sichtbar ausgegeben.
+            Console.Error.WriteLine(
+                $"kommandoschleife: Befehl abgewiesen - {SessionContract.RejectReasonTargetNotInZone} bei ({pixelX:F0}, {pixelY:F0}).");
+            input.NoZoneRejects++;
+            return;
+        }
+
+        pipeline.EnqueueLiveIntent(new GrayboxIntent(
+            (int)world.TickIndex,
+            GrayboxIntentKind.GroupMoveToZone,
+            zone));
+    }
+
+    private static InteractiveCameraMath.GroundPoint? ScreenToGroundOrNothing(GrayboxCamera camera, double pixelX, double pixelY) =>
+        InteractiveCameraMath.ScreenToGround(camera, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight, pixelX, pixelY);
+
+    private static long GcCollectionTotal() =>
+        GC.CollectionCount(0) + GC.CollectionCount(1) + GC.CollectionCount(2);
+
+    private static long ToMillimeters(double meters, long axisMaximumMillimeters)
+    {
+        var millimeters = (long)Math.Round(meters * 1000.0, MidpointRounding.AwayFromZero);
+        return Math.Clamp(millimeters, 0, axisMaximumMillimeters);
+    }
+
+    /* -------------------------------------------------------------- Abgriff */
+
+    private static CaptureOutcome ExecuteCapture(
+        BgfxDevice device,
+        InteractiveSceneResources resources,
+        InteractiveView view,
+        SimWorld world,
+        GrayboxCamera camera,
+        float[] projection,
+        string artifactPath)
+    {
+        try
+        {
+            var rtTexture = device.CreateTexture2D(
+                BenchRunner.DefaultWidth,
+                BenchRunner.DefaultHeight,
+                BgfxSceneApi.TextureFormatRgba8,
+                BgfxSceneApi.TextureFlagRt,
+                initialData: default);
+            var frameBuffer = device.CreateFrameBufferFromTexture(rtTexture);
+            var readBackTexture = device.CreateTexture2D(
+                BenchRunner.DefaultWidth,
+                BenchRunner.DefaultHeight,
+                BgfxSceneApi.TextureFormatRgba8,
+                BgfxSceneApi.TextureFlagBlitDst | BgfxSceneApi.TextureFlagReadBack,
+                initialData: default);
+
+            try
+            {
+                var view16 = InteractiveCameraMath.View16(camera);
+                var basis = InteractiveCameraMath.BillboardBasis(camera);
+                var markerCount = view.WriteFrameState(world, world.TickIndex);
+
+                resources.SubmitCompositePass(
+                    device,
+                    InteractiveViews.ViewCapture,
+                    view16,
+                    projection,
+                    basis,
+                    view.UnitsPointer,
+                    SimulationContract.AgentCount,
+                    view.MarkersPointer,
+                    (uint)markerCount);
+
+                device.RenderFrame();
+                device.BlitFull(InteractiveViews.ViewBlit, readBackTexture, rtTexture, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
+                device.RenderFrame();
+
+                var captureBytes = new byte[BenchRunner.DefaultWidth * BenchRunner.DefaultHeight * 4];
+                var captureHandle = GCHandle.Alloc(captureBytes, GCHandleType.Pinned);
+
+                try
+                {
+                    var readyFrame = device.ReadTextureBegin(readBackTexture, captureHandle.AddrOfPinnedObject(), (uint)captureBytes.Length);
+                    uint currentFrame;
+
+                    do
+                    {
+                        currentFrame = device.RenderFrame();
+                    }
+                    while (currentFrame < readyFrame);
+                }
+                finally
+                {
+                    captureHandle.Free();
+                }
+
+                var bmp = FrameEvidence.EncodeBmpFromRgbaTopDown(captureBytes, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
+                File.WriteAllBytes(artifactPath, bmp);
+                Console.WriteLine($"frame-artifact={artifactPath}");
+
+                return new CaptureOutcome(
+                    Requested: true,
+                    Captured: true,
+                    Failed: false,
+                    Reason: string.Empty,
+                    ArtifactSha256Hex: FrameEvidence.Sha256Hex(bmp));
+            }
+            finally
+            {
+                device.DestroyFrameBuffer(frameBuffer);
+                device.DestroyTexture(readBackTexture);
+                device.DestroyTexture(rtTexture);
+                device.SetViewFrameBuffer(InteractiveViews.ViewCapture, BgfxDevice.InvalidIndex);
+            }
+        }
+        catch (PlatformException exception)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Frameabgriff fehlgeschlagen: {exception.Error}");
+            return new CaptureOutcome(true, false, true, "capture-failed-controlled", null);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Frameabgriff fehlgeschlagen: {exception.Message}");
+            return new CaptureOutcome(true, false, true, "artifact-not-writable", null);
+        }
+    }
+
+    /* --------------------------------------------------------------- Report */
+
+    internal sealed record CaptureOutcome(
+        bool Requested,
+        bool Captured,
+        bool Failed,
+        string Reason,
+        string? ArtifactSha256Hex = null);
+
+    internal static CaptureOutcome NotRequestedCapture() =>
+        new(false, false, false, CommandFrameEvidence.ReasonNotRequested);
+
+    internal sealed record WorkingSetSamples(
+        bool Measured,
+        long? MinKiB,
+        long? MaxKiB,
+        long? EndKiB,
+        string? Reason);
+
+    internal sealed record FrameBandValues(double P50, double P95, double P99);
+
+    internal sealed record InteractiveExtras(
+        FrameBandValues FrameBand,
+        bool GpuTimeMeasured,
+        double GpuTimeP99Ms,
+        long GpuTimerFrequencyHz,
+        long DrawCallsMax,
+        long TrianglesMax,
+        long PeakMarkers);
+
+    internal sealed record ReportContext(
+        string ExecutionMode,
+        uint Seed,
+        ParsedInputScript Parsed,
+        int WarmupTicks,
+        int HorizonTicks,
+        DateTime ProcessStart,
+        string Commit,
+        string BuildMode,
+        SystemInfo.Environment Environment,
+        IReadOnlyList<ToolchainPin> Pins,
+        SessionMetrics Metrics,
+        ulong StartHash,
+        ulong EndHash,
+        long[] IntervalSampleTicks,
+        ulong[] IntervalHashes,
+        int AppliedIntents,
+        int RejectedIntents,
+        int EmptyPointDeselects,
+        int MoveWithoutSelectionRejects,
+        int NoZoneRejects,
+        int KernelCommandsTotal,
+        CommandGateVerdict Verdict,
+        bool WindowCompleted,
+        CaptureOutcome Capture,
+        object? Display,
+        WorkingSetSamples WorkingSet,
+        int ExitCode,
+        InteractiveExtras? InteractiveExtras = null);
+
+    internal static object BuildReport(ReportContext ctx) => new
+    {
+        schemaVersion = CommandReportSchema.CurrentVersion,
+        mode = CommandReportSchema.ModeCommandLoop,
+        executionMode = ctx.ExecutionMode,
+        command = $"{CommandName} --scenario {SessionContract.ScenarioId} --input-script <PFAD> --seed N --report <PFAD>",
+        scenario = new
+        {
+            id = SessionContract.ScenarioId,
+            seed = ctx.Seed,
+            tickRateHz = SimulationContract.TickRateHz,
+            agentCount = SimulationContract.AgentCount,
+            worldId = SimulationContract.WorldId,
+            content = SessionContract.ContentId,
+        },
+        commandContract = new
+        {
+            document = SessionContract.DocumentPath,
+            version = SessionContract.ContractVersion,
+            scriptFormat = SessionContract.ScriptFormatId,
+            selectionModel = SessionContract.SelectionModelId,
+            cameraModel = SessionContract.CameraModelId,
+            diagnosticOnlyReplayDisclaimer = true,
+        },
+        simulationContract = new
+        {
+            document = SimulationContract.DocumentPath,
+            version = SimulationContract.ContractVersion,
+            numericModel = SimulationContract.NumericModelId,
+            hashAlgorithm = SimulationContract.HashAlgorithmId,
+            allocationLimitBytesPerWarmTick = SimulationContract.AllocationLimitBytesPerWarmTick,
+        },
+        inputScript = new
+        {
+            scriptSha256 = ctx.Parsed.ScriptSha256Hex,
+            intentPlanHash = ctx.Parsed.IntentPlanHashHex,
+            horizonTicks = ctx.HorizonTicks,
+            warmupTicks = ctx.WarmupTicks,
+            intentsTotal = ctx.Parsed.Intents.Length,
+            appliedTotal = ctx.AppliedIntents,
+            rejectedTotal = ctx.RejectedIntents,
+            emptyPointDeselects = ctx.EmptyPointDeselects,
+            moveWithoutSelectionRejects = ctx.MoveWithoutSelectionRejects,
+            noZoneRejects = ctx.NoZoneRejects,
+            kernelCommandsTotal = ctx.KernelCommandsTotal,
+        },
+        startedAtUtc = ctx.ProcessStart,
+        finishedAtUtc = DateTime.UtcNow,
+        environment = BuildEnvironment(ctx),
+        measurement = new
+        {
+            warmupTicks = (long)ctx.WarmupTicks,
+            sampleTicks = (long)(ctx.HorizonTicks - ctx.WarmupTicks),
+            ticksExecuted = (long)ctx.HorizonTicks,
+            hashSampleIntervalTicks = (long)SessionContract.HashSampleIntervalTicks,
+            rssSampleIntervalTicks = (long)SessionContract.RssSampleIntervalTicks,
+            windowCompleted = ctx.WindowCompleted,
+        },
+        metrics = BuildMetrics(ctx),
+        stateHashChain = new
+        {
+            unit = "hex64",
+            method = SimulationContract.HashAlgorithmId,
+            start = FormatHash(ctx.StartHash),
+            intervalSampleTicks = ctx.IntervalSampleTicks,
+            intervalHashes = ctx.IntervalHashes.Select(FormatHash).ToArray(),
+            end = FormatHash(ctx.EndHash),
+        },
+        gate = new
+        {
+            limits = new
+            {
+                p99TickTimeHardLimitMs = CommandGateLimits.Documented.P99TickTimeHardLimitMs,
+                p99TickTimeTargetMs = CommandGateLimits.Documented.P99TickTimeTargetMs,
+                allocationsPerWarmTickBytesMax = CommandGateLimits.Documented.AllocationsPerWarmTickLimitBytes,
+                reactionHardLimitTicks = CommandGateLimits.Documented.ReactionHardLimitTicks,
+                reactionTargetTicks = CommandGateLimits.Documented.ReactionTargetTicks,
+                runtimeShaderCompilationAllowed = false,
+            },
+            stateChainSelfConsistency = ctx.ExecutionMode == CommandReportSchema.ExecutionInteractive
+                ? ChainCriterion.NotEvaluated()
+                : ChainCriterion.Evaluated(),
+            pass = ctx.WindowCompleted ? ctx.Verdict.Pass : false,
+            tickTimeTargetMet = ctx.Verdict.TickTimeTargetMet,
+            reactionTargetMet = ctx.Verdict.ReactionTargetMet,
+            violations = ctx.WindowCompleted
+                ? ctx.Verdict.Violations
+                : ctx.Verdict.Violations.Append("run-incomplete-no-evidence").ToArray(),
+        },
+        openQuestions = OpenQuestions(),
+        profiles = ProfileBinding.MandatoryWithoutReferenceHardware()
+            .Select(status => new
+            {
+                id = status.ProfileId,
+                status = status.Status,
+                boundReferenceClass = status.BoundReferenceClass,
+                reason = status.Reason,
+            })
+            .ToArray(),
+        baseline = new
+        {
+            classification = "diagnostic-developer-workstation",
+            protocol = "qops001-2026-08-24",
+        },
+        frameEvidence = BuildFrameEvidence(ctx.Capture),
+        exitCode = ctx.ExitCode,
+    };
+
+    private static Dictionary<string, object> BuildEnvironment(ReportContext ctx)
+    {
+        var environment = new Dictionary<string, object>
+        {
+            ["os"] = new { type = ctx.Environment.OsType, kernelRelease = ctx.Environment.KernelRelease },
+            ["cpu"] = new { model = ctx.Environment.CpuModel },
+            ["rid"] = BenchEnvironment.Rid(),
+            ["commit"] = ctx.Commit,
+            ["buildMode"] = ctx.BuildMode,
+            ["display"] = ctx.Display
+                ?? (object)new
+                {
+                    measured = false,
+                    reason = "headless-mode-native-artifacts-not-loaded",
+                },
+            ["pins"] = ctx.Pins.Select(pin => new Dictionary<string, string>
+            {
+                ["id"] = pin.Id,
+                ["refType"] = pin.RefType,
+                ["ref"] = pin.Ref,
+                ["commit"] = pin.Commit,
+                ["sourceSha256"] = pin.SourceSha256,
+                ["licenseSpdx"] = pin.LicenseSpdx,
+            }).ToArray(),
+        };
+
+        return environment;
+    }
+
+    private static Dictionary<string, object> BuildMetrics(ReportContext ctx)
+    {
+        var metrics = ctx.Metrics;
+        var interactive = ctx.ExecutionMode == CommandReportSchema.ExecutionInteractive;
+
+        var result = new Dictionary<string, object>
+        {
+            ["tickTimeMs"] = new
+            {
+                unit = "ms",
+                method = "stopwatch-tick-delta",
+                p50 = Math.Round(metrics.P50TickTimeMs, 3),
+                p95 = Math.Round(metrics.P95TickTimeMs, 3),
+                p99 = Math.Round(metrics.P99TickTimeMs, 3),
+            },
+            ["managedAllocationsBytes"] = new
+            {
+                unit = "bytes",
+                method = "gc-total-allocated-bytes-precise-delta-per-tick-sum",
+                perWarmTick = Math.Round(metrics.AllocationsPerWarmTickBytes, 3),
+            },
+            ["reactionTicks"] = new
+            {
+                unit = "ticks",
+                method = "command-submission-tick-to-first-effect-state-hash-delta",
+                p50 = metrics.ReactionP50Ticks,
+                p95 = metrics.ReactionP95Ticks,
+                p99 = metrics.ReactionP99Ticks,
+                max = metrics.MaxReactionTicks,
+                count = metrics.ReactionSampleCount,
+                target = SessionContract.ReactionTargetTicks,
+                hardLimit = SessionContract.ReactionHardLimitTicks,
+            },
+            ["runtimeShaderCompilation"] = new
+            {
+                unit = "bool",
+                method = "offline-shaderc-binaries-only",
+                value = false,
+            },
+            ["gcPauseSumMs"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "ms",
+                ["method"] = "gc-get-total-pause-duration-delta",
+                ["value"] = Math.Round(metrics.GcPauseSumMs, 3),
+            }),
+            ["gcPauseCount"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "count",
+                ["method"] = "gc-collection-count-gen0-to2-delta",
+                ["value"] = metrics.GcPauseCount,
+            }),
+            ["activeAgents"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "count",
+                ["method"] = "soa-agent-count-fixed",
+                ["value"] = SimulationContract.AgentCount,
+            }),
+            ["workingSetKiB"] = ctx.WorkingSet.Measured
+                ? DiagnosticEnvelope(new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["unit"] = "KiB",
+                    ["method"] = "proc-self-status-vmrss-samples",
+                    ["min"] = ctx.WorkingSet.MinKiB!.Value,
+                    ["max"] = ctx.WorkingSet.MaxKiB!.Value,
+                    ["end"] = ctx.WorkingSet.EndKiB!.Value,
+                })
+                : (object)new
+                {
+                    measured = false,
+                    reason = ctx.WorkingSet.Reason ?? "rss-sampler-unavailable",
+                },
+        };
+
+        if (interactive && ctx.InteractiveExtras is { } extras)
+        {
+            result["frameTimeMs"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "ms",
+                ["method"] = "stopwatch-delta-around-windowed-simulation-tick-including-allocation-probes",
+                ["p50"] = Math.Round(extras.FrameBand.P50, 3),
+                ["p95"] = Math.Round(extras.FrameBand.P95, 3),
+                ["p99"] = Math.Round(extras.FrameBand.P99, 3),
+            });
+
+            if (extras.GpuTimeMeasured)
+            {
+                result["gpuTimeMs"] = DiagnosticEnvelope(new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["unit"] = "ms",
+                    ["method"] = "bgfx-stats-gpu-timer-p99",
+                    ["p99"] = Math.Round(extras.GpuTimeP99Ms, 3),
+                    ["timerFreqHz"] = extras.GpuTimerFrequencyHz,
+                });
+            }
+            else
+            {
+                result["gpuTimeMs"] = new
+                {
+                    measured = false,
+                    reason = "backend-gpu-timer-unavailable",
+                };
+            }
+
+            result["drawSubmitCallsPerFrame"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "count",
+                ["method"] = "bgfx-stats-numdraw-max-including-shadow-passes",
+                ["value"] = extras.DrawCallsMax,
+            });
+            result["visibleTrianglesPerFrame"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "count",
+                ["method"] = "bgfx-stats-numprims-trilist-max-including-shadow-passes",
+                ["value"] = extras.TrianglesMax,
+            });
+            result["concurrentMarkers"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "count",
+                ["method"] = "marker-instance-count-max-per-frame",
+                ["peak"] = extras.PeakMarkers,
+            });
+        }
+        else
+        {
+            var unavailableReason = ctx.WindowCompleted
+                ? "headless-cpu-scenario-no-renderer"
+                : "run-incomplete-no-evidence";
+
+            result["frameTimeMs"] = Unavailable(unavailableReason);
+            result["gpuTimeMs"] = Unavailable(unavailableReason);
+            result["drawSubmitCallsPerFrame"] = Unavailable(unavailableReason);
+            result["visibleTrianglesPerFrame"] = Unavailable(unavailableReason);
+            result["concurrentMarkers"] = Unavailable(unavailableReason);
+        }
+
+        return result;
+    }
+
+    private static object Unavailable(string reason) => new
+    {
+        measured = false,
+        reason,
+    };
+
+    private static Dictionary<string, object> DiagnosticEnvelope(Dictionary<string, object> payload)
+    {
+        payload["gateCoupled"] = false;
+        return payload;
+    }
+
+    /// <summary>
+    /// Ausweis des Ketten-Selbstkonsistenzkriteriums (Kommandovertrag §7):
+    /// headless ausgewertet (Ergebnis über pass/violations), im
+    /// Interaktivmodus ausdrücklich nicht auswertbar mit maschinenlesbarem
+    /// Grund statt stiller Behauptung.
+    /// </summary>
+    internal static class ChainCriterion
+    {
+        public const string InteractiveReason = "live-inputs-nondeterministic-criterion-not-asserted";
+
+        public static object Evaluated() => new { evaluated = true };
+
+        public static object NotEvaluated() => new { evaluated = false, reason = InteractiveReason };
+    }
+
+    /// <summary>
+    /// Vertragliche Exitcodepraezedenz des Interaktivmodus (Kommandovertrag §8,
+    /// NATIVE_UNTERBAU.md): Ein unvollstaendiger Lauf (windowCompleted=false)
+    /// ist niemals Evidenz und dominiert deshalb stets mit Code 36 — auch wenn
+    /// ein Abgriff angefordert war, der wegen der Unvollstaendigkeit unterbleiben
+    /// musste; sein Grund bleibt im Report gebunden (captured=false). Bei
+    /// abgeschlossenem Fenster entscheidet ein fehlgeschlagener opt-in Abgriff
+    /// mit Code 38, sonst das Gateverdict.
+    /// </summary>
+    internal static int ResolveInteractiveExitCode(bool windowCompleted, bool captureFailed, int gateExitCode)
+    {
+        if (!windowCompleted)
+        {
+            return ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete);
+        }
+
+        return captureFailed
+            ? ExitCodes.Map(PlatformErrorCode.CommandCaptureFailed)
+            : gateExitCode;
+    }
+
+    private static Dictionary<string, string> OpenQuestions() => new()
+    {
+        ["qtec004"] = "open",
+        ["qtec006"] = "open",
+        ["qtec010"] = "open",
+        ["qgam001"] = "open",
+        ["qgam002"] = "open",
+        ["qgam003"] = "open",
+        ["qgam004"] = "open",
+        ["qgam005"] = "open",
+        ["qgam006"] = "open",
+        ["qgam007"] = "open",
+        ["qnar002"] = "open",
+    };
+
+    private static object BuildFrameEvidence(CaptureOutcome capture) =>
+        !capture.Requested
+            ? new { captured = false, reason = CommandFrameEvidence.ReasonNotRequested }
+            : capture.Captured
+                ? (object)new
+                {
+                    captured = true,
+                    afterMeasurementWindow = true,
+                    width = BenchRunner.DefaultWidth,
+                    height = BenchRunner.DefaultHeight,
+                    format = FrameEvidence.FormatId,
+                    sha256 = capture.ArtifactSha256Hex!,
+                    statementLimit = CommandFrameEvidence.StatementLimit,
+                }
+                : new { captured = false, reason = capture.Reason };
+
+    private static int FinishReport(string reportPath, string reportJson, int successExitCode)
+    {
+        var schemaErrors = CommandReportSchema.Validate(reportJson);
+
+        if (schemaErrors.Count > 0)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Report widerspricht dem Schemavertrag: {string.Join("; ", schemaErrors)}");
+            BenchRunner.WriteReportOrDiagnose(reportPath, reportJson);
+            return ExitCodes.Map(PlatformErrorCode.TelemetryInvalid);
+        }
+
+        if (!BenchRunner.WriteReportOrDiagnose(reportPath, reportJson))
+        {
+            return ExitCodes.Map(PlatformErrorCode.ReportNotWritable);
+        }
+
+        return successExitCode;
+    }
+
+    /// <summary>Schreibt einen als keine Evidenz markierten Teilreport (Exitcode 36).</summary>
+    private static int WriteIncompleteReport(
+        string reportPath,
+        string executionMode,
+        uint seed,
+        ParsedInputScript parsed,
+        int warmupTicks,
+        int horizonTicks,
+        string commit,
+        string buildMode,
+        SystemInfo.Environment environment)
+    {
+        var verdict = new CommandGateVerdict(
+            Pass: false,
+            TickTimeTargetMet: false,
+            ReactionTargetMet: false,
+            Violations: ["run-incomplete-no-evidence"]);
+
+        var zeroMetrics = new SessionMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
+            ExecutionMode: executionMode,
+            Seed: seed,
+            Parsed: parsed,
+            WarmupTicks: warmupTicks,
+            HorizonTicks: horizonTicks,
+            ProcessStart: DateTime.UtcNow,
+            Commit: commit,
+            BuildMode: buildMode,
+            Environment: environment,
+            Pins: Array.Empty<ToolchainPin>(),
+            Metrics: zeroMetrics,
+            StartHash: 0,
+            EndHash: 0,
+            IntervalSampleTicks: [0],
+            IntervalHashes: [0],
+            AppliedIntents: 0,
+            RejectedIntents: 0,
+            EmptyPointDeselects: 0,
+            MoveWithoutSelectionRejects: 0,
+            NoZoneRejects: 0,
+            KernelCommandsTotal: 0,
+            Verdict: verdict,
+            WindowCompleted: false,
+            Capture: NotRequestedCapture(),
+            Display: null,
+            WorkingSet: new WorkingSetSamples(false, null, null, null, "run-incomplete"),
+            ExitCode: ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete))), BenchRunner.ReportJsonOptions) + "\n";
+
+        Console.Error.WriteLine("kommandoschleife: Teilreport gilt ausdruecklich nicht als Evidenz.");
+        return FinishReport(reportPath, reportJson, ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete));
+    }
+
+    private static string FormatHash(ulong hash) =>
+        hash.ToString(SimReportSchema.HashFormat, CultureInfo.InvariantCulture);
+}
