@@ -1108,3 +1108,67 @@ auf allen 350 getrackten Pfaden; die .git-lose ASSET_LANE-Lücke blieb auch hier
 nicht reproduzierbar und unverändert dem verschobenen Slice vorbehalten.
 Endgültige Finalbaumbindung nach dieser Doku-Erweiterung in
 `artifacts/t032-r17/final-candidate-tree.txt`.
+
+Am 2026-08-27 prüfte eine weitere unabhängige Frisch-Review-/Reparatursitzung
+(Akteur `t032-rev18-independent`, Harness-Run `01M11TFJNZRKEAMGPCDN98X416`) den
+Kandidaten vollständig ohne Übernahme der Vorgängerbehauptungen. Empfangene
+Identität indexfrei zweifach konvergent (privater Temporärindex gegen
+Klon-Methode) = `633d979b0c585d11bca0caaf5e8b01c2f1425889`, deckungsgleich mit
+der r17-Finalbindung (kein Drift); 38 Auftragspfade (20 M/18 A), genau ein
+Task-Manifest, 350 getrackte Dateien; `Riftward.Simulation` byteidentisch,
+`GAME_DESIGN.md` unberührt. Alle schnellen Gates eigenständig grün (Build 0
+Warnungen, lint 0, Testsuite 245/245, security PASS, rag-build, assets-check
+0, verify valid runsChecked=65; 15/15 Manifeste schemavalid). Autoritative
+Läufe mit selbst komponierten Skripten (Horizont 900, Seed 9001): Skript A
+Paarendhash `61108e1fadc7b8bd` (byteidentische Ketten, kernelCommandsTotal 5),
+Skript B `c2e8d126b7317d46` (kernelCommandsTotal 10); Fremdseed 42 ändert
+Start- und Endhash nachweislich; Negativmatrix je 37 ohne Report; displaylose
+Interaktivläufe je 19 ohne Report; Regressionen bench-sim/savecheck/
+Soak-Kurzlauft grün.
+
+Drei In-Scope-Wahrhaftigkeits-/Kohärenzdefekte des Primärslices wurden
+numerisch am gepinnten bgfx-/bx-Stand bewiesen und ohne Berührung eines
+zweiten akzeptierten Task-Manifests repariert: (1) Die
+Interaktivkamera (`EyePosition/CenterPosition`) stand im Simulationsraum,
+während Szene und Terrain im Render-Raum um den Ursprung zentriert sind — das
+gerenderte Interaktivbild war um die halbe Weltgröße verschoben und das
+Terrain wurde außerhalb des Kachelrasters gesampelt; Reparatur durch
+Konversion in den Render-Raum. (2) Die Bildschirm-zu-Boden-Umprojektion
+invertierte `Multiply(view, projection)`; die exakte Umkehrung der gepinnten
+bgfx-Clipkette (`float4x4_mul(view, proj)` mit bx-Zeilenvektorsemantik,
+Shader `mul(u_viewProj, pos)`) erfordert `Invert(Multiply(projection, view))`
+— der alte Codepfad entartete zu einem nahezu konstanten Bodenpunkt (~(78, 45)
+für jeden Pixel), wäre als Auswahl unklickbar gewesen und hätte jeden
+Rechtsklick faktisch mit `target-not-in-zone` abgewiesen; der Rundtrip-Beweis
+(Pixel (818,559) ↔ Sim (85,000, 45,000)) bindet die Reparatur. Die bestehende
+Suite blieb daraufhin fälschlich grün, weil ihr Picking-Test nur „Bildmitte
+innerhalb Weltgrenzen" prüfte. (3) `pan-up`/`pan-down` waren gegen die feste
+Nordausrichtung und das Rand-Schwenken invertiert (§4-Präzisierung); die
+horizontale Bildschirmorientierung (Osten erscheint links) ist als
+beobachtete Eigenschaft der akzeptierten T-020/T-023-Renderkonvention in §4
+dokumentiert und bewusst nicht still geändert (Playtestgegenstand, Änderung =
+Vertragsänderung). Testbestand 245 → 246: neuer Suiteeintrag
+`panDirectionsMatchEdgePanAndNorthUpContract` (Kameramathematik,
+Runner-Quellfragmente, Kantenkohärenz, §4-Absatz) und Härtung des Kameratests
+von der vacanten „Bildmitte in Weltgrenzen"-Prüfung auf
+Zentrumtreffer (±3 m), Entartungsschwellen (> 20 m Achsabdeckung),
+Achsenentkopplung, oben = Norden und Render-Raum-Bindung. Headless-Ketten
+beweislich unberührt: A/B-Paare und Fremdseed nach Reparatur byteidentisch
+(`61108e1fadc7b8bd`, `c2e8d126b7317d46`, `5dc26dde0adda060`); Negativmatrix
+(37 ohne Report) und displayloser Interaktivlauf (19) unverändert; alle
+schnellen Gates danach erneut grün (Testsuite 246/246, verify valid
+runsChecked=66).
+
+Fresh-Checkout-/Clean-Archive-Vertrag am reparierten Vorbindung-Baum
+`5d0e598f9cd3757a6cf5b70951aa15d62215c293` vollständig: indexfrei zweifach
+konvergent (privater Temporärindex gegen Klon-Methode), Doppel-Extraktion
+byteidentisch (350 Dateien), Gatefolge ausschließlich aus Archivbytes (Build 0
+Warnungen, lint 0, Testsuite 246/246, security PASS, assets-check 0, rag-build,
+verify valid runsChecked=0), autoritative Archivläufe A/B mit zeichengleichen
+Endhashes und byteidentischen Ketten, NO_DRIFT nach allen Gates (350/350).
+Der historische `ASSET_GIT_CHECK_FAILED`-Befund blieb nicht reproduzierbar.
+Die vier verschobenen unabhängigen Reparaturen (ASSET_LANE-Git-Check, vakuoese
+Reaktionsmetrik V == S, stille NumberOption-Defaults/-Clamps, Härtung
+`allocationStrictnessRegression`) bleiben unverändert spätere Slices.
+Endgültige Finalbaumbindung nach dieser Doku-Erweiterung in
+`artifacts/t032-rev18/final-candidate-tree.txt`.

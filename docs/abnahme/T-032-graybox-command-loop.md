@@ -1574,3 +1574,137 @@ der geprüften Bytes gebunden:
 ```text
 artifacts/t032-r17/final-candidate-tree.txt
 ```
+
+## Unabhängige Frisch-Review-/Reparatursitzung 2026-08-27 (Akteur `t032-rev18-independent`, Harness-Run `01M11TFJNZRKEAMGPCDN98X416`)
+
+Empfangene Identität: indexfreie Rekonstruktion zweifach konvergent (privater
+Temporärindex `read-tree HEAD` + `update-index` aus Arbeitsbytes gegen
+Klon-Methode `clone HEAD` + Arbeitsbyte-Kopie + `update-index`) =
+`633d979b0c585d11bca0caaf5e8b01c2f1425889` (deckungsgleich mit der
+r17-Finalbindung, beweislich kein Drift); 38 Auftragspfade (20 M/18 A), genau
+ein Task-Manifest, 350 getrackte Dateien; `Riftward.Simulation` byteidentisch,
+`GAME_DESIGN.md` unberührt. Alle schnellen Gates und autoritativen Läufe wurden
+ohne Übernahme der Vorgängerbehauptungen eigenständig ausgeführt.
+
+**Schnelle Gates (Vorbindung):** Release-Build 0 Warnungen, lint 0 Befunde,
+Testsuite 245/245, security PASS, rag-build OK, assets-check 0 Findings,
+verify valid (`runsChecked=65`); Task-Manifeste 15/15 gültig gegen
+`.ai/schemas/task.schema.json` (JsonSchema.Net 8.0.5, Scratch-Validator unter
+gitignoriertem `.ai/runtime/t032-rev18/`, kein Kandidatenpfad berührt).
+
+**Autoritative Läufe (Vorbindung):** selbst komponierte Skripte (Horizont 900,
+Seed 9001, Warm-up 240) — Skript A (8 Intents; Gleichtick-Absendung
+`move`/`box`/`point` in unsortierter Dateireihenfolge als Kanonisierungsprobe)
+Paarendhash `61108e1fadc7b8bd` mit byteidentischen Ketten (12 Stichproben),
+`kernelCommandsTotal=5`, `moveWithoutSelectionRejects=2`; Skript B (9 Intents)
+Paarendhash `c2e8d126b7317d46`, byteidentische Ketten, `kernelCommandsTotal=10`;
+je Paar `gate.pass=true`, Allokation 0 Bytes je warmem Tick, `max reactionTicks
+1`, Kettenkriterium `evaluated=true`. Fremdseed 42 ändert Start- und Endhash
+nachweislich (`825225ad2acc8580`/`5dc26dde0adda060`). Negative Matrix
+(malformierter Header, Kopfhorizontabweichung, unbekannte Aktion, Zone 6,
+duplizierter Intent, übergrosses Sparse-Skript am Rohmaterial, `/dev/null`,
+unbekanntes Szenario) je Exitcode 37 ohne Report; displaylose Interaktivläufe
+ohne `DISPLAY`/`WAYLAND_DISPLAY` und gegen nicht existierenden Wayland-Socket
+je Exitcode 19 ohne Report. Regressionen: bench-sim Exit 0
+(`gate.pass=true`, p99 0,531 ms), savecheck Exit 0 (alle Prüfklassen),
+Soak-Kurzlauft 3480 Ticks diagnostisch (`evidenceUnit=false`) Exit 0.
+
+**Fresh-Checkout-/Clean-Archive-Vertrag (Vorbindung):** Doppel-`git-archive`-
+Extraktion byteidentisch (350 Dateien); Gatefolge ausschließlich aus
+Archivbytes (Build 0 Warnungen, lint 0, Testsuite 245/245, security PASS,
+assets-check 0, rag-build, verify valid `runsChecked=0` — erwartungsgemäß
+ohne portierte gitignorierte Runtime-Evidenz); autoritative Archivläufe mit
+zeichengleichen Endhashes und vollständig byteidentischen Ketten (cmp)
+gegenüber den Arbeitsbaumläufen; NO_DRIFT nach allen Gates gegen die
+unangetastete Zweitextraktion (alle 350 getrackten Pfade byteidentisch;
+einzige Zugaben: die vier Sitzungseingaben/-berichte der Archivläufe).
+
+**Defektbefunde und In-Scope-Reparaturen im Primärslice** (ohne Berührung
+eines zweiten akzeptierten Task-Manifests; numerisch am gepinnten bgfx-Stand
+`35a98dd6…` und bx-Pin bewiesen, nicht behauptet):
+
+1. **Kamera im falschen Raum:** `InteractiveCameraMath.EyePosition/
+   CenterPosition` bauten Auge und Blickziel in Simulationsmetern (0…160),
+   während Landschaftsmesh, Einheiten- und Marker-Instanzen im Render-Raum
+   (um den Ursprung zentriert, `ToWorldX/ToWorldZ`) liegen. Die gerenderte
+   Interaktivszene war dadurch um die halbe Weltgröße gegenüber der Kamera
+   verschoben, und `HeightAt` wurde außerhalb des Kachelrasters gesampelt.
+   Reparatur: Konversion in den Render-Raum vor LookAt und Terrain-Sampling.
+2. **Umprojektion mit vertauschter Kombinationsreihenfolge:**
+   `ScreenToGround` invertierte `Multiply(view, projection)`. Die gepinnte
+   bgfx-Kette komponiert `u_viewProj = float4x4_mul(view, proj)` (renderer.h)
+   mit bx-Zeilenvektorsemantik und wendet sie als `mul(u_viewProj, pos)` an;
+   die exakte Umkehrung ist `Invert(Multiply(projection, view))`. Der
+   Codepfad entartete nachweislich zu einem nahezu konstanten Bodenpunkt
+   (~(78, 45) für jeden Pixel; je 1720 Pixel Abdeckung 0,05 m statt
+   Jahrzehnten-Meterbereich) — Punktauswahl, Rahmenauswahl und Befehlsziel
+   wären im Interaktivmodus unbedienbar gewesen und jeder Rechtsklick hätte
+   faktisch `target-not-in-zone` geliefert. Reparatur: Reihenfolge getauscht.
+   Numerischer Rundtrip-Beweis (Probe gegen die gebauten Assemblies):
+   Vorwärtskette projiziert Sim (85,0,45) → Pixel (818,559); Rückprojektion
+   mit reparierter Reihenfolge liefert exakt (85,000, 45,000); der alte
+   Codepfad liefert (−1,906, −0,023) bzw. entartete Punkte. Die bestehende
+   Suite hob diesen Defekt nicht, weil ihr einziger Picking-Test nur
+   „Bildmitte innerhalb der Weltgrenzen" prüfte — der entartete Punkt lag
+   scheinbar grün in der Weltmitte.
+3. **Vertikale Tastenschwenkrichtung gegen den Vertrag:** `pan-up` schob die
+   Sicht nach Süden (+Z), während der Rand-Kontakt am oberen Fensterrand
+   nach Norden (−Z) schwenkt; §4 fixiert „feste Nordausrichtung". Reparatur:
+   `pan-up` → −Z, `pan-down` → +Z, kohärent zum Rand-Schwenken. Die
+   horizontale Richtung ist zwischen Tasten und Rand ebenfalls kohärent; dass
+   Osten am linken Bildschirmrand erscheint, ist eine beobachtete Eigenschaft
+   der akzeptierten T-020/T-023-Renderkonvention (bx-LookAt, `Handedness::
+   Left`) und wird bewusst nicht still geändert — sie ist als Playtestgegenstand
+   in §4 dokumentiert; ihre Änderung ist eine Vertragsänderung.
+
+**Testbestand 245 → 246:** Neuer Suiteeintrag
+`panDirectionsMatchEdgePanAndNorthUpContract` (bindet Kameramathematik,
+Runner-Quellfragmente der Schwenkrichtungen, Kantenschwenk-Kohärenz und den
+neuen §4-Absatz); der Kameratest `cameraModelClampsWorldEdgesAndZoom` wurde
+von der vakuen „Bildmitte in Weltgrenzen"-Prüfung auf die harte Bindung
+verschaerft: Bildmitte trifft das Kamerazentrum (±3 m), horizontale/vertikale
+Abdeckung > 20 m (Totschlag der Entartungsklasse), achsenentkoppelte Randproben,
+oben = Norden (−Z), Kamera im Render-Raum (Auge/Blickziel an `ToWorldX/
+ToWorldZ` und Terrain-Sampling am konvertierten Punkt gebunden).
+
+**Headless-Ketten beweislich unberührt:** A/B-Paare und Fremdseed nach den
+Reparaturen erneut ausgeführt — Endhashes und vollständige Kettenstichproben
+byteidentisch zu den Vorbindungsläufen (`61108e1fadc7b8bd`,
+`c2e8d126b7317d46`, `5dc26dde0adda060`); Negativmatrix und displayloser
+Interaktivlauf unverändert (37 ohne Report, 19 ohne Report).
+
+**Schnelle Gates nach Reparatur und Doku-Erweiterung** (KOMMANDOVERTRAG §4
+Richtungskohärenz ist Teil der Reparatur und vom neuen Suiteeintrag gebunden):
+Release-Build 0 Warnungen, fmt ohne verbleibende Fixes, lint 0 Befunde,
+Testsuite 246/246, security PASS, rag-build OK (Index neu gebunden),
+assets-check 0 Findings, verify valid (`runsChecked=66`), 15/15 Manifeste
+schemavalid.
+
+**Fresh-Checkout-/Clean-Archive-Vertrag am reparierten Vorbindung-Baum
+`5d0e598f9cd3757a6cf5b70951aa15d62215c293`** (indexfrei zweifach konvergent,
+38 Auftragspfade, genau ein Task-Manifest, 350 Dateien): Doppel-Extraktion
+byteidentisch; Gatefolge aus Archivbytes (Build 0 Warnungen, lint 0,
+Testsuite 246/246, security PASS, assets-check 0, rag-build, verify valid
+`runsChecked=0`); autoritative Archivläufe A/B mit zeichengleichen Endhashes
+und byteidentischen Ketten gegenüber den Arbeitsbaumläufen; NO_DRIFT gegen
+die Zweitextraktion (350/350). Der `ASSET_GIT_CHECK_FAILED`-Befund blieb auch
+hier nicht reproduzierbar; die verschobene Reparatur bleibt offen.
+
+**Verschobene unabhängige Reparaturen (spätere Slices), unverändert:**
+(1) ASSET_LANE-Git-Check; (2) vakuoese Reaktionsmetrik V == S
+(Kommandovertrag-V2-Entscheidung); (3) stille NumberOption-Defaults/-Clamps
+samt unbekannter Positionsargumente in der geteilten Runnerfläche; (4)
+Härtung von `allocationStrictnessRegression` gegen Kaltprozess-Transients.
+Restpunkte unverändert: manueller Interaktivsmoke und opt-in Einzelabgriff
+einer Displaysession vorbehalten — diese hat nun insbesondere die reparierte
+Punktwahl/Rahmenwahl, das Befehlsziel-Picking, die Tasten-/Rand-Schwenk-
+Kohärenz und die dokumentierte horizontale Bildschirmorientierung (Osten
+links) visuell zu verifizieren; Pflichtprofile bleiben NOT-MEASURED (Q-OPS-001);
+Q-GAM-001 bis Q-GAM-007, Q-NAR-002, Q-TEC-004/Q-TEC-006/Q-TEC-010 bleiben OFFEN.
+
+**Endgültige Finalbaumbindung nach dieser Doku-Erweiterung** zweifach
+konvergent rekonstruiert und gebunden:
+
+```text
+artifacts/t032-rev18/final-candidate-tree.txt
+```
