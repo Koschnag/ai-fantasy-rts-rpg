@@ -1231,7 +1231,12 @@ internal static class CommandLoopRunner
     /// rein darstellseitig (Kamera- und Badgekanal) und verändert denselben
     /// Weltzustand nicht. Jede Datei ist ein unkomprimiertes 32-Bit-BMP nach
     /// dem T-023-/T-032-Muster mit der maschinenlesbaren Aussagegrenze
-    /// Graybox-Zustandsbelegung.
+    /// Graybox-Zustandsbelegung. Fail-closed: Der Abgriff-View wird vor dem
+    /// Rendern explizit an das Renderziel gebunden (T-023-Präzedenz,
+    /// RepBenchRunner), das Paar wird vor dem Schreiben gegen identische und
+    /// uniforme Frames geprüft, und eine fremde Pfadendung ist kein
+    /// vertraglicher Abgriffpfad — jede Verletzung ergibt captured=false mit
+    /// Grund (Code 38) statt eines falschen Erfolgs.
     /// </summary>
     private static CaptureOutcome ExecuteCapturePair(
         BgfxDevice device,
@@ -1243,6 +1248,12 @@ internal static class CommandLoopRunner
         float[] projection,
         string artifactPath)
     {
+        if (!TrySuffixArtifactPath(artifactPath, out var strategicPath, out var personalPath, out var extensionReason))
+        {
+            Console.Error.WriteLine($"kommandoschleife: Frameabgriff abgewiesen: {extensionReason}");
+            return new CaptureOutcome(true, false, true, extensionReason ?? "capture-path-extension-must-be-bmp");
+        }
+
         var boundTick = world.TickIndex;
         var boundStateHash = FormatHash(world.ComputeStateHash());
 
@@ -1264,26 +1275,63 @@ internal static class CommandLoopRunner
 
             try
             {
-                var artifacts = new List<CaptureArtifact>(2);
+                // Beide Abgriffe entstehen in einem eigenen Renderziel-View;
+                // ohne explizite Bindung bliebe das Renderziel leer und das
+                // Paar wäre byteidentisch schwarz (T-023-Präzedenz).
+                device.SetViewFrameBuffer(InteractiveViews.ViewCapture, frameBuffer);
+                device.ConfigureRenderTargetView(
+                    InteractiveViews.ViewCapture,
+                    HostBootstrap.ClearColorRgba,
+                    BenchRunner.DefaultWidth,
+                    BenchRunner.DefaultHeight);
 
                 // Abgriff 1: strategische Darstellung über den gebundenen
                 // Weltzustand (Graybox-Kamerastand der Sitzung).
-                artifacts.Add(CaptureSingle(
+                var strategicBmp = RenderCaptureFrame(
                     device, resources, view, world,
                     InteractiveCameraMath.ActiveCamera.From(strategicCamera),
-                    projection, SessionMode.Strategic,
-                    SuffixArtifactPath(artifactPath, "-strategisch"),
-                    readBackTexture, rtTexture));
+                    projection, SessionMode.Strategic, readBackTexture, rtTexture);
 
                 // Abgriff 2: persönliche Darstellung über denselben
                 // Weltzustand (Verfolgungskamera hinter dem Vertragshelden).
                 heroCamera.Follow(world);
-                artifacts.Add(CaptureSingle(
+                var personalBmp = RenderCaptureFrame(
                     device, resources, view, world,
                     InteractiveCameraMath.ActiveCamera.From(heroCamera),
-                    projection, SessionMode.Personal,
-                    SuffixArtifactPath(artifactPath, "-persoenlich"),
-                    readBackTexture, rtTexture));
+                    projection, SessionMode.Personal, readBackTexture, rtTexture);
+
+                // Fail-closed Paarprüfung vor dem Schreiben: identische oder
+                // uniforme Frames sind kein belegbarer Graybox-Zustand.
+                var pairFailure = CommandFrameEvidence.AnalyzeCapturePair(strategicBmp, personalBmp);
+
+                if (pairFailure is not null)
+                {
+                    Console.Error.WriteLine($"kommandoschleife: Frameabgriff fehlgeschlagen: {pairFailure}");
+                    return new CaptureOutcome(true, false, true, pairFailure);
+                }
+
+                File.WriteAllBytes(strategicPath, strategicBmp);
+                File.WriteAllBytes(personalPath, personalBmp);
+                Console.WriteLine($"frame-artifact={strategicPath}");
+                Console.WriteLine($"frame-artifact={personalPath}");
+
+                var artifacts = new List<CaptureArtifact>(2)
+                {
+                    new(
+                        Mode: ModeContract.ModeStrategicId,
+                        Sha256Hex: FrameEvidence.Sha256Hex(strategicBmp),
+                        Width: BenchRunner.DefaultWidth,
+                        Height: BenchRunner.DefaultHeight,
+                        FormatId: FrameEvidence.FormatId,
+                        StatementLimit: CommandFrameEvidence.StatementLimit),
+                    new(
+                        Mode: ModeContract.ModePersonalId,
+                        Sha256Hex: FrameEvidence.Sha256Hex(personalBmp),
+                        Width: BenchRunner.DefaultWidth,
+                        Height: BenchRunner.DefaultHeight,
+                        FormatId: FrameEvidence.FormatId,
+                        StatementLimit: CommandFrameEvidence.StatementLimit),
+                };
 
                 return new CaptureOutcome(
                     Requested: true,
@@ -1296,10 +1344,10 @@ internal static class CommandLoopRunner
             }
             finally
             {
+                device.SetViewFrameBuffer(InteractiveViews.ViewCapture, BgfxDevice.InvalidIndex);
                 device.DestroyFrameBuffer(frameBuffer);
                 device.DestroyTexture(readBackTexture);
                 device.DestroyTexture(rtTexture);
-                device.SetViewFrameBuffer(InteractiveViews.ViewCapture, BgfxDevice.InvalidIndex);
             }
         }
         catch (PlatformException exception)
@@ -1314,8 +1362,8 @@ internal static class CommandLoopRunner
         }
     }
 
-    /// <summary>Rendert, liest zurück und schreibt einen einzelnen Abgriff des Paars.</summary>
-    private static CaptureArtifact CaptureSingle(
+    /// <summary>Rendert und liest einen einzelnen Abgriff des Paars zurück.</summary>
+    private static byte[] RenderCaptureFrame(
         BgfxDevice device,
         InteractiveSceneResources resources,
         InteractiveView view,
@@ -1323,7 +1371,6 @@ internal static class CommandLoopRunner
         InteractiveCameraMath.ActiveCamera camera,
         float[] projection,
         SessionMode visualMode,
-        string artifactPath,
         ushort readBackTexture,
         ushort rtTexture)
     {
@@ -1365,29 +1412,44 @@ internal static class CommandLoopRunner
             captureHandle.Free();
         }
 
-        var bmp = FrameEvidence.EncodeBmpFromRgbaTopDown(captureBytes, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
-        File.WriteAllBytes(artifactPath, bmp);
-        Console.WriteLine($"frame-artifact={artifactPath}");
-
-        return new CaptureArtifact(
-            Mode: visualMode == SessionMode.Personal ? ModeContract.ModePersonalId : ModeContract.ModeStrategicId,
-            Sha256Hex: FrameEvidence.Sha256Hex(bmp),
-            Width: BenchRunner.DefaultWidth,
-            Height: BenchRunner.DefaultHeight,
-            FormatId: FrameEvidence.FormatId,
-            StatementLimit: CommandFrameEvidence.StatementLimit);
+        return FrameEvidence.EncodeBmpFromRgbaTopDown(captureBytes, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
     }
 
     /// <summary>
     /// Vertragliche Paarbenennung (Modevertrag Abschnitt 8): vor der Endung
-    /// von PFAD wird das Suffix eingefügt; ohne Endung wird suffigiert.
+    /// von PFAD wird das Suffix eingefügt; ohne Endung wird suffigiert. Die
+    /// Abgriffe sind stets BMP — eine fremde Endung ist kein vertraglicher
+    /// Pfad und wird fail-closed mit Grund abgewiesen statt BMP-Bytes unter
+    /// falscher Endung zu schreiben.
     /// </summary>
-    internal static string SuffixArtifactPath(string path, string suffix)
+    internal static bool TrySuffixArtifactPath(
+        string path,
+        out string strategicPath,
+        out string personalPath,
+        out string? reason)
     {
         var extension = Path.GetExtension(path);
-        return string.IsNullOrEmpty(extension)
-            ? path + suffix
-            : path[..^extension.Length] + suffix + extension;
+
+        if (string.IsNullOrEmpty(extension))
+        {
+            strategicPath = path + "-strategisch";
+            personalPath = path + "-persoenlich";
+            reason = null;
+            return true;
+        }
+
+        if (!string.Equals(extension, ".bmp", StringComparison.OrdinalIgnoreCase))
+        {
+            strategicPath = string.Empty;
+            personalPath = string.Empty;
+            reason = "capture-path-extension-must-be-bmp";
+            return false;
+        }
+
+        strategicPath = path[..^extension.Length] + "-strategisch" + extension;
+        personalPath = path[..^extension.Length] + "-persoenlich" + extension;
+        reason = null;
+        return true;
     }
 
     /* --------------------------------------------------------------- Report */

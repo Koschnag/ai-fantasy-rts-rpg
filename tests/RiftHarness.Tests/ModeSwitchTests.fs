@@ -588,6 +588,112 @@ let interactiveReportSchemaBindsCapturePairAndHud () =
         ))
         "Abgriffpaar ohne gebundenen Weltzustand akzeptiert"
 
+// ---------------------------------------------------------------------------
+// Fail-closed Abgriffpaar-Prüfung (AC-T033-06): identische und uniforme
+// Frames sind ein Capturedefekt (Real-Display-Befund: byteidentisch schwarze
+// Frames durch ungebindenes Renderziel), kein Beleg.
+// ---------------------------------------------------------------------------
+
+let private testBmpFromPixels (pixels: (byte * byte * byte * byte) list) =
+    // Direkte BGRA-Pixelfolge (ohne Encoder-Umweg), 8 Pixel je 4 Kanäle.
+    let bytes = Array.zeroCreate<byte> (54 + (4 * 4 * List.length pixels))
+    bytes.[0] <- byte 'B'
+    bytes.[1] <- byte 'M'
+
+    for index, (b, g, r, a) in List.indexed pixels do
+        let offset = 54 + (4 * index)
+        bytes.[offset] <- b
+        bytes.[offset + 1] <- g
+        bytes.[offset + 2] <- r
+        bytes.[offset + 3] <- a
+
+    bytes
+
+let private testBmp (fill: int -> byte) =
+    let rgba = Array.init (8 * 8 * 4) (fun i -> fill i)
+    FrameEvidence.EncodeBmpFromRgbaTopDown(rgba, 8, 8)
+
+let capturePairValidationIsFailClosed () =
+    let uniformBlack = testBmp (fun _ -> 0uy)
+    let uniformGray = testBmp (fun _ -> 7uy)
+
+    let varied =
+        testBmp (fun i -> byte ((i * 37 + 11) % 251))
+
+    let variedOther =
+        testBmp (fun i -> byte ((i * 41 + 3) % 251))
+
+    // Byteidentisches Paar ist ein Capturedefekt, auch wenn beide uniform sind.
+    if CommandFrameEvidence.AnalyzeCapturePair(uniformBlack, uniformBlack) <> CommandFrameEvidence.ReasonPairFramesIdentical then
+        failwith "Byteidentisches Paar wurde nicht als Capturedefekt abgewiesen."
+
+    if CommandFrameEvidence.AnalyzeCapturePair(varied, varied) <> CommandFrameEvidence.ReasonPairFramesIdentical then
+        failwith "Byteidentisches Nichtuniform-Paar wurde nicht abgewiesen."
+
+    // Uniformer Einzelabgriff ist kein Beleg, selbst wenn das Paar nicht
+    // identisch ist: vollständig schwarze BGRA(0,0,0,255)-Frames (die
+    // beobachtete Real-Display-Klasse des ungebindenen Renderziel-Views) sind
+    // pixelweise kanalgleich und werden erfasst, ebenso uniform farbige.
+    let blackBgra255 =
+        testBmpFromPixels [ for _ in 1..16 -> (0uy, 0uy, 0uy, 255uy) ]
+
+    let uniformColored =
+        testBmpFromPixels [ for _ in 1..16 -> (20uy, 40uy, 60uy, 255uy) ]
+
+    if CommandFrameEvidence.AnalyzeCapturePair(blackBgra255, varied) <> CommandFrameEvidence.ReasonFrameUniform then
+        failwith "Uniform schwarzer BGRA(0,0,0,255)-Abgriff wurde nicht abgewiesen."
+
+    if CommandFrameEvidence.AnalyzeCapturePair(varied, uniformColored) <> CommandFrameEvidence.ReasonFrameUniform then
+        failwith "Uniform farbiger Abgriff wurde nicht abgewiesen."
+
+    // Ein einziges abweichendes Pixel bricht die Uniformität; ein Paar aus
+    // diesem Frame und einem anderen Nichtuniform-Frame ist belegbar.
+    let singleDifferingPixel =
+        [ for i in 0..15 ->
+            if i = 7 then (21uy, 40uy, 60uy, 255uy) else (20uy, 40uy, 60uy, 255uy) ]
+        |> testBmpFromPixels
+
+    if CommandFrameEvidence.IsUniform(singleDifferingPixel) then
+        failwith "Ein einziges abweichendes Pixel wurde als uniform eingestuft."
+
+    if CommandFrameEvidence.AnalyzeCapturePair(singleDifferingPixel, variedOther) <> null then
+        failwith "Nichtuniformes unterscheidbares Paar wurde fälschlich abgewiesen."
+
+    // Ein unterscheidbares, nichtuniformes Paar ist belegbar.
+    if CommandFrameEvidence.AnalyzeCapturePair(varied, variedOther) <> null then
+        failwith "Unterscheidbares Nichtuniform-Paar wurde fälschlich abgewiesen."
+
+    // Malformed und zu kurze Bytes sind fail-closed abgewiesen.
+    if CommandFrameEvidence.AnalyzeCapturePair(Array.truncate 30 uniformBlack, varied) <> CommandFrameEvidence.ReasonFrameMalformed then
+        failwith "Zu kurze Abgriffbytes wurden nicht fail-closed abgewiesen."
+
+    let wrongMagic = Array.copy uniformBlack
+    wrongMagic.[0] <- byte 'X'
+
+    if CommandFrameEvidence.AnalyzeCapturePair(wrongMagic, varied) <> CommandFrameEvidence.ReasonFrameMalformed then
+        failwith "Abgriffbytes mit fremder Kennung wurden nicht abgewiesen."
+
+    // Vertragsbenennung: Suffix vor .bmp, suffigiert ohne Endung, fremde
+    // Endung fail-closed abgewiesen statt BMP-Bytes unter falscher Endung.
+    let mutable strategic = null
+    let mutable personal = null
+    let mutable reason = null
+
+    if not (CommandLoopRunner.TrySuffixArtifactPath("pfad/report.bmp", &strategic, &personal, &reason))
+       || strategic <> "pfad/report-strategisch.bmp"
+       || personal <> "pfad/report-persoenlich.bmp"
+       || reason <> null then
+        failwith "BMP-Paarbenennung verletzt den Vertrag."
+
+    if not (CommandLoopRunner.TrySuffixArtifactPath("pfad/report", &strategic, &personal, &reason))
+       || strategic <> "pfad/report-strategisch"
+       || personal <> "pfad/report-persoenlich" then
+        failwith "Endungslose Paarbenennung verletzt den Vertrag."
+
+    if CommandLoopRunner.TrySuffixArtifactPath("pfad/report.png", &strategic, &personal, &reason)
+       || reason <> "capture-path-extension-must-be-bmp" then
+        failwith "Fremde Endung wurde nicht fail-closed abgewiesen."
+
 let interactiveHybridWiringIsBoundToSources () =
     // Quelltextbindung nach T-032-Präzedenz (rift.sh-/Runner-Vertragstests):
     // der fensterpflichtige Hybridmodus ist verdrahtet — Umschaltaktion,
@@ -611,7 +717,13 @@ let interactiveHybridWiringIsBoundToSources () =
           "ModeContract.RejectReasonSteerDirectionWithoutZone"
           "InteractiveContextRejections"
           "ExecuteCapturePair"
-          "SuffixArtifactPath"
+          "TrySuffixArtifactPath"
+          "AnalyzeCapturePair"
+          "capture-path-extension-must-be-bmp"
+          "capture-pair-frames-identical"
+          "capture-frame-uniform"
+          "SetViewFrameBuffer(InteractiveViews.ViewCapture, frameBuffer)"
+          "ConfigureRenderTargetView(InteractiveViews.ViewCapture"
           "\"-strategisch\""
           "\"-persoenlich\""
           "SetTitle("
