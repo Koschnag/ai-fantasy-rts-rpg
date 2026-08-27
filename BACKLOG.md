@@ -1225,8 +1225,10 @@ spezifiziert `T-033`.
 
 T-033 (`.ai/tasks/T-033-mode-switch-prototype.json`, `READY`) ist der kleinste
 prüfbare Hybrid-Mode-Switch-Prototyp über dem unveränderten Simulationskern:
-Der Vertragsheld ist der stabile Agentenindex 0 an der Spitze der
-Vertragsgruppe 0 (Held plus autonom marschierende Begleiter), der persönliche
+Der Vertragsheld ist die im Modevertrag versionierte neue Sitzungsbezeichnung
+für den stabilen Agentenindex 0 in der bestehenden Vertragsgruppe 0 (deren
+übrige Agenten autonom marschierende Begleiter sind; eine Kern-Führungs- oder
+Spitzesemantik existiert nicht, Codebeleg Modulo-Zuordnung), der persönliche
 Modus lenkt diese Gruppe über die unveränderte öffentliche Kernbefehlsfläche
 und verfolgt die Heldenfigur mit einer rein darstellseitigen Verfolgungskamera;
 der Modus ist nie Teil des Simulationszustands oder Hashes und wird an der
@@ -1239,7 +1241,9 @@ Lenkung erzeugt exakt denselben Kernbefehl wie die strategische Ebene
 Produktannahme: Die Wechseldetails (Steuerungsabbildung mit je zwei Optionen
 plus verworfener Kernänderung und begründeter Empfehlung, Wechselauslöser mit
 Same-Tick-Regel, Skripterweiterung v2 als Obermenge, Reaktionsableitung aus der
-unveränderten Budgetzeile Eingabe-zu-Reaktion) entstehen als vorregistrierte
+unveränderten Budgetzeile Eingabe-zu-Reaktion mit eigener Zählbasis,
+Modus-Scoping-Regel der fixierten Eingabesemantik samt autorisierter additiver
+Kommandovertrags-Präzisierung) entstehen als vorregistrierte
 reversible Hypothesen mit Alternativen, Playtestkriterien und Rückrollweg im
 gatenden Abschnitt 0 des versionierten Modevertrags `docs/MODEVERTRAG.md`
 (Spike-Klausel in `docs/QUALITAET.md`); die finale Wechsel-Detailregel bleibt

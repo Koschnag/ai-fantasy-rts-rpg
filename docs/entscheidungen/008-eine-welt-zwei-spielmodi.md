@@ -117,7 +117,13 @@ Die Zwei-Modi-Entscheidung wird als bestätigte, atomare Produkt-/UX-/Architektu
   Q-GAM-010 registriert die noch offene finale Wechsel-Detailregel; die
   Persistenzwahrheit des Modusflags in Save/Load und Replay bleibt
   ausdrücklich einer späteren Erweiterung des Savevertrags vorbehalten und
-  wird nicht still als erfüllt behauptet.
+  wird nicht still als erfüllt behauptet. Sequenzierung des verbindlichen
+  Kerns: die Fortsetzbarkeit der Wechselregel in Save/Load und Replay
+  (Kernaussage 4) ist damit als Produktendzustand über Q-GAM-010 und die
+  spätere Savevertrags-Erweiterung gebunden, nicht zurückgenommen; der
+  erste Prototypslice T-033 implementiert die Tickgrenzen-Determinierung
+  und weist den Modusverlust beim Laden maschinenlesbar aus, statt
+  Persistenz still zu behaupten oder den Kernwortlaut abzuschwächen.
 - Zeitpunkt für erneute Prüfung: bei jeder geplanten Änderung der
   Produktform, der Simulations- oder Speicherverträge; jede Abweichung
   erfordert eine neue Projektleitungsentscheidung und eine neue Version
