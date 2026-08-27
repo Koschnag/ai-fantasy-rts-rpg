@@ -177,10 +177,21 @@ public static class CommandReportSchema
         ("frameEvidence", new FrameEvidenceAlternative()),
         ("exitCode", new RInt(int.MinValue, int.MaxValue)));
 
-    /// <summary>Anzeigebindung: im Interaktivmodus messend, headless unavailable mit Grund.</summary>
+    /// <summary>
+    /// Anzeigebindung: im Interaktivmodus messend in der tatsächlichen
+    /// Builderform (Renderer, GPU-Kennungen, GL-Version; T-033
+    /// Nebenreparatur: die frühere unit/method-Form passte nie zum Builder
+    /// und hätte jeden echten Interaktivlauf am Schemator scheitern lassen),
+    /// headless unavailable mit Grund.
+    /// </summary>
     private static ReportNode Display(string executionMode) =>
         executionMode == ExecutionInteractive
-            ? RMetric.Measurable("renderer", new RStr(), "glVersion", new RStr())
+            ? new RObj(
+                ("measured", new RBool(true)),
+                ("renderer", new RStr()),
+                ("vendorId", new RInt(0)),
+                ("deviceId", new RInt(0)),
+                ("glVersion", new RStr()))
             : new UnavailableOnly();
 
     private static RObj Metrics(string executionMode)
@@ -298,6 +309,7 @@ public static class CommandReportSchema
         ("steerIntentsRejectedInStrategyMode", new RInt(0)),
         ("steerIdleDedupes", new RInt(0)),
         ("interactiveContextRejections", new RInt(0)),
+        ("hud", HudAlternative()),
         ("switchReactionTicks", new RObj(
             ("unit", new RLit("ticks")),
             ("method", new RLit("mode-switch-intent-tick-to-first-validity-boundary-in-new-mode")),
@@ -362,6 +374,68 @@ public static class CommandReportSchema
             if (!literals.Contains(value, StringComparer.Ordinal))
             {
                 errors.Add($"{path}: konstanter Wert [{string.Join("|", literals)}] erwartet.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Titel-HUD-Bindung (T-033, Modevertrag Abschnitt 8): im Interaktivmodus
+    /// gebundener Modus/Heldenzonenausweis; headless und in unvollständigen
+    /// Läufen ausdrücklich nicht gemessen mit maschinenlesbarem Grund statt
+    /// stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative HudAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(ModeContract.HudModelId)),
+                ("fields", new RObj(
+                    ("mode", ModeName()),
+                    ("heroZone", new RInt(-1, Riftward.Simulation.NavWorld.ZoneCount - 1))))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(ModeContract.HudModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
+    /// Abgriffbindung (T-033, Modevertrag Abschnitt 8): Bei captured=true
+    /// bindet der Report das Abgriffpaar — exakt zwei Einzelabgriffe, je einer
+    /// pro Modus über demselben Weltzustand am selben Tick, je hashgebunden
+    /// (SHA-256, Abmessungen, Format, Modus) mit der Aussagegrenze
+    /// Graybox-Zustandsbelegung und dem gemeinsamen gebundenen Weltzustand
+    /// (Tick und Zustands-Hash).
+    /// </summary>
+    private sealed class CapturePairAlternative : ReportNode
+    {
+        private static readonly RObj CaptureShape = new(
+            ("mode", new LiteralAlternative([ModeContract.ModeStrategicId, ModeContract.ModePersonalId])),
+            ("sha256", Sha256),
+            ("width", new RInt(1920, 1920)),
+            ("height", new RInt(1080, 1080)),
+            ("format", new RLit(Bench.FrameEvidence.FormatId)),
+            ("statementLimit", new RLit(CommandFrameEvidence.StatementLimit)));
+
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.Array)
+            {
+                errors.Add($"{path}: Abgriffpaar-Array erwartet.");
+                return;
+            }
+
+            var count = 0;
+
+            foreach (var item in element.EnumerateArray())
+            {
+                CaptureShape.Check($"{path}[{count}]", item, errors);
+                count++;
+            }
+
+            if (count != 2)
+            {
+                errors.Add($"{path}: exakt zwei Einzelabgriffe (je einer pro Modus) erwartet.");
             }
         }
     }
@@ -484,11 +558,9 @@ public static class CommandReportSchema
                 new RObj(
                     ("captured", new RBool(true)),
                     ("afterMeasurementWindow", new RBool(true)),
-                    ("width", new RInt(1920, 1920)),
-                    ("height", new RInt(1080, 1080)),
-                    ("format", new RLit(Bench.FrameEvidence.FormatId)),
-                    ("sha256", Sha256),
-                    ("statementLimit", new RLit(CommandFrameEvidence.StatementLimit))).Check(path, element, errors);
+                    ("boundTick", new RInt(0)),
+                    ("boundStateHash", Hex),
+                    ("captures", new CapturePairAlternative())).Check(path, element, errors);
             }
             else
             {

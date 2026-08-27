@@ -20,9 +20,9 @@ internal sealed class InteractiveView : IDisposable
     /// <summary>Lebensdauer eines Befehlspulses in Ticks.</summary>
     public const int CommandPulseTicks = 40;
 
-    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen plus Pulse).</summary>
+    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse plus Held-Badge).</summary>
     public const int MarkerCapacity =
-        SimulationContract.AgentCount + SimulationContract.GroupCount;
+        SimulationContract.AgentCount + SimulationContract.GroupCount + 1;
 
     private const int PaletteRowFloats = RepresentativeScenario.BonesPerNormalUnit * 3 * 4;
 
@@ -97,9 +97,12 @@ internal sealed class InteractiveView : IDisposable
 
     /// <summary>
     /// Schreibt Einheiten-, Paletten- und Markerdaten des aktuellen Ticks.
+    /// <paramref name="visualMode"/> ist die rein darstellseitige Modusanzeige
+    /// des Badge-Kanals (T-033); im Abgriffpaar darf sie vom Sitzungsmodus
+    /// abweichen, ohne den Weltzustand zu beruehren.
     /// Rueckgabe: Anzahl geschriebener Markerinstanzen.
     /// </summary>
-    public int WriteFrameState(SimWorld world, long tickIndex)
+    public int WriteFrameState(SimWorld world, long tickIndex, SessionMode visualMode)
     {
         for (var agent = 0; agent < world.AgentCount; agent++)
         {
@@ -146,11 +149,11 @@ internal sealed class InteractiveView : IDisposable
             _poseEvaluator.EvaluateRow(unitSeed, walkPhase, _palette.AsSpan(row * PaletteRowFloats, PaletteRowFloats));
         }
 
-        return WriteMarkers(world, tickIndex);
+        return WriteMarkers(world, tickIndex, visualMode);
     }
 
     /// <summary>Zweikanalmarker gemäß Vertrag Abschnitt 3 der Rueckmeldung.</summary>
-    private int WriteMarkers(SimWorld world, long tickIndex)
+    private int WriteMarkers(SimWorld world, long tickIndex, SessionMode visualMode)
     {
         var markerCount = 0;
 
@@ -208,6 +211,56 @@ internal sealed class InteractiveView : IDisposable
                 alpha: (float)(0.85 * (1.0 - growth)));
         }
 
+        // Kanal 3 (T-033, Modevertrag Abschnitt 8, hero-mode-badge-v1):
+        // heldenverankerter Modus-Badge über Agentenindex 0 mit zwei
+        // unterscheidbaren visuellen Kanaelen (NF-005, nie reine Farbcodierung):
+        // strategisch — ruhender Diamant (feste Orientierung pi/4), cyan
+        // (0.45/0.85/1.0), Hoehe 2.6 m, Groesse 0.60; persoenlich —
+        // pulsierender Diamant (Groesse atmet deterministisch mit der
+        // Tickzahl), warmes Orange (1.0/0.45/0.20), Basisgroesse 0.42. Die
+        // pulsende Groesse und beide Farbkanäle trennen den Badge von der
+        // Auswahlglyphe (warmes Amber, Groesse 0.42, ruhend) und vom
+        // Befehlspuls (wachsend, kaltton, bodenverankert).
+        if (markerCount < MarkerCapacity)
+        {
+            var heroX = RepresentativeLandscape.ToWorldX(world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One);
+            var heroZ = RepresentativeLandscape.ToWorldZ(world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One);
+            var heroGroundY = RepresentativeLandscape.HeightAt(heroX, heroZ);
+            var badgeRotation = (float)(Math.PI / 4.0);
+
+            if (visualMode == SessionMode.Personal)
+            {
+                var breath = 0.08 * Math.Sin(tickIndex * 0.35);
+                RepresentativeMesh.WriteParticleInstance(
+                    _markers,
+                    markerCount++,
+                    heroX,
+                    heroGroundY + 2.6,
+                    heroZ,
+                    size: (float)(0.42 + breath),
+                    rotation: badgeRotation,
+                    red: 1.00f,
+                    green: 0.45f,
+                    blue: 0.20f,
+                    alpha: 0.95f);
+            }
+            else
+            {
+                RepresentativeMesh.WriteParticleInstance(
+                    _markers,
+                    markerCount++,
+                    heroX,
+                    heroGroundY + 2.6,
+                    heroZ,
+                    size: 0.60f,
+                    rotation: badgeRotation,
+                    red: 0.45f,
+                    green: 0.85f,
+                    blue: 1.00f,
+                    alpha: 0.95f);
+            }
+        }
+
         return markerCount;
     }
 
@@ -220,14 +273,36 @@ internal sealed class InteractiveView : IDisposable
 
 /// <summary>
 /// Deterministische Kamera- und Pickingmathematik des Interaktivmodus
-/// (graybox-camera-model-v0): geneigte Top-Down-Ansicht mit fester
-/// Nordausrichtung, Bildschirm-zu-Bodenstrahlen fuer Auswahl- und
-/// Befehlsintents. Reine Double-Arithmetik ohne Uhr- oder Umgebungsbeitrag.
+/// (graybox-camera-model-v0 und der T-033-Verfolgungskamera
+/// hero-chase-camera-v1): geneigte Ansichten mit fester Nordausrichtung,
+/// Bildschirm-zu-Bodenstrahlen fuer Auswahl- und Befehlsintents. Reine
+/// Double-Arithmetik ohne Uhr- oder Umgebungsbeitrag.
 /// </summary>
 public static class InteractiveCameraMath
 {
     /// <summary>Bodenschnitt eines Bildschirmstrahls in Simulationsmetern.</summary>
     public readonly record struct GroundPoint(double SimX, double SimZ);
+
+    /// <summary>
+    /// Aktiver Kamerazustand eines Frames (T-033): Kamerazentrum, Distanz und
+    /// Nickwinkel entkoppelt vom konkreten Kameratyp, sodass der strategische
+    /// Graybox-Stand und die Verfolgungskamera denselben Render-/Pickingpfad
+    /// teilen. Rein darstellseitig, niemals Teil von Simulationszustand.
+    /// </summary>
+    public readonly record struct ActiveCamera(
+        double CenterXMeters,
+        double CenterZMeters,
+        double DistanceMeters,
+        double PitchRadians)
+    {
+        /// <summary>Aktiver Stand der strategischen Graybox-Kamera.</summary>
+        public static ActiveCamera From(GrayboxCamera camera) =>
+            new(camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters, InteractiveCameraMath.PitchRadians);
+
+        /// <summary>Aktiver Stand der Verfolgungskamera (32°, Modevertrag Abschnitt 8).</summary>
+        public static ActiveCamera From(HeroChaseCamera camera) =>
+            new(camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters, HeroChaseCamera.PitchDegrees * Math.PI / 180.0);
+    }
 
     public const double PitchRadians = GrayboxCamera.PitchDegrees * Math.PI / 180.0;
 
@@ -246,19 +321,27 @@ public static class InteractiveCameraMath
     /// Terrainhoehe wird am konvertierten Punkt gesampelt; ein Sampling mit
     /// Sim-Koordinaten wuerde ausserhalb des Kachelrasters lesen.
     /// </summary>
-    public static (double X, double Y, double Z) EyePosition(GrayboxCamera camera)
+    public static (double X, double Y, double Z) EyePosition(GrayboxCamera camera) =>
+        EyePosition(ActiveCamera.From(camera));
+
+    /// <summary>Auge-Punkt fuer einen beliebigen aktiven Kamerazustand (T-033).</summary>
+    public static (double X, double Y, double Z) EyePosition(ActiveCamera camera)
     {
         var worldX = RepresentativeLandscape.ToWorldX(camera.CenterXMeters);
         var worldZ = RepresentativeLandscape.ToWorldZ(camera.CenterZMeters);
         var groundY = RepresentativeLandscape.HeightAt(worldX, worldZ);
         return (
             worldX,
-            groundY + (Math.Sin(PitchRadians) * camera.DistanceMeters),
-            worldZ + (Math.Cos(PitchRadians) * camera.DistanceMeters));
+            groundY + (Math.Sin(camera.PitchRadians) * camera.DistanceMeters),
+            worldZ + (Math.Cos(camera.PitchRadians) * camera.DistanceMeters));
     }
 
     /// <summary>Blickziel (Mittelpunkt am Boden) im Render-Raum der Szene.</summary>
-    public static (double X, double Y, double Z) CenterPosition(GrayboxCamera camera)
+    public static (double X, double Y, double Z) CenterPosition(GrayboxCamera camera) =>
+        CenterPosition(ActiveCamera.From(camera));
+
+    /// <summary>Blickziel fuer einen beliebigen aktiven Kamerazustand (T-033).</summary>
+    public static (double X, double Y, double Z) CenterPosition(ActiveCamera camera)
     {
         var worldX = RepresentativeLandscape.ToWorldX(camera.CenterXMeters);
         var worldZ = RepresentativeLandscape.ToWorldZ(camera.CenterZMeters);
@@ -270,7 +353,10 @@ public static class InteractiveCameraMath
         CameraMath.ToFloat16(CameraMath.PerspectiveFov(FieldOfViewDegrees, width / (double)height, NearPlane, FarPlane));
 
     /// <summary>Viewmatrix (float16) fuer einen Kamerazustand.</summary>
-    public static float[] View16(GrayboxCamera camera)
+    public static float[] View16(GrayboxCamera camera) => View16(ActiveCamera.From(camera));
+
+    /// <summary>Viewmatrix (float16) fuer einen beliebigen aktiven Kamerazustand (T-033).</summary>
+    public static float[] View16(ActiveCamera camera)
     {
         var eye = EyePosition(camera);
         var center = CenterPosition(camera);
@@ -280,13 +366,18 @@ public static class InteractiveCameraMath
             new CameraMath.Vec3(0, 1, 0)));
     }
 
+    public static GroundPoint? ScreenToGround(
+        GrayboxCamera camera, int width, int height, double pixelX, double pixelY) =>
+        ScreenToGround(ActiveCamera.From(camera), width, height, pixelX, pixelY);
+
     /// <summary>
-    /// Projiziert eine Bildschirmposition auf die Bodenebene y=0 und liefert
+    /// Projiziert eine Bildschirmposition fuer einen beliebigen aktiven
+    /// Kamerazustand (T-033) auf die Bodenebene y=0 und liefert
     /// Simulationsmeter (x nach Osten, z nach Sueden). Rueckgabe null bei
     /// singulaerer Matrix oder Strahl ohne Bodenschnitt.
     /// </summary>
     public static GroundPoint? ScreenToGround(
-        GrayboxCamera camera, int width, int height, double pixelX, double pixelY)
+        ActiveCamera camera, int width, int height, double pixelX, double pixelY)
     {
         var eye = EyePosition(camera);
         var center = CenterPosition(camera);
@@ -349,12 +440,15 @@ public static class InteractiveCameraMath
         return -1;
     }
 
+    public static double[] BillboardBasis(GrayboxCamera camera) => BillboardBasis(ActiveCamera.From(camera));
+
     /// <summary>
     /// Billboard-Basis (rechts/oben) des Kameraframes in der Reihenfolge
-    /// [rightX, rightY, rightZ, upX, upY, upZ]; dieselbe Orthogonalisierung
-    /// wie im T-023-Partikelpfad.
+    /// [rightX, rightY, rightZ, upX, upY, upZ] fuer einen beliebigen aktiven
+    /// Kamerazustand (T-033); dieselbe Orthogonalisierung wie im
+    /// T-023-Partikelpfad.
     /// </summary>
-    public static double[] BillboardBasis(GrayboxCamera camera)
+    public static double[] BillboardBasis(ActiveCamera camera)
     {
         var eye = EyePosition(camera);
         var center = CenterPosition(camera);

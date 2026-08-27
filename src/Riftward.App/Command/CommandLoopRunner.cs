@@ -267,6 +267,12 @@ internal static class CommandLoopRunner
         public double BoxStartY;
 
         public long NoZoneRejects;
+
+        /// <summary>Interaktive, sichtbare Kontextabweisungen (T-033, Modevertrag Abschnitt 5).</summary>
+        public long InteractiveContextRejections;
+
+        /// <summary>Tick der letzten interaktiven Lenkanwendung (ein Lenkimpuls je Tick).</summary>
+        public long LastSteerTick = -1;
     }
 
     private sealed class InteractiveMeasurement
@@ -353,12 +359,13 @@ internal static class CommandLoopRunner
 
             var projection = InteractiveCameraMath.Projection(BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
             var camera = new GrayboxCamera();
+            var heroCamera = new HeroChaseCamera();
             var input = new InputState();
             SdlEventBuffer eventBuffer = default;
 
             var measurement = RunInteractiveLoop(
-                context.Device, resources, view, world, pipeline, camera, input,
-                ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks);
+                context.Device, resources, view, world, pipeline, camera, heroCamera, input,
+                context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks);
 
             CaptureOutcome capture;
 
@@ -376,7 +383,9 @@ internal static class CommandLoopRunner
             }
             else
             {
-                capture = ExecuteCapture(context.Device, resources, view, world, camera, projection, capturePath!);
+                capture = ExecuteCapturePair(
+                    context.Device, resources, view, world, camera, heroCamera,
+                    projection, capturePath!);
             }
 
             var allocationsPerWarmTick = AllocationsPerWarmTick(measurement);
@@ -454,6 +463,17 @@ internal static class CommandLoopRunner
                 Display: displayBinding,
                 WorkingSet: workingSet,
                 ExitCode: exitCode,
+                InteractiveContextRejections: input.InteractiveContextRejections,
+                Hud: new
+                {
+                    measured = true,
+                    kind = ModeContract.HudModelId,
+                    fields = new
+                    {
+                        mode = ModeName(pipeline.CurrentEffectiveMode),
+                        heroZone = HeroTracker.ZoneIndexOf(world),
+                    },
+                },
                 InteractiveExtras: new InteractiveExtras(
                     FrameBand: new FrameBandValues(
                         PercentileOrDefault(measurement.FrameTimes, 0.50),
@@ -506,7 +526,10 @@ internal static class CommandLoopRunner
     /// <summary>
     /// Interaktive Hauptschleife: Ereignispumpe, Intent-Uebersetzung,
     /// wanduhrgebundene 20-Hz-Tickfolge mit Messfenster [warmup, horizon),
-    /// Zweikanaldarstellung und kontrolliertem Beenden.
+    /// Zweikanaldarstellung und kontrolliertem Beenden. Der Sitzungsmodus der
+    /// Pipeline (T-033) waehlt den Eingabekontext, die aktive Kamera und den
+    /// Badge-Kanal; der Titel-HUD traegt Modus und Heldenzone (Modevertrag
+    /// Abschnitt 8).
     /// </summary>
     private static InteractiveMeasurement RunInteractiveLoop(
         BgfxDevice device,
@@ -515,7 +538,9 @@ internal static class CommandLoopRunner
         SimWorld world,
         SessionPipeline pipeline,
         GrayboxCamera camera,
+        HeroChaseCamera heroCamera,
         InputState input,
+        Window window,
         ref SdlEventBuffer eventBuffer,
         NativeApi api,
         float[] projection,
@@ -526,6 +551,7 @@ internal static class CommandLoopRunner
         var measurement = new InteractiveMeasurement(windowTicks);
         var pauseSumBeforeMs = GC.GetTotalPauseDuration().TotalMilliseconds;
         var collectionCountBefore = GcCollectionTotal();
+        var lastTitle = string.Empty;
 
         measurement.IntervalSampleTicks[0] = world.TickIndex;
         measurement.IntervalHashes[0] = world.ComputeStateHash();
@@ -536,15 +562,29 @@ internal static class CommandLoopRunner
 
         while (!input.QuitRequested)
         {
-            PumpEvents(input, ref eventBuffer, api, camera, pipeline, world);
+            PumpEvents(input, ref eventBuffer, api, camera, heroCamera, pipeline, world);
 
             if (input.QuitRequested)
             {
                 break;
             }
 
-            ApplyHeldKeys(input, camera);
-            ApplyEdgePan(input, camera);
+            ApplyHeldKeys(input, camera, heroCamera, pipeline, world);
+
+            if (pipeline.CurrentEffectiveMode == SessionMode.Strategic)
+            {
+                ApplyEdgePan(input, camera);
+            }
+            else
+            {
+                // Verfolgungskamera: Blickpunkt folgt schreibgeschützt dem
+                // Vertragshelden; Strategie-Kamerasemantik (Rand-Schwenken,
+                // Mittelklick-Schwenken) ist im persönlichen Modus nicht
+                // gebunden (KOMMANDOVERTRAG Abschnitt 12).
+                heroCamera.Follow(world);
+            }
+
+            UpdateTitleHud(window, pipeline, world, ref lastTitle);
 
             var catchUp = 0;
             var now = Stopwatch.GetTimestamp();
@@ -565,6 +605,24 @@ internal static class CommandLoopRunner
                     // sichtbar, nicht nur als Zaehler gebunden.
                     Console.Error.WriteLine(
                         $"kommandoschleife: Befehl abgewiesen - {SessionContract.RejectReasonMoveWithoutSelection} bei Tick {tick}.");
+                }
+
+                if (outcome.RejectedStrategyInPersonal > 0 || outcome.RejectedSteerInStrategy > 0)
+                {
+                    // Kontextabweisungen, die die Pipeline erreicht haben
+                    // (T-033, Modevertrag Abschnitt 5), sind ebenfalls
+                    // sichtbar mit ihrer vertraglichen Kennung.
+                    if (outcome.RejectedStrategyInPersonal > 0)
+                    {
+                        Console.Error.WriteLine(
+                            $"kommandoschleife: Befehl abgewiesen - {ModeContract.RejectReasonStrategyIntentInPersonalMode} bei Tick {tick}.");
+                    }
+
+                    if (outcome.RejectedSteerInStrategy > 0)
+                    {
+                        Console.Error.WriteLine(
+                            $"kommandoschleife: Befehl abgewiesen - {ModeContract.RejectReasonSteerIntentInStrategyMode} bei Tick {tick}.");
+                    }
                 }
 
                 if (consumed)
@@ -629,7 +687,11 @@ internal static class CommandLoopRunner
                 }
             }
 
-            var markerCount = RenderFrame(device, resources, view, world, camera, projection);
+            var activeCamera = pipeline.CurrentEffectiveMode == SessionMode.Personal
+                ? InteractiveCameraMath.ActiveCamera.From(heroCamera)
+                : InteractiveCameraMath.ActiveCamera.From(camera);
+            var markerCount = RenderFrame(
+                device, resources, view, world, activeCamera, projection, pipeline.CurrentEffectiveMode);
             measurement.PeakMarkers = Math.Max(measurement.PeakMarkers, markerCount);
 
             if (device.TryReadStats(out var stats))
@@ -656,10 +718,11 @@ internal static class CommandLoopRunner
         InteractiveSceneResources resources,
         InteractiveView view,
         SimWorld world,
-        GrayboxCamera camera,
-        float[] projection)
+        InteractiveCameraMath.ActiveCamera camera,
+        float[] projection,
+        SessionMode visualMode)
     {
-        var markerCount = view.WriteFrameState(world, world.TickIndex);
+        var markerCount = view.WriteFrameState(world, world.TickIndex, visualMode);
 
         device.UpdateTexture2DRgba32F(
             resources.PaletteTexture,
@@ -694,6 +757,7 @@ internal static class CommandLoopRunner
         ref SdlEventBuffer eventBuffer,
         NativeApi api,
         GrayboxCamera camera,
+        HeroChaseCamera heroCamera,
         SessionPipeline pipeline,
         SimWorld world)
     {
@@ -710,11 +774,11 @@ internal static class CommandLoopRunner
 
                 case SdlEventCodes.KeyDown:
                 case SdlEventCodes.KeyUp:
-                    HandleKey(input, camera, inputView);
+                    HandleKey(input, camera, heroCamera, pipeline, world, inputView);
                     break;
 
                 case SdlEventCodes.MouseMotion:
-                    HandleMotion(input, camera, inputView);
+                    HandleMotion(input, camera, pipeline, inputView);
                     break;
 
                 case SdlEventCodes.MouseButtonDown:
@@ -724,8 +788,18 @@ internal static class CommandLoopRunner
 
                 case SdlEventCodes.MouseWheel:
                     // Rad nach vorn (SDL: WheelY > 0) zoomt heran (+1),
-                    // Rad zurueck zoomt heraus; konsistent zur Keymap.
-                    camera.ZoomSteps(inputView.WheelY > 0 ? +1 : -1);
+                    // konsistent zur Keymap; im persönlichen Modus belegt
+                    // Zoom die Distanz der Verfolgungskamera (KOMMANDO-
+                    // VERTRAG Abschnitt 12), sonst die der Graybox-Kamera.
+                    if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
+                    {
+                        heroCamera.ZoomSteps(inputView.WheelY > 0 ? +1 : -1);
+                    }
+                    else
+                    {
+                        camera.ZoomSteps(inputView.WheelY > 0 ? +1 : -1);
+                    }
+
                     break;
 
                 default:
@@ -734,7 +808,13 @@ internal static class CommandLoopRunner
         }
     }
 
-    private static void HandleKey(InputState input, GrayboxCamera camera, SdlInputEventView inputView)
+    private static void HandleKey(
+        InputState input,
+        GrayboxCamera camera,
+        HeroChaseCamera heroCamera,
+        SessionPipeline pipeline,
+        SimWorld world,
+        SdlInputEventView inputView)
     {
         var action = Keymap.Resolve(inputView.Scancode);
 
@@ -764,12 +844,39 @@ internal static class CommandLoopRunner
             {
                 case "zoom-in":
                     // Vertraglich getestete Richtung: +1 verkleinert die
-                    // Anzeigedistanz (heranzoomen); siehe GrayboxCamera.
-                    camera.ZoomSteps(+1);
+                    // Anzeigedistanz (heranzoomen); im persönlichen Modus
+                    // die Distanz der Verfolgungskamera.
+                    if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
+                    {
+                        heroCamera.ZoomSteps(+1);
+                    }
+                    else
+                    {
+                        camera.ZoomSteps(+1);
+                    }
+
                     return;
 
                 case "zoom-out":
-                    camera.ZoomSteps(-1);
+                    if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
+                    {
+                        heroCamera.ZoomSteps(-1);
+                    }
+                    else
+                    {
+                        camera.ZoomSteps(-1);
+                    }
+
+                    return;
+
+                case ModeContract.SwitchActionName:
+                    // Frei belegbare Umschaltaktion (T-033, Modevertrag
+                    // Abschnitt 4): erzeugt an der laufenden Vorgrenze einen
+                    // Live-Wechsel-Intent; kein Kernbefehl, kein
+                    // Simulationszustand. In beiden Modi gültig.
+                    pipeline.EnqueueLiveIntent(new GrayboxIntent(
+                        (int)world.TickIndex,
+                        GrayboxIntentKind.SwitchMode));
                     return;
 
                 default:
@@ -781,7 +888,12 @@ internal static class CommandLoopRunner
         input.HeldScancodes.Remove(inputView.Scancode);
     }
 
-    private static void ApplyHeldKeys(InputState input, GrayboxCamera camera)
+    private static void ApplyHeldKeys(
+        InputState input,
+        GrayboxCamera camera,
+        HeroChaseCamera heroCamera,
+        SessionPipeline pipeline,
+        SimWorld world)
     {
         foreach (var scancode in input.HeldScancodes)
         {
@@ -791,22 +903,99 @@ internal static class CommandLoopRunner
                     // Vertraglich nordaufwaerts (Kommandovertrag §4, feste
                     // Nordausrichtung): Bildschirm oben ist Norden (-Z),
                     // konsistent zum Rand-Schwenken am oberen Fensterrand.
-                    camera.PanSteps(0, -1);
+                    if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
+                    {
+                        EnqueueDirectionalSteering(input, pipeline, world, 0.0, -1.0);
+                    }
+                    else
+                    {
+                        camera.PanSteps(0, -1);
+                    }
+
                     break;
 
                 case "pan-down":
-                    camera.PanSteps(0, +1);
+                    if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
+                    {
+                        EnqueueDirectionalSteering(input, pipeline, world, 0.0, +1.0);
+                    }
+                    else
+                    {
+                        camera.PanSteps(0, +1);
+                    }
+
                     break;
 
                 case "pan-left":
-                    camera.PanSteps(-1, 0);
+                    if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
+                    {
+                        EnqueueDirectionalSteering(input, pipeline, world, -1.0, 0.0);
+                    }
+                    else
+                    {
+                        camera.PanSteps(-1, 0);
+                    }
+
                     break;
 
                 case "pan-right":
-                    camera.PanSteps(+1, 0);
+                    if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
+                    {
+                        EnqueueDirectionalSteering(input, pipeline, world, +1.0, 0.0);
+                    }
+                    else
+                    {
+                        camera.PanSteps(+1, 0);
+                    }
+
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Interaktive Lenkung im persönlichen Modus (T-033, Modevertrag
+    /// Abschnitt 3, hero-direction-steering-zones-v1): löst die
+    /// kamerarelative Himmelsrichtung deterministisch gegen die sechs
+    /// Zonenzentren auf und erzeugt höchstens einen Lenk-Intent je Tick;
+    /// ohne Richtungstreue-Kandidat kontrollierte, sichtbare Abweisung mit
+    /// der vertraglichen Kennung statt stiller Wirkung. Die Lenkung ist der
+    /// einzige Befehlskanal des persönlichen Modus; ein strategischer Intent
+    /// kann an dieser Stelle strukturell nicht entstehen.
+    /// </summary>
+    private static void EnqueueDirectionalSteering(
+        InputState input,
+        SessionPipeline pipeline,
+        SimWorld world,
+        double directionX,
+        double directionZ)
+    {
+        if (input.LastSteerTick == world.TickIndex)
+        {
+            // Höchstens ein Lenkimpuls je Vorgrenze; gehaltene Tasten
+            // wirken am jeweils nächsten Tick erneut.
+            return;
+        }
+
+        var zone = HeroDirectionSteering.ResolveZone(world, directionX, directionZ);
+
+        if (zone < 0)
+        {
+            // Kein richtungstreuer Kandidat (Modevertrag Abschnitt 3):
+            // kontrollierte, sichtbare Abweisung statt stiller Wirkung; kein
+            // Kernbefehl. Keine Kontextabweisung, daher kein Eintrag in den
+            // interaktiven Kontextabweisungszaehler.
+            Console.Error.WriteLine(
+                $"kommandoschleife: Befehl abgewiesen - {ModeContract.RejectReasonSteerDirectionWithoutZone} bei Tick {world.TickIndex}.");
+            input.LastSteerTick = world.TickIndex;
+            return;
+        }
+
+        pipeline.EnqueueLiveIntent(new GrayboxIntent(
+            (int)world.TickIndex,
+            GrayboxIntentKind.SteerGroupToZone,
+            zone));
+        input.LastSteerTick = world.TickIndex;
     }
 
     private static void ApplyEdgePan(InputState input, GrayboxCamera camera)
@@ -838,14 +1027,43 @@ internal static class CommandLoopRunner
         }
     }
 
-    private static void HandleMotion(InputState input, GrayboxCamera camera, SdlInputEventView inputView)
+    /// <summary>
+    /// Mindest-HUD in der Fenstertitelzeile (T-033, Modevertrag Abschnitt 8,
+    /// title-hud-mode-herozone-v1): aktueller Modus und Heldenzone in der
+    /// festen Form `Riftward Graybox — Modus: Strategisch|Persönlich —
+    /// Heldenzone: <Zone|–>`; rein darstellseitig, nur bei Änderung gesetzt.
+    /// </summary>
+    private static void UpdateTitleHud(Window window, SessionPipeline pipeline, SimWorld world, ref string lastTitle)
+    {
+        var modeText = pipeline.CurrentEffectiveMode == SessionMode.Personal ? "Persönlich" : "Strategisch";
+        var heroZone = HeroTracker.ZoneIndexOf(world);
+        var title = $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(heroZone < 0 ? "–" : heroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}";
+
+        if (title == lastTitle)
+        {
+            return;
+        }
+
+        window.SetTitle(title);
+        lastTitle = title;
+    }
+
+    private static void HandleMotion(
+        InputState input,
+        GrayboxCamera camera,
+        SessionPipeline pipeline,
+        SdlInputEventView inputView)
     {
         input.CursorX = inputView.PositionX;
         input.CursorY = inputView.PositionY;
 
-        if (input.MiddleDragging)
+        if (input.MiddleDragging
+            && pipeline.CurrentEffectiveMode == SessionMode.Strategic)
         {
-            // Ziehen bewegt die Welt mit dem Zeiger: Kameramittelpunkt entgegen.
+            // Ziehen bewegt die Welt mit dem Zeiger: Kameramittelpunkt
+            // entgegen. Im persönlichen Modus ist Zieh-Schwenken ohne
+            // Wirkung (KOMMANDOVERTRAG Abschnitt 12): die Kamera folgt
+            // dem Helden; ein bodenverankerter Schwenk existiert dort nicht.
             var metersPerPixel = camera.DistanceMeters / 700.0;
             camera.Pan(
                 -(inputView.PositionX - input.LastMiddleX) * metersPerPixel,
@@ -864,6 +1082,23 @@ internal static class CommandLoopRunner
         SdlInputEventView inputView)
     {
         var pressed = inputView.Type == SdlEventCodes.MouseButtonDown;
+
+        // Kontexttrennung am Live-Pfad (T-033, KOMMANDOVERTRAG Abschnitt 12,
+        // context-visible-rejection-v1): Strategische Maussemantik
+        // (Auswahl, Rahmen, Befehl) ist im persönlichen Modus nicht gebunden;
+        // ein kontextfalscher Impuls erhält eine kontextierte, maschinen-
+        // lesbare Abweisung mit der vertraglichen Kennung und erhöht den
+        // Reportzähler, erzeugt aber niemals einen Kernübergabebefehl und
+        // keine Auswahlwirkung.
+        if (pressed
+            && pipeline.CurrentEffectiveMode == SessionMode.Personal
+            && inputView.ButtonIndex is SdlMouseButtons.Left or SdlMouseButtons.Right)
+        {
+            Console.Error.WriteLine(
+                $"kommandoschleife: Befehl abgewiesen - {ModeContract.RejectReasonStrategyIntentInPersonalMode} bei ({inputView.PositionX:F0}, {inputView.PositionY:F0}).");
+            input.InteractiveContextRejections++;
+            return;
+        }
 
         switch (inputView.ButtonIndex)
         {
@@ -984,15 +1219,29 @@ internal static class CommandLoopRunner
 
     /* -------------------------------------------------------------- Abgriff */
 
-    private static CaptureOutcome ExecuteCapture(
+    /// <summary>
+    /// Opt-in Abgriffpaar (T-033, Modevertrag Abschnitt 8): höchstens zwei
+    /// Einzelabgriffe — je einer pro Modus über DEMSELBEN Weltzustand am
+    /// selben Tick. Der gebundene Zustand (Tick und Zustands-Hash) wird
+    /// einmal gelesen; die Modusumschaltung zwischen beiden Abgriffen ist
+    /// rein darstellseitig (Kamera- und Badgekanal) und verändert denselben
+    /// Weltzustand nicht. Jede Datei ist ein unkomprimiertes 32-Bit-BMP nach
+    /// dem T-023-/T-032-Muster mit der maschinenlesbaren Aussagegrenze
+    /// Graybox-Zustandsbelegung.
+    /// </summary>
+    private static CaptureOutcome ExecuteCapturePair(
         BgfxDevice device,
         InteractiveSceneResources resources,
         InteractiveView view,
         SimWorld world,
-        GrayboxCamera camera,
+        GrayboxCamera strategicCamera,
+        HeroChaseCamera heroCamera,
         float[] projection,
         string artifactPath)
     {
+        var boundTick = world.TickIndex;
+        var boundStateHash = FormatHash(world.ComputeStateHash());
+
         try
         {
             var rtTexture = device.CreateTexture2D(
@@ -1011,54 +1260,35 @@ internal static class CommandLoopRunner
 
             try
             {
-                var view16 = InteractiveCameraMath.View16(camera);
-                var basis = InteractiveCameraMath.BillboardBasis(camera);
-                var markerCount = view.WriteFrameState(world, world.TickIndex);
+                var artifacts = new List<CaptureArtifact>(2);
 
-                resources.SubmitCompositePass(
-                    device,
-                    InteractiveViews.ViewCapture,
-                    view16,
-                    projection,
-                    basis,
-                    view.UnitsPointer,
-                    SimulationContract.AgentCount,
-                    view.MarkersPointer,
-                    (uint)markerCount);
+                // Abgriff 1: strategische Darstellung über den gebundenen
+                // Weltzustand (Graybox-Kamerastand der Sitzung).
+                artifacts.Add(CaptureSingle(
+                    device, resources, view, world,
+                    InteractiveCameraMath.ActiveCamera.From(strategicCamera),
+                    projection, SessionMode.Strategic,
+                    SuffixArtifactPath(artifactPath, "-strategisch"),
+                    readBackTexture, rtTexture));
 
-                device.RenderFrame();
-                device.BlitFull(InteractiveViews.ViewBlit, readBackTexture, rtTexture, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
-                device.RenderFrame();
-
-                var captureBytes = new byte[BenchRunner.DefaultWidth * BenchRunner.DefaultHeight * 4];
-                var captureHandle = GCHandle.Alloc(captureBytes, GCHandleType.Pinned);
-
-                try
-                {
-                    var readyFrame = device.ReadTextureBegin(readBackTexture, captureHandle.AddrOfPinnedObject(), (uint)captureBytes.Length);
-                    uint currentFrame;
-
-                    do
-                    {
-                        currentFrame = device.RenderFrame();
-                    }
-                    while (currentFrame < readyFrame);
-                }
-                finally
-                {
-                    captureHandle.Free();
-                }
-
-                var bmp = FrameEvidence.EncodeBmpFromRgbaTopDown(captureBytes, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
-                File.WriteAllBytes(artifactPath, bmp);
-                Console.WriteLine($"frame-artifact={artifactPath}");
+                // Abgriff 2: persönliche Darstellung über denselben
+                // Weltzustand (Verfolgungskamera hinter dem Vertragshelden).
+                heroCamera.Follow(world);
+                artifacts.Add(CaptureSingle(
+                    device, resources, view, world,
+                    InteractiveCameraMath.ActiveCamera.From(heroCamera),
+                    projection, SessionMode.Personal,
+                    SuffixArtifactPath(artifactPath, "-persoenlich"),
+                    readBackTexture, rtTexture));
 
                 return new CaptureOutcome(
                     Requested: true,
                     Captured: true,
                     Failed: false,
                     Reason: string.Empty,
-                    ArtifactSha256Hex: FrameEvidence.Sha256Hex(bmp));
+                    Artifacts: artifacts,
+                    BoundTick: boundTick,
+                    BoundStateHashHex: boundStateHash);
             }
             finally
             {
@@ -1071,23 +1301,109 @@ internal static class CommandLoopRunner
         catch (PlatformException exception)
         {
             Console.Error.WriteLine($"kommandoschleife: Frameabgriff fehlgeschlagen: {exception.Error}");
-            return new CaptureOutcome(true, false, true, "capture-failed-controlled", null);
+            return new CaptureOutcome(true, false, true, "capture-failed-controlled");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
             Console.Error.WriteLine($"kommandoschleife: Frameabgriff fehlgeschlagen: {exception.Message}");
-            return new CaptureOutcome(true, false, true, "artifact-not-writable", null);
+            return new CaptureOutcome(true, false, true, "artifact-not-writable");
         }
     }
 
+    /// <summary>Rendert, liest zurück und schreibt einen einzelnen Abgriff des Paars.</summary>
+    private static CaptureArtifact CaptureSingle(
+        BgfxDevice device,
+        InteractiveSceneResources resources,
+        InteractiveView view,
+        SimWorld world,
+        InteractiveCameraMath.ActiveCamera camera,
+        float[] projection,
+        SessionMode visualMode,
+        string artifactPath,
+        ushort readBackTexture,
+        ushort rtTexture)
+    {
+        var view16 = InteractiveCameraMath.View16(camera);
+        var basis = InteractiveCameraMath.BillboardBasis(camera);
+        var markerCount = view.WriteFrameState(world, world.TickIndex, visualMode);
+
+        resources.SubmitCompositePass(
+            device,
+            InteractiveViews.ViewCapture,
+            view16,
+            projection,
+            basis,
+            view.UnitsPointer,
+            SimulationContract.AgentCount,
+            view.MarkersPointer,
+            (uint)markerCount);
+
+        device.RenderFrame();
+        device.BlitFull(InteractiveViews.ViewBlit, readBackTexture, rtTexture, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
+        device.RenderFrame();
+
+        var captureBytes = new byte[BenchRunner.DefaultWidth * BenchRunner.DefaultHeight * 4];
+        var captureHandle = GCHandle.Alloc(captureBytes, GCHandleType.Pinned);
+
+        try
+        {
+            var readyFrame = device.ReadTextureBegin(readBackTexture, captureHandle.AddrOfPinnedObject(), (uint)captureBytes.Length);
+            uint currentFrame;
+
+            do
+            {
+                currentFrame = device.RenderFrame();
+            }
+            while (currentFrame < readyFrame);
+        }
+        finally
+        {
+            captureHandle.Free();
+        }
+
+        var bmp = FrameEvidence.EncodeBmpFromRgbaTopDown(captureBytes, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
+        File.WriteAllBytes(artifactPath, bmp);
+        Console.WriteLine($"frame-artifact={artifactPath}");
+
+        return new CaptureArtifact(
+            Mode: visualMode == SessionMode.Personal ? ModeContract.ModePersonalId : ModeContract.ModeStrategicId,
+            Sha256Hex: FrameEvidence.Sha256Hex(bmp),
+            Width: BenchRunner.DefaultWidth,
+            Height: BenchRunner.DefaultHeight,
+            FormatId: FrameEvidence.FormatId,
+            StatementLimit: CommandFrameEvidence.StatementLimit);
+    }
+
+    /// <summary>
+    /// Vertragliche Paarbenennung (Modevertrag Abschnitt 8): vor der Endung
+    /// von PFAD wird das Suffix eingefügt; ohne Endung wird suffigiert.
+    /// </summary>
+    internal static string SuffixArtifactPath(string path, string suffix)
+    {
+        var extension = Path.GetExtension(path);
+        return string.IsNullOrEmpty(extension)
+            ? path + suffix
+            : path[..^extension.Length] + suffix + extension;
+    }
+
     /* --------------------------------------------------------------- Report */
+
+    internal sealed record CaptureArtifact(
+        string Mode,
+        string Sha256Hex,
+        int Width,
+        int Height,
+        string FormatId,
+        string StatementLimit);
 
     internal sealed record CaptureOutcome(
         bool Requested,
         bool Captured,
         bool Failed,
         string Reason,
-        string? ArtifactSha256Hex = null);
+        IReadOnlyList<CaptureArtifact>? Artifacts = null,
+        long BoundTick = -1,
+        string? BoundStateHashHex = null);
 
     internal static CaptureOutcome NotRequestedCapture() =>
         new(false, false, false, CommandFrameEvidence.ReasonNotRequested);
@@ -1139,7 +1455,9 @@ internal static class CommandLoopRunner
         WorkingSetSamples WorkingSet,
         int ExitCode,
         InteractiveExtras? InteractiveExtras = null,
-        ModeTelemetry? Telemetry = null);
+        ModeTelemetry? Telemetry = null,
+        long InteractiveContextRejections = 0,
+        object? Hud = null);
 
     internal static object BuildReport(ReportContext ctx) => new
     {
@@ -1301,10 +1619,12 @@ internal static class CommandLoopRunner
     /// <summary>
     /// Modussitzungsblock des Reports (T-033, Modevertrag Abschnitt 7):
     /// Wechselprotokoll je Grenze inklusive Heldenstatus von Agentenindex 0,
-    /// Kontextabweisungszähler, Lenk-Dedupe und die diagnostische Wechsel-
-    /// reaktionsverteilung. Der Modus ist Sitzungszustand; dieser Block ist
-    /// rein diagnostisch (gateCoupled=false), die fail-closed Koppelung von
-    /// Kriterium 6 erfolgt ausschließlich über gate.switchReaction.
+    /// Kontextabweisungszähler (Pipelinezähler plus der Live-Pfadzähler
+    /// context-visible-rejection-v1), Lenk-Dedupe, Titel-HUD-Bindung und die
+    /// diagnostische Wechselreaktionsverteilung. Der Modus ist
+    /// Sitzungszustand; dieser Block ist rein diagnostisch
+    /// (gateCoupled=false), die fail-closed Koppelung von Kriterium 6 erfolgt
+    /// ausschließlich über gate.switchReaction.
     /// </summary>
     private static Dictionary<string, object> BuildModeSession(ReportContext ctx)
     {
@@ -1336,7 +1656,13 @@ internal static class CommandLoopRunner
             ["strategyIntentsRejectedInPersonalMode"] = telemetry.StrategyIntentsRejectedInPersonalMode,
             ["steerIntentsRejectedInStrategyMode"] = telemetry.SteerIntentsRejectedInStrategyMode,
             ["steerIdleDedupes"] = telemetry.SteerIdleDedupes,
-            ["interactiveContextRejections"] = 0L,
+            ["interactiveContextRejections"] = ctx.InteractiveContextRejections,
+            ["hud"] = ctx.Hud ?? (object)new
+            {
+                measured = false,
+                kind = ModeContract.HudModelId,
+                reason = "headless-run-without-window",
+            },
             ["switchReactionTicks"] = DiagnosticEnvelope(new Dictionary<string, object>
             {
                 ["unit"] = "ticks",
@@ -1567,11 +1893,17 @@ internal static class CommandLoopRunner
                 {
                     captured = true,
                     afterMeasurementWindow = true,
-                    width = BenchRunner.DefaultWidth,
-                    height = BenchRunner.DefaultHeight,
-                    format = FrameEvidence.FormatId,
-                    sha256 = capture.ArtifactSha256Hex!,
-                    statementLimit = CommandFrameEvidence.StatementLimit,
+                    boundTick = capture.BoundTick,
+                    boundStateHash = capture.BoundStateHashHex!,
+                    captures = capture.Artifacts!.Select(artifact => new
+                    {
+                        mode = artifact.Mode,
+                        sha256 = artifact.Sha256Hex,
+                        width = artifact.Width,
+                        height = artifact.Height,
+                        format = artifact.FormatId,
+                        statementLimit = artifact.StatementLimit,
+                    }).ToArray(),
                 }
                 : new { captured = false, reason = capture.Reason };
 
@@ -1640,7 +1972,13 @@ internal static class CommandLoopRunner
             Capture: NotRequestedCapture(),
             Display: null,
             WorkingSet: new WorkingSetSamples(false, null, null, null, "run-incomplete"),
-            ExitCode: ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete))), BenchRunner.ReportJsonOptions) + "\n";
+            ExitCode: ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete),
+            Hud: new
+            {
+                measured = false,
+                kind = ModeContract.HudModelId,
+                reason = "run-incomplete-hud-not-asserted",
+            })), BenchRunner.ReportJsonOptions) + "\n";
 
         Console.Error.WriteLine("kommandoschleife: Teilreport gilt ausdruecklich nicht als Evidenz.");
         return FinishReport(reportPath, reportJson, ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete));

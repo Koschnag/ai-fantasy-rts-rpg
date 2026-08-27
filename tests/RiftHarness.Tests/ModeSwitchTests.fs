@@ -221,7 +221,8 @@ let parserV2AcceptsSupersetGrammarAndBindsHashes () =
     if steers.Length <> 2 || switches.Length <> 2 then
         failwith "v2-Parser verlor Steer- oder Switch-Intents."
 
-    if steers.[0].A <> 0L || steers.[1].A <> 3L then
+    // Kanonische Ordnung ist tickprimär: steer 3 (Tick 42) vor steer 0 (Tick 44).
+    if steers.[0].A <> 3L || steers.[1].A <> 0L then
         failwith "Steer-Intents verloren ihre Zonenparameter."
 
     if steers.[0].CompareTo(steers.[1]) >= 0 then
@@ -366,13 +367,14 @@ let intentCodecEncodesModeKindsDeterministically () =
 // Kontexttrennung und Same-Tick-Kanonisierung (AC-T033-04, Modevertrag §4/5).
 // ---------------------------------------------------------------------------
 
-let private newPipeline seed intents =
+let private newPipeline (seed, intents) =
     let world = SimWorld(seed)
     let groups = SessionEngine.ReadAgentGroups(world)
     let selection = SelectionModel(groups)
     (world, SessionPipeline(world, selection, intents))
 
 let contextRejectionMatrixBindsDistinctDispositionsWithoutKernelCommands () =
+    // Kanonische Intentordnung innerhalb eines Ticks: point (1) vor steer (4).
     let intents =
         [| GrayboxIntent(40, GrayboxIntentKind.SteerGroupToZone, 2L) // strategisch: abgewiesen
            GrayboxIntent(41, GrayboxIntentKind.SwitchMode) // wirksam ab 43
@@ -380,8 +382,8 @@ let contextRejectionMatrixBindsDistinctDispositionsWithoutKernelCommands () =
            GrayboxIntent(43, GrayboxIntentKind.SteerGroupToZone, 3L) // persoenlich: Kernbefehl
            GrayboxIntent(44, GrayboxIntentKind.SteerGroupToZone, 3L) // Ruhezustand: Dedupe
            GrayboxIntent(45, GrayboxIntentKind.SwitchMode) // wirksam ab 47
-           GrayboxIntent(47, GrayboxIntentKind.SteerGroupToZone, 2L) // strategisch: abgewiesen
-           GrayboxIntent(47, GrayboxIntentKind.PointSelect, 20000L, 30000L) |]
+           GrayboxIntent(47, GrayboxIntentKind.PointSelect, 20000L, 30000L) // strategisch: gueltig
+           GrayboxIntent(47, GrayboxIntentKind.SteerGroupToZone, 2L) |] // strategisch: abgewiesen
 
     let world, pipeline = newPipeline(20260827u, intents)
 
@@ -445,10 +447,11 @@ let contextRejectionMatrixBindsDistinctDispositionsWithoutKernelCommands () =
 let sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo () =
     // Wechsel an Tick 40: Intents desselben Ticks und an 41 bleiben im
     // vorherigen (strategischen) Modus gültig; ab 42 (M = S + 2) gilt der
-    // neue Modus.
+    // neue Modus. Kanonische Ordnung: move (3) vor switch (5) — der Wechsel
+    // wird dadurch nach allen anderen Intents desselben Ticks ausgewertet.
     let intents =
-        [| GrayboxIntent(40, GrayboxIntentKind.SwitchMode)
-           GrayboxIntent(40, GrayboxIntentKind.GroupMoveToZone, 2L) // Same-Tick, vorheriger Modus
+        [| GrayboxIntent(40, GrayboxIntentKind.GroupMoveToZone, 2L) // Same-Tick, vorheriger Modus
+           GrayboxIntent(40, GrayboxIntentKind.SwitchMode)
            GrayboxIntent(41, GrayboxIntentKind.GroupMoveToZone, 2L) // S+1: vorheriger Modus
            GrayboxIntent(42, GrayboxIntentKind.GroupMoveToZone, 2L) |] // M: abgewiesen
 
@@ -489,6 +492,60 @@ let sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo () =
 // ---------------------------------------------------------------------------
 // Twin-Kontinuität und Kernbefehlsäquivalenz (AC-T033-02/03).
 // ---------------------------------------------------------------------------
+
+let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
+    // Modevertrag Abschnitt 4 (2)+(4): Wechsel an Ticks S und S+1 werden
+    // beide im dann noch gültigen vorherigen Modus ausgewertet (die erste
+    // Modusänderung ist an S+1 weder wirksam noch kontextbildend) und
+    // tragen daher denselben Zielmodus; Nettoeffekt genau ein Wechsel,
+    // wirksam an S+2. Strategische Intents an 40/41 bleiben im vorherigen
+    // Modus gültig, an M=42 wird der persönliche Modus kontextbildend.
+    let intents =
+        [| GrayboxIntent(40, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: Kernbefehl
+           GrayboxIntent(40, GrayboxIntentKind.SwitchMode)
+           GrayboxIntent(41, GrayboxIntentKind.SwitchMode) // gleicher Zielmodus
+           GrayboxIntent(41, GrayboxIntentKind.GroupMoveToZone, 2L) // vorheriger Modus: Dedupe gegen Tick 40
+           GrayboxIntent(42, GrayboxIntentKind.GroupMoveToZone, 1L) |] // M: persönlich abgewiesen
+
+    let world, pipeline = newPipeline(20260826u, intents)
+
+    let mutable rejectedInPersonal = 0
+
+    for tick in 40L..43L do
+        let outcome = pipeline.ProcessBoundary(tick)
+        rejectedInPersonal <- rejectedInPersonal + outcome.RejectedStrategyInPersonal
+        world.Tick()
+
+    if pipeline.CurrentEffectiveMode <> SessionMode.Personal then
+        failwith "Zwei Folgetick-Wechsel mit gleichem Zielmodus endeten nicht im persönlichen Modus."
+
+    if rejectedInPersonal <> 1 then
+        failwith "Bewegung an M = S + 2 war nicht im persönlichen Modus abgewiesen."
+
+    if pipeline.SwitchProtocol.Count <> 2 then
+        failwith "Wechselprotokoll verlor einen der beiden Folgetick-Wechsel."
+
+    let first = pipeline.SwitchProtocol.[0]
+    let second = pipeline.SwitchProtocol.[1]
+
+    // Beide Auswertungen basieren auf dem dann gültigen vorherigen Modus.
+    for entry in [ first; second ] do
+        if entry.PreviousMode <> SessionMode.Strategic || entry.NewMode <> SessionMode.Personal then
+            failwith "Folgetick-Wechsel wurden nicht im gültigen vorherigen Modus ausgewertet."
+
+        if entry.SwitchReactionTicks <> 2L then
+            failwith "Folgetick-Wechsel verletzte die Wechselreaktionszahlbasis."
+
+    if first.IntentTick <> 40L || first.EffectiveBoundaryTick <> 42L then
+        failwith "Erster Folgetick-Wechsel verletzte M = S + 2."
+
+    if second.IntentTick <> 41L || second.EffectiveBoundaryTick <> 43L then
+        failwith "Zweiter Folgetick-Wechsel verletzte M = S + 2."
+
+    // Beide Bewegungen im vorherigen Modus trafen denselben Kernzustand:
+    // genau ein Kernbefehl (zweiter Move ist Dedupe gegen Tick 40).
+    if pipeline.AppliedCommandsTotal <> 1L then
+        failwith "Folgetick-Fenster erzeugte nicht exakt einen Kernbefehl."
 
 let hybridFlowTwinContinuityIdenticalChainsAndEndHash () =
     // Hybrid-Flow mit drei Wechseln (vollständiger persönlich → strategisch →
@@ -653,7 +710,7 @@ let commandGateSwitchReactionCriterionIsFailClosedWithoutVacuumPass () =
     if violated.Pass then
         failwith "Wechselreaktion 4 Ticks passierte das Gate."
 
-    if not (violated.Violations.Contains("switch-reaction-ticks-above-hard-limit")) then
+    if not (Seq.contains "switch-reaction-ticks-above-hard-limit" violated.Violations) then
         failwith "Kriterium-6-Verletzung trug nicht die stabile Verletzungskennung."
 
 // ---------------------------------------------------------------------------

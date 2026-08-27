@@ -136,6 +136,13 @@ Aktion `switch` (Abschnitt 6). Der Modus startet jeder Sitzung als
    Simulationszustand oder Hash. Mehrere Wechsel an aufeinanderfolgenden
    Ticks sind wohldefiniert: Jeder Wechsel wird im für seine Auswertung
    gültigen Modus ausgewertet und kehrt dessen Wirkung deterministisch um.
+   Wechsel an unmittelbar aufeinanderfolgenden Ticks `S` und `S+1` werden
+   wegen Regel (2) beide im dann noch gültigen vorherigen Modus ausgewertet
+   und tragen daher denselben Zielmodus; ihr Nettoeffekt ist genau ein
+   Wechsel, der an `S + 2` wirksam wird. Ein Wechsel, dessen Wirksamkeits-
+   grenze hinter dem Horizont läge, bleibt auswertbar und im Lauf unwirksam
+   (`EffectiveInRun = false` im Protokoll); der Endmodus des Reports bildet
+   die Wahrheit des Laufs ab.
 
 **Begründung der Zweigrenzenregel:** Live-Intents, die zwischen `S` und `S+1`
 anliegen, hätten ohne die feste Wartestufe eine von der Ereignisreihenfolge
@@ -257,6 +264,15 @@ unverändert mit ihren dokumentierten Grenzwerten. Neu:
 | Nr. | Kennzahl | Grenzwert | Methode |
 |---|---|---|---|
 | 6 | max switchReactionTicks | ≤ 3 hart (≤ 2 Ziel ausgewiesen) | Abschnitt 4; Wechsel-Intent-Tick `S` bis erster Gültigkeitsprüfung `M` im neuen Modus; fail-closed als eigenes Reportfeld |
+
+Die vertraglichen, maschinenlesbaren Modusnamen des Reports sind `strategic`
+(strategischer Modus) und `personal` (persönlicher Modus); `initialMode` und
+`finalMode` des Modussitzungsblocks sowie jede `previousMode`/`newMode`-Kante
+des Wechselprotokolls tragen ausschließlich diese beiden Werte. Das
+Wechselprotokoll ist eine Liste von Auswertungsereignissen, keine
+Übergangskette: `previousMode` nennt den Modus, der an der Auswertungsgrenze
+`S` nach Abschnitt 4 (2) gültig war, `newMode` den daraus abgeleiteten
+Zielmodus, und `effectiveBoundaryTick` die Wirksamkeitsgrenze `M = S + 2`.
 
 Alle neuen Diagnosefelder (Wechselprotokoll, Heldenstatus je Wechselgrenze,
 Kontextabweisungszähler, Lenk-Dedupe, HUD-Bindung, Endmodus) tragen
