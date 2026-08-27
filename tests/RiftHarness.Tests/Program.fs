@@ -2088,7 +2088,29 @@ module Program =
               "T-032 contract names the rejection causes verbatim",
               CommandLoopTests.contractNamesTheRejectionCausesVerbatim
               "T-032 runner surfaces the rejection causes on their live paths",
-              CommandLoopTests.runnerSurfacesTheRejectionCausesOnTheirLivePaths ]
+              CommandLoopTests.runnerSurfacesTheRejectionCausesOnTheirLivePaths
+              "T-033 mode contract mirrors documented values",
+              ModeSwitchTests.modeContractMirrorsDocumentedValues
+              "T-033 keymap binds mode-switch without collisions",
+              ModeSwitchTests.keymapBindsModeSwitchWithoutCollisions
+              "T-033 v2 parser accepts superset grammar and binds hashes",
+              ModeSwitchTests.parserV2AcceptsSupersetGrammarAndBindsHashes
+              "T-033 parser rejects every malformed class distinctly",
+              ModeSwitchTests.parserRejectsEveryMalformedClassDistinctly
+              "T-033 intent codec encodes mode kinds deterministically",
+              ModeSwitchTests.intentCodecEncodesModeKindsDeterministically
+              "T-033 context rejection matrix binds distinct dispositions without kernel commands",
+              ModeSwitchTests.contextRejectionMatrixBindsDistinctDispositionsWithoutKernelCommands
+              "T-033 same-tick switch is evaluated last and effective at S+2",
+              ModeSwitchTests.sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo
+              "T-033 hybrid flow twin continuity identical chains and end hash",
+              ModeSwitchTests.hybridFlowTwinContinuityIdenticalChainsAndEndHash
+              "T-033 steering produces the kernel command equivalent to the direct surface",
+              ModeSwitchTests.steeringProducesKernelCommandEquivalentToDirectSurface
+              "T-033 switch reaction gate criterion is fail closed without vacuum pass",
+              ModeSwitchTests.commandGateSwitchReactionCriterionIsFailClosedWithoutVacuumPass
+              "T-033 CLI contract runs v2 hybrid headless with mode report and twin",
+              ModeSwitchTests.cliContractRunsV2HybridHeadlessWithModeReportAndTwin ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]
