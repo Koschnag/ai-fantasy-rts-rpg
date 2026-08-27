@@ -176,7 +176,7 @@ keine solche Zusage und ist nicht shippingbestimmt; eine Formatdrift erfordert
 eine Anhebung der Vertragsversion.
 
 **Alternativen:** JSON-Skript (schwergewichtiger Parser, keine Vorteile bei
-kanonischer Ordnung); Binärformat (Diagnoselesbarkeit verloren). 
+kanonischer Ordnung); Binärformat (Diagnoselesbarkeit verloren).
 **Rückrollweg:** Neue Formatkennung `graybox-input-script-v2`; alte Skripte
 bleiben historische Fixtures.
 
