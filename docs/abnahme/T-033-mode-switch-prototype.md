@@ -3,11 +3,13 @@
 **Status:** Implementierung durch den Builder-Kandidaten (Gebundene
 Critic-Evidence SHA-256 `474f84be…`, Riftward-HEAD `0a1d6f4d…`) vom
 unabhängigen Review-/Vollendungslauf 2026-08-28 geprüft, in den Pflichtanteilen
-vollendet und mit allen lokalen Pflichtgates sowie dem
-Fresh-Checkout-/Clean-Archive-Vertrag am exakten Kandidatenbaum belegt. Keine
-Erfolgsbehauptung des Builder-Kandidaten wurde ungeprüft übernommen. Diese
-Datei ist die aktuelle Wahrheit des Slices; ein Sitzungschronik wird bewusst
-nicht angehängt.
+vollendet, durch den blockierenden Real-Display-Befund der Hauptinstanz
+repariert und nach dem echten Wayland-Repass derselben Hauptinstanz auf dem
+unveränderten Kandidaten abgenommen. Alle lokalen Pflichtgates sowie der
+Fresh-Checkout-/Clean-Archive-Vertrag sind am exakten Kandidatenbaum belegt.
+Keine Erfolgsbehauptung des Builder-Kandidaten wurde ungeprüft übernommen.
+Diese Datei ist die aktuelle Wahrheit des Slices; eine Sitzungschronik wird
+bewusst nicht angehängt.
 
 ## Gelieferter und vervollständigter Umfang
 
@@ -59,7 +61,7 @@ nicht angehängt.
 | AC-T033-03 | erfüllt | Lenk-Äquivalenztest gegen frischen Kontrollkern (tickgenau hashidentisch); Report weist Heldenposition/Zone/Pfadstatus je Wechselgrenze aus (z. B. S=260: `(9379,46093)` mm, Zone 0, Pfad 2) |
 | AC-T033-04 | erfüllt | Kontext-Negativmatrix mit unterscheidbaren Dispositionen ohne Kernbefehle; Interaktivpfad strukturgebunden (`interactiveHybridWiringIsBoundToSources`); sichtbare Abweisung am Live-Pfad plus Zähler; RTS-Maussemantik im persönlichen Modus nicht gebunden |
 | AC-T033-05 | erfüllt | Kriterium 6 fail-closed: Hybridlauf `gate.switchReaction = {evaluated:true, max:2, targetMet:true}`; Fault-Injection 4 Ticks → Verletzung `switch-reaction-ticks-above-hard-limit`; Vakuumpass mit Grund statt stiller Behauptung; übrige Grenzwerte unverändert, Diagnosefelder `gateCoupled=false`, Profile `NOT-MEASURED` |
-| AC-T033-06 | erfüllt im Code-/Vertragsumfang (Restpunkt 1) | Interaktiv-Hybrid vollständig verdrahtet (Kamera, Badge, Titel-HUD, Umschaltaktion, Lenkung, Kontextabweisung, Abgriffpaar, Code-19-Pfad); displayloser Lauf dieser Sitzung → Code 19 („No available video device") ohne Report und ohne Simulation; Capture-Verhalten schema-/testgebunden; manueller Smoke und Playtestausführung bleiben der Displaysession vorbehalten (vertraglich ausgewiesener Restpunkt) |
+| AC-T033-06 | erfüllt | Interaktiv-Hybrid vollständig verdrahtet (Kamera, Badge, Titel-HUD, Umschaltaktion, Lenkung, Kontextabweisung, Abgriffpaar, Code-19-Pfad); **echter Wayland-Repass der Hauptinstanz** (hybrid-v2, 420 Ticks, OS-uinput Tab/Up/Tab/Escape): Exit 0, `windowCompleted=true`, `gate.pass=true`, `switchReaction.max=2`, Abgriffpaar `captured=true` über demselben gebundenen Weltzustand (Tick 890, Hash `3559ad7791a5010f`) — strategisch `b83167b6…`, persönlich `f8dbd051…`, beide 1920×1080 32bpp BMP, `cmp` verschieden, Signal-/Pixelstatistik belegt Nichtuniformität, visuelle Inspektion bestätigt klar verschiedene Perspektiven; Aussagegrenze `graybox-state-occupancy-not-gameplay-atmosphere-or-shipping` gebunden (Graybox-Zustandsbelegung, niemals Shipping-Grafik; öffentliche Verwendung weiter an MEDIA_LAB plus Projektleitungsautorisierung gebunden); displayloser kontrollierter Code-19-Abbruch dieser Sitzung zusätzlich belegt |
 | AC-T033-07 | erfüllt | v2-Obermenge, Legacy-v1 byteidentisch gültig (v1+steer → UnknownAction, Code 37 ohne Report); Ablehnungsklassen je unterscheidbar; `scriptSha256`/`intentPlanHash` auf neuen Aktionen (Goldbytes + FNV-Nachrechnung) |
 | AC-T033-08 | erfüllt | Vertrauensgrenzen unverändert (begrenzende Rohbytes-Lesung, kein Netz, Hermetietest); Riftward.Simulation blobidentisch; Architekturgrenzen: Session BCL-only, Runtime-Hotpaths C#, F#/Python fern |
 | AC-T033-09 | erfüllt | fmt 0 Fixes, lint valid 0 Befunde, Release-Build 0 Warnungen, Testsuite 262/262, security PASS; Regressionen: bench-sim 0, savecheck 0 (alle Prüfklassen), Soak-Kurzlauf 3000 Ticks diagnostisch 0; Exitcodes 35–38 unverändert; Schemaerhöhung rein additiv gebunden |
@@ -106,6 +108,23 @@ aus.
    Der Vertragstext wurde nur präzisiert (Folgeticksatz, Protokollfeld-
    semantik, Horizontsatz) — kein stiller Contract-Rewrite, keine
    Semantikänderung; Fixtures binden das Verhalten.
+8. **Blockierender Real-Display-Befund der Hauptinstanz (nach AC10):** Ein
+   echter Wayland-Lauf außerhalb der displaylosen Sitzung ergab bei
+   `captured=true` byteidentische vollständig schwarze Abgriffe (SHA-256 je
+   `75af8fe9…`, irreführende `.png`-Endung) — false-positive Capture-Erfolg.
+   Root cause gegen die T-023-Präzedenz (`RepBenchRunner`) bestätigt:
+   `ExecuteCapturePair` erzeugte das Renderziel, band `ViewCapture` aber nie
+   an den Framebuffer (Bindung und `ConfigureRenderTargetView` fehlten; der
+   T-032-Einzelabgriff trug denselben latenten Defekt), und die Paarbenennung
+   akzeptierte jede Endung für stets-BMP-Bytes. Reparatur: ViewCapture vor dem
+   Rendern explizit gebunden (T-023-Reihenfolge), fail-closed Paarprüfung vor
+   dem Schreiben (`AnalyzeCapturePair`: byteidentische Frames, pixelweise
+   kanalgleiche Uniformität inklusive BGRA(0,0,0,255), malformed/zu kurze
+   Bytes), BMP-Endung erzwungen (fremde Endung → `captured=false` mit
+   `capture-path-extension-must-be-bmp` statt Bytes unter falscher Endung),
+   deterministische Fixtures gegen identische/uniforme/einpixelabweichende/
+   malformed Frames sowie Quellbindung der Bindungsreihenfolge. Der obige
+   echte Wayland-Repass belegt die Reparatur auf dem unveränderten Kandidaten.
 
 ## Eigene Evidenz (alle Befehle selbst ausgeführt, Exitcodes)
 
