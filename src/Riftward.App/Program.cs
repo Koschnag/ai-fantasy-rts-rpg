@@ -1,11 +1,12 @@
 using Riftward.App;
 using Riftward.App.Soak;
 using Riftward.Platform;
+using CommandLoopRunner = Riftward.App.Command.CommandLoopRunner;
 
 if (OperatingSystem.IsLinux()
     && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture != System.Runtime.InteropServices.Architecture.X64)
 {
-    Console.Error.WriteLine("plattformsmoke/effizienzbaseline/bench/soak/savecheck: nur linux-x64 im T-010-/T-020-/T-022-/T-031-Scope.");
+    Console.Error.WriteLine("plattformsmoke/effizienzbaseline/bench/soak/savecheck/kommandoschleife: nur linux-x64 im T-010-/T-020-/T-022-/T-031-/T-032-Scope.");
     return ExitCodes.Map(PlatformErrorCode.UnsupportedPlatform);
 }
 
@@ -21,6 +22,7 @@ try
         "bench" => BenchRunner.Run(arguments),
         "soak" => SoakRunner.Run(arguments),
         "savecheck" => SavecheckRunner.Run(arguments),
+        "kommandoschleife" => CommandLoopRunner.Run(arguments),
         _ => PrintUsage($"Unbekannter Modus '{mode ?? "<fehlt>"}'."),
     };
 }
@@ -74,6 +76,12 @@ static int PrintUsage(string message)
     + Environment.NewLine
     + "  Riftward.App savecheck --report PFAD [--work VERZ] [--seed N] [--plan-ticks N]"
     + Environment.NewLine
-    + "      [--safe-tick N] [--sample-interval-ticks N] [--lock DATEI]");
+    + "      [--safe-tick N] [--sample-interval-ticks N] [--lock DATEI]"
+    + Environment.NewLine
+    + "  Riftward.App kommandoschleife --scenario kommando-graybox --input-script PFAD"
+    + Environment.NewLine
+    + "      --seed N --report PFAD [--interactive] [--capture-frame PFAD]"
+    + Environment.NewLine
+    + "      [--warmup-ticks N] [--horizon-ticks N] [--lock DATEI]");
     return ExitCodes.Usage;
 }

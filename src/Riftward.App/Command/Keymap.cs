@@ -1,0 +1,97 @@
+namespace Riftward.App.Command;
+
+/// <summary>
+/// Datengetriebene Keymap der Graybox-Kommandoschleife (Kommandovertrag
+/// Abschnitt 9): Semantische Aktionsnamen werden gegen die dokumentierten
+/// SDL-Scancode-Defaults validiert; ein Test haelt Tabelle und Vertrag
+/// konsistent. Die Maussemantik ist vertraglich fixiert und hier nicht
+/// belegbar. Scancodes entsprechen dem gepinnten SDL3-Stand release-3.4.14.
+/// </summary>
+public static class Keymap
+{
+    /// <summary>Semantische Aktionsfamilie des Vertrags.</summary>
+    public static readonly string[] SemanticActions =
+    [
+        "quit",
+        "pan-up",
+        "pan-down",
+        "pan-left",
+        "pan-right",
+        "zoom-in",
+        "zoom-out",
+    ];
+
+    /// <summary>Defaultbelegung: Aktion → SDL-Scancodes (gepinnter Stand).</summary>
+    public static readonly IReadOnlyDictionary<string, int[]> Defaults = new Dictionary<string, int[]>(StringComparer.Ordinal)
+    {
+        ["quit"] = [41], // Escape
+        ["pan-up"] = [26, 82], // W, Up
+        ["pan-down"] = [22, 81], // S, Down
+        ["pan-left"] = [4, 80], // A, Left
+        ["pan-right"] = [7, 79], // D, Right
+        ["zoom-in"] = [8, 46], // E, Equals
+        ["zoom-out"] = [20, 45], // Q, Minus
+    };
+
+    /// <summary>
+    /// Validiert eine Belegungstabelle: Jede semantische Aktion besitzt
+    /// mindestens eine Bindung, keine Bindung ist doppelt oder unbekannt,
+    /// und kein Scancode ist mehreren Aktionen zugeordnet.
+    /// </summary>
+    public static bool Validate(IReadOnlyDictionary<string, int[]> bindings, out string error)
+    {
+        error = string.Empty;
+
+        foreach (var action in SemanticActions)
+        {
+            if (!bindings.TryGetValue(action, out var scancodes)
+                || scancodes.Length == 0)
+            {
+                error = $"Semantische Aktion '{action}' besitzt keine Bindung.";
+                return false;
+            }
+        }
+
+        var seen = new HashSet<int>();
+
+        foreach (var pair in bindings)
+        {
+            if (Array.IndexOf(SemanticActions, pair.Key) < 0)
+            {
+                error = $"Unbekannter semantischer Aktionsname '{pair.Key}'.";
+                return false;
+            }
+
+            foreach (var scancode in pair.Value)
+            {
+                if (scancode <= 0)
+                {
+                    error = $"Aktion '{pair.Key}' enthaelt einen ungueltigen Scancode {scancode}.";
+                    return false;
+                }
+
+                if (!seen.Add(scancode))
+                {
+                    error = $"Scancode {scancode} ist mehrfach gebunden.";
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Löst einen Scancode zur semantischen Aktion auf; null ohne Treffer.</summary>
+    public static string? Resolve(int scancode)
+    {
+        foreach (var action in SemanticActions)
+        {
+            if (Array.IndexOf(Defaults[action], scancode) >= 0)
+            {
+                return action;
+            }
+        }
+
+        return null;
+    }
+}

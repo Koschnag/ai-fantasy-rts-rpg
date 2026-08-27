@@ -751,7 +751,10 @@ let architectureKeepsSnapshotDirectionAndHotPathDiscipline () =
             [ "RepBenchRunner.cs"
               "SimBenchRunner.cs"
               "SoakEngine.cs"
-              "SavecheckEngine.cs" ]
+              "SavecheckEngine.cs"
+              // T-032: die interaktive Kommandoschleife ist derselbe
+              // vertragliche Tick-Treiber-Muster über dem unveränderten Kern.
+              "CommandLoopRunner.cs" ]
 
         if
             not (List.contains fileName tickDriverAllowlist)
@@ -763,7 +766,8 @@ let architectureKeepsSnapshotDirectionAndHotPathDiscipline () =
             [ "RepBenchRunner.cs"
               "SimBenchRunner.cs"
               "SoakEngine.cs"
-              "SavecheckEngine.cs" ]
+              "SavecheckEngine.cs"
+              "CommandLoopRunner.cs" ]
 
         if List.contains fileName commandDriverAllowlist then
             ()

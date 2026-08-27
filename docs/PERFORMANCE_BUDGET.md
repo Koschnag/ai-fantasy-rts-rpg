@@ -28,7 +28,7 @@ Auf den Minimum-Profilen sind 60 FPS das bevorzugte Optimierungsziel, aber 30 FP
 | diskreter VRAM `HW-PC-MIN` | 1,2–1,5 GB | 1,8 GB | Backend-Debugdaten / externes Profiling |
 | kombinierter App-Fußabdruck `HW-MAC-MIN` | ≤ 3,5 GB | ≤ 4,0 GB im Spiel, ≤ 4,5 GB kurzer Ladepeak | OS-Speicherdruck und Telemetrie |
 | Ladezeit Karte auf SATA-SSD | 20 s | 35 s | kalter und warmer Lauf |
-| Eingabe-zu-Reaktion | 100 ms | 150 ms | Befehlsmarker / Simulation |
+| Eingabe-zu-Reaktion | 100 ms | 150 ms | Befehlsmarker / Simulation; Nachweisort seit T-032: der maschinenlesbare Report von `./scripts/rift.sh kommandoschleife` (Reaktionsticks von Befehlstick bis erstem Effektsnapshot bei vertraglichen 20 Hz, abgeleitet auf Ziel ≤ 2 Ticks / hart ≤ 3 Ticks gemäß `docs/KOMMANDOVERTRAG.md` V1) |
 
 Die 30-FPS-Grenze ist der unterstützte Mindestmodus, nicht das bevorzugte Ergebnis. Grafikstufen dürfen Effekte reduzieren, nicht Gameplay, Simulation oder taktische Sichtbarkeit verändern. Dynamische Auflösung ist optional, aber 1080p muss der reguläre Low-Modus bleiben und darf nicht durch dauerhaftes Upscaling aus einer deutlich kleineren internen Auflösung nur nominell erfüllt werden.
 

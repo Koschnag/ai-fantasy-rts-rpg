@@ -74,6 +74,18 @@ public enum PlatformErrorCode
 
     /// <summary>Savecheck unvollstaendig oder vorzeitig beendet (T-031); der Teilreport gilt ausdruecklich nicht als Evidenz.</summary>
     SaveRunIncomplete = 34,
+
+    /// <summary>Kommandoschleifen-Gate verletzt (T-032); Report wurde dennoch geschrieben und klar als nicht bestanden markiert.</summary>
+    CommandGateViolated = 35,
+
+    /// <summary>Kommandoschleifenlauf unvollstaendig oder vorzeitig beendet (T-032); der Teilreport gilt ausdruecklich nicht als Evidenz.</summary>
+    CommandRunIncomplete = 36,
+
+    /// <summary>Kommandoschleifen-Szenario unbekannt oder Eingabeskript unlesbar/malformiert (T-032); kein Report.</summary>
+    CommandScenarioUnavailable = 37,
+
+    /// <summary>Opt-in Einzelabgriff der Kommandoschleife fehlgeschlagen (T-032); Report wurde dennoch geschrieben mit captured=false und Grund.</summary>
+    CommandCaptureFailed = 38,
 }
 
 /// <summary>Ein einzelner kontrollierter Fehler mit Code, Meldung und Detailpfad.</summary>
