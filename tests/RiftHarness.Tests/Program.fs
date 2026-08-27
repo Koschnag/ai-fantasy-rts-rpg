@@ -2112,8 +2112,7 @@ module Program =
               ModeSwitchTests.interactiveReportSchemaBindsCapturePairAndHud
               "T-033 interactive hybrid wiring is bound to sources",
               ModeSwitchTests.interactiveHybridWiringIsBoundToSources
-              "T-033 capture pair validation is fail closed",
-              ModeSwitchTests.capturePairValidationIsFailClosed
+              "T-033 capture pair validation is fail closed", ModeSwitchTests.capturePairValidationIsFailClosed
               "T-033 hybrid flow twin continuity identical chains and end hash",
               ModeSwitchTests.hybridFlowTwinContinuityIdenticalChainsAndEndHash
               "T-033 steering produces the kernel command equivalent to the direct surface",

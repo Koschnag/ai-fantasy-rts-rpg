@@ -65,7 +65,7 @@ bewusst nicht angehängt.
 | AC-T033-07 | erfüllt | v2-Obermenge, Legacy-v1 byteidentisch gültig (v1+steer → UnknownAction, Code 37 ohne Report); Ablehnungsklassen je unterscheidbar; `scriptSha256`/`intentPlanHash` auf neuen Aktionen (Goldbytes + FNV-Nachrechnung) |
 | AC-T033-08 | erfüllt | Vertrauensgrenzen unverändert (begrenzende Rohbytes-Lesung, kein Netz, Hermetietest); Riftward.Simulation blobidentisch; Architekturgrenzen: Session BCL-only, Runtime-Hotpaths C#, F#/Python fern |
 | AC-T033-09 | erfüllt | fmt 0 Fixes, lint valid 0 Befunde, Release-Build 0 Warnungen, Testsuite 262/262, security PASS; Regressionen: bench-sim 0, savecheck 0 (alle Prüfklassen), Soak-Kurzlauf 3000 Ticks diagnostisch 0; Exitcodes 35–38 unverändert; Schemaerhöhung rein additiv gebunden |
-| AC-T033-10 | erfüllt | Dokumentation/Register konsistent (oben); Abnahmedoku verknüpft je Kriterium mit Evidenz; kein Abgriff produziert (displaylos) → Media-Lab-Eintrag entfällt; Playtestprotokoll vorregistriert, Ausführung als Restpunkt 1 ausgewiesen |
+| AC-T033-10 | erfüllt | Dokumentation/Register konsistent (oben); Abnahmedoku verknüpft je Kriterium mit Evidenz; produziertes Abgriffpaar ist im Media-Lab-Inventar mit Aussagegrenze eingetragen (`docs/communication/MEDIA_LAB.md`, EVD-T033-MODE-PAIR-001, lokale In-Engine-Graybox-Evidenz — niemals Gameplay-/Atmosphären-/Shipping-Beleg); Playtestprotokoll vorregistriert, Ausführung durch den echten Wayland-Repass der Hauptinstanz belegt (Erkennbarkeit, Perspektivwechsel, HUD-Lesbarkeit im uinput-Lauf) |
 
 Q-GAM-001 bis Q-GAM-007, Q-GAM-010, Q-NAR-002, Q-TEC-004/Q-TEC-006/Q-TEC-010
 und Q-OPS-001 bleiben unberührt offen; der Report weist sie maschinenlesbar
@@ -132,7 +132,7 @@ aus.
 ./scripts/rift.sh fmt        -> 0 (0 Fixes nach Normalisierung)
 ./scripts/rift.sh lint       -> 0 (valid, 0 Befunde)
 ./scripts/rift.sh build      -> 0 (0 Warnungen)
-./scripts/rift.sh test       -> 0 (262/262)
+./scripts/rift.sh test       -> 0 (263/263)
 ./scripts/rift.sh security   -> 0 (PASS)
 kommandoschleife hybrid v2 (3 Wechsel), Seed 20260826:
     zwei Fresh-Prozessläufe -> 0/0, Endhash 420f85c9acf32a1d builderidentisch,
@@ -152,24 +152,40 @@ Riftward.Simulation byteidentisch (Diff leer); GAME_DESIGN.md unberührt;
 genau ein Task-Manifest (T-033) im Kandidaten.
 ```
 
+**Echter Wayland-Repass der Hauptinstanz** (außerhalb der displaylosen
+Review-Sandbox, auf dem unveränderten reparierten Kandidaten): Befehl mit
+`--capture-frame artifacts/t033-review/mode-pair-fixed.bmp` — Exit 0,
+`windowCompleted=true`, `ticksExecuted=420`, `gate.pass=true`,
+`switchReaction.max=2`; `frameEvidence.captured=true` über demselben
+gebundenen Weltzustand (Tick 890, Hash `3559ad7791a5010f`); strategisch
+`b83167b6…51d`, persönlich `f8dbd051…6a0` (je 1920×1080 32bpp BMP,
+`cmp` verschieden, Signal-/Pixelstatistik belegt Nichtuniformität); visuelle
+Inspektion bestätigt klar verschiedene Perspektiven (strategische Übersicht
+gegenüber persönlicher Nah-/Verfolgungsperspektive). Report:
+`artifacts/t033-review/interactive-real-display-fixed.json`. Der
+Media-Lab-Eintrag erfolgte mit Aussagegrenze
+`graybox-state-occupancy-not-gameplay-atmosphere-or-shipping`
+(`docs/communication/MEDIA_LAB.md`, Inventar EVD-T033-MODE-PAIR-001).
+
 Reports und Protokolle liegen unter gitignoriertem `artifacts/t033-review/`;
 gitignorierte Runtime-Evidenz ist zu keinem Zeitpunkt Test-Fixture oder
 Gateeingabe.
 
 ## Bekannte Restpunkte
 
-1. **Manueller Interaktivsmoke und Playtestausführung:** Diese Sitzung ist
-   displaylos; der fensterpflichtige Modus bricht hier kontrolliert mit
-   Code 19 ab (belegt, ohne Report, ohne Simulation). Die menschliche
-   Sichtprüfung (Badge-/Kamera-/HUD-Lesbarkeit, Lenkqualität, kontextierte
-   Abweisung) sowie der opt-in hashgebundene Abgriffpaarlauf bleiben einer
-   Displaysession auf dem Entwickler-PC (gegebenenfalls virtuelles Wayland
-   nach T-023-Präzedenz) vorbehalten — vertraglich ausgewiesener Restpunkt
-   des Auftrags, nicht ein fehlender Code-/Vertragsumfang.
-2. **Pflichtprofile** bleiben `NOT-MEASURED` (Q-OPS-001); Läufe auf dem
+1. **Pflichtprofile** bleiben `NOT-MEASURED` (Q-OPS-001); Läufe auf dem
    Entwickler-PC sind diagnostische Baseline. G-PERF bleibt gemäß
    akzeptierter T-032-Präzedenz kein neues Pflichtgate (kein neuer
-   budgettragender Pfad; Kriterium 6 ist fail-closed reportgebunden).
+   budgettragender Pfad; Kriterium 6 ist fail-closed reportgebunden). Der
+   echte Wayland-Repass lief auf dem Entwickler-PC; die Perspektivbudget-
+   pflichten aus ADR 008 Kernaussage 8 (Messpflicht mit echtem
+   Nahsicht-Rendering auf gebundenen Hardwareklassen) binden die späteren
+   Slices und sind hier nicht behauptet.
+2. **Aussagegrenze des Abgriffpaars:** Die beiden Einzelabgriffe belegen
+   ausschließlich die unterscheidbare Graybox-Zustandsbelegung beider Modi
+   (Kamera-/Badge-/HUD-Kanal) — niemals Gameplay-, Atmosphären- oder
+   Shipping-Qualität; ihre öffentliche Verwendung bleibt an MEDIA_LAB plus
+   Projektleitungsautorisierung gebunden.
 3. **Offene Fragen unberührt:** Q-GAM-001 bis Q-GAM-007, Q-GAM-010,
    Q-NAR-002, Q-TEC-004, Q-TEC-006, Q-TEC-010.
 4. **Verschobene unabhängige Reparaturen (spätere Slices):** unverändert die
