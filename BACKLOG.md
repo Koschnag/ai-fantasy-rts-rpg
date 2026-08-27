@@ -41,6 +41,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DONE |
 | T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
+| T-033 | E-004 | kleinster Hybrid-Mode-Switch-Prototyp: persönlicher Third-Person-Heldenmodus und strategischer RTS-Modus über dem unveränderten Simulationskern mit Hashketten-Kontinuitätsnachweis | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -976,7 +977,8 @@ Die verbleibenden DRAFT-Einheiten hängen an Referenzhardware- und
 Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`) sowie an echten kreativen
 Produktentscheidungen (`T-030` samt seiner geplanten Folgeslices, dahinter
 `T-040`/`T-041`) beziehungsweise an getrennten Generator- und Storage-/Backup-
-Freigaben (`T-050`/`T-051`).
+Freigaben (`T-050`/`T-051`). `T-033` ist seit 2026-08-27 als zweiter Slice der
+T-030-Zerlegung `READY` (Freigabevermerk am Ende dieser Datei).
 
 ## Vorlage für eine Umsetzungseinheit
 
@@ -1198,3 +1200,60 @@ wurde gemäß Evidenzpflege-Vorgabe durch die kompakte Abschlusszusammenfassung
 Abnahmedokument erhalten. Die vier verschobenen unabhängigen Reparaturen
 bleiben unverändert spätere Slices. Finalbaumbindung dieser Sitzung:
 `artifacts/t032-rev19-independent/final-candidate-tree.txt`.
+
+Am 2026-08-27 übernahm der autonome Planungsagent (Autorisierung der
+Projektleitung vom 2026-08-23) in einem zweigeteilten, getrennt dokumentierten
+Planungslauf zuerst die am 2026-08-26 bestätigte
+„Eine-Welt-zwei-Spielmodi“-Entscheidung als akzeptierte ADR 008
+(`docs/entscheidungen/008-eine-welt-zwei-spielmodi.md`) und verankerte sie in
+`PROJEKT.md`, `ANFORDERUNGEN.md` (F-010), `USER_FLOWS.md` (UF-007),
+`GAME_DESIGN.md` (GS-010), `ARCHITEKTUR.md` und diesem Register
+(Klärungsprotokoll in `docs/OFFENE_FRAGEN.md`); danach gab er getrennt den
+zweiten Slice der T-030-Zerlegung frei. Auswahlkette über alle DRAFT-Einträge:
+`T-011` bleibt blockiert, weil seine native Windows-/macOS-Build-/Smoke-/
+Paketmatrix vorhandene Runner, Signier-/Notarisierungsentscheidungen
+(Q-OPS-002/Q-OPS-003) und physische Zielhardware voraussetzt, die hier nicht
+vorhanden sind und nicht stillschweigend angenommen werden dürfen; `T-008` ist
+`REVIEW`; `T-030` selbst bleibt gemäß Klärungsprotokoll 2026-08-26 bewusst
+`DRAFT` und wird sliceweise zerlegt; `T-040`/`T-041` liegen hinter E-004/E-005;
+`T-050`/`T-051` hinter den getrennten Generator-, Storage-/Backup- und
+LFS-Freigaben (Q-AST-001/Q-AST-002) sowie hinter E-005/E-006. Nach der
+abgenommenen T-032-Baseline hat gemäß Release-Modus der Projektleitung
+(2026-08-26, Schritt 2) der kleinste Mode-Switch-/Player-Journey-Prototyp
+Vorrang vor neuer Kampf-, Wirtschafts-, Content- oder Audiobreite; genau das
+spezifiziert `T-033`.
+
+T-033 (`.ai/tasks/T-033-mode-switch-prototype.json`, `READY`) ist der kleinste
+prüfbare Hybrid-Mode-Switch-Prototyp über dem unveränderten Simulationskern:
+Der Vertragsheld ist der stabile Agentenindex 0 an der Spitze der
+Vertragsgruppe 0 (Held plus autonom marschierende Begleiter), der persönliche
+Modus lenkt diese Gruppe über die unveränderte öffentliche Kernbefehlsfläche
+und verfolgt die Heldenfigur mit einer rein darstellseitigen Verfolgungskamera;
+der Modus ist nie Teil des Simulationszustands oder Hashes und wird an der
+Tickgrenze deterministisch aufgelöst. Der Kernnachweis ist die
+Kontinuitätskette: ein Hybrid-Flow mit mehreren persönlichen → strategischen →
+persönlichen Wechseln erzeugt nachweislich dieselben Hashketten und denselben
+Endhash wie der identische Ablauf ohne Wechsel-Intents, und die persönliche
+Lenkung erzeugt exakt denselben Kernbefehl wie die strategische Ebene
+(`SimCommandKind.GroupMoveToZone` auf Gruppe 0). Blockerbehandlung ohne stille
+Produktannahme: Die Wechseldetails (Steuerungsabbildung mit je zwei Optionen
+plus verworfener Kernänderung und begründeter Empfehlung, Wechselauslöser mit
+Same-Tick-Regel, Skripterweiterung v2 als Obermenge, Reaktionsableitung aus der
+unveränderten Budgetzeile Eingabe-zu-Reaktion) entstehen als vorregistrierte
+reversible Hypothesen mit Alternativen, Playtestkriterien und Rückrollweg im
+gatenden Abschnitt 0 des versionierten Modevertrags `docs/MODEVERTRAG.md`
+(Spike-Klausel in `docs/QUALITAET.md`); die finale Wechsel-Detailregel bleibt
+als neue Frage Q-GAM-010 ausdrücklich `OFFEN`; Q-GAM-001 bis Q-GAM-007 und
+Q-NAR-002 werden nicht berührt; Q-OPS-001 folgt der protokollierten T-020- bis
+T-023-Behandlung (Entwickler-PC-Läufe diagnostische Baseline, Pflichtprofile
+`NOT-MEASURED`). Media-Lab-Prüfung gemäß
+`docs/communication/MEDIA_LAB.md`: angezeigt sind höchstens zwei opt-in
+Einzelabgriffe — je einer pro Modus über demselben Weltzustand am selben Tick —
+nach dem T-023-/T-032-Muster, lokal, hashgebunden, mit der Aussagegrenze
+Graybox-Zustandsbelegung; sie bleiben niemals Gameplay-, Atmosphären- oder
+Shipping-Beleg. Die Persistenzwahrheit des Modusflags in Save/Load und Replay
+bleibt ausdrücklich einer späteren Savevertrags-Erweiterung vorbehalten und
+wird in diesem Slice nicht behauptet. Das Manifest ist gegen
+`.ai/schemas/task.schema.json` mit dem gepinnten JsonSchema.Net 8.0.5 gültig
+(16/16 Manifeste unter `.ai/tasks/`); dieser Freigabelauf hat keinen
+Produktcode implementiert und keinen Commit erstellt.
