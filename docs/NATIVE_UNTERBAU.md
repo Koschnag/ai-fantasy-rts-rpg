@@ -109,10 +109,10 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 32 | Soak-Szenario unbekannt oder noch nicht implementiert; kein Report (T-022) |
 | 33 | Save-Gate verletzt (Prüfklassenmatrix, Größen-Sanity, Fortsetzung); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-031) |
 | 34 | Savecheck unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-031) |
-| 35 | Kommandoschleifen-Gate verletzt (Tickzeit, Warm-tick-Allokation, Reaktionsticks, Laufzeitshaderkompilierung, Kettenkonsistenz); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-032) |
+| 35 | Kommandoschleifen-Gate verletzt (Tickzeit, Warm-tick-Allokation, Reaktionsticks, Wechselreaktionsticks, Laufzeitshaderkompilierung, Kettenkonsistenz); der Report wurde dennoch geschrieben und klar als nicht bestanden markiert (T-032, T-033) |
 | 36 | Kommandoschleifenlauf unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-032) |
 | 37 | Kommandoschleifen-Szenario unbekannt oder Eingabeskript unlesbar/malformiert/außerhalb Wertebereiche; kein Report (T-032) |
-| 38 | Opt-in Einzelabgriff der Kommandoschleife fehlgeschlagen; der Report wurde dennoch geschrieben und bindet `captured=false` mit Grund (T-032) |
+| 38 | Opt-in Abgriffpaar der Kommandoschleife (je ein Einzelabgriff pro Modus über demselben Weltzustand am selben Tick, T-033) fehlgeschlagen; der Report wurde dennoch geschrieben und bindet `captured=false` mit Grund (T-032 Einzelabgriff-Präzedenz) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -295,19 +295,27 @@ ausschließlich auf die unveränderte öffentliche Kernbefehlsfläche
 (`SimCommandKind.GroupMoveToZone`, kanonische Ordnung) ab und folgt dem
 versionierten Kommandovertrag `docs/KOMMANDOVERTRAG.md` V1.
 
-Der Report (Schemaversion 1) bindet Skript-SHA-256 und Intent-Planhash,
+Der Report (Schemaversion 2) bindet Skript-SHA-256 und Intent-Planhash,
 Start-/Endzustands-Hash samt Kettenstichproben (`fnv1a64-canonical-chain-v1`),
 Tickzeit-p50/p95/p99, strenge Warm-tick-Allokation nach Simulationsvertrag §5,
 GC-Pausen sowie die Reaktionssticksverteilung von Befehlstick bis erstem
-Effektsnapshot mit Einheit und Methode; alle Diagnosefelder tragen
-maschinenlesbar `gateCoupled=false`, und der Report weist Q-TEC-010 sowie die
-Q-GAM-Fragen als offen aus. Das Ketten-Selbstkonsistenzkriterium wird unter
+Effektsnapshot mit Einheit und Methode; seit T-033 zusätzlich den
+Modussitzungsblock (Wechselprotokoll je Wechselgrenze inklusive Heldenstatus
+von Agentenindex 0, Kontextabweisungszähler, Lenk-Dedupe, Titel-HUD-Bindung,
+Wechselreaktionsverteilung) und die Modevertragsbindung; alle Diagnosefelder
+tragen maschinenlesbar `gateCoupled=false`, und der Report weist Q-TEC-010
+sowie die Q-GAM-Fragen einschließlich Q-GAM-010 als offen aus. Das
+Ketten-Selbstkonsistenzkriterium wird unter
 `gate.stateChainSelfConsistency` ausgewiesen: headless `evaluated=true`
 (Ergebnis über `gate.pass`/`violations`), im Interaktivmodus ausdrücklich
-`evaluated=false` mit maschinenlesbarem Grund statt Behauptung. Das Gate
+`evaluated=false` mit maschinenlesbarem Grund statt Behauptung. Das
+Wechselreaktionskriterium (T-033) erscheint unter `gate.switchReaction`:
+ohne wirksamen Wechsel ausdrücklich `evaluated=false` mit Grund, sonst als
+gemessener Zielpass. Das Gate
 entscheidet fail-closed ausschließlich
 gegen 16 ms harte Tickzeitgrenze (8-ms-Ziel ausgewiesen), 0 Bytes Allokation je
-warmem Tick, die abgeleitete harte Reaktionsgrenze von 3 Ticks (Ziel 2),
+warmem Tick, die abgeleitete harte Reaktionsgrenze von 3 Ticks (Ziel 2), die
+abgeleitete harte Wechselreaktionsgrenze von 3 Ticks (Ziel 2, T-033),
 null Laufzeitshaderkompilierungen und — headless — die Ketten-Selbstkonsistenz
 eines zweiten frischen Durchlaufs im selben Prozess. Unbekannte Szenarien oder
 unlesbare/malformierte Skripte brechen mit Exitcode 37 ohne Report ab;
@@ -323,8 +331,17 @@ kompilierte Shader, keine Laufzeitkompilierung), Auswahlmarker und
 Befehlsrueckmeldung laufen über mindestens zwei unterscheidbare visuelle Kanäle
 (Form plus Farbe, NF-005), die Kamera ist geclippt (Weltrand, Zoom), und ohne
 nutzbares Display bricht der Modus kontrolliert mit Code 19 ab statt zu
-simulieren. Der opt-in `--capture-frame PFAD` schreibt strikt nach dem
-Messfenster genau einen hashgebundenen 1920×1080-Einzelabgriff nach dem
+simulieren. Seit T-033 schaltet die frei belegbare Aktion `mode-switch`
+(Standard Tab) zwischen strategischem RTS-Modus und persönlichem Heldenmodus
+(Verfolgungskamera `hero-chase-camera-v1`, richtungsgelenkte Lenkung über die
+Pan-Tasten, Held-/Modus-Badge `hero-mode-badge-v1`, Titel-HUD
+`title-hud-mode-herozone-v1`); kontextfalsche interaktive Impulse erhalten im
+persönlichen Modus eine sichtbare, maschinenlesbare Abweisung
+(`strategy-intent-in-personal-mode`) und erhöhen den Reportzähler
+`interactiveContextRejections`. Der opt-in `--capture-frame PFAD` schreibt
+strikt nach dem Messfenster genau zwei hashgebundene 1920×1080-Einzelabgriffe
+(`-strategisch`/`-persoenlich`, je einer pro Modus über demselben Weltzustand
+am selben Tick, T-033) nach dem
 T-023-/Media-Lab-Muster mit maschinenlesbarer Aussagegrenze Graybox-
 Zustandsbelegung; ein fehlgeschlagener Abgriff ergibt Code 38 mit
 `captured=false` und Grund. Läufe auf dem Entwickler-PC sind diagnostische
