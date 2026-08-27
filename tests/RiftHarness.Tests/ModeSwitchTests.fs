@@ -720,10 +720,8 @@ let interactiveHybridWiringIsBoundToSources () =
           "TrySuffixArtifactPath"
           "AnalyzeCapturePair"
           "capture-path-extension-must-be-bmp"
-          "capture-pair-frames-identical"
-          "capture-frame-uniform"
           "SetViewFrameBuffer(InteractiveViews.ViewCapture, frameBuffer)"
-          "ConfigureRenderTargetView(InteractiveViews.ViewCapture"
+          "device.ConfigureRenderTargetView("
           "\"-strategisch\""
           "\"-persoenlich\""
           "SetTitle("
@@ -731,6 +729,17 @@ let interactiveHybridWiringIsBoundToSources () =
           "— Heldenzone: " ] do
         if not (runnerText.Contains(fragment, StringComparison.Ordinal)) then
             failwith $"CommandLoopRunner verdrahtet den Interaktiv-Hybridmodus nicht ({fragment})."
+
+    // Die fail-closed Paar-Grundkennungen sind in der Evidenzklasse gebunden.
+    let evidenceText =
+        File.ReadAllText(Path.Combine(repositoryRoot, "src", "Riftward.App", "Command", "CommandFrameEvidence.cs"))
+
+    for fragment in
+        [ "capture-pair-frames-identical"
+          "capture-frame-uniform"
+          "capture-frame-malformed" ] do
+        if not (evidenceText.Contains(fragment, StringComparison.Ordinal)) then
+            failwith $"CommandFrameEvidence bindet die Abgriffabweisung nicht ({fragment})."
 
     for fragment in
         [ "0.45f"
