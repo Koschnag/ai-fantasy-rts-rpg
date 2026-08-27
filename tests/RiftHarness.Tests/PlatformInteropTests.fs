@@ -326,6 +326,33 @@ let exitCodeMappingIsStableAndDocumented () =
         if ExitCodes.Map(code) <> expected then
             failwith $"Exitcode fuer {code} ist {ExitCodes.Map(code)}, dokumentiert ist {expected}."
 
+    // T-032: die neuen Kommandoschleifencodes 35-38 sind Teil desselben
+    // stabilen dokumentierten Vertrags (docs/NATIVE_UNTERBAU.md).
+    let commandExpectations =
+        [ PlatformErrorCode.CommandGateViolated, 35
+          PlatformErrorCode.CommandRunIncomplete, 36
+          PlatformErrorCode.CommandScenarioUnavailable, 37
+          PlatformErrorCode.CommandCaptureFailed, 38 ]
+
+    for code, expected in commandExpectations do
+        if ExitCodes.Map(code) <> expected then
+            failwith $"Exitcode fuer {code} ist {ExitCodes.Map(code)}, dokumentiert ist {expected}."
+
+    let nativeUnterbau =
+        let rec findRoot path =
+            if File.Exists(Path.Combine(path, "Riftward.slnx")) then
+                path
+            else
+                match Directory.GetParent(path) with
+                | null -> failwith "Repository-Wurzel nicht gefunden."
+                | parent -> findRoot parent.FullName
+
+        File.ReadAllText(Path.Combine(findRoot (Environment.CurrentDirectory), "docs", "NATIVE_UNTERBAU.md"))
+
+    for documented in [ "| 35 |"; "| 36 |"; "| 37 |"; "| 38 |" ] do
+        if not (nativeUnterbau.Contains(documented, StringComparison.Ordinal)) then
+            failwith $"NATIVE_UNTERBAU.md dokumentiert Exitcodezeile {documented} nicht."
+
 let sdlSessionOwnershipRulesAreExplicit () =
     let api = SdlApiFake()
     let session = SdlSession.Start(api)

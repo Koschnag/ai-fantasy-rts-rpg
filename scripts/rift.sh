@@ -216,6 +216,11 @@ case "$rift_command" in
     rift_need_app_output
     exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" savecheck "$@"
     ;;
+  kommandoschleife)
+    rift_need_dotnet
+    rift_need_app_output
+    exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" kommandoschleife "$@"
+    ;;
   harness)
     rift_need_dotnet
     rift_need_build_outputs
@@ -285,6 +290,12 @@ case "$rift_command" in
       '             nativ headless auf linux-x64 ausführen; Save-Gate-' \
       '             Verletzungen schlagen mit Exitcode 33 fehl, ein' \
       '             unvollständiger Lauf mit Exitcode 34 ohne Evidenz' \
+      '  kommandoschleife ...  Graybox-Kommandoschleife (T-032) über der' \
+      '             Vertragswelt ausführen; headless ohne Fenster/Renderer' \
+      '             oder mit --interactive; Gateverletzungen schlagen mit' \
+      '             Exitcode 35 fehl, ein unvollständiger Lauf mit 36,' \
+      '             unbekanntes Szenario/Skript mit 37 (kein Report), ein' \
+      '             fehlgeschlagener opt-in Abgriff mit 38' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \

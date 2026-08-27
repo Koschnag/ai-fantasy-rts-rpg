@@ -47,6 +47,7 @@
         "dependencies": {
           "Riftward.Platform": "[1.0.0, )",
           "Riftward.Save": "[1.0.0, )",
+          "Riftward.Session": "[1.0.0, )",
           "Riftward.Simulation": "[1.0.0, )"
         }
       },
@@ -54,6 +55,12 @@
         "type": "Project"
       },
       "riftward.save": {
+        "type": "Project",
+        "dependencies": {
+          "Riftward.Simulation": "[1.0.0, )"
+        }
+      },
+      "riftward.session": {
         "type": "Project",
         "dependencies": {
           "Riftward.Simulation": "[1.0.0, )"

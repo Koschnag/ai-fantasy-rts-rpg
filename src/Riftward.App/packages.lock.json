@@ -11,6 +11,12 @@
           "Riftward.Simulation": "[1.0.0, )"
         }
       },
+      "riftward.session": {
+        "type": "Project",
+        "dependencies": {
+          "Riftward.Simulation": "[1.0.0, )"
+        }
+      },
       "riftward.simulation": {
         "type": "Project"
       }

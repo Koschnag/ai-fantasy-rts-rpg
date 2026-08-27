@@ -2038,7 +2038,55 @@ module Program =
               "T-031 rift script savecheck contract keeps app build guard",
               SaveTests.riftScriptSavecheckContractKeepsAppBuildGuard
               "T-031 CLI contract runs savecheck with reports and controlled failures",
-              SaveTests.cliContractRunsSavecheckWithReportsAndControlledFailures ]
+              SaveTests.cliContractRunsSavecheckWithReportsAndControlledFailures
+              "T-032 session contract mirrors documented values",
+              CommandLoopTests.sessionContractMirrorsDocumentedValues
+              "T-032 parser accepts canonical script and binds hashes",
+              CommandLoopTests.parserAcceptsCanonicalScriptAndBindsHashes
+              "T-032 parser rejects every class distinctly", CommandLoopTests.parserRejectsEveryClassDistinctly
+              "T-032 script hash binds raw bytes and rejects invalid encodings",
+              CommandLoopTests.scriptHashBindsRawBytesAndRejectsInvalidEncodings
+              "T-032 intent codec golden encoding is bound", CommandLoopTests.intentCodecGoldenEncoding
+              "T-032 canonical ordering makes reordering irrelevant",
+              CommandLoopTests.canonicalOrderingMakesReorderingIrrelevant
+              "T-032 determinism identical chains and foreign seed sensitivity",
+              CommandLoopTests.determinismIdenticalChainsAndForeignSeedSensitivity
+              "T-032 selection semantics v0 point box clear", CommandLoopTests.selectionSemanticsV0PointBoxClear
+              "T-032 move maps onto the unchanged kernel command surface",
+              CommandLoopTests.moveMapsToKernelCommandSurface
+              "T-032 reaction gate positive proof and fault injection matrix",
+              CommandLoopTests.reactionGatePositiveProofAndFaultInjectionMatrix
+              "T-032 allocation strictness regression stays at zero bytes",
+              CommandLoopTests.allocationStrictnessRegression
+              "T-032 camera model clamps world edges and zoom", CommandLoopTests.cameraModelClampsWorldEdgesAndZoom
+              "T-032 keymap validates semantic actions against defaults",
+              CommandLoopTests.keymapValidatesSemanticActionsAgainstDefaults
+              "T-032 architecture keeps the session core pure", CommandLoopTests.architectureKeepsSessionPure
+              "T-032 exit code mapping stays stable including command codes",
+              CommandLoopTests.exitCodeMappingStaysStableIncludingCommandCodes
+              "T-032 interactive exit code precedence stays window bound",
+              CommandLoopTests.interactiveExitCodePrecedenceStaysWindowBound
+              "T-032 CLI contract runs headless loops with controlled failures",
+              CommandLoopTests.cliContractRunsHeadlessWithReportsAndControlledFailures
+              "T-032 engine run is hermetic", CommandLoopTests.engineRunIsHermetic
+              "T-032 headless working set reason binds contract truthfulness",
+              CommandLoopTests.headlessWorkingSetReasonBindsContractTruthfulness
+              "T-032 rift script contract keeps app build guard",
+              CommandLoopTests.riftScriptKommandoschleifeContractKeepsAppBuildGuard
+              "T-032 report schema accepts golden and rejects fabrication matrix",
+              CommandLoopTests.reportSchemaAcceptsGoldenAndRejectsFabricationMatrix
+              "T-032 dispatched move zones bind accepted kernel commands only",
+              CommandLoopTests.dispatchedMoveZonesBindAcceptedCommandsOnly
+              "T-032 interactive command pulse renders then expires",
+              CommandLoopTests.interactiveCommandPulseRendersThenExpires
+              "T-032 runner wires the second feedback channel to its source data",
+              CommandLoopTests.commandLoopRunnerWiresTheSecondFeedbackChannelToItsSourceData
+              "T-032 input script reading is bounded at the contract byte limit",
+              CommandLoopTests.inputScriptReadingIsBoundedAtTheContractByteLimit
+              "T-032 contract names the rejection causes verbatim",
+              CommandLoopTests.contractNamesTheRejectionCausesVerbatim
+              "T-032 runner surfaces the rejection causes on their live paths",
+              CommandLoopTests.runnerSurfacesTheRejectionCausesOnTheirLivePaths ]
 
         if arguments.Length = 2 && arguments[0] = "--generator-probe" then
             let root = arguments[1]

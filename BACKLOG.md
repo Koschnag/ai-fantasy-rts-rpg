@@ -40,7 +40,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-023 | E-003 | integrierter repräsentativer Belastungsframe verbindet 350 sichtbare/250 simulierte Einheiten, Animation, Landschaft, Schatten, Partikel und vollständige Ressourcenmetriken auf den Minimum-Profilen | Z-002 | L | MUST | DONE |
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DONE |
-| T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
+| T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -556,6 +556,422 @@ build mit 0 Warnungen, Tests 218/218, security PASS, rag-build, Schema 15/15).
 Zu diesem Prüfzeitpunkt hatte die Implementierung nicht begonnen; der
 Taskstatus bleibt `ready`.
 
+T-032 wurde am 2026-08-26 durch den unabhängigen Review-/Vollendungslauf
+`01M0YJE3T8FDQ3T9QWJJY4DTNW` (Akteur `t032-review-completion`) geprüft,
+vollendet und auf `DONE` gesetzt: Der Builder-Lauf `01M0Y8GA8T1H16TVPMV06QVKWY`
+hatte Abschnitt 0 (`docs/KOMMANDOVERTRAG.md` V1), das BCL-only-Projekt
+`Riftward.Session`, den Befehl `rift.sh kommandoschleife` (headless und
+fensterpflichtig, Exitcodes 35–38), Report Schemaversion 1, 18 neue Tests und
+die Dokumentation geliefert. Die Review-Sitzung führte alle Gates selbst aus
+(lint PASS, Release-Build 0 Warnungen, Tests 236/236, security PASS,
+rag-build, verify valid) und reparierte fünf In-Scope-Defekte des Primärslices
+ohne Berührung eines zweiten bereits akzeptierten Task-Manifests: die gegen
+die eigene API invertierte Zoomrichtung (Keys und Mausrad), den fehlenden
+vertraglichen Ausweis des Kettenkriteriums im Interaktivreport
+(`gate.stateChainSelfConsistency`, Kommandovertrag §7, mit Schema-, Golden- und
+Negativtestbindung), eine Satzfusion im G-PERF-Registertext, den
+achsenfalschen Clamp bei Live-Auswahlintents sowie einen Kommentardefekt am
+Intent-Codec; zusätzlich befreite sie den displaylosen CLI-Vertragstest von
+seiner stillen Abhängigkeit von gitignorierten Native-Artefakten (Erwartung 19
+mit, Code 14 ohne Artefaktmanifest; beides kontrolliert ohne Report). Eigene
+Evidenz: zwei Fresh-Prozessläufe mit builderidentischem Endhash
+`978aab19406daa26`, Fremdseed ändert den Endhash nachweislich, autoritativer
+Lauf Exit 0 mit p99 0,961 ms / Allokation 0 Bytes / max reactionTicks 1;
+Regressionen bench-sim, savecheck und soak-Kurzlauft grün. Da Test-, Fixture-,
+Build- und Evidenzpfade berührt wurden, führte die Sitzung den
+Fresh-Checkout-/Clean-Archive-Nachweis gemäß Präzedenz selbst aus:
+indexfreie Rekonstruktion des hypothetischen Kandidatenbaums
+`2e0845bf62b28e483e1067e5775b0b84e42230e5` (exakt 36 Auftragspfade, kein
+zweites Task-Manifest), volle Gatefolge aus Archivbytes inklusive Testsuite
+236/236 und identischem Endhash, `NO_DRIFT` gegen die Zweitextraktion. Der
+manuelle Interaktivsmoke und der opt-in Einzelabgriff bleiben wegen der
+displaylosen Umgebung (kontrollierter Abbruch Code 19, kein simulierter Beweis)
+ausdrückliche Restpunkte einer Displaysession; Details in
+`docs/abnahme/T-032-graybox-command-loop.md`. Eine unabhängige zweite
+Reparatur wurde bewusst verschoben: Der Asset-Lane-Git-Check scheitert in
+reinen `git archive`-Extraktionen ohne `.git` (`ASSET_GIT_CHECK_FAILED`,
+`tools/RiftHarness/Assets.fs`, T-003/T-006-Fläche); er ist als eigener
+späterer Slice nachzutragen.
+
+Am 2026-08-26 prüfte eine weitere unabhängige Frisch-Review-Sitzung
+(Harness-Run `01M0YQ71P5684F9PQR7T536QKS`, Akteur
+`t032-fresh-review-completion`) den vollständigen Arbeitsstand erneut, führte
+alle Gates und autoritativen Läufe selbst aus (lint/build/test 236/236/
+security/rag-build/verify grün; zwei Fresh-Prozessläufe mit identischem
+Endhash `eeeb63be320e6e6f`, Fremdseed ändert den Endhash nachweislich;
+Regressionen bench-sim, savecheck und Soak-Kurzlauf grün) und reparierte drei
+In-Scope-Defekte des Primärslices ohne Berührung eines zweiten bereits
+akzeptierten Task-Manifests: die ungeclippte `GrayboxCamera.SetDistance`
+gegen das eigene „immer geclippt"-Versprechen, den unwahren Methodenlabel des
+diagnostischen Interaktivfelds `frameTimeMs` (behielt fälschlich den
+T-023-Schatten-/Composite-Passbezug) und den Widerspruch zwischen
+dokumentierter kontrollierter Abweisung verspäteter Live-Intents
+(`RejectedLate`) und ihrer nachträglichen Ausführung in
+`SessionPipeline.ProcessBoundary`, wodurch der bestehende Vertragstest nur
+über die falsche Klasse bestand; die Klasse ist jetzt codegetreu gebunden.
+Headless-Ketten blieben beweislich byteidentisch. Die Pfadanzahl des
+vorherigen Fresh-Checkout-Absatzes wurde korrigiert (38 Auftragspfade:
+20 modifiziert, 18 neu); der Nachweis dieser Sitzung läuft am exakten
+Finalbaum, dessen Digest im Harness-Run gebunden ist.
+
+Am 2026-08-26 nahm eine unabhängige Wiederaufnahme-/Review-Sitzung (Akteur
+`t032-review-resume`) den durch externen systemctl-Stopp des vorigen
+Reviewers unterbrochenen, beweislich unveränderten Stand wieder auf
+(Identity-v3-Eingaben Parent `068974c…`, Add-A-Baum `23b98ebe…`; dessen
+belasteter x1-Lauf 233/236 mit T-021 Exit 26, T-022 Exit 30 und T-032 Exit 35
+ist ehrliche Last-Diagnose fail-closed Gates, kein Kandidatendefekt; alle
+unbelasteten Archivläufe 236/236). Sie prüfte alle fünf Sidecar-Befunde lokal
+und reparierte vier bestätigte In-Scope-Defekte des Primärslices ohne
+Berührung eines zweiten bereits akzeptierten Task-Manifests: (1)
+`scriptSha256` wurde über Re-Encoding dekodierten Texts statt über die
+Rohbytes gebunden — der Runner liest jetzt Rohbytes, der Parser prüft die
+Vertragsbytegrenze vor Dekodierung, weist nicht-UTF-8/BOM kontrolliert als
+`HeaderMalformed` ab und bindet den Hash an die exakten Rohbytes
+(Kommandovertrag §5 präzisiert; neuer Suiteeintrag, Testbestand 236 → 237);
+(2) die interaktive Allokationsmetrik maß Fensterbeginn bis
+Reportserialisierung inklusive Render-/Abgriffanteilen statt der
+vertraglichen Per-Tick-Deltas um `world.Tick()` — jetzt identische Methode
+zur headless Engine mit einer einzigen Auswertung für Gate und Report;
+(3) nicht-`PlatformException`-Abbrüche im Interaktivpfad crashten ohne Report
+mit undokumentiertem Exitcode — jetzt Teilreport Code 36 wie headless;
+(4) unvollständige Läufe wiesen headless-Gründe für `Unavailable`-Felder aus
+— jetzt `run-incomplete-no-evidence`; zusätzlich schlossen zwei Fixtures die
+Lücken `ScriptTooLarge`/`IntentLimitTotal` in der Zehn-Klassen-Matrix, und
+der CLI-Vertragstest toleriert transiente Gate-Treffer (Exit 35) gemäß
+T-021-Präzedenz mit genau einem Wiederholversuch. Eigene Evidenz: lint/
+build/test 237/237/security/rag-build/verify grün; zwei Fresh-Prozessläufe
+Endhash `978aab19406daa26` builderidentisch zum Erstreview, Fremdseed ändert
+den Endhash nachweislich (`76eee99a2f05629c`); Regressionen bench-sim,
+savecheck und Soak-Kurzlauf (3000 Ticks) grün; Kontrolllauf 600 Ticks → Exit
+30 (nur ein RSS-Fenster, Trend NaN, korrektes Fail-Closed, Parameterfrage).
+Der Fresh-Checkout-/Clean-Archive-Nachweis lief am exakten Finalbaum
+(exakt ein Task-Manifest; der Baumdigest ist in der gitignorierten
+Sitzungsevidenz `artifacts/t032-review4/final-candidate-tree.txt` gebunden),
+volle Gatefolge aus Archivbytes inklusive Testsuite,
+`NO_DRIFT` gegen die Zweitextraktion; Details im Abnahmedokument. Zwei
+unabhängige Befunde wurden bewusst verschoben und sind als eigene spätere
+Slices nachzutragen: (a) Die Reaktionsmetrik ist konstruktionsbedingt stets
+1 Tick (`V == S` an derselben Vorgrenze); das Gatekriterium 3 ist nur über
+seine Fault-Injection falsifizierbar, nicht über die Pipeline — eine
+verzögerte Verbrauchssemantik wäre eine Kommandovertrag-V2-Entscheidung mit
+Fixture-Regeneration. (b) `ArgumentQueue.NumberOption` fällt bei
+nichtparierbaren Zahlen still auf den Default, und Warm-up-/Horizontangaben
+werden still geclamped (geteilte, bereits abgenommene Fläche aller Runner;
+die Skriptkopf-Bindung verhindert falsche Reports) — repo-weite Säuberung.
+Die bereits zuvor verschobene Reparatur des Asset-Lane-Git-Checks in reinen
+Archivextraktionen (`ASSET_GIT_CHECK_FAILED`, `tools/RiftHarness/Assets.fs`)
+bleibt unverändert ein späterer Slice.
+
+Am 2026-08-26 verifizierte eine unabhängige Abschluss-Review-Sitzung
+(Harness-Run `01M0Z4XKCYH8DMSVE7K8QDHYWR`, Akteur `t032-final-review`) den
+eingefrorenen Stand: Ihre indexfreie Plumbing-Rekonstruktion reproduzierte den
+gebundenen Kandidatenbaum `6cef61b0…` exakt (kein Drift seit der
+Wiederaufnahmesitzung; 38 Auftragspfade, genau ein Task-Manifest). Sie
+reparierte zwei kleine In-Scope-Defekte des Primärslices ohne Berührung eines
+zweiten bereits akzeptierten Task-Manifests: den wahrheitswidrigen
+unavailable-Grund des headless `workingSetKiB`-Felds (behauptete RSS-Sampling,
+das nicht existiert; jetzt `headless-session-does-not-sample-rss`) und den
+Exitcode-Widerspruch bei vorzeitigem Interaktivabbruch (Code 0 statt 36 bei
+passierenden Teilmetriken; Exitcode jetzt strikt an `windowCompleted` gebunden,
+Report bleibt mit `run-incomplete-no-evidence` nicht-evident). Eigene Evidenz:
+fmt/lint/build 0 Warnungen/test 237/237/security/rag-build/verify grün; zwei
+Fresh-Prozessläufe Endhash `40c3016dc9b93325` builderidentisch und beweislich
+identisch vor/nach Reparatur, Fremdseed ändert den Endhash nachweislich
+(`ee70f281c1bb60b6`); Horizontabweichung → 37 ohne Report, displayloser
+Interaktivlauf → 19 ohne Report; Regressionen bench-sim, savecheck und
+Soak-Kurzlauf (3000 Ticks) grün. Der Fresh-Checkout-/Clean-Archive-Nachweis
+lief nach allen Änderungen am neuen Finalbaum (Digest gebunden in
+`artifacts/t032-final-review/final-candidate-tree.txt` und im Harness-Run):
+byteidentische Doppel-Extraktion, volle Gatefolge aus Archivbytes inklusive
+Testsuite und autoritativem Lauf, `NO_DRIFT` gegen die Zweitextraktion. Die
+verschobenen unabhängigen Reparaturen (Asset-Lane-Git-Check, vakuoese
+Reaktionsmetrik V == S als Kommandovertrag-V2-Entscheidung, stille
+NumberOption-Defaults/-Clamps) bleiben unverändert spätere Slices.
+
+Am 2026-08-26 verifizierte eine weitere unabhängige Prüf-/Vollendungs-Sitzung
+(Harness-Run `01M0ZV9ARJ1PFSA64RGZ5ME4H2`, Akteur `t032-selfreview-final`) den
+gesamten Arbeitsstand ohne Übernahme der Vorsitzungsbehauptungen. Zwei kleine
+In-Scope-Nebenreparaturen im Primärslice ohne Berührung eines zweiten bereits
+akzeptierten Task-Manifests: (1) Die Exitcode-Präzedenz des Interaktivmodus
+wurde vertraglich korrigiert — ein vorzeitiger Abbruch vor Fensterabschluss
+ergibt stets Code 36 auch dann, wenn ein `--capture-frame` angefordert war,
+dessen Unterbleiben zuvor Code 38 maskierte; die Entscheidung liegt jetzt in
+der puren Hilfsfunktion `ResolveInteractiveExitCode` und ist durch einen neuen
+Suiteeintrag an die Präzedenzmatrix gebunden (Testbestand 237 → 238).
+(2) Rein kosmetische Einrückungsnormalisierung in
+`SessionEngine.ProcessBoundary`. Eigene Evidenz: alle schnellen Gates grün
+(238/238), zwei Fresh-Prozessläufe Endhash `978aab19406daa26`
+builderidentisch zu Erstreview und Wiederaufnahmesitzung, Fremdseed
+`76eee99a2f05629c` abweichend, Horizontabweichung/leeres Skript → 37 ohne
+Report, displayloser Interaktivlauf → 19 ohne Report; Regressionen bench-sim,
+savecheck und Soak-Kurzlauf grün. Der Fresh-Checkout-/Clean-Archive-Nachweis
+lief am exakten Finalbaum (Digest gebunden in
+`artifacts/t032-selfreview/final-candidate-tree.txt`): byteidentische
+Doppel-Extraktion, volle Gatefolge aus Archivbytes inklusive Testsuite und
+autoritativem Lauf mit identischem Endhash, `NO_DRIFT` gegen die
+Zweitextraktion. Die drei verschobenen unabhängigen Reparaturen bleiben
+unverändert spätere Slices.
+
+Am 2026-08-26 verifizierte eine weitere unabhängige Frisch-Review-/Vollendungs-
+Sitzung (Akteur `t032-review5`) den gesamten Arbeitsstand ohne Übernahme der
+Vorsitzungsbehauptungen: Lock-freie Rekonstruktion des Kandidatenbaums
+`02e656df04f0470b855c2bdd73531958242fd0a0` (Parent `068974c9…`; exakt 38
+Auftragspfade, genau ein Task-Manifest), alle schnellen Gates, autoritativen
+Läufe und der Fresh-Checkout-/Clean-Archive-Vertrag wurden selbst ausgeführt
+(zwei Fresh-Prozesspaare mit identischen Endhashes `60f311f20d9b7876` bzw.
+`949194e5779aa2a1`, Fremdseed weicht nachweislich ab; 37/37/37/19-Negativfälle
+ohne Report; Regressionen bench-sim/savecheck/Soak-Kurzlauf grün; volle
+Archiv-Gatefolge inklusive autoritativem Lauf aus Archivbytes und
+`NO_DRIFT`). Ein In-Scope-Nebenreparaturfund im Primärslice ohne Berührung
+eines zweiten bereits akzeptierten Task-Manifests: Die Gold-Fixture behielt
+den wahrheitswidrigen Grund `headless-session-engine-samples-rss-diagnostically`,
+obwohl die Abschluss-Review den Laufzeitcode bereits auf
+`headless-session-does-not-sample-rss` korrigiert hatte — das Schema validiert
+diesen Wert nicht, sodass die Suite fälschlich grün blieb. Reparatur: das
+einzelne Feld der Goldprobe wurde auf die echte Laufausgabe regeneriert, die
+Fabrikationsmatrix weist die Kennung jetzt als Pflichtinhalt aus, und ein
+neuer Suiteeintrag bindet den internen Runnerpfad `WorkingSetFrom` an den
+vertraglichen Grund (Sichtbarkeitspraezedenz `ResolveInteractiveExitCode`);
+Testbestand 238 → 239; headless-Ketten beweislich
+unverändert. Die verschobenen unabhängigen Reparaturen bleiben unverändert
+spätere Slices.
+
+Am 2026-08-26 schloss eine weitere unabhängige Frisch-Review-Sitzung
+(Harness-Run `01M101PKH0WSH1NC0BR56DQE6D`, Akteur `t032-r6-fresh-review`) den
+Kandidaten ohne neuen Defektbefund ab: alle schnellen Gates (lint, Release-
+Build 0 Warnungen, Tests 239/239, security, rag-build, verify), Regressionen
+(bench-sim, savecheck, Soak-Kurzlauf) und autoritative Läufe wurden selbst
+ausgeführt — zwei Skriptpaare mit builderidentischen Endhashes
+(`2b0cd3cdd830f56d`, `6a5b7beb1d01e79a` inklusive Archivbytes), Fremdseed
+weicht nachweislich ab, Negativfälle 37/37/37 ohne Report und displayloser
+Interaktivlauf 19 ohne Report. Der Fresh-Checkout-/Clean-Archive-Nachweis
+lief nach allen Änderungen am finalen Kandidatenbaum: private
+Add-A-Rekonstruktion zweifach konvergent und deckungsgleich mit der
+`t032-review5`-Bindung (vor der reinen Doku-Erweiterung dieser Sitzung),
+byteidentische Doppel-Extraktion, volle Gatefolge aus Archivbytes,
+NO_DRIFT über 350 getrackte Dateien; der Baumdigest ist außerhalb der
+geprüften Bytes gebunden (`artifacts/t032-r6/final-candidate-tree.txt`,
+Run-Zusammenfassung). Genau ein Task-Manifest verändert; die verschobenen
+unabhängigen Reparaturen bleiben unverändert spätere Slices.
+
+Am 2026-08-26 prüfte eine weitere unabhängige Frisch-Review-/Reparatursitzung
+(Akteur `t032-review7`) den vollständigen Arbeitsstand ohne Übernahme der
+Vorsitzungsbehauptungen und fand zwei In-Scope-Defekte des Primärslices, die
+kein Test gebunden hatte, ohne Berührung eines zweiten bereits akzeptierten
+Task-Manifests: (1) Die vertragliche Zweikanalrückmeldung war im
+Interaktivpfad tot — `InteractiveView.NotifyCommandIssued` wurde nirgends
+aufgerufen, der Befehlspuls-Kanal (Kommandovertrag §3, AC-T032-06) hätte also
+auch auf einer Displaymaschine nie geglüht; die bisherige „Strukturreview" war
+rein textlich und kein Suiteeintrag band die Verdrahtung. Reparatur: Der
+Sitzungskern weist je Vorgrenze die tatsächlich an den Kern übergebenen
+Bewegungszonen aus (`DispatchedMoveZonesOfLastBoundary`), der Runner meldet
+diese Zonen an die Darstellung; vier neue Suiteeinträge binden Zonenausweis
+(nur akzeptierte Befehle, Leerung je Grenze, verspätete Klasse korrekt
+abgewiesen), Puls-Lebenszyklus (Anzeige und Ablauf nach 40 Ticks),
+Runnerverdrahtung und den unveränderten headless Weltzustand (Endhash
+`978aab19406daa26` beweislich identisch zu Erstreview/Wiederaufnahme/
+Selfreview). (2) Das untrusted Eingabeskript wurde vor der Bytegrenze
+unbeschränkt materialisiert; endlos liefernde Quellen wären unkontrolliert an
+der Speichergrenze gestorben statt kontrolliert als `ScriptTooLarge` → 37 ohne
+Report. Reparatur: begrenzende Rohbytes-Lesung an der Vertragsgrenze vor
+Dekodierung, Suiteeintrag gegen Sparse-Uebergröße, exakte Grenzwertgröße und
+End-of-stream-Spezialdatei. Testbestand 239 → 243. Alle Gates wurden selbst
+ausgeführt: fmt/lint PASS, Release-Build 0 Warnungen, Tests 243/243,
+security PASS, rag-build, verify valid. Eigene Evidenz: A-Paar identisch
+`978aab19406daa26`, B-Paar identisch `fd2521bb71216ea9`, Fremdseed ändert den
+Endhash nachweislich (`340b48f57e653a1a`), p99 ≤ 0,892 ms / Allokation
+0 Bytes / max reactionTicks 1, Negativfälle unbekanntes Szenario/malformiert/
+Horizontabweichung/uebergross je 37 ohne Report, displayloser Interaktivlauf
+19 ohne Report, Regressionen bench-sim/savecheck/Soak-Kurzlauf grün. Der
+Fresh-Checkout-/Clean-Archive-Nachweis lief nach allen Änderungen am exakten
+Finalbaum (Digest gebunden in `artifacts/t032-review7/final-candidate-tree.txt`
+und Run-Zusammenfassung): byteidentische Doppel-Extraktion, Gatefolge aus
+Archivbytes inklusive Testsuite und autoritativem Lauf mit identischem
+Endhash, `NO_DRIFT`. Die verschobenen unabhängigen Reparaturen bleiben
+unverändert spätere Slices.
+
+Am 2026-08-27 prüfte eine weitere unabhängige Frisch-Review-/Reparatursitzung
+(Akteur `t032-review8-independent`) den vollständigen Arbeitsstand ohne
+Übernahme der Vorsitzungsbehauptungen: alle schnellen Gates, autoritativen
+Läufe (Frisch-Paare Skript A `1b224dd71ff5fce2` und Skript B
+`8657a4eb6ac62967` mit 15 Kernbefehlen über GroupMoveToZone, Fremdseed
+`b3c0186fb5d0ef1d` abweichend, Negativmatrix je 37 ohne Report,
+displayloser Interaktivlauf 19 ohne Report) sowie die Regressionen
+bench-sim/savecheck/Soak-Kurzlauf wurden eigenständig ausgeführt.
+Ein kleiner In-Scope-Wahrhaftigkeitsdefekt des Primärslices wurde gefunden und
+repariert, ohne Berührung eines zweiten bereits akzeptierten Task-Manifests:
+Die vertraglichen Ablehnungsgründe `move-without-selection` (Kommandovertrag
+§2) und `target-not-in-zone` (§9) existierten im Code nur unter fremden Namen
+als Reportzähler; die Kennungen waren nirgends gebunden und im Interaktivpfad
+erschien keine UF-001-Fehlerzeile. Reparatur strikt additiv: Vertrags-
+konstanten in `SessionContract`, Feld `RejectedMoveWithoutSelection` je
+Vorgrenze, UF-Zeilen mit den verbatim-Kennungen am Live-Pfad; zwei neue
+Suiteeinträge binden Kennung und Ausgabepfade (Testbestand 243 → 245);
+headless-Ketten blieben beweislich unverändert (identische Endhashes vor/nach
+Reparatur). Der Fresh-Checkout-/Clean-Archive-Nachweis lief nach allen
+Änderungen am exakten Finalbaum (Digest gebunden in
+`artifacts/t032-review8/final-candidate-tree.txt`; indexfreie Plumbing-
+Rekonstruktion via `hash-object`/`mktree`, da die Umgebung jeden Indexzugriff
+fail-closed sperrte); Details im Abnahmedokument. Die verschobenen
+unabhängigen Reparaturen bleiben unverändert spätere Slices.
+
+Am 2026-08-27 prüfte eine erneute unabhängige Frisch-Review-/Vollendungs-
+Sitzung (Akteur `t032-review9-independent`) den vollständigen Arbeitsstand
+ohne Übernahme der Vorsitzungsbehauptungen: alle schnellen Gates eigenständig
+grün (lint PASS, Release-Build 0 Warnungen, Testsuite 245/245, security PASS,
+rag-build, verify valid), autoritative Läufe mit selbst komponierten
+Eingabeskripten (Skript A `22495b1823291d5f`, Skript B `44f5cc692e49e038`
+jeweils builderidentisch; Fremdseed `5a24d8044c5799b5` abweichend;
+kernelCommandsTotal 33 auf B), Negativmatrix je 37 ohne Report, displayloser
+Interaktivlauf 19 ohne Report sowie Regressionen bench-sim/savecheck/
+Soak-Kurzlauf grün. Zwei kleine In-Scope-Nebenreparaturen im Primärslice,
+ohne Berührung eines zweiten bereits akzeptierten Task-Manifests: der
+Portabilitätsabsatz der Vorgängersitzung trug veraltete Zahlen weiter
+(`243/243`, Endhash `978aab19406daa26`) gegen die eigenen Suiteprotokolle und
+Reports jener Sitzung (245/245, `1b224dd71ff5fce2`) — berichtigt samt
+Transparenznotiz; zusätzlich wurde ein irreführender Kommentar an
+`GrayboxIntent.PointSelect` auf die vertragliche Semantik korrigiert.
+Headless-Ketten blieben beweislich identisch vor/nach Reparatur. Empfangene
+Identität: indexfreie Rekonstruktion zweifach konvergent (Vorbindung
+`5203fcc65cc262f5176a63d3809ebcb8c0cae6b3`; Finalbaumbindung dieser Sitzung im
+Abnahmedokument). Beobachtet und dem verschobenen ArgumentQueue-Slice zuge-
+ordnet (nicht hier gebündelt): still tolerierte unbekannte Positionsargumente
+in der geteilten Runnerfläche. Die übrigen verschobenen Reparaturen bleiben
+unverändert spätere Slices.
+
+Am 2026-08-27 prüfte eine erneute unabhängige Frisch-Review-/Vollendungs-
+Sitzung (Harness-Run `01M10FTZC62KX9V2MT5XS6NY5N`, Akteur
+`t032-review10-independent`) den vollständigen Arbeitsstand ohne Übernahme der
+Vorsitzungsbehauptungen: alle schnellen Gates eigenständig grün (fmt ohne
+Fixes, lint 0 Befunde, Release-Build 0 Warnungen, Testsuite 245/245, security
+PASS, rag-build, verify valid mit runsChecked=61), autoritative Läufe mit
+selbst komponierten Eingabeskripten — Skript A `67c46966a1979aa8` und Skript B
+`195a613d19503d41` (kernelCommandsTotal=10 über GroupMoveToZone) jeweils
+builderidentisch inklusive byteidentischer Ketten je Paar; Fremdseed
+`bbd157f0be518ab5` abweichend; Warm-up-Variante 200 liefert beweislich
+denselben Endhash wie 240 (Messfensterunabhängigkeit des Zustands); Gate-
+kennzahlen p99 0,721 ms / Allokation 0 Bytes je warmem Tick / max
+reactionTicks 1 / Kettenkriterium evaluated=true. Negativmatrix (unbekanntes
+Szenario, malformierter Header, Horizontabweichung, unbekannte Aktion,
+übergrosses Sparse-Skript, `/dev/null`) je 37 ohne Report; displayloser
+Interaktivlauf 19 ohne Report. Regressionen bench-sim/savecheck/
+Soak-Kurzlauft (3000 Ticks, diagnostisch) grün; Riftward.Simulation
+byteidentisch (Diff leer), GAME_DESIGN.md unberührt. Kein neuer Defektbefund;
+keine Reparatur in dieser Sitzung nötig; die drei verschobenen unabhängigen
+Reparaturen bleiben unverändert spätere Slices.
+Fresh-Checkout-/Clean-Archive-Nachweis vor der reinen Doku-Erweiterung:
+indexfreie Rekonstruktion zweifach konvergent (`hash-object`/`update-index`
+auf privatem Temporärindex gegen Bottom-up-`mktree`) am Vorbindung-Baum
+`a42051d4f1cab386561b4e42efeac96bd7f13b68` (38 Auftragspfade: 20 modifiziert,
+18 neu, genau ein Task-Manifest); Doppel-Extraktion byteidentisch, volle
+Gatefolge aus Archivbytes (fmt/lint/build 0 Warnungen/test 245/245/security
+PASS/verify valid), autoritative Archivläufe liefern identische Endhashes A/B,
+NO_DRIFT nach den Gates gegen die Zweitextraktion. Die Finalbaumbindung nach
+allen Doku-Erweiterungen ist im Abnahmedokument sowie in
+`artifacts/t032-rev10/final-candidate-tree.txt` gebunden.
+
+Am 2026-08-27 prüfte eine weitere unabhängige Frisch-Review-Sitzung (Akteur
+`t032-rev11-independent`) den Kandidaten erneut vollständig ohne Übernahme der
+Vorgängerbehauptungen: alle schnellen Gates eigenständig grün (fmt/lint ohne
+Befunde, Release-Build 0 Warnungen, Testsuite 245/245, security PASS,
+rag-build, verify valid mit runsChecked=62), autoritative Läufe mit neu
+komponierten Skriptpaaren statt der Vorgängerskripte — Skript A (Horizont 900)
+Endhash `4223d37d9ceff0ad`, Skript B Endhash `61b0fbcd0524ea1f`, je Paar
+builderidentisch; Fremdseed 999 liefert `3c976aa154326ec3` abweichend;
+p99 ≤ 0,737 ms / Allokation 0 Bytes je warmem Tick / max reactionTicks 1 /
+Kettenkriterium evaluated=true. Negativmatrix (unbekanntes Szenario,
+malformierter Header, Horizontabweichung, übergrosses Skript am Rohmaterial,
+`/dev/null`) je 37 ohne Report; displayloser Interaktivlauf 19 ohne Report.
+Regressionen bench-sim/savecheck/Soak-Kurzlauft (3480 Ticks, diagnostisch)
+grün; der Soak-Kurzlauft reproduzierte den Vorgängerendhash
+`2763007a4dbc3c15`. Riftward.Simulation byteidentisch, GAME_DESIGN.md
+unberührt, genau ein Task-Manifest verändert. Kein neuer Defektbefund; keine
+Reparatur nötig; die drei verschobenen unabhängigen Reparaturen bleiben
+unverändert spätere Slices. Fresh-Checkout-/Clean-Archive-Nachweis am
+Vorbindung-Baum `c7e8dfd5f537e3ac29b8fb7edb956c77003e29f4` — exakt die
+rev10-Finalfortschreibung, indexfrei zweifach konvergent rekonstruiert und
+damit drift- und revisionsbeständig fortgeführt; Doppel-Extraktion
+byteidentisch (350 Dateien), Gatefolge aus Archivbytes inklusive Testsuite und
+autoritativer Archivläufe mit identischen Endhashes A/B, NO_DRIFT nach allen
+Gates. Die `.git`-lose ASSET_LANE-Lücke blieb auch hier unverifizierbar und
+unverändert dem verschobenen Slice vorbehalten. Finalbaumbindung nach dieser
+Doku-Erweiterung: `artifacts/t032-rev11/final-candidate-tree.txt`.
+
+Am 2026-08-27 prüfte eine erneute unabhängige Frisch-Review-Sitzung (Akteur
+`t032-rev12-independent`) den Kandidaten vollständig ohne Übernahme der
+Vorgängerbehauptungen: alle schnellen Gates eigenständig grün (fmt ohne Fixes,
+lint valid, Release-Build 0 Warnungen, Testsuite 245/245, security PASS,
+rag-build, verify valid mit runsChecked=63), autoritative Läufe mit neu
+komponierten Skriptpaaren — Skript A Endhash `9ba54e081947c32e` und Skript B
+Endhash `3b414d4f426e3e17`, je Paar builderidentisch inklusive byteidentischer
+Ketten; nur die p99-Timingdiagnostik variiert erwartungsgemäß — Fremdseed 7
+liefert `b823352a81208d17` abweichend. Allokation 0 Bytes je warmem Tick,
+max reactionTicks 1, Kettenkriterium `evaluated=true`. Negativmatrix
+(unbekanntes Szenario, `/dev/null`, Kopfhorizontabweichung, übergrosses
+Sparse-Skript) je 37 ohne Report; displaylose Interaktivläufe ohne Display und
+gegen toten Wayland-Socket je 19 ohne Report. Regressionen bench-sim
+(p99 0,502 ms, pass) / savecheck (alle Prüfklassen) / Soak-Kurzlauft
+(3240 Ticks, diagnostisch) grün; Riftward.Simulation byteidentisch,
+GAME_DESIGN.md unberührt, genau ein Task-Manifest verändert. Kein neuer
+Defektbefund; keine Reparatur nötig; die drei verschobenen unabhängigen
+Reparaturen bleiben unverändert spätere Slices.
+Fresh-Checkout-/Clean-Archive-Nachweis vor der Doku-Erweiterung: indexfreie
+Identitätsrekonstruktion zweifach konvergent (bottom-up `hash-object`/`mktree`
+gegen privaten Temporärindex `read-tree HEAD` + `update-index --add --stdin`;
+echter Index nie angefasst) am Vorbindung-Baum
+`d0fae7a80bfbff72a4dd38653da5293506003478` (350 Auftragspfade, genau ein
+Task-Manifest); Doppel-Extraktion byteidentisch (350 Dateien), volle Gatefolge
+aus Archivbytes (bootstrap/fmt/lint/build 0 Warnungen/test 245/245/security
+PASS), autoritative Archivläufe mit identischen Endhashes A/B, NO_DRIFT nach
+allen Gates gegen die Zweitextraktion (350/350). Die `.git`-lose
+ASSET_LANE-Lücke blieb unverändert dem verschobenen Slice vorbehalten.
+Finalbaumbindung nach dieser Doku-Erweiterung:
+`artifacts/t032-rev12-independent/final-candidate-tree.txt`.
+
+Am 2026-08-27 prüfte eine weitere unabhängige Frisch-Review-Sitzung (Akteur
+`t032-rev13-independent`) den Kandidaten vollständig ohne Übernahme der
+Vorgängerbehauptungen. Empfangene Identität: indexfreie Rekonstruktion
+zweifach konvergent — privater Temporärindex (`read-tree HEAD` +
+`update-index --index-info` am exakten Pfadsatz) gegen Bottom-up-
+`hash-object`/`mktree`; beide liefern exakt den gebundenen Vorbindung-Baum
+`8f108155d043fdf12140ed92b9b2fc7649a1c3b1` und reproduzieren damit die
+rev12-Finalbindung (beweislich kein Drift seit rev12). Baumdifferenz zu HEAD
+exakt 38 Auftragspfade (20 M, 18 A), genau ein Task-Manifest, 350 getrackte
+Dateien; Riftward.Simulation byteidentisch, GAME_DESIGN.md unberührt. Alle
+schnellen Gates eigenständig grün (fmt `--check` 0, lint valid 0 Befunde,
+Release-Build 0 Warnungen, Testsuite 245/245, security PASS, rag-build,
+verify valid runsChecked=63). Autoritative Läufe mit neu komponierten
+Skripten: Skript A (7 Intents, Horizont 900) Paarendhash
+`48f3f231f0880cb9`, Skript B (11 Intents inklusive Tick-Umsortierung und
+Ablehnungsprobe) Paarendhash `e8a02b76679b8b38`, Ketten je Paar byteidentisch;
+Fremdseed 42 auf Skript A ändert Start- und Endhash nachweislich
+(`23507fd162f3fa39`). Allokation 0 Bytes je warmem Tick, max reactionTicks 1,
+Kettenkriterium `evaluated=true`, `gate.pass=true`; die vertragliche
+Move-Ablehnung erscheint als Zähler statt stiller Wirkung (Skript A: 3,
+Skript B: 1; kernelCommandsTotal 25 auf B über GroupMoveToZone).
+Negativmatrix (unbekanntes Szenario, malformierter Header,
+Kopfhorizontabweichung 901/900, `/dev/null`, übergrosses Sparse-Skript)
+je 37 ohne Report; displayloser Interaktivlauf bei vorhandenem
+Artefaktmanifest kontrollierter Code-19-Abbruch ohne Report.
+Regressionen bench-sim → 0 (`gate.pass=true`), savecheck → 0
+(`gate.pass=true`), Soak-Kurzlauft 3000 Ticks diagnostisch (`evidenceUnit=false`)
+→ 0. Kein neuer Defektbefund im vollständigen Quellreview; keine Reparatur
+nötig; die drei verschobenen unabhängigen Reparaturen bleiben unverändert
+spätere Slices. Fresh-Checkout-/Clean-Archive-Nachweis vor der reinen
+Doku-Erweiterung dieser Sitzung: Doppel-Extraktion des Baums byteidentisch;
+volle Gatefolge aus Archivbytes (Release-Build 0 Warnungen, fmt `--check`
+0, lint valid, Testsuite 245/245, security PASS) plus zwei autoritative
+Kommandoschleifenläufe aus Archivbytes mit identischen Endhashes A/B wie die
+Arbeitsbaumlaeufe; NO_DRIFT nach allen Gates gegen die Zweitextraktion
+(350/350); `assets-check` und das harness-zustandsabhängige `verify`
+bleiben gemäß der dokumentierten verschobenen ASSET_LANE-Reparatur
+Entwicklerbaum-Gates und sind dort grün. Endgültige Finalbaumbindung nach
+dieser reine-Doku-Erweiterung zweifach konvergent rekonstruiert und in
+`artifacts/t032-r13-independent/final-candidate-tree.txt` sowie der
+Zusammenfassung des Harness-Runs `01M10R1QPFDE5ENFJNZSPYSV0Q` gebunden;
+die Baumdifferenz gegenüber dem geprüften Vorbindung-Baum umfasst
+ausschließlich die drei Dokumentationspfade dieser Sitzung.
+
 Die verbleibenden DRAFT-Einheiten hängen an Referenzhardware- und
 Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`) sowie an echten kreativen
 Produktentscheidungen (`T-030` samt seiner geplanten Folgeslices, dahinter
@@ -578,3 +994,83 @@ Freigaben (`T-050`/`T-051`).
 - **Erforderliche Tests:**
 - **Dokumentation:**
 - **Offene Punkte:**
+
+Am 2026-08-27 prüfte eine weitere unabhängige Frisch-Review-Sitzung (Akteur
+`t032-rev14-independent`, Harness-Run `01M10SA03FXEZ1S1DXHP4S20JK`) den
+Kandidaten vollständig ohne Übernahme der Vorgängerbehauptungen. Empfangene
+Identität: indexfreie Rekonstruktion zweifach konvergent (kanonische
+SHA-1-Baumkonstruktion vs privater Temporärindex) am Vorbindung-Baum
+`bc051ddc…`, deckungsgleich mit der rev13-Finalbindung — beweislich kein
+Drift; 38 Auftragspfade (20 M/18 A), genau ein Task-Manifest;
+Riftward.Simulation byteidentisch, docs/GAME_DESIGN.md unberührt. Alle
+schnellen Gates eigenständig grün (lint 0 Befunde, Release-Build
+0 Warnungen, Testsuite 245/245, security PASS, rag-build, verify valid mit
+runsChecked=65). Autoritative Läufe mit selbst komponierten Skripten:
+Skript A Paarendhash `ff6cd961cd46dd5c` (kernelCommandsTotal=5,
+moveWithoutSelectionRejects=2), Skript B (nichtmonotone Dateireihenfolge als
+Live-Kanonisierungsnachweis) Paarendhash `c03d1047616ec67b`; Ketten je Paar
+byteidentisch; Fremdseed 424242 ändert Start- und Endhash nachweislich; p99
+≤ 0,722 ms, Allokation 0 Bytes je warmem Tick, max reactionTicks 1,
+Kettenkriterium evaluated=true, gate.pass=true. Negativmatrix (unbekanntes
+Szenario, malformierter Header, Kopfhorizontabweichung, unbekannte Aktion,
+übergrosses Sparse-Skript am Rohmaterial, /dev/null) je 37 ohne Report;
+displaylose Interaktivläufe ohne Display und gegen toten Wayland-Socket je
+19 ohne Report bei vorhandenem Artefaktmanifest. Regressionen bench-sim/
+savecheck grün mit gate.pass=true, Soak-Kurzlauft 3060 Ticks diagnostisch
+(evidenceUnit=false) → 0. Fresh-Checkout-/Clean-Archive-Nachweis am
+Vorbindung-Baum: Doppel-Extraktion byteidentisch (350 Dateien), Gatefolge
+aus Archivbytes inklusive Testsuite und autoritativer Archivläufe mit
+identischen Endhashes A/B wie die Arbeitsbaumläufe, NO_DRIFT nach allen
+Gates gegen die Zweitextraktion (350/350); assets-check und das harness-
+zustandsabhängige verify bleiben gemäß der dokumentierten verschobenen
+ASSET_LANE-Reparatur Entwicklerbaum-Gates und sind dort grün. Kein neuer
+Defektbefund im vollständigen Quellreview; keine Reparatur nötig; die drei
+verschobenen unabhängigen Reparaturen bleiben unverändert spätere Slices.
+Endgültige Finalbaumbindung nach dieser reinen Doku-Erweiterung zweifach
+konvergent rekonstruiert in `artifacts/t032-rev14/final-candidate-tree.txt`.
+
+Am 2026-08-27 prüfte eine weitere unabhängige Frisch-Review-Sitzung (Akteur
+`t032-rev15-independent`) den gesamten Arbeitsstand vollständig ohne Übernahme
+der Vorgängerbehauptungen. Kandidatenidentität zweifach konvergent: private
+Index-Rekonstruktion (`read-tree HEAD` + `update-index --cacheinfo` aus
+Arbeitsbytes) und reine `hash-object`/`mktree`-Plumbing-Rekonstruktion aus
+Archivbytes ergeben exakt denselben Baum `c55aa581…` (Parent `068974c…`, 350
+getrackte Dateien, 38 Auftragspfade, genau ein Task-Manifest). Alle schnellen
+Gates eigenständig grün (Release-Build 0 Warnungen, Testsuite 245/245,
+lint 0 Befunde, security PASS, rag-build OK, verify valid mit
+runsChecked=65). Autoritative Läufe mit selbst komponierten Skriptpaaren
+(Horizont 900): A Endhash `23507fd162f3fa39` (Punktwahl vor Boxauswahl im
+selben Tick als Kanonisierungsprobe), B Endhash `8f46c4b12141bbed`
+(kernelCommandsTotal=33); je Paar builderidentisch **und** die vollständigen
+Kettenstichproben prozessgrenzenübergreifend byteidentisch (Abgleich des
+extrahierten `stateHashChain`-JSONs) — damit ist auch die Intervallgleichheit
+von AC-T032-03 über Prozessgrenzen belegt. Fremdseed 999 →
+`3c976aa154326ec3` abweichend; p99 ≤ 0,918 ms, Allokation 0 Bytes,
+max reactionTicks 1, Kettenkriterium evaluated=true, gate.pass=true.
+Negativmatrix (unbekanntes Szenario, Kopfhorizontabweichung 900/1200,
+/dev/null, Zonengrenzwert 6, duplizierter Intent, übergrosses Sparse-Skript)
+je 37 ohne Report; displayloser Interaktivlauf 19 ohne Report.
+Regressionen bench-sim (gate.pass=true), savecheck (0), Soak-Kurzlauft
+3000 Ticks mit Vertragsseed grün; Kontrollprobe Soak mit Fremdseed 42 schlägt
+korrekt fail-closed mit Exit 30 `state-hash-chain-mismatch:golden-fixture` ab.
+Fresh-Checkout-/Clean-Archive-Vertrag vollständig ausgeführt: Doppel-Extraktion
+byteidentisch, Gatefolge ausschließlich aus Archivbytes — bootstrap/lint/
+assets-check/security/verify (valid, runsChecked=0 erwartungsgemäß ohne
+portierte Runtime-Evidenz) plus Testsuite; der Erstlauf der exakten
+Null-Allokations-Einzelassertion fiel transient mit 3,84 Bytes aus
+(Kaltprozesstransient, bewusst keine Schwächung vorgenommen) und war danach
+dreifach reproduzierbar grün 245/245; NO_DRIFT nach allen Gates gegen die
+Zweitextraktion (350/350). Der historische ASSET_GIT_CHECK_FAILED-Befund war
+auf heutigen Bytes unter zwei Archivformen nicht reproduzierbar; die
+verschobene Reparatur bleibt offen (exakte Vorgängerform mit vollen Staging
+ist wegen des Stagingverbots nicht nachstellbar). Zwei kleine In-Scope-Doku­
+reparaturen im Primärslice ohne Berührung eines zweiten Task-Manifests:
+Präzedenzsatz für Exitcodes 36/38/35 im Kommandovertrag §8 gemäß
+`ResolveInteractiveExitCode` sowie Flagparität der AUTOMATION.md-Befehlszeile
+(`--warmup-ticks/--horizon-ticks/--lock`). Neue verschobene unabhängige
+Reparatur als späterer Slice: Härtung von
+`allocationStrictnessRegression` gegen Kaltprozess-Transients
+(protokollgerechte Wiederholung analog T-021-CLI-Präzedenz oder
+prozessisolierte Messung); die Exakt-Null-Gateklasse des Engine-Reports bleibt
+unberührt. Riftward.Simulation byteidentisch, GAME_DESIGN.md unberührt;
+Finalbaumbindung in `artifacts/t032-rev15/final-candidate-tree.txt`.
