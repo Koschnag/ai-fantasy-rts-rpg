@@ -185,7 +185,11 @@ public sealed class SessionPipeline
     /// </summary>
     public SessionMode CurrentEffectiveMode => _effectiveMode;
 
-    /// <summary>Verschmelzte, vertraglich wirksame Wechselprotokoll-Eintraege (T-033).</summary>
+    /// <summary>Verschmelzte, vertraglich ausgewiesene Wechselprotokoll-Eintraege (T-033):
+    /// wirksame Wechsel mit gemessener Wechselreaktion und Heldenstatus,
+    /// sowie — nach <see cref="FlushPendingSwitches"/> — ausdrücklich
+    /// unwirksam gebliebene Wechsel nahe dem Laufhorizont (EffectiveInRun=false,
+    /// Endmoduswahrheit bleibt der Reportendmodus).</summary>
     public IReadOnlyList<ModeSwitchEvent> SwitchProtocol => _switchProtocol;
 
     /// <summary>Gesamtzaehler strategischer Intents, die im persoenlichen Modus abgewiesen wurden.</summary>
@@ -475,6 +479,29 @@ public sealed class SessionPipeline
         }
     }
 
+    /// <summary>
+    /// Schließt den Lauf ab: ausgewertete Wechsel, deren Wirksamkeitsgrenze
+    /// M = S + 2 hinter dem Laufhorizont läge, werden ausdrücklich mit
+    /// EffectiveInRun=false ins Wechselprotokoll übernommen, statt still zu
+    /// verschwinden (Modevertrag Abschnitt 4); der Sitzungsmodus ändert sich
+    /// an keiner Wirksamkeitsgrenze mehr, der Reportendmodus bleibt die
+    /// Wahrheit des Laufs. Headless ruft <see cref="SessionEngine.Run"/> diese
+    /// Methode nach dem Messfenster, der Interaktivpfad nach dem Loop-Ende.
+    /// </summary>
+    public void FlushPendingSwitches()
+    {
+        foreach (var pending in _pendingSwitches)
+        {
+            _switchProtocol.Add(pending with
+            {
+                EffectiveInRun = false,
+                SwitchReactionTicks = 0,
+            });
+        }
+
+        _pendingSwitches.Clear();
+    }
+
     /// <summary>Gesamtzaehler der angewendeten Intents (diagnostisch).</summary>
     public long AppliedIntentsTotal { get; private set; }
 
@@ -606,6 +633,7 @@ public static class SessionEngine
         }
 
         var endStateHash = world.ComputeStateHash();
+        pipeline.FlushPendingSwitches();
         var gcPauseSumMs = (GC.GetTotalPauseDuration() - pauseSumBefore).TotalMilliseconds;
         var gcPauseCount = GcCollectionTotal() - collectionCountBefore;
 

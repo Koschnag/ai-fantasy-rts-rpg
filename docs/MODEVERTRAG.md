@@ -92,6 +92,13 @@ Jede durchgelassene Lenkung erzeugt exakt einen Kernbefehl auf Gruppe 0.
 |---|---|
 | **A: richtungsgelenkte Zonenlenkung (Empfehlung)** | Erhält die bestehende Richtungskohärenz (Kommandovertrag §4) über beide Modi, benötigt keine neue Belegkonkurrenz und bleibt deterministisch; Nachteil: Zonenauflösung ist grob (Graybox). |
 | B: direkte Zonentasten (1–6 wählt Zone direkt) | Einfach deterministisch, aber sechs Zusatzbelegungen konkurrieren mit der bestehenden Keymapfamilie und brechen die kamerarelative Richtungsanmutung der Verfolgungskamera; als dokumentierte Alternative mit Playtestkriterium (Zonentaste innerhalb 1 s korrekt) erhalten. |
+
+Die Auflösung der interaktiven Lenkrichtung fällt ausschließlich in exakter
+Ganzzahlarithmetik über der Q16-Kernposition (Kreuzmultiplikation der
+normierten Richtungstreue in Int128); bei Gleichstand des größten
+Richtungstreue-Skalarprodukts gewinnt ausdrücklich die niedrigste Zonennummer,
+und eine Richtung ohne richtungstreue Kandidatin wird mit
+`steer-direction-without-zone` sichtbar abgewiesen.
 | C: kontinuierliche agentenpunktbasierte Steuerung (verworfen) | Erfordert neue Kernbefehlsarten und Agentengranularität im Kern — Kerneländerung, ausdrücklich out of scope; eine spätere kontinuierliche Heldensteuerung ist ein eigener Simulationsvertrag V2 mit Messbeleg. |
 
 **Playtestkriterien:** In protokollierten Playtests lenken Tester in ≥ 80 %

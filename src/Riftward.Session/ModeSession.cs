@@ -118,57 +118,80 @@ public static class HeroTracker
 /// Deterministische Auflösung der interaktiven Lenkrichtung gegen die sechs
 /// Zonenzentren (Modevertrag Abschnitt 3): Ziel ist die Zone mit dem groessten
 /// normierten Richtungstreue-Skalarprodukt; ohne Richtungstreue-Kandidat
-/// (-1) wird der Impuls mit steer-direction-without-zone abgewiesen. Doppelte
-/// Genauigkeit bleibt darstellseitige Diagnostik; das Ergebnis ist allein
-/// durch Heldenposition und Richtung bestimmt.
+/// (-1) wird der Impuls mit steer-direction-without-zone abgewiesen. Die
+/// Entscheidung faellt ausschließlich in exakter Ganzzahlarithmetik (Q16-Kern,
+/// Int128-Kreuzmultiplikation) — ohne Fließkommaanteil, ohne Uhr- oder
+/// Umgebungsbeitrag; bei Gleichstand gewinnt ausdrücklich die niedrigste
+/// Zonennummer. Die Richtungskomponenten sind kleine ganzzahlige
+/// Einheitskomponenten (−1/0/+1 je Achse).
 /// </summary>
 public static class HeroDirectionSteering
 {
     /// <summary>
-    /// Löst eine Himmelsrichtung (dirX nach Osten, dirY nach Sueden,
-    /// nicht normiert) gegen die Zonenzentren auf. Rueckgabe -1 ohne
-    /// richtungstreuen Kandidaten.
+    /// Löst eine Himmelsrichtung (dx nach Osten, dy nach Sueden, kleine
+    /// ganzzahlige Einheitskomponenten) gegen die Zonenzentren auf.
+    /// Rueckgabe -1 ohne richtungstreuen Kandidaten.
     /// </summary>
-    public static int ResolveZone(Riftward.Simulation.SimWorld world, double dirX, double dirY)
-    {
-        var length = Math.Sqrt((dirX * dirX) + (dirY * dirY));
+    public static int ResolveZone(Riftward.Simulation.SimWorld world, long dx, long dy) =>
+        ResolveZoneFrom(world.PositionXOf(ModeContract.HeroAgentIndex), world.PositionYOf(ModeContract.HeroAgentIndex), dx, dy);
 
-        if (length < 1e-12)
+    /// <summary>
+    /// Exakte Ganzzahl-Auflösung über einer Heldenposition (Q16.16): Kandidat
+    /// ist jede Zone mit positivem Richtungstreue-Skalarprodukt
+    /// (Zentrum − Held) · Richtung; Ziel ist die Kandidatin mit dem groessten
+    /// normierten Skalarprodukt. Der Vergleich zweier Kandidaten
+    /// i, j ist exakt als Kreuzmultiplikation dot_i² · d2_j gegen
+    /// dot_j² · d2_i gebunden (Int128, ohne Überlauf), und bei Gleichstand
+    /// gewinnt die niedrigste Zonennummer; der Held exakt im Zentrum
+    /// waehlt diese Zone.
+    /// </summary>
+    public static int ResolveZoneFrom(long heroPositionXQ16, long heroPositionYQ16, long dx, long dy)
+    {
+        if (dx == 0 && dy == 0)
         {
             return -1;
         }
 
-        var heroX = world.PositionXOf(ModeContract.HeroAgentIndex) / (double)Riftward.Simulation.FixedPoint.One;
-        var heroY = world.PositionYOf(ModeContract.HeroAgentIndex) / (double)Riftward.Simulation.FixedPoint.One;
-        var unitX = dirX / length;
-        var unitY = dirY / length;
-
         var bestZone = -1;
-        var bestAlignment = 0.0;
+        var bestDot = 0L;
+        var bestDistanceSquared = 0L;
 
         for (var zone = 0; zone < Riftward.Simulation.NavWorld.ZoneCount; zone++)
         {
-            var centerX = Riftward.Simulation.NavWorld.ZoneCenterXQ16(zone) / (double)Riftward.Simulation.FixedPoint.One;
-            var centerY = Riftward.Simulation.NavWorld.ZoneCenterYQ16(zone) / (double)Riftward.Simulation.FixedPoint.One;
-            var toCenterX = centerX - heroX;
-            var toCenterY = centerY - heroY;
-            var distance = Math.Sqrt((toCenterX * toCenterX) + (toCenterY * toCenterY));
+            var toCenterX = Riftward.Simulation.NavWorld.ZoneCenterXQ16(zone) - heroPositionXQ16;
+            var toCenterY = Riftward.Simulation.NavWorld.ZoneCenterYQ16(zone) - heroPositionYQ16;
+            var dot = (toCenterX * dx) + (toCenterY * dy);
 
-            if (distance < 1e-12)
+            if (dot <= 0)
+            {
+                continue;
+            }
+
+            var distanceSquared = (toCenterX * toCenterX) + (toCenterY * toCenterY);
+
+            if (distanceSquared == 0)
             {
                 // Held steht exakt im Zentrum: jede Richtung ist streugetreu.
                 return zone;
             }
 
-            var alignment = ((toCenterX * unitX) + (toCenterY * unitY)) / distance;
-
-            if (alignment > 0.0 && alignment > bestAlignment)
+            if (bestZone < 0 || StrictlyBeats(dot, distanceSquared, bestDot, bestDistanceSquared))
             {
-                bestAlignment = alignment;
                 bestZone = zone;
+                bestDot = dot;
+                bestDistanceSquared = distanceSquared;
             }
         }
 
         return bestZone;
     }
+
+    /// <summary>
+    /// Exakter Mengenvergleich der normierten Richtungstreue: Kandidat schlägt
+    /// den Bestwert genau dann, wenn dot_c² · d2_b &gt; dot_b² · d2_c; Gleichstand
+    /// (==) waehlt bewusst nicht, sodass die niedrigste Zonennummer gewinnt.
+    /// </summary>
+    internal static bool StrictlyBeats(long dotCandidate, long distanceSquaredCandidate, long dotBest, long distanceSquaredBest) =>
+        ((Int128)dotCandidate * dotCandidate * distanceSquaredBest)
+        > ((Int128)dotBest * dotBest * distanceSquaredCandidate);
 }

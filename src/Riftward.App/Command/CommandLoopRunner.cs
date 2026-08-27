@@ -367,6 +367,10 @@ internal static class CommandLoopRunner
                 context.Device, resources, view, world, pipeline, camera, heroCamera, input,
                 context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks);
 
+            // Laufende ausgewertete, aber nicht mehr wirksame Wechsel sind
+            // ausdrücklich im Protokoll gebunden statt still zu verschwinden.
+            pipeline.FlushPendingSwitches();
+
             CaptureOutcome capture;
 
             if (capturePath is null)
@@ -905,7 +909,7 @@ internal static class CommandLoopRunner
                     // konsistent zum Rand-Schwenken am oberen Fensterrand.
                     if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
                     {
-                        EnqueueDirectionalSteering(input, pipeline, world, 0.0, -1.0);
+                        EnqueueDirectionalSteering(input, pipeline, world, 0L, -1L);
                     }
                     else
                     {
@@ -917,7 +921,7 @@ internal static class CommandLoopRunner
                 case "pan-down":
                     if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
                     {
-                        EnqueueDirectionalSteering(input, pipeline, world, 0.0, +1.0);
+                        EnqueueDirectionalSteering(input, pipeline, world, 0L, +1L);
                     }
                     else
                     {
@@ -929,7 +933,7 @@ internal static class CommandLoopRunner
                 case "pan-left":
                     if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
                     {
-                        EnqueueDirectionalSteering(input, pipeline, world, -1.0, 0.0);
+                        EnqueueDirectionalSteering(input, pipeline, world, -1L, 0L);
                     }
                     else
                     {
@@ -941,7 +945,7 @@ internal static class CommandLoopRunner
                 case "pan-right":
                     if (pipeline.CurrentEffectiveMode == SessionMode.Personal)
                     {
-                        EnqueueDirectionalSteering(input, pipeline, world, +1.0, 0.0);
+                        EnqueueDirectionalSteering(input, pipeline, world, +1L, 0L);
                     }
                     else
                     {
