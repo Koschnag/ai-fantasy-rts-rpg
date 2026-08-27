@@ -1172,3 +1172,28 @@ Reaktionsmetrik V == S, stille NumberOption-Defaults/-Clamps, Härtung
 `allocationStrictnessRegression`) bleiben unverändert spätere Slices.
 Endgültige Finalbaumbindung nach dieser Doku-Erweiterung in
 `artifacts/t032-rev18/final-candidate-tree.txt`.
+
+Am 2026-08-27 schloss die unabhängige Frisch-Review-/Vollendungssitzung
+`t032-rev19-independent` den T-032-Kandidaten ab, ohne die
+Vorgängerbehauptungen zu übernehmen: alle schnellen Gates und autoritativen
+Läufe eigenständig ausgeführt (lint 0, Build 0 Warnungen, Suite 246/246,
+security PASS, rag-build, assets-check 0, verify valid runsChecked=66;
+Skriptpaare A `be7cfe6361c30f3e` / B `be358d374dd795c6` builderidentisch mit
+byteidentischen Ketten, Fremdseed 999 abweichend, Negativmatrix je 37 ohne
+Report, displaylos Interaktiv 19 ohne Report; Regressionen
+bench-sim/savecheck/Soak-Kurzlauf grün; Fresh-Checkout-/Clean-Archive-Vertrag
+am Vorbindung-Baum `6f791e4252ade052b69f5afce2ef74da6ec05684` mit
+autoritativem Archivlauf und NO_DRIFT 350/350; Details und verbindliches
+Laufprotokoll im Abnahmedokument). Kein neuer Code-Defekt. Zwei
+Wahrhaftigkeitsreparaturen der Evidenzpflege ohne Codeänderung: (1) Der
+`ASSET_GIT_CHECK_FAILED`-Befund war in der `.git`-losen Archivextraktion
+außerhalb des Repositorys vollständig reproduzierbar — die Gegenbehauptung
+„nicht reproduzierbar" aus rev15/rev17/rev18 ist berichtigt; die
+verschiedenen Archivformen verhalten sich hier environmentsabhängig, weshalb
+assets-check/security/verify im Entwicklerbaum verbleiben und dort grün sind.
+(2) Die 35.000-Zeichen-Session-Chronik im `completionNote` des Task-Manifests
+wurde gemäß Evidenzpflege-Vorgabe durch die kompakte Abschlusszusammenfassung
+(≈2,5 KB) ersetzt; die vollständige Runhistorie bleibt in Receipts und
+Abnahmedokument erhalten. Die vier verschobenen unabhängigen Reparaturen
+bleiben unverändert spätere Slices. Finalbaumbindung dieser Sitzung:
+`artifacts/t032-rev19-independent/final-candidate-tree.txt`.
