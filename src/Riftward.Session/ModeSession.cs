@@ -137,13 +137,15 @@ public static class HeroDirectionSteering
 
     /// <summary>
     /// Exakte Ganzzahl-Auflösung über einer Heldenposition (Q16.16): Kandidat
-    /// ist jede Zone mit positivem Richtungstreue-Skalarprodukt
-    /// (Zentrum − Held) · Richtung; Ziel ist die Kandidatin mit dem groessten
-    /// normierten Skalarprodukt. Der Vergleich zweier Kandidaten
-    /// i, j ist exakt als Kreuzmultiplikation dot_i² · d2_j gegen
-    /// dot_j² · d2_i gebunden (Int128, ohne Überlauf), und bei Gleichstand
-    /// gewinnt die niedrigste Zonennummer; der Held exakt im Zentrum
-    /// waehlt diese Zone.
+    /// ist ausschließlich jede Zone mit positivem Richtungstreue-Skalarprodukt
+    /// (Zentrum − Held) · Richtung (Modevertrag Abschnitt 3: „jedes
+    /// Skalarprodukt ≤ 0" ist kein Kandidat — dies schließt den Fall ein, dass
+    /// der Held exakt auf einem Zonenzentrum steht: der Vektor ist dort 0, das
+    /// normierte Skalarprodukt undefined, die Zone also kein Kandidat und die
+    /// Auflösung fällt auf die nächste richtungstreue Zone oder -1). Der
+    /// Vergleich zweier Kandidaten i, j ist exakt als Kreuzmultiplikation
+    /// dot_i² · d2_j gegen dot_j² · d2_i gebunden (Int128, ohne Überlauf), und
+    /// bei Gleichstand gewinnt die niedrigste Zonennummer.
     /// </summary>
     public static int ResolveZoneFrom(long heroPositionXQ16, long heroPositionYQ16, long dx, long dy)
     {
@@ -168,12 +170,6 @@ public static class HeroDirectionSteering
             }
 
             var distanceSquared = (toCenterX * toCenterX) + (toCenterY * toCenterY);
-
-            if (distanceSquared == 0)
-            {
-                // Held steht exakt im Zentrum: jede Richtung ist streugetreu.
-                return zone;
-            }
 
             if (bestZone < 0 || StrictlyBeats(dot, distanceSquared, bestDot, bestDistanceSquared))
             {

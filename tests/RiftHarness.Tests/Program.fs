@@ -2104,6 +2104,10 @@ module Program =
               ModeSwitchTests.sameTickSwitchIsEvaluatedLastAndEffectiveAtSPlusTwo
               "T-033 consecutive tick switches follow the canonical evaluation basis",
               ModeSwitchTests.consecutiveTickSwitchesFollowCanonicalEvaluationBasis
+              "T-033 switches near horizon stay bound as ineffective",
+              ModeSwitchTests.switchesNearHorizonStayBoundAsIneffective
+              "T-033 hero direction steering resolves exactly with explicit tie break",
+              ModeSwitchTests.heroDirectionSteeringResolvesExactlyWithExplicitTieBreak
               "T-033 interactive report schema binds capture pair and hud",
               ModeSwitchTests.interactiveReportSchemaBindsCapturePairAndHud
               "T-033 interactive hybrid wiring is bound to sources",

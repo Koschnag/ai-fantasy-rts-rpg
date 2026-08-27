@@ -971,8 +971,8 @@ internal static class CommandLoopRunner
         InputState input,
         SessionPipeline pipeline,
         SimWorld world,
-        double directionX,
-        double directionZ)
+        long directionX,
+        long directionZ)
     {
         if (input.LastSteerTick == world.TickIndex)
         {

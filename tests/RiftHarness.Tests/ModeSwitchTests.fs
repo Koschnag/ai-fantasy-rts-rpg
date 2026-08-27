@@ -638,6 +638,112 @@ let interactiveHybridWiringIsBoundToSources () =
     if steeringCallSites <> 5 then
         failwith $"Interaktive Lenkung hat {steeringCallSites} statt 5 Bindungsorten (Definition plus vier Richtungen)."
 
+// ---------------------------------------------------------------------------
+// Horizontwahrheit des Wechselprotokolls (Modevertrag §4 (4)): ausgewertete,
+// nicht mehr wirksame Wechsel bleiben ausdrücklich gebunden.
+// ---------------------------------------------------------------------------
+
+let switchesNearHorizonStayBoundAsIneffective () =
+    // Horizont 420: Wechsel an 417 wird an M=419 (letzte Gültigkeitsprüfung)
+    // wirksam; die Wechsel an 418 (M=420) und 419 (M=421) liegen hinter dem
+    // Laufhorizont, bleiben aber ausdrücklich im Protokoll gebunden
+    // (EffectiveInRun=false) statt still zu verschwinden.
+    let result =
+        SessionEngine.Run(
+            SessionRunRequest(
+                20260826u,
+                [| GrayboxIntent(417, GrayboxIntentKind.SwitchMode)
+                   GrayboxIntent(418, GrayboxIntentKind.SwitchMode)
+                   GrayboxIntent(419, GrayboxIntentKind.SwitchMode) |],
+                240,
+                420
+            )
+        )
+
+    if result.Telemetry.SwitchProtocol.Count <> 3 then
+        failwith $"Wechselprotokoll enthielt {result.Telemetry.SwitchProtocol.Count} statt 3 Einträgen."
+
+    let effective = result.Telemetry.SwitchProtocol.[0]
+
+    if
+        not effective.EffectiveInRun
+        || effective.IntentTick <> 417L
+        || effective.EffectiveBoundaryTick <> 419L
+        || effective.SwitchReactionTicks <> 2L
+    then
+        failwith "Wirksamer Horizontwechsel verletzte die Grenzkette."
+
+    for index in 1..2 do
+        let entry = result.Telemetry.SwitchProtocol.[index]
+
+        if entry.EffectiveInRun then
+            failwith "Wechsel hinter dem Laufhorizont wurde fälschlich als wirksam ausgewiesen."
+
+        if entry.SwitchReactionTicks <> 0L then
+            failwith "Unwirksamer Wechsel behauptete eine Wechselreaktionsmessung."
+
+        if entry.EffectiveBoundaryTick <> entry.IntentTick + 2L then
+            failwith "Unwirksamer Wechsel verlor seine gebundene Wirksamkeitsgrenze."
+
+    // Endmoduswahrheit: nur der Wechsel an 417 ist wirksam.
+    if result.Telemetry.FinalMode <> SessionMode.Personal then
+        failwith "Endmodus bildete nicht die Wahrheit des Laufs ab."
+
+    if result.Telemetry.SwitchReactionSampleCount <> 1 then
+        failwith "Wechselreaktionsverteilung umfasste nicht genau den wirksamen Wechsel."
+
+    // Wechsel erzeugen zu keinem Zeitpunkt einen Kernbefehl.
+    if result.KernelCommandsTotal <> 0 then
+        failwith "Horizontwechte erzeugten Kernelbefehle."
+
+let heroDirectionSteeringResolvesExactlyWithExplicitTieBreak () =
+    // Exakte Ganzzahlarithmetik (Modevertrag §3): bei Gleichstand des
+    // größten Richtungstreue-Skalarprodukts gewinnt die niedrigste
+    // Zonennummer. Heldenposition exakt auf der Reihe eines Zonenpaars mit
+    // gleicher Ausrichtung liefert den konstruierten exakten Gleichstand:
+    // y = 44,5 m stellt die Zonen 1 (Ost) und 5 (Ost-Mitte) beide mit
+    // normierter Richtungstreue exakt 1; y = 45,5 m die Zonen 0 (West) und
+    // 4 (West-Mitte).
+    if HeroDirectionSteering.ResolveZoneFrom(0L, 2916352L, 1L, 0L) <> 1 then
+        failwith "Exakter Gleichstand (Zonen 1 und 5) wählte nicht die niedrigste Zonennummer."
+
+    if HeroDirectionSteering.ResolveZoneFrom(0L, 2981888L, 1L, 0L) <> 0 then
+        failwith "Exakter Gleichstand (Zonen 0 und 4) wählte nicht die niedrigste Zonennummer."
+
+    // Streng bessere Kandidatin schlägt den Bestwert auch in späterer
+    // Zonennummer; der Mengenvergleich ist exakt (Int128-Kreuzmultiplikation).
+    if HeroDirectionSteering.StrictlyBeats(2L, 100L, 1L, 25L) then
+        failwith "Gleichstand (1/5 gegenüber 2/10) wurde als streng besser ausgewiesen."
+
+    if not (HeroDirectionSteering.StrictlyBeats(2L, 25L, 1L, 25L)) then
+        failwith "Streng bessere Richtungstreue wurde nicht erkannt."
+
+    // Ohne Richtung kein Kandidat.
+    if HeroDirectionSteering.ResolveZoneFrom(49L * 65536L, 45L * 65536L, 0L, 0L) <> -1 then
+        failwith "Nulldirection wurde nicht mit -1 abgewiesen."
+
+    // Zonenzentrumsfall zeichentreu nach Modevertrag §3: Auf dem Zentrum ist
+    // der Vektor 0 und das Skalarprodukt damit 0 — die Zentrumszone ist
+    // ausdrücklich KEIN richtungstreuer Kandidat; die Auflösung fällt auf die
+    // nächste richtungstreue Zone (nach §3-Formel abgeleitet: östlich die
+    // Zone 1, westlich allein die Zone 0).
+    if HeroDirectionSteering.ResolveZoneFrom(3244032L, 2981888L, 1L, 0L) <> 1 then
+        failwith "Zentrumsfall östlich wählte nicht die nächste richtungstreue Zone (§3)."
+
+    if HeroDirectionSteering.ResolveZoneFrom(3244032L, 2981888L, -1L, 0L) <> 0 then
+        failwith "Zentrumsfall westlich wählte nicht die einzige richtungstreue Zone (§3)."
+
+    // Weltgebundene Auflösung ist deterministisch und richtungstreu.
+    let world = SimWorld(20260826u)
+    let east = HeroDirectionSteering.ResolveZone(world, 1L, 0L)
+    let west = HeroDirectionSteering.ResolveZone(world, -1L, 0L)
+
+    if east <> HeroDirectionSteering.ResolveZone(world, 1L, 0L) then
+        failwith "Lenkauflösung war nicht deterministisch."
+
+    if east >= 0 && west >= 0 && east = west then
+        failwith "Östliche und westliche Auflösung fielen exakt zusammen (Richtungstreuung verletzt)."
+
 let consecutiveTickSwitchesFollowCanonicalEvaluationBasis () =
     // Modevertrag Abschnitt 4 (2)+(4): Wechsel an Ticks S und S+1 werden
     // beide im dann noch gültigen vorherigen Modus ausgewertet (die erste
