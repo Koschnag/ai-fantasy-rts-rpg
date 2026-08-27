@@ -110,6 +110,19 @@ das 160×90-m-Vertragsraster. Die Kamera ist ausschließlich Darstellung: Sie
 ist niemals Teil von Simulationszustand oder Hash und beeinflusst nur
 Pickingstrahlen und Sichtfenster.
 
+**Richtungskohärenz (Abschluss-Review 2026-08-27 präzisiert):** Bildschirm oben
+ist Norden (−Z). Tasten- und Rand-Schwenken bewegen die Sicht in dieselbe
+Himmelsrichtung: `pan-up`/Kontakt am oberen Rand → Norden, `pan-down`/unterer
+Rand → Süden, `pan-left`/linker Rand → Westen (−X), `pan-right`/rechter Rand →
+Osten (+X). Die Bildschirm-zu-Boden-Zuordnung ist die exakte Umkehrung der
+gepinnten bgfx-Clipkette (Kombination proj·view) und vom Test gebunden; die
+Kamera lebt im Render-Raum der Szene (T-020/T-023-Präzedenz). Beobachtete
+Eigenschaft dieser akzeptierten Renderkonvention: Osten erscheint am linken
+Bildschirmrand; die horizontale Bildschirmorientierung ist damit keine
+stille Produktentscheidung, sondern wird mit dem Playtestkriterium dieser
+Sektion beurteilt. Ihre Änderung ist eine Vertragsänderung mit Neubindung der
+Richtungstests.
+
 **Alternativen:**
 
 | Alternative | Ablehnungsgrund |

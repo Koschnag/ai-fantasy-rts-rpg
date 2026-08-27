@@ -581,6 +581,71 @@ let cameraModelClampsWorldEdgesAndZoom () =
         then
             failwith $"Bodenschnitt ({x}, {z}) liegt ausserhalb der Welt."
 
+    // Abschluss-Review 2026-08-27 (t032-rev18): Die Bildschirm-zu-Boden-
+    // Zuordnung ist die exakte Umkehrung der gepinnten bgfx-Clipkette
+    // (Kombination proj*view, Kamera im Render-Raum der Szene). Gebunden
+    // werden: (a) die Bildmitte trifft das Kamerazentrum, (b) die Achsen-
+    // abdeckung entartet nicht zu einem nahezu konstanten Punkt, (c) die
+    // Achsen sind entkoppelt, (d) Bildschirm oben ist Norden (-Z, §4).
+    let pickPixel (px: float) (py: float) =
+        InteractiveCameraMath.ScreenToGround(camera, 1920, 1080, px, py)
+
+    let centerPick = pickPixel 960.0 540.0
+
+    if not centerPick.HasValue then
+        failwith "Bildmitte (starker Probe) ergab keinen Bodenstrahl."
+    elif
+        abs (centerPick.Value.SimX - (float NavWorld.TilesX / 2.0)) > 3.0
+        || abs (centerPick.Value.SimZ - (float NavWorld.TilesY / 2.0)) > 3.0
+    then
+        failwith
+            $"Bildmitte trifft nicht das Kamerazentrum: ({centerPick.Value.SimX:F2}, {centerPick.Value.SimZ:F2})."
+
+    let leftPick = pickPixel 60.0 540.0
+    let rightPick = pickPixel 1860.0 540.0
+    let topPick = pickPixel 960.0 60.0
+    let bottomPick = pickPixel 960.0 1020.0
+
+    for probe, name in [ leftPick, "links"; rightPick, "rechts"; topPick, "oben"; bottomPick, "unten" ] do
+        if not probe.HasValue then
+            failwith $"Randpixel {name} ergab keinen Bodenschnitt."
+
+    if abs (rightPick.Value.SimX - leftPick.Value.SimX) < 20.0 then
+        failwith
+            $"Horizontale Picking-Abdeckung entartet: {leftPick.Value.SimX:F2} .. {rightPick.Value.SimX:F2}."
+
+    if abs (bottomPick.Value.SimZ - topPick.Value.SimZ) < 20.0 then
+        failwith $"Vertikale Picking-Abdeckung entartet: {topPick.Value.SimZ:F2} .. {bottomPick.Value.SimZ:F2}."
+
+    if abs (leftPick.Value.SimZ - rightPick.Value.SimZ) > 0.5 then
+        failwith "Horizontale Randpixel haben unterschiedliche Bodenhoehe-Z (Achsen gekoppelt)."
+
+    if abs (topPick.Value.SimX - bottomPick.Value.SimX) > 0.5 then
+        failwith "Vertikale Randpixel haben unterschiedliches Boden-X (Achsen gekoppelt)."
+
+    if not (topPick.Value.SimZ < bottomPick.Value.SimZ) then
+        failwith "Bildschirm oben ist nicht Norden (-Z; Kommandovertrag §4, feste Nordausrichtung)."
+
+    // Die Kamera lebt im Render-Raum der Szene (T-020/T-023-Praezedenz:
+    // Landschafts-/Einheiten-Meshes um den Ursprung zentriert); ein
+    // Sim-Raum-Augenpunkt wuerde die Szene um die halbe Weltgroesse
+    // verschieben und das Terrain ausserhalb des Kachelrasters samplen.
+    let eyeX, eyeY, eyeZ = InteractiveCameraMath.EyePosition(camera)
+    let lookAtX, lookAtY, lookAtZ = InteractiveCameraMath.CenterPosition(camera)
+
+    if
+        abs (eyeX - RepresentativeLandscape.ToWorldX(camera.CenterXMeters)) > 1e-9
+        || abs (lookAtX - RepresentativeLandscape.ToWorldX(camera.CenterXMeters)) > 1e-9
+        || abs
+            (eyeZ
+             - (RepresentativeLandscape.ToWorldZ(camera.CenterZMeters)
+                + (cos InteractiveCameraMath.PitchRadians * camera.DistanceMeters))) > 1e-9
+    then
+        failwith "Kamera-Auge/Blickziel liegen nicht im Render-Raum der Szene."
+
+    if eyeY <= RepresentativeLandscape.HeightAt(lookAtX, lookAtZ) then
+        failwith "Kamera-Auge liegt nicht ueber dem Terrain am Blickziel."
+
 let exitCodeMappingStaysStableIncludingCommandCodes () =
     let expectations =
         [ PlatformErrorCode.CommandGateViolated, 35
@@ -716,6 +781,82 @@ let private repositoryRoot =
             | parent -> findRoot parent.FullName
 
     findRoot Environment.CurrentDirectory
+
+let panDirectionsMatchEdgePanAndNorthUpContract () =
+    // Kommandovertrag §4 (Abschluss-Review 2026-08-27 praezisiert): Bildschirm
+    // oben ist Norden (-Z); Tasten- und Rand-Schwenken bewegen die Sicht in
+    // dieselbe Himmelsrichtung. Gebunden werden die Kameramathematik, die
+    // Runner-Verdrahtung (Quellfragment) und der Vertragsabsatz.
+    let camera = GrayboxCamera()
+    let z0 = camera.CenterZMeters
+    camera.PanSteps(0, -1)
+
+    if not (camera.CenterZMeters < z0) then
+        failwith "PanSteps(0,-1) bewegt die Sicht nicht nach Norden (-Z)."
+
+    camera.PanSteps(0, +2)
+
+    if not (camera.CenterZMeters > z0) then
+        failwith "PanSteps(0,+1) bewegt die Sicht nicht nach Sueden (+Z)."
+
+    let x0 = camera.CenterXMeters
+    camera.PanSteps(-1, 0)
+
+    if not (camera.CenterXMeters < x0) then
+        failwith "PanSteps(-1,0) bewegt die Sicht nicht nach Westen (-X)."
+
+    camera.PanSteps(+2, 0)
+
+    if not (camera.CenterXMeters > x0) then
+        failwith "PanSteps(+1,0) bewegt die Sicht nicht nach Osten (+X)."
+
+    let runnerText =
+        File.ReadAllText(Path.Combine(repositoryRoot, "src", "Riftward.App", "Command", "CommandLoopRunner.cs"))
+
+    for fragment in
+        [ "case \"pan-up\":"
+          "camera.PanSteps(0, -1);"
+          "case \"pan-down\":"
+          "camera.PanSteps(0, +1);"
+          "case \"pan-left\":"
+          "camera.PanSteps(-1, 0);"
+          "case \"pan-right\":"
+          "camera.PanSteps(+1, 0);"
+          "stepsY -= 1;"
+          "stepsY += 1;"
+          "stepsX -= 1;"
+          "stepsX += 1;" ] do
+        if not (runnerText.Contains(fragment, StringComparison.Ordinal)) then
+            failwith $"Schwenkrichtung fehlt oder ist invertiert ({fragment})."
+
+    // Kohärenz: Taste und Kantenkontakt derselben Seite nutzen dieselbe
+    // Weltrichtung (pan-up und oberer Rand beide -Z usw.).
+    let panUpIndex = runnerText.IndexOf("case \"pan-up\":", StringComparison.Ordinal)
+    let panDownIndex = runnerText.IndexOf("case \"pan-down\":", StringComparison.Ordinal)
+    let edgeTopIndex = runnerText.IndexOf("stepsY -= 1;", StringComparison.Ordinal)
+    let edgeBottomIndex = runnerText.IndexOf("stepsY += 1;", StringComparison.Ordinal)
+
+    if
+        panUpIndex < 0
+        || panDownIndex < 0
+        || edgeTopIndex < 0
+        || edgeBottomIndex < 0
+        || panUpIndex > panDownIndex
+    then
+        failwith "Runner-Schwenkblöcke sind nicht in der gebundenen Ordnung auffindbar."
+
+    if edgeTopIndex > edgeBottomIndex then
+        failwith "Rand-Schwenkblöcke sind nicht in der gebundenen Ordnung auffindbar."
+
+    let contractText =
+        File.ReadAllText(Path.Combine(repositoryRoot, "docs", "KOMMANDOVERTRAG.md"))
+
+    for fragment in
+        [ "Bildschirm oben ist Norden"
+          "dieselbe Himmelsrichtung"
+          "Osten am linken Bildschirmrand" ] do
+        if not (contractText.Contains(fragment, StringComparison.Ordinal)) then
+            failwith $"Kommandovertrag §4 bindet die Richtungskohärenz nicht ({fragment})."
 
 let private runAppHost (arguments: string[]) =
     let startInfo = ProcessStartInfo("dotnet")

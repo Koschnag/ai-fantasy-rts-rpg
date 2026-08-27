@@ -2059,6 +2059,7 @@ module Program =
               "T-032 allocation strictness regression stays at zero bytes",
               CommandLoopTests.allocationStrictnessRegression
               "T-032 camera model clamps world edges and zoom", CommandLoopTests.cameraModelClampsWorldEdgesAndZoom
+              "T-032 pan directions match edge pan and north-up contract", CommandLoopTests.panDirectionsMatchEdgePanAndNorthUpContract
               "T-032 keymap validates semantic actions against defaults",
               CommandLoopTests.keymapValidatesSemanticActionsAgainstDefaults
               "T-032 architecture keeps the session core pure", CommandLoopTests.architectureKeepsSessionPure
