@@ -1709,7 +1709,7 @@ konvergent rekonstruiert und gebunden:
 artifacts/t032-rev18/final-candidate-tree.txt
 ```
 
-## Unabhängige Frisch-Review-/Vollendungssitzung 2026-08-27 (Akteur t032-rev19-independent)
+## Unabhängige Frisch-Review-/Vollendungssitzung 2026-08-27 (Akteur t032-rev19-independent, Harness-Run 01M124W8DQVTTC1NVR8F5CG9JS)
 
 Empfangene Identität indexfrei zweifach konvergent — bottom-up `hash-object`/
 `mktree` aus `ls-tree HEAD` plus Arbeitsbytes gegen eine unabhängige

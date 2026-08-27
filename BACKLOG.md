@@ -1174,7 +1174,8 @@ Endgültige Finalbaumbindung nach dieser Doku-Erweiterung in
 `artifacts/t032-rev18/final-candidate-tree.txt`.
 
 Am 2026-08-27 schloss die unabhängige Frisch-Review-/Vollendungssitzung
-`t032-rev19-independent` den T-032-Kandidaten ab, ohne die
+`t032-rev19-independent` (Harness-Run `01M124W8DQVTTC1NVR8F5CG9JS`) den
+T-032-Kandidaten ab, ohne die
 Vorgängerbehauptungen zu übernehmen: alle schnellen Gates und autoritativen
 Läufe eigenständig ausgeführt (lint 0, Build 0 Warnungen, Suite 246/246,
 security PASS, rag-build, assets-check 0, verify valid runsChecked=66;
