@@ -598,8 +598,7 @@ let cameraModelClampsWorldEdgesAndZoom () =
         abs (centerPick.Value.SimX - (float NavWorld.TilesX / 2.0)) > 3.0
         || abs (centerPick.Value.SimZ - (float NavWorld.TilesY / 2.0)) > 3.0
     then
-        failwith
-            $"Bildmitte trifft nicht das Kamerazentrum: ({centerPick.Value.SimX:F2}, {centerPick.Value.SimZ:F2})."
+        failwith $"Bildmitte trifft nicht das Kamerazentrum: ({centerPick.Value.SimX:F2}, {centerPick.Value.SimZ:F2})."
 
     let leftPick = pickPixel 60.0 540.0
     let rightPick = pickPixel 1860.0 540.0
@@ -611,8 +610,7 @@ let cameraModelClampsWorldEdgesAndZoom () =
             failwith $"Randpixel {name} ergab keinen Bodenschnitt."
 
     if abs (rightPick.Value.SimX - leftPick.Value.SimX) < 20.0 then
-        failwith
-            $"Horizontale Picking-Abdeckung entartet: {leftPick.Value.SimX:F2} .. {rightPick.Value.SimX:F2}."
+        failwith $"Horizontale Picking-Abdeckung entartet: {leftPick.Value.SimX:F2} .. {rightPick.Value.SimX:F2}."
 
     if abs (bottomPick.Value.SimZ - topPick.Value.SimZ) < 20.0 then
         failwith $"Vertikale Picking-Abdeckung entartet: {topPick.Value.SimZ:F2} .. {bottomPick.Value.SimZ:F2}."
@@ -630,16 +628,19 @@ let cameraModelClampsWorldEdgesAndZoom () =
     // Landschafts-/Einheiten-Meshes um den Ursprung zentriert); ein
     // Sim-Raum-Augenpunkt wuerde die Szene um die halbe Weltgroesse
     // verschieben und das Terrain ausserhalb des Kachelrasters samplen.
-    let eyeX, eyeY, eyeZ = InteractiveCameraMath.EyePosition(camera)
-    let lookAtX, lookAtY, lookAtZ = InteractiveCameraMath.CenterPosition(camera)
+    let struct (eyeX, eyeY, eyeZ) = InteractiveCameraMath.EyePosition(camera)
+
+    let struct (lookAtX, lookAtY, lookAtZ) =
+        InteractiveCameraMath.CenterPosition(camera)
 
     if
         abs (eyeX - RepresentativeLandscape.ToWorldX(camera.CenterXMeters)) > 1e-9
         || abs (lookAtX - RepresentativeLandscape.ToWorldX(camera.CenterXMeters)) > 1e-9
-        || abs
-            (eyeZ
-             - (RepresentativeLandscape.ToWorldZ(camera.CenterZMeters)
-                + (cos InteractiveCameraMath.PitchRadians * camera.DistanceMeters))) > 1e-9
+        || abs (
+            eyeZ
+            - (RepresentativeLandscape.ToWorldZ(camera.CenterZMeters)
+               + (cos InteractiveCameraMath.PitchRadians * camera.DistanceMeters))
+        ) > 1e-9
     then
         failwith "Kamera-Auge/Blickziel liegen nicht im Render-Raum der Szene."
 
@@ -832,7 +833,10 @@ let panDirectionsMatchEdgePanAndNorthUpContract () =
     // Kohärenz: Taste und Kantenkontakt derselben Seite nutzen dieselbe
     // Weltrichtung (pan-up und oberer Rand beide -Z usw.).
     let panUpIndex = runnerText.IndexOf("case \"pan-up\":", StringComparison.Ordinal)
-    let panDownIndex = runnerText.IndexOf("case \"pan-down\":", StringComparison.Ordinal)
+
+    let panDownIndex =
+        runnerText.IndexOf("case \"pan-down\":", StringComparison.Ordinal)
+
     let edgeTopIndex = runnerText.IndexOf("stepsY -= 1;", StringComparison.Ordinal)
     let edgeBottomIndex = runnerText.IndexOf("stepsY += 1;", StringComparison.Ordinal)
 
