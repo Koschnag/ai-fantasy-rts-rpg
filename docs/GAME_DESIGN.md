@@ -14,7 +14,7 @@ Project Riftward verbindet zwei Maßstäbe ohne harten Genrebruch:
 
 - **Melancholische Weite:** alte Landschaften, verlassene Bauwerke, lange Sichtachsen, ruhige Passagen zwischen Konflikten.
 - **Macht mit Gewicht:** neue Fähigkeiten, Gebäude und Einheiten werden verdient und verändern den Handlungsraum sichtbar.
-- **Zwei Maßstäbe, eine Welt:** Heldentaten öffnen strategische Optionen; die Siedlung unterstützt wiederum die Helden.
+- **Zwei Maßstäbe, eine Welt:** Heldentaten öffnen strategische Optionen; die Siedlung unterstützt wiederum die Helden. Der Spieler wechselt im laufenden Spiel zwischen der direkten Third-Person-Steuerung der Heldenfigur und der strategischen RTS-Sicht; beide Modi greifen auf dieselbe autoritative Simulation und denselben Weltzustand zu (ADR 008).
 - **Lesbarkeit vor Spektakel:** klare Silhouetten, verständliche Effekte und deutliche Rückmeldung auch in großen Gruppen.
 - **Eigenständiges Mysterium:** neue Mythologie, Kulturen, Magieregeln, Architektursprachen und musikalische Motive.
 
@@ -43,6 +43,7 @@ flowchart LR
 | GS-007 | Nebel des Krieges und Aufklärung | ja | erweitert | ANGENOMMEN |
 | GS-008 | Speichern, Laden und Checkpoints | ja | ja | ANGENOMMEN |
 | GS-009 | Kampagnenfortschritt | Abschlusszustand | persistente Weltkarte | ANGENOMMEN |
+| GS-010 | Moduswechsel RTS ↔ Third-Person | ja (Graybox-Prototyp zunächst) | erweitert | ANGENOMMEN (ADR 008); Wechseldetails playtestgebunden (Q-GAM-010) |
 
 ## Vertical Slice VS-001
 

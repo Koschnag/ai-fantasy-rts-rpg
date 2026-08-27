@@ -197,3 +197,31 @@ Nutzerwege beschreiben sichtbares und prüfbares Verhalten. Der Spielclient ist 
 ### Abnahmebeispiel
 
 > Gegeben `HW-PC-MIN` bei 1920×1080 Low und aufgewärmter Pflichtszene, wenn `BENCH-BATTLE` läuft, dann liegt p99 der Framezeit höchstens bei 33,3 ms, der Arbeitssatz unter dem harten Ladepeak und der VRAM-Verbrauch unter 1,8 GB; die Simulationsmenge bleibt unverändert.
+
+## UF-007 – Moduswechsel zwischen persönlicher Heldensicht und strategischer Übersicht
+
+- **Status:** ANGENOMMEN als Produktfluss; Wechseldetails (Eingabe, Übergang, Sperren, Abbruch) bleiben reversible UX-Hypothesen gemäß ADR 008 und werden playtestgebunden entschieden
+- **Akteur:** Spieler
+- **Ziel:** Derselbe Held in derselben unveränderten Welt ist in beiden Maßstäben bedienbar: direkte Third-Person-Steuerung nahe der Heldenfigur und strategische RTS-Führung über demselben Simulationzustand.
+- **Startpunkt:** Laufendes Spiel in einem der beiden Modi.
+- **Erfolgsergebnis:** Der Wechsel geschieht ohne Ladebildschirm oder Weltneuinitialisierung an einer definierten Tickgrenze; Held, Akteure, Positionen, Befehle und Weltzustand bleiben kontinuierlich und wiederfinden.
+- **Verknüpfte Anforderungen:** F-010, NF-001
+
+### Standardablauf
+
+1. Der Spieler spielt im persönlichen Modus nahe der Heldenfigur; Kamera und Eingabe zielen auf direkte Bewegung und Interaktion.
+2. Der Spieler löst den Wechsel in die strategische Sicht aus; die Übersichtskamera zeigt dieselbe Welt an derselben Tickgrenze ohne Weltzustandsänderung.
+3. Der Spieler führt strategische Entscheidungen aus (Auswahl, Befehle, Führung); die Simulation läuft mit denselben Identitäten weiter.
+4. Der Spieler wechselt zurück in die persönliche Sicht; die Heldenfigur ist sofort wiederfindbar, und laufende Weltveränderungen setzen fortgesetzt sichtbar ein.
+
+### Alternativen und Fehlerfälle
+
+| Auslöser | Erwartetes Systemverhalten | Sichtbare Möglichkeit des Spielers |
+|---|---|---|
+| Wechsel in einer gemäß finaler Regel gesperrten Situation | kontrollierte, verständliche Abweisung ohne Weltzustandsänderung; die Sperrregel selbst bleibt playtestgebundene, reversible UX-Hypothese (Q-GAM-010, ADR 008) | Situation auflösen und Wechsel erneut versuchen |
+| laufende Befehle beim Wechsel | laufende Befehle bleiben gemäß explizitem Kontrollübergabevertrag erhalten oder enden definiert; niemals stilles Verwerfen oder Doppelbefehle | Befehle neu bewerten |
+| Wechsel während Simulationslast | Wechsel kostet keinen Simulationstick zusätzlich; Reaktion folgt der Budgetzeile Eingabe-zu-Reaktion | unverändert weiterspielen |
+
+### Abnahmebeispiel
+
+> Gegeben ein Hybrid-Graybox-Flow, wenn der Spieler mehrfach persönlich → strategisch → persönlich wechselt, dann bleiben Held und Weltzustand kontinuierlich (nachweislich identischer Simulationszustand gegenüber dem Ablauf ohne Wechsel), und der Held ist unmittelbar wiederfindbar.

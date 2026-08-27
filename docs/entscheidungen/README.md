@@ -21,6 +21,7 @@ Wichtige, schwer rückgängig zu machende oder querschnittliche Entscheidungen w
 | [005](005-taktile-retail-era-erfahrung.md) | eigenständige taktile Retail-Era-Grammatik für Forschung und spätere Produkterfahrung | akzeptiert | 2026-08-23 |
 | [006](006-performancebeweis-sprachrollen-und-integration.md) | gemessene Optimierung, C#/F#/Python-Rollen und geschützter `main` | akzeptiert | 2026-08-24 |
 | [007](007-quality-first-produktdirektive.md) | Quality-First: fünf gleichwertige Pflichtdimensionen, Playtest-/Rückrollpflicht, asynchrone Langzeitgates auf eingefrorenen Kandidaten | akzeptiert | 2026-08-25 |
+| [008](008-eine-welt-zwei-spielmodi.md) | Eine Welt, zwei Spielmodi: RTS- und Third-Person-Sicht über dieselbe autoritative Simulation, Wechsel an Tickgrenze ohne Weltzustandsänderung | akzeptiert | 2026-08-26 (Übernahme 2026-08-27) |
 
 **Provenienz der Nummer:** Historische `ADR 005`-Verweise in unveränderlicher,
 akzeptierter Evidenz der lokalen Linie bis einschließlich Elternstand
