@@ -595,8 +595,8 @@ let interactiveReportSchemaBindsCapturePairAndHud () =
 // ---------------------------------------------------------------------------
 
 let private testBmpFromPixels (pixels: (byte * byte * byte * byte) list) =
-    // Direkte BGRA-Pixelfolge (ohne Encoder-Umweg), 8 Pixel je 4 Kanäle.
-    let bytes = Array.zeroCreate<byte> (54 + (4 * 4 * List.length pixels))
+    // Direkte BGRA-Pixelfolge (ohne Encoder-Umweg), exakt 4 Bytes je Pixel.
+    let bytes = Array.zeroCreate<byte> (54 + (4 * List.length pixels))
     bytes.[0] <- byte 'B'
     bytes.[1] <- byte 'M'
 
