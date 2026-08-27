@@ -6,7 +6,7 @@
 
 **Status:** ANGENOMMEN
 
-Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhelden, Erkundung und Quests mit Basisbau, Wirtschaft und Echtzeit-Armeeführung verbindet. Es soll eine melancholische, geheimnisvolle High-Fantasy-Atmosphäre und eine moderne, gut lesbare 3D-Darstellung bieten, ohne bestehende Figuren, Namen, Texte, Karten, Musik, Grafiken oder andere geschützte Inhalte zu übernehmen.
+Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhelden, Erkundung und Quests mit Basisbau, Wirtschaft und Echtzeit-Armeeführung verbindet. Der Spieler wechselt im laufenden Spiel zwischen einer strategischen, erhöhten RTS-Sicht und der direkten Third-Person-Steuerung einer Heldenfigur; beide Modi greifen auf dieselbe autoritative Simulation und dieselbe zusammenhängende Welt zu (ADR 008). Es soll eine melancholische, geheimnisvolle High-Fantasy-Atmosphäre und eine moderne, gut lesbare 3D-Darstellung bieten, ohne bestehende Figuren, Namen, Texte, Karten, Musik, Grafiken oder andere geschützte Inhalte zu übernehmen.
 
 ## 2. Ausgangsproblem
 
@@ -85,6 +85,7 @@ Project Riftward ist ein eigenständiges Einzelspieler-Spiel, das Rollenspielhel
 | Bestehende Systeme / Schnittstellen | keine Runtime-Cloudabhängigkeit | ANGENOMMEN |
 | Technologie | .NET 10 LTS, C# + F#, Native AOT für Release evaluieren, kleine native FOSS-Bibliotheken | ENTSCHIEDEN |
 | Qualität | Quality-First-Direktive (ADR 007): Gameplay, Grafik, Atmosphäre, Performance und Softwarequalität sind gleichwertige Pflichtdimensionen; reversible Spiel-/Gestaltungsentscheidungen brauchen Alternativen, Hypothesen, Playtestkriterien und Rückrollweg; Lange Gates laufen asynchron nur auf eingefrorenen Kandidaten; ein Termin erzeugt keine Freigabe | ANGENOMMEN (Projektleitung 2026-08-25) |
+| Produktform | Eine Welt, zwei Spielmodi (ADR 008): strategische RTS-Sicht und direkte Third-Person-Heldensteuerung über dieselbe autoritative Simulation; keine getrennten Karten, keine duplizierten Weltzustände, kein Weltneustart beim Wechsel; Wechsel an definierter Tickgrenze deterministisch, Wechseldetails als reversible UX-Hypothesen mit Playtests und Rückrollweg | ANGENOMMEN (Projektleitung 2026-08-26) |
 | Barrierefreiheit | frei belegbare Eingaben, skalierbare UI, Untertitel, keine reine Farbcodierung | ANGENOMMEN |
 | Sprachen / Regionen | Architektur für Lokalisierung; Vertical Slice zunächst Deutsch und Englisch | ANGENOMMEN |
 

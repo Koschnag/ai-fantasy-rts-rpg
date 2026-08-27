@@ -15,6 +15,7 @@ Jede Anforderung ist einzeln identifizierbar, testbar und mit einem fachlichen Z
 | F-007 | Jeder autonome KI-Auftrag erzeugt nachvollziehbare Runs, Quellenzitate, Änderungen und Prüfevidenz. | kontrollierbare Vollautomation | MUST | Z-004 | ANGENOMMEN |
 | F-008 | Jedes Shipping-Asset besitzt technische Metadaten, Hashes, Generator-/Bearbeitungsverlauf und geklärte Nutzungsgrundlage. | reproduzierbare, rechtlich nachvollziehbare Assetproduktion | MUST | Z-004, Z-005 | ANGENOMMEN |
 | F-009 | Jeder agentische Assetgenerator nimmt ausschließlich ein strikt versioniertes, begrenztes internes Spec an, arbeitet ohne nicht inventarisierte kreative Inputs und liefert unabhängig prüfbare Artefakte, deterministische Metadaten sowie einen fail-closed Quarantäne-Lifecycle. | autonome Synthese darf weder Herkunft, Fehler noch technische Abweichungen verbergen | MUST | Z-004, Z-005 | ANGENOMMEN |
+| F-010 | Der Spieler wechselt im laufenden Spiel ohne Ladebildschirm oder Weltneuinitialisierung zwischen der strategischen RTS-Sicht und der direkten Third-Person-Steuerung einer Heldenfigur. Beide Modi nutzen dieselbe autoritative Simulation, dieselben Akteuridentitäten und denselben Weltzustand; ein Wechsel löst sich an einer definierten Tickgrenze deterministisch auf und verändert den Weltzustand nicht aus sich heraus. RTS- und RPG-Eingabekontexte lecken nicht ineinander. | Eine-Welt-zwei-Spielmodi-Vertrag (ADR 008) | MUST | Z-001 | ANGENOMMEN (Entscheidung der Projektleitung 2026-08-26; Übernahme 2026-08-27) |
 
 ### Vorlage
 
@@ -57,6 +58,7 @@ Nicht zutreffende Bereiche werden bewusst als „nicht relevant“ markiert, nic
 | Ziel | Anforderung | User Flow | Backlog-Eintrag | Test / Nachweis |
 |---|---|---|---|---|
 | Z-001 | F-001–F-004 | UF-001 | T-030 | Vertical-Slice-Replay und manuelle Abnahme |
+| Z-001 | F-010, NF-001 | UF-007 | T-033, T-030 | Hybrid-Graybox-Kettennachweis über Moduswechsel hinweg, Interaktivsmoke und Playtestprotokoll; Perspektivbudgets gemäß `PERFORMANCE_BUDGET.md` |
 | Z-001 | F-005, NF-002 | UF-002 | T-031 | Save-Roundtrip, atomarer Abbruch, Korruptions- und Recovery-Fixtures |
 | Z-001 | NF-004 | UF-001 | T-011, T-030 | kompletter Offline-Smoke mit gesperrtem Netzwerk; keine unerwarteten Verbindungen |
 | Z-002 | NF-001, NF-002, NF-007 | UF-006 | T-020, T-021, T-022, T-023 | isolierte und integrierte Hardwarebenchmarks, maschinenlesbare Telemetrie und 8-Stunden-Soak |
