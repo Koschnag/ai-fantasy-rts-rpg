@@ -1474,3 +1474,103 @@ der geprüften Bytes gebunden:
 ```text
 artifacts/t032-rev15/final-candidate-tree.txt
 ```
+
+## Unabhängige Frisch-Review-Sitzung 2026-08-27 (`t032-rev17-independent`)
+
+Diese Sitzung prüfte den vollständigen Arbeitsstand erneut ohne Übernahme der
+Vorgängerbehauptungen. Empfangene Identität: indexfreie Doppelrekonstruktion —
+privater Temporärindex (`read-tree HEAD` + `update-index --index-info`) gegen
+reine Bottom-up-Plumbing-Rekonstruktion (`hash-object`/`mktree`) — beide
+Methoden liefern exakt denselben Kandidatenbaum:
+
+```text
+797b774bb19c8a734d2d21cd34b50df69e3dae73  (Parent 068974c9…)
+```
+
+350 getrackte Dateien, Baumdifferenz zu HEAD exakt 38 Auftragspfade
+(20 modifiziert, 18 neu), genau ein Task-Manifest,
+`Riftward.Simulation` byteidentisch (kein Diff-Eintrag),
+`docs/GAME_DESIGN.md` unberührt, keine gelöschten Pfade.
+
+**Schnelle Gates (Entwicklerbaum, eigenständig):** fmt ohne Änderungen
+(0 formatted / 1674 unchanged), lint valid mit 0 Findings, Release-Build
+0 Warnungen, Testsuite 245/245, security PASS, rag-build OK, verify valid
+mit `runsChecked=65`.
+
+**Autoritative Läufe (neu komponierte Skripte, Horizont 900, Warm-up 240):**
+
+- Skript A (8 Intents; Move-without-selection-Probe vor jeder Auswahl,
+  Gesamtweltbox, zwei Gruppenbewegungen, Clear, Punktwahl samt Leer-Klick):
+  Paarendhash `d8a4650b768731b3`, gate.pass=true, `moveWithoutSelectionRejects=2`,
+  `kernelCommandsTotal=10`.
+- Skript B (9 Intents; nichtkanonisch geschriebener Gleichtick clear+box+move als
+  Kanonisierungsprobe, mehrere Zonenabdeckungen, Ablehnungsproben): Paarendhash
+  `4d35e6733f1278ba`, gate.pass=true, `moveWithoutSelectionRejects=3`,
+  `kernelCommandsTotal=5`.
+- Beide Paare sind builderidentisch im Endhash **und** in den vollständigen
+  Kettenstichproben inklusive Stichprobenticks; A und B unterscheiden sich
+  beweislich in Start- und Endhash.
+- Fremdseed 424242 auf Skript A ändert Start- **und** Endhash nachweislich
+  (`810bcde8838a6608 → c647a37b8a4e235b`, End `d8a4650b768731b3 → 3f24e303c70b00ad`);
+  der Fremdseed-Lauf selbst bleibt gate-passing (Ehrlichkeitskontrolle).
+- Gatkennzahlen je Lauf: p99 ≤ 0,852 ms, Allokation 0 Bytes je warmem Tick,
+  max reactionTicks 1 (Ziel 2/hart 3), Kettenkriterium `evaluated=true`,
+  `gate.pass=true`.
+
+**Negativmatrix (alle je Exitcode 37 ohne Reportdatei):** unbekanntes Szenario,
+malformierter Header, Kopfhorizontabweichung (901 gegen 900), unbekannte Aktion,
+Zonengrenzwertverletzung (Zone 6), duplizierter Intent je Tick, `/dev/null`
+als Quelle, übergrosses Sparse-Skript (400000 Bytes am Rohmaterial →
+`ScriptTooLarge`). Displayloser Interaktivlauf bricht kontrolliert mit Code 19
+ohne Report ab.
+
+**Regressionen:** bench-sim → 0 mit `gate.pass=true` (p99 0,506 ms); savecheck
+→ 0 (alle Prüfklassen bestanden); Soak-Kurzlauft 3000 Ticks diagnostisch
+(`evidenceUnit=false`) → 0 mit `gate.pass=true`.
+
+### Fresh-Checkout-/Clean-Archive-Nachweis dieser Sitzung
+
+Da Test-, Fixture-, Build-, CI- und Evidenzpfade berührt sind, lief der
+Portabilitätsvertrag vollständig:
+
+- Doppelte `git archive`-Extraktion des gebundenen Baums war byteidentisch
+  (350 Dateien); Extraktionen unter `artifacts/t032-r17/extracted-A|extracted-B`.
+- Gatefolge ausschließlich aus Archivbytes (A): `bootstrap` → 0, `build` → 0
+  Warnungen, `lint` → 0 Findings, `test` → 245/245, `security` → PASS,
+  `assets-check` → 0 (6 Manifeste, keine Findings), `verify` → valid mit
+  `runsChecked=0` — korrekt, denn gitignorierte Runtime-Evidenz wird niemals
+  portiert. Umgebungsbedingte Werkzeugsperren verhinderten ein `git init`/
+  `git add` innerhalb der Extraktion; die Gatefolge lief deshalb rein aus den
+  Archivbytes ohne Git-Kontext — die adaptive Methode gemäß Präzedenz
+  `t032-review8-independent`.
+- Autoritative Archivläufe aus Archivbytes: Skript A und B liefern jeweils den
+  zeichengleichen Endhash **und** die vollständig identischen
+  Kettenstichproben der Arbeitsbaumläufe (`d8a4650b768731b3`,
+  `4d35e6733f1278ba`) — damit ist auch die worktree/archive-Grenzüberschreitung
+  der AC-T032-03-Intervallgleichheit belegt.
+- NO_DRIFT nach allen Gates gegen die unangetastete Zweitextraktion:
+  alle 350 getrackten Archivpfade byteidentisch; Neuzugänge lagen ausschließlich
+  unter bin/obj- und `.ai/runtime`-Präfixen (Build-/Restoreausgaben).
+- Der historische `ASSET_GIT_CHECK_FAILED`-Befund blieb auch hier
+  nicht reproduzierbar (`assets-check` Exit 0 an gatestillen Archivbytes);
+  die verschobene Reparatur bleibt offen (späterer Slice).
+
+**Defektbefunde und Reparaturen dieser Sitzung:** Keine. Das vollständige
+Quellreview (Session-Kern, Parser, Runner, Interaktionsdarstellung, Keymap,
+Vertragsdokument) erbrachte keinen neuen Defekt des Primärslices; der
+unveränderte Kandidat war zu keinem Zeitpunkt zu reparieren oder anzufassen.
+
+**Verschobene unabhängige Reparaturen (spätere Slices), unverändert:**
+(1) ASSET_LANE-Git-Check (`tools/RiftHarness/Assets.fs`, T-003/T-006-Fläche);
+(2) vakuoese Reaktionsmetrik V == S als Kommandovertrag-V2-Entscheidung;
+(3) stille NumberOption-Defaults/-Clamps samt still tolerierter unbekannter
+Positionsargumente in der geteilten Runnerfläche; (4) Härtung des Suiteeintrags
+`allocationStrictnessRegression` gegen Kaltprozess-Transients.
+
+**Endgültige Finalbaumbindung nach dieser Doku-Erweiterung** erneut zweifach
+konvergent rekonstruiert (privater Index vs mktree aus Arbeitsbytes) und außerhalb
+der geprüften Bytes gebunden:
+
+```text
+artifacts/t032-r17/final-candidate-tree.txt
+```

@@ -1074,3 +1074,37 @@ Reparatur als späterer Slice: Härtung von
 prozessisolierte Messung); die Exakt-Null-Gateklasse des Engine-Reports bleibt
 unberührt. Riftward.Simulation byteidentisch, GAME_DESIGN.md unberührt;
 Finalbaumbindung in `artifacts/t032-rev15/final-candidate-tree.txt`.
+
+Am 2026-08-27 prüfte eine erneute unabhängige Frisch-Review-/Vollendungs-
+Sitzung (Akteur `t032-rev17-independent`) den vollständigen Arbeitsstand ohne
+Übernahme der Vorgängerbehauptungen: indexfreie Doppelrekonstruktion zweifach
+konvergent — privater Temporärindex gegen Bottom-up-Plumbing (`hash-object`/
+`mktree`) — am gebundenen Kandidatenbaum `797b774bb19c8a734d2d21cd34b50df69e3dae73`
+(Parent `068974c9…`; exakt 38 Auftragspfade: 20 M/18 A, genau ein Task-Manifest,
+350 getrackte Dateien); Riftward.Simulation byteidentisch (kein Diff-Eintrag),
+GAME_DESIGN.md unberührt. Alle schnellen Gates eigenständig grün (fmt ohne
+Fixes, lint 0 Befunde, Release-Build 0 Warnungen, Testsuite 245/245,
+security PASS, rag-build OK, verify valid mit runsChecked=65). Autoritative
+Läufe mit neu komponierten Skripten (Horizont 900): Skript A Paarendhash
+`d8a4650b768731b3` (kernelCommandsTotal=10), Skript B (nichtkanonisch
+geschriebener Gleichtick clear+box+move als Kanonisierungsprobe) Paarendhash
+`4d35e6733f1278ba` (kernelCommandsTotal=5); je Paar Endhash **und**
+vollständige Kettenstichproben byteidentisch; Fremdseed 424242 ändert Start-
+und Endhash nachweislich; p99 ≤ 0,852 ms, Allokation 0 Bytes je warmem Tick,
+max reactionTicks 1, Kettenkriterium evaluated=true, gate.pass=true.
+Negativmatrix (unbekanntes Szenario, malformierter Header,
+Kopfhorizontabweichung, unbekannte Aktion, Zone 6, duplizierter Intent,
+/dev/null, übergrosses Sparse-Skript am Rohmaterial) je 37 ohne Report;
+displayloser Interaktivlauf 19 ohne Report. Regressionen bench-sim
+(gate.pass=true)/savecheck/Soak-Kurzlauft (3000 Ticks, diagnostisch) grün.
+Kein neuer Defektbefund im vollständigen Quellreview; keine Reparatur nötig;
+die vier verschobenen unabhängigen Reparaturen bleiben unverändert spätere
+Slices. Fresh-Checkout-/Clean-Archive-Nachweis vollständig: Doppel-Extraktion
+byteidentisch (350 Dateien), Gatefolge aus Archivbytes (bootstrap/build 0
+Warnungen/lint/test 245/245/security/assets-check/verify runsChecked=0) plus
+zwei autoritative Archivläufe mit zeichengleichen Endhashes und vollständig
+identischen Ketten gegenüber den Arbeitsbaumläufen, NO_DRIFT nach allen Gates
+auf allen 350 getrackten Pfaden; die .git-lose ASSET_LANE-Lücke blieb auch hier
+nicht reproduzierbar und unverändert dem verschobenen Slice vorbehalten.
+Endgültige Finalbaumbindung nach dieser Doku-Erweiterung in
+`artifacts/t032-r17/final-candidate-tree.txt`.
