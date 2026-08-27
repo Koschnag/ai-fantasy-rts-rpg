@@ -78,7 +78,7 @@ public sealed record SessionRunResult(
     int MoveWithoutSelectionRejects,
     int KernelCommandsTotal,
     int TotalTicksExecuted,
-    ModeTelemetry? Telemetry = null);
+    ModeTelemetry Telemetry);
 
 /// <summary>Deterministische Percentil- und Zeitberechnung (Verfahren wie T-010/T-020/T-021).</summary>
 public static class SessionMath
@@ -368,7 +368,7 @@ public sealed class SessionPipeline
 
                 case GrayboxIntentKind.SwitchMode:
                     EvaluateModeSwitch(tick);
-                    SwitchIntentsEvaluated++;
+                    switchIntentsEvaluated++;
                     Journal(intent, IntentDisposition.Applied);
                     applied++;
                     break;
@@ -656,9 +656,11 @@ public static class SessionEngine
     /// Aggregiert die Modus-Telemetrie der Pipeline (T-033): Wechselprotokoll,
     /// Kontextabweisungszähler, Lenk-Dedupe und die Wechselreaktions-
     /// verteilung ausschließlich über die innerhalb des Laufs wirksamen
-    /// Wechsel (Modevertrag Abschnitte 4 und 7).
+    /// Wechsel (Modevertrag Abschnitte 4 und 7). Öffentlich, damit der
+    /// interaktive Lauf desselben Befehls dieselbe Aggregation über denselben
+    /// Pipelinepfad erzeugt wie der headless Lauf.
     /// </summary>
-    private static ModeTelemetry BuildModeTelemetry(SessionPipeline pipeline)
+    public static ModeTelemetry BuildModeTelemetry(SessionPipeline pipeline)
     {
         var effective = new List<long>();
 
@@ -678,7 +680,7 @@ public static class SessionEngine
             StrategyIntentsRejectedInPersonalMode: pipeline.StrategyIntentsRejectedInPersonalModeTotal,
             SteerIntentsRejectedInStrategyMode: pipeline.SteerIntentsRejectedInStrategyModeTotal,
             SteerIdleDedupes: pipeline.SteerIdleDedupeTotal,
-            MaxSwitchReactionTicks: maxSwitchReactionTicks,
+            MaxSwitchReactionTicks: maxSwitchReaction,
             SwitchReactionP50Ticks: SessionMath.Percentile(effective, 0.50),
             SwitchReactionP95Ticks: SessionMath.Percentile(effective, 0.95),
             SwitchReactionP99Ticks: SessionMath.Percentile(effective, 0.99),

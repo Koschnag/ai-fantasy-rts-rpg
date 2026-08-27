@@ -158,7 +158,9 @@ internal static class CommandLoopRunner
             MaxReactionTicks: result.Metrics.MaxReactionTicks,
             ReactionSampleCount: result.Metrics.ReactionSampleCount,
             RuntimeShaderCompilationObserved: false,
-            StateChainSelfConsistent: result.StateChainSelfConsistent));
+            StateChainSelfConsistent: result.StateChainSelfConsistent,
+            MaxSwitchReactionTicks: result.Telemetry.MaxSwitchReactionTicks,
+            SwitchReactionSampleCount: result.Telemetry.SwitchReactionSampleCount));
 
         var gateExitCode = verdict.Pass ? ExitCodes.Ok : ExitCodes.Map(PlatformErrorCode.CommandGateViolated);
         var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
@@ -188,7 +190,8 @@ internal static class CommandLoopRunner
             Capture: NotRequestedCapture(),
             Display: null,
             WorkingSet: WorkingSetFrom(result),
-            ExitCode: gateExitCode)), BenchRunner.ReportJsonOptions) + "\n";
+            ExitCode: gateExitCode,
+            Telemetry: result.Telemetry)), BenchRunner.ReportJsonOptions) + "\n";
 
         return FinishReport(reportPath, reportJson, gateExitCode);
     }
@@ -377,6 +380,7 @@ internal static class CommandLoopRunner
             }
 
             var allocationsPerWarmTick = AllocationsPerWarmTick(measurement);
+            var modeTelemetry = SessionEngine.BuildModeTelemetry(pipeline);
 
             var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
                 P99TickTimeMs: PercentileOrDefault(measurement.TickTimes, 0.99),
@@ -384,7 +388,9 @@ internal static class CommandLoopRunner
                 MaxReactionTicks: measurement.MaxReactionTicks,
                 ReactionSampleCount: measurement.ReactionTimes.Count,
                 RuntimeShaderCompilationObserved: false,
-                StateChainSelfConsistent: null));
+                StateChainSelfConsistent: null,
+                MaxSwitchReactionTicks: modeTelemetry.MaxSwitchReactionTicks,
+                SwitchReactionSampleCount: modeTelemetry.SwitchReactionSampleCount));
 
             var gateExitCode = verdict.Pass ? ExitCodes.Ok : ExitCodes.Map(PlatformErrorCode.CommandGateViolated);
 
@@ -458,7 +464,8 @@ internal static class CommandLoopRunner
                     GpuTimerFrequencyHz: measurement.GpuTimerFrequencyHz,
                     DrawCallsMax: measurement.DrawCallsMax,
                     TrianglesMax: measurement.TrianglesMax,
-                    PeakMarkers: measurement.PeakMarkers))), BenchRunner.ReportJsonOptions) + "\n";
+                    PeakMarkers: measurement.PeakMarkers),
+                Telemetry: modeTelemetry)), BenchRunner.ReportJsonOptions) + "\n";
 
             return FinishReport(reportPath, reportJson, exitCode);
         }
@@ -1131,7 +1138,8 @@ internal static class CommandLoopRunner
         object? Display,
         WorkingSetSamples WorkingSet,
         int ExitCode,
-        InteractiveExtras? InteractiveExtras = null);
+        InteractiveExtras? InteractiveExtras = null,
+        ModeTelemetry? Telemetry = null);
 
     internal static object BuildReport(ReportContext ctx) => new
     {
@@ -1152,11 +1160,17 @@ internal static class CommandLoopRunner
         {
             document = SessionContract.DocumentPath,
             version = SessionContract.ContractVersion,
-            scriptFormat = SessionContract.ScriptFormatId,
+            scriptFormat = ctx.Parsed.FormatId,
             selectionModel = SessionContract.SelectionModelId,
             cameraModel = SessionContract.CameraModelId,
             diagnosticOnlyReplayDisclaimer = true,
+            modeContract = new
+            {
+                document = ModeContract.DocumentPath,
+                version = ModeContract.ContractVersion,
+            },
         },
+        modeSession = BuildModeSession(ctx),
         simulationContract = new
         {
             document = SimulationContract.DocumentPath,
@@ -1211,10 +1225,24 @@ internal static class CommandLoopRunner
                 reactionHardLimitTicks = CommandGateLimits.Documented.ReactionHardLimitTicks,
                 reactionTargetTicks = CommandGateLimits.Documented.ReactionTargetTicks,
                 runtimeShaderCompilationAllowed = false,
+                switchReactionHardLimitTicks = CommandGateLimits.Documented.SwitchReactionHardLimitTicks,
+                switchReactionTargetTicks = CommandGateLimits.Documented.SwitchReactionTargetTicks,
             },
             stateChainSelfConsistency = ctx.ExecutionMode == CommandReportSchema.ExecutionInteractive
                 ? ChainCriterion.NotEvaluated()
                 : ChainCriterion.Evaluated(),
+            switchReaction = ctx.Verdict.SwitchReactionEvaluated
+                ? (object)new
+                {
+                    evaluated = true,
+                    max = (ctx.Telemetry ?? ModeTelemetry.Empty).MaxSwitchReactionTicks,
+                    targetMet = ctx.Verdict.SwitchReactionTargetMet,
+                }
+                : new
+                {
+                    evaluated = false,
+                    reason = "no-effective-mode-switch-in-run",
+                },
             pass = ctx.WindowCompleted ? ctx.Verdict.Pass : false,
             tickTimeTargetMet = ctx.Verdict.TickTimeTargetMet,
             reactionTargetMet = ctx.Verdict.ReactionTargetMet,
@@ -1269,6 +1297,63 @@ internal static class CommandLoopRunner
 
         return environment;
     }
+
+    /// <summary>
+    /// Modussitzungsblock des Reports (T-033, Modevertrag Abschnitt 7):
+    /// Wechselprotokoll je Grenze inklusive Heldenstatus von Agentenindex 0,
+    /// Kontextabweisungszähler, Lenk-Dedupe und die diagnostische Wechsel-
+    /// reaktionsverteilung. Der Modus ist Sitzungszustand; dieser Block ist
+    /// rein diagnostisch (gateCoupled=false), die fail-closed Koppelung von
+    /// Kriterium 6 erfolgt ausschließlich über gate.switchReaction.
+    /// </summary>
+    private static Dictionary<string, object> BuildModeSession(ReportContext ctx)
+    {
+        var telemetry = ctx.Telemetry ?? ModeTelemetry.Empty;
+
+        return new Dictionary<string, object>
+        {
+            ["contract"] = new
+            {
+                document = ModeContract.DocumentPath,
+                version = ModeContract.ContractVersion,
+            },
+            ["initialMode"] = ModeName(telemetry.InitialMode),
+            ["finalMode"] = ModeName(telemetry.FinalMode),
+            ["switchProtocol"] = telemetry.SwitchProtocol.Select(entry => new Dictionary<string, object>
+            {
+                ["intentTick"] = entry.IntentTick,
+                ["evaluatedBoundaryTick"] = entry.EvaluatedBoundaryTick,
+                ["effectiveBoundaryTick"] = entry.EffectiveBoundaryTick,
+                ["previousMode"] = ModeName(entry.PreviousMode),
+                ["newMode"] = ModeName(entry.NewMode),
+                ["effectiveInRun"] = entry.EffectiveInRun,
+                ["switchReactionTicks"] = entry.SwitchReactionTicks,
+                ["heroPositionXMm"] = entry.HeroPositionXMm,
+                ["heroPositionYMm"] = entry.HeroPositionYMm,
+                ["heroZoneIndex"] = entry.HeroZoneIndex,
+                ["heroPathState"] = (int)entry.HeroPathState,
+            }).ToArray(),
+            ["strategyIntentsRejectedInPersonalMode"] = telemetry.StrategyIntentsRejectedInPersonalMode,
+            ["steerIntentsRejectedInStrategyMode"] = telemetry.SteerIntentsRejectedInStrategyMode,
+            ["steerIdleDedupes"] = telemetry.SteerIdleDedupes,
+            ["interactiveContextRejections"] = 0L,
+            ["switchReactionTicks"] = DiagnosticEnvelope(new Dictionary<string, object>
+            {
+                ["unit"] = "ticks",
+                ["method"] = "mode-switch-intent-tick-to-first-validity-boundary-in-new-mode",
+                ["p50"] = telemetry.SwitchReactionP50Ticks,
+                ["p95"] = telemetry.SwitchReactionP95Ticks,
+                ["p99"] = telemetry.SwitchReactionP99Ticks,
+                ["max"] = telemetry.MaxSwitchReactionTicks,
+                ["count"] = telemetry.SwitchReactionSampleCount,
+                ["target"] = ModeContract.SwitchReactionTargetTicks,
+                ["hardLimit"] = ModeContract.SwitchReactionHardLimitTicks,
+            }),
+        };
+    }
+
+    private static string ModeName(SessionMode mode) =>
+        mode == SessionMode.Personal ? ModeContract.ModePersonalId : ModeContract.ModeStrategicId;
 
     private static Dictionary<string, object> BuildMetrics(ReportContext ctx)
     {
@@ -1470,6 +1555,7 @@ internal static class CommandLoopRunner
         ["qgam005"] = "open",
         ["qgam006"] = "open",
         ["qgam007"] = "open",
+        ["qgam010"] = "open",
         ["qnar002"] = "open",
     };
 

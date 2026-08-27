@@ -308,7 +308,7 @@ public static class InputScriptParser
 
         return action switch
         {
-            "clear" => new GrayboxIntent(tick, GrayboxIntentKind.Clear),
+            "clear" => BuildClear(tokens, lineNumber, tick),
             "point" => BuildPoint(tokens, lineNumber, tick),
             "box" => BuildBox(tokens, lineNumber, tick),
             "move" => BuildMove(tokens, lineNumber, tick),
@@ -330,6 +330,17 @@ public static class InputScriptParser
     {
         RequireTokenCount(tokens, 3, lineNumber);
         return new GrayboxIntent(tick, GrayboxIntentKind.SwitchMode);
+    }
+
+    /// <summary>
+    /// Auswahlwiderruf ohne Parameter; die Tokenzahl wird wie bei allen
+    /// Verben gegen die Vertragsgrammatik erzwungen, sodass Zusatztokens
+    /// kontrolliert als <c>LineMalformed</c> abgewiesen werden.
+    /// </summary>
+    private static GrayboxIntent BuildClear(string[] tokens, int lineNumber, int tick)
+    {
+        RequireTokenCount(tokens, 3, lineNumber);
+        return new GrayboxIntent(tick, GrayboxIntentKind.Clear);
     }
 
     private static GrayboxIntent BuildSteer(string[] tokens, int lineNumber, int tick)
