@@ -1708,3 +1708,92 @@ konvergent rekonstruiert und gebunden:
 ```text
 artifacts/t032-rev18/final-candidate-tree.txt
 ```
+
+## Unabhängige Frisch-Review-/Vollendungssitzung 2026-08-27 (Akteur t032-rev19-independent)
+
+Empfangene Identität indexfrei zweifach konvergent — bottom-up `hash-object`/
+`mktree` aus `ls-tree HEAD` plus Arbeitsbytes gegen eine unabhängige
+Archiv-Overlay-Konstruktion mit von Hand gebauten kanonischen SHA-1-Bäumen
+(reines Plumbing; der echte Index und echte Staging-/Commitaktionen wurden
+niemals angetassen): Vorbindung-Baum
+`6f791e4252ade052b69f5afce2ef74da6ec05684`, Parent `068974c…`, exakt 38
+Auftragspfade (20 M, 18 A), genau ein Task-Manifest, 350 getrackte Dateien.
+`Riftward.Simulation` und `docs/GAME_DESIGN.md` byteidentisch zum Vorblob
+(leerer Diff).
+
+**Schnelle Gates im Entwicklerbaum, alle selbst ausgeführt:** lint 0 Befunde,
+Release-Build 0 Warnungen, Testsuite 246/246, security PASS, rag-build OK,
+assets-check 0 Findings, verify valid (`runsChecked=66`).
+
+**Autoritative Läufe mit eigenen Skripten** (Horizont 900, Seed 20260827;
+berühren Tests, Fixtures, Build- und Evidenzpfade, daher folgt der
+Fresh-Checkout-/Clean-Archive-Vertrag):
+
+- Skript A (16 Intents: Punktwahl, Rahmenwahl, Clear, Moves inklusive
+  Move-ohne-Auswahl-Ablehnungen) Frisch-Paar endhash `be7cfe6361c30f3e`,
+  Ketten prozessgrenzenübergreifend byteidentisch; `kernelCommandsTotal=5`,
+  `moveWithoutSelectionRejects=6`, p99 0,762 ms, Allokation 0 Bytes je warmem
+  Tick, max reactionTicks 1, Kettenkriterium `evaluated=true`, gate.pass=true.
+- Skript B (14 Intents in nichtmonotoner Dateireihenfolge als
+  Live-Kanonisierungsprobe) Frisch-Paar endhash `be358d374dd795c6`,
+  `kernelCommandsTotal=10`, Ketten byteidentisch.
+- Fremdseed 999 auf Skript A: Start `bd7785c30deac1bf`, End
+  `00472b3825fc924a` — nachweislich abweichend.
+- Kopfhorizontabweichung (900 gegen 1200) → Exit 37 ohne Report;
+  Negativmatrix unbekanntes Szenario, malformierter Header, `/dev/null`,
+  übergrosses Sparse-Skript (`ScriptTooLarge` an den Rohbytes), Zone 6
+  (`RangeViolation`), duplizierter Intent, unbekannte Aktion — je 37 ohne
+  Report; displayloser Interaktivlauf → 19 ohne Report.
+- Regressionen: bench-sim gate.pass=true, savecheck Exit 0 (alle
+  Prüfklassen), Soak-Kurzlauf 3000 Ticks diagnostisch (`evidenceUnit=false`)
+  Exit 0.
+
+**Fresh-Checkout-/Clean-Archive-Vertrag am Vorbindung-Baum** (Extraktion
+außerhalb jedes Git-Repositories; autoritative Runnerdateien und Reports in
+`artifacts/t032-rev19-independent/`, verbindlicher Laufprotokoll:
+`contract-report4.txt`): Doppel-Extraktion byteidentisch (350 Dateien);
+Gatefolge aus Archivbytes — bootstrap, build (0 Warnungen), lint,
+rag-build: Exit 0; Testsuite 245/246. Die einzelnen Gates assets-check und
+security entscheiden ohne `.git` kontrolliert fail-closed
+(`ASSET_GIT_CHECK_FAILED`/`ASSET_IGNORE_RULE_MISSING` beziehungsweise
+„Kein Git-Repository", Exit 2), und `verify` umfasst die Testsuite samt des
+an die Git-Abhängigkeit gebundenen Asset-Lane-Eintrags — sie bleiben
+gemäß rev13/rev14-Präzedenz Entwicklerbaum-Gates und sind dort grün.
+Autoritativer Archivlauf: endhash `be7cfe6361c30f3e`, gate.pass=true, Exit 0
+— zeichengleich zu den Arbeitsbaumläufen; NO_DRIFT 350/350 gegen die
+pristine Zweitextraktion nach allen Gates. Drei frühere Laufversuche
+dieser Sitzung (`contract-report.txt` bis `contract-report3.txt`) sind
+superseded und nur Prozessnachweis (Versuch 1 lief durch einen Runnerfehler
+versehentlich im Entwicklerbaum und ist für den Vertrag ungültig).
+
+**Wahrhaftigkeitskorrektur zu den Vorgängersitzungen:** Der historische
+`ASSET_GIT_CHECK_FAILED`-Befund der Erst-Vollendung war von rev15, rev17 und
+rev18 als „auf heutigen Bytes nicht reproduzierbar" berichtet worden; in
+dieser Sitzung war er in der `.git`-losen Extraktionsform außerhalb des
+Repositorys vollständig reproduzierbar (gleiche Kennungen, fail-closed,
+keine Reportfälschung). Die verschobene Reparatur (fail-closed-fähige
+Asset-Lane ohne Git-Zugriff, `tools/RiftHarness/Assets.fs`, T-003/T-006-
+Fläche) ist damit nachweislich real und notwendig; sie bleibt unverändert
+ein eigener späterer Slice. Die Verschiebungsliste ist damit:
+
+1. Asset-Lane-Git-Check ohne `.git` (heute reproduziert, s. o.);
+2. konstruktionsbedingt vakuoese Reaktionsmetrik `V == S` (max
+   reactionTicks stets 1; Gatekriterium 3 nur via Fault-Injection
+   falsifizierbar; Kommandovertrag-V2-Entscheidung);
+3. stille `NumberOption`-Defaults/-Clamps und still tolerierte unbekannte
+   Positionsargumente in der geteilten `ArgumentQueue`-Fläche;
+4. Härtung von `allocationStrictnessRegression` gegen Kaltprozess-Transients
+   (ohne Berührung der Exakt-Null-Gateklasse des Engine-Reports).
+
+Kein neuer Code-Defekt im vollständigen Quellreview dieser Sitzung; der
+35.000-Zeichen-Session-Chronik-Eintrag des Task-Manifests wurde auf die
+kompakte Abschlusszusammenfassung reduziert (Vorgabe: keine append-only
+Chronik im `completionNote`; Runhistorie bleibt in Receipts und diesem
+Abnahmedokument).
+
+**Endgültige Finalbaumbindung nach dieser Doku-Erweiterung** indexfrei
+zweifach konvergent rekonstruiert und gebunden:
+
+```text
+artifacts/t032-rev19-independent/final-candidate-tree.txt
+```
