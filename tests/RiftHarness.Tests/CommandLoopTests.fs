@@ -587,10 +587,7 @@ let runT032AllocationProbe (reportPath: string) =
     let perWarmTick =
         result.Metrics.AllocationsPerWarmTickBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
 
-    File.WriteAllText(
-        reportPath,
-        $"{{\"perWarmTick\":{perWarmTick},\"gcPauseCount\":{result.Metrics.GcPauseCount}}}"
-    )
+    File.WriteAllText(reportPath, $"{{\"perWarmTick\":{perWarmTick},\"gcPauseCount\":{result.Metrics.GcPauseCount}}}")
 
 let cameraModelClampsWorldEdgesAndZoom () =
     let camera = GrayboxCamera()

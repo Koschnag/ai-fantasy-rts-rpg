@@ -64,7 +64,7 @@ bewusst nicht angehängt.
 | AC-T033-06 | erfüllt | Interaktiv-Hybrid vollständig verdrahtet (Kamera, Badge, Titel-HUD, Umschaltaktion, Lenkung, Kontextabweisung, Abgriffpaar, Code-19-Pfad); **echter Wayland-Repass der Hauptinstanz** (hybrid-v2, 420 Ticks, OS-uinput Tab/Up/Tab/Escape): Exit 0, `windowCompleted=true`, `gate.pass=true`, `switchReaction.max=2`, Abgriffpaar `captured=true` über demselben gebundenen Weltzustand (Tick 890, Hash `3559ad7791a5010f`) — strategisch `b83167b6…`, persönlich `f8dbd051…`, beide 1920×1080 32bpp BMP, `cmp` verschieden, Signal-/Pixelstatistik belegt Nichtuniformität, visuelle Inspektion bestätigt klar verschiedene Perspektiven; Aussagegrenze `graybox-state-occupancy-not-gameplay-atmosphere-or-shipping` gebunden (Graybox-Zustandsbelegung, niemals Shipping-Grafik; öffentliche Verwendung weiter an MEDIA_LAB plus Projektleitungsautorisierung gebunden); displayloser kontrollierter Code-19-Abbruch dieser Sitzung zusätzlich belegt |
 | AC-T033-07 | erfüllt | v2-Obermenge, Legacy-v1 byteidentisch gültig (v1+steer → UnknownAction, Code 37 ohne Report); Ablehnungsklassen je unterscheidbar; `scriptSha256`/`intentPlanHash` auf neuen Aktionen (Goldbytes + FNV-Nachrechnung) |
 | AC-T033-08 | erfüllt | Vertrauensgrenzen unverändert (begrenzende Rohbytes-Lesung, kein Netz, Hermetietest); Riftward.Simulation blobidentisch; Architekturgrenzen: Session BCL-only, Runtime-Hotpaths C#, F#/Python fern |
-| AC-T033-09 | erfüllt | fmt 0 Fixes, lint valid 0 Befunde, Release-Build 0 Warnungen, Testsuite 262/262, security PASS; Regressionen: bench-sim 0, savecheck 0 (alle Prüfklassen), Soak-Kurzlauf 3000 Ticks diagnostisch 0; Exitcodes 35–38 unverändert; Schemaerhöhung rein additiv gebunden |
+| AC-T033-09 | erfüllt | fmt 0 Fixes, lint valid 0 Befunde, Release-Build 0 Warnungen, Testsuite 263/263 (vier explizite RC-erhaltende Vollsuiten ohne Pipeline-Masking), security PASS; Regressionen: bench-sim 0, savecheck 0 (alle Prüfklassen), Soak-Kurzlauf 3000 Ticks diagnostisch 0; Exitcodes 35–38 unverändert; Schemaerhöhung rein additiv gebunden. **Nebenreparatur für die Schlussfreigabe (Test-Harness):** der Suiteeintrag `allocationStrictnessRegression` flackte als Prozessglobalzähler-Transient (30,24 Bytes statt 0 — das vertragstreu prozessweite `GC.GetTotalAllocatedBytes` zählte fremde Suiteprozess-Allokationen ins enge Fenster, reproduziert in `artifacts/t033-review/final-test-1.log`); repariert als dedizierter Fresh-Process-Probe der Test-DLL (`--t032-allocation-probe`, vertragliches Messfenster 240/1200 mit Intents im Fenster) — Exakt-Null-Assertion und GC-Pausenprüfung unangetastet, kein Schwellwert, kein per-thread-Zähler, kein Retry; vier stabile 263/263-Läufe mit Exitcode 0 als Bindung |
 | AC-T033-10 | erfüllt | Dokumentation/Register konsistent (oben); Abnahmedoku verknüpft je Kriterium mit Evidenz; produziertes Abgriffpaar ist im Media-Lab-Inventar mit Aussagegrenze eingetragen (`docs/communication/MEDIA_LAB.md`, EVD-T033-MODE-PAIR-001, lokale In-Engine-Graybox-Evidenz — niemals Gameplay-/Atmosphären-/Shipping-Beleg); Playtestprotokoll vorregistriert, Ausführung durch den echten Wayland-Repass der Hauptinstanz belegt (Erkennbarkeit, Perspektivwechsel, HUD-Lesbarkeit im uinput-Lauf) |
 
 Q-GAM-001 bis Q-GAM-007, Q-GAM-010, Q-NAR-002, Q-TEC-004/Q-TEC-006/Q-TEC-010
@@ -188,12 +188,14 @@ Gateeingabe.
    Projektleitungsautorisierung gebunden.
 3. **Offene Fragen unberührt:** Q-GAM-001 bis Q-GAM-007, Q-GAM-010,
    Q-NAR-002, Q-TEC-004, Q-TEC-006, Q-TEC-010.
-4. **Verschobene unabhängige Reparaturen (spätere Slices):** unverändert die
-   aus der T-032-Linie registrierten Posten (ASSET_LANE-Git-Check in
+4. **Verschobene unabhängige Reparaturen (spätere Slices):** der Posten
+   `allocationStrictnessRegression` wurde als für die Schlussfreigabe
+   notwendige Harness-Nebenreparatur hier erledigt (Fresh-Process-Probe,
+   siehe AC-T033-09); unverändert verschoben bleiben die aus der T-032-Linie
+   registrierten Posten (ASSET_LANE-Git-Check in
    `.git`-losen Archivextraktionen, vakuoese Reaktionsmetrik V == S als
-   Kommandovertrag-V2-Entscheidung, stille NumberOption-Defaults/-Clamps samt
-   unbekannter Positionsargumente, Härtung von `allocationStrictnessRegression`
-   gegen Kaltprozess-Transients).
+   Kommandovertrag-V2-Entscheidung sowie stille
+   NumberOption-Defaults/-Clamps samt unbekannter Positionsargumente).
 
 ## Fresh-Checkout-/Clean-Archive-Vertrag
 
