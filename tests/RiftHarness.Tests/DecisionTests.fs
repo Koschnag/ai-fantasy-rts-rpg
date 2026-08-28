@@ -478,7 +478,9 @@ let decisionIsObservationOnlyTwinStaysByteIdentical () =
     // (4) Fremdseed: Start-/Endhash nachweislich anders; das
     // Entscheidungsprotokoll bleibt reine Funktion des (seedigten)
     // Sitzungszustands — Optionen folgen dem Protokoll, Wahlzuordnung bleibt.
-    let foreign = runInProcess 42u 8000 chooseBBody true
+    // Der weitere Horizont garantiert den Abschluss des Auftrags auch unter
+    // veraenderter Laufzeitgeometrie.
+    let foreign = runInProcess 42u 12000 chooseBBody true
 
     if
         foreign.StartStateHash = activated.StartStateHash
@@ -487,6 +489,9 @@ let decisionIsObservationOnlyTwinStaysByteIdentical () =
         failwith "Ein fremder Seed aenderte Start- oder Endhash nicht nachweislich."
 
     let foreignProtocol = foreign.Exploration.VisitProtocol
+
+    if foreignProtocol.Count <> NavWorld.ZoneCount || not foreign.Exploration.Completed then
+        failwith "Der gebundene Fremdseedkern suchte nicht saemtliche Landmarken auf."
 
     if
         foreign.Decision.OptionZoneA <> foreignProtocol.[0].ZoneIndex
@@ -503,26 +508,49 @@ let decisionIsObservationOnlyTwinStaysByteIdentical () =
 let decisionNotActivatedRejectionIsDistinguishedWithoutKernelEffect () =
     // Auswertungsordnung Stufe 1 (decision-not-activated) an der Pipeline:
     // unterscheidbare Disposition und Zaehler ohne Kernbefehl und ohne
-    // Simulationszugriff.
-    let world = SimWorld(20260826u)
-    let selection = SelectionModel(SessionEngine.ReadAgentGroups(world))
-    let intents =
-        [| GrayboxIntent(50, GrayboxIntentKind.GroupMoveToZone, 2L)
+    // Simulationszugriff. Der Vergleichslauf traegt dieselben Kernintents
+    // ohne die Entscheidungsaktionen.
+    let withChooses =
+        [| GrayboxIntent(40, GrayboxIntentKind.BoxSelect, 0L, 0L, 159000L, 89000L)
+           GrayboxIntent(50, GrayboxIntentKind.GroupMoveToZone, 2L)
            GrayboxIntent(60, GrayboxIntentKind.ChooseA)
            GrayboxIntent(61, GrayboxIntentKind.ChooseB) |]
 
-    let pipeline = SessionPipeline(world, selection, intents, null, null)
-    let _ = pipeline.ProcessBoundary(50L)
-    let _ = pipeline.ProcessBoundary(60L)
-    let _ = pipeline.ProcessBoundary(61L)
+    let withoutChooses =
+        withChooses
+        |> Array.filter (fun intent ->
+            intent.Kind <> GrayboxIntentKind.ChooseA
+            && intent.Kind <> GrayboxIntentKind.ChooseB)
 
-    if pipeline.ChooseIntentsRejectedWithoutActivationTotal <> 2L then
+    let runPipeline intents =
+        let world = SimWorld(20260826u)
+        let selection = SelectionModel(SessionEngine.ReadAgentGroups(world))
+        let pipeline = SessionPipeline(world, selection, intents, null, null)
+
+        for tick in 0L .. 61L do
+            let _outcome = pipeline.ProcessBoundary(tick)
+
+            if tick < 61L then
+                world.Tick()
+
+        pipeline
+
+    let withDecision = runPipeline withChooses
+    let withoutDecision = runPipeline withoutChooses
+
+    if withDecision.ChooseIntentsRejectedWithoutActivationTotal <> 2L then
         failwith "Entscheidungen ohne Aktivierung wurden nicht als Stufe 1 gezaehlt."
 
-    if pipeline.AppliedCommandsTotal <> 1L then
+    if withDecision.AppliedCommandsTotal <> withoutDecision.AppliedCommandsTotal then
         failwith "Der Kernelbefehlsbestand veraenderte sich durch Entscheidungsabweisungen."
 
-    if pipeline.RejectedIntentsTotal <> 2L then
+    if withDecision.AppliedIntentsTotal <> withoutDecision.AppliedIntentsTotal then
+        failwith "Die Fachintents veraenderten sich durch Entscheidungsabweisungen."
+
+    if
+        withDecision.RejectedIntentsTotal
+        <> withoutDecision.RejectedIntentsTotal + 2L
+    then
         failwith "Die Stufe-1-Abweisungen fehlen in der Intentdisposition."
 
     // Vertragliche Kopplung (Vertrag Abschnitt 7): Entscheidungsschicht ohne
