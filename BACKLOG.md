@@ -43,6 +43,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-033 | E-004 | kleinster Hybrid-Mode-Switch-Prototyp: persönlicher Third-Person-Heldenmodus und strategischer RTS-Modus über dem unveränderten Simulationskern mit Hashketten-Kontinuitätsnachweis | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-034 | E-004 | kleinster spielbarer Erkundungsauftrag-Loop: modusgebundenes Aufsuchen deterministischer Graybox-Landmarken mit strategischer Mobilmachung über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
+| T-035 | E-004 | kleinster spielbarer Entscheidungsschritt: Zwei-Optionen-Aufgabenentscheidung mit sichtbarer, sitzungslokaler Folge in beiden Modi über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -1316,3 +1317,27 @@ T-034 bleibt `REVIEW`: Die Statuspromotion auf `DONE`/`accepted` bleibt dem
 formalen Promotionspfad (Fresh-Checkout-Gate auf dem eingecheckten exakten
 Baum und sichere repo-gebundene Promotion) vorbehalten; Details und
 Aussagegrenze stehen in `docs/abnahme/T-034-graybox-exploration-loop.md`.
+
+T-035 wurde am 2026-08-28 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) als vierter Slice der T-030-Zerlegung auf
+`READY` gesetzt; die vollständige Auswahlkette, Blockerbehandlung und
+Reversibilitätsbindung stehen im `releaseNote` des Manifests
+`.ai/tasks/T-035-graybox-decision-step.json` und in der Zeile zu T-035 in
+`docs/OFFENE_FRAGEN.md`. Kurz: Der kleinste noch fehlende, direkt spielbare
+Kettenschritt aus UF-001/VS-001 über dem akzeptierten T-033-Laufzeitpfad und
+dem T-034-Erkundungsabschluss — die „Aufgabe mit zwei verständlichen
+Optionen" (VS-001: „Aufgabe mit mindestens 2 sichtbaren Ausgängen") als
+Graybox-Strukturhypothese mit einmaligem Angebot am Erkundungsabschluss,
+deterministischer, assetfreier Optionsableitung aus dem sitzungslokalen
+Aufsuchprotokoll, modusgebundener Wahl, sichtbarem Folgeziel in beiden Modi
+und persönlicher Ankunftsabschluss; ohne Kampf, Wirtschaft, Dialogkette,
+Contentbreite oder Antworten auf Q-GAM-001 bis Q-GAM-007, Q-GAM-010,
+Q-NAR-002/Q-NAR-004; die Entscheidungswahrheit bleibt sitzungslokal und
+gemäß ADR 008 Sequenzierungsnote der späteren Savevertrags-Erweiterung
+vorbehalten. Implementierungsstart setzt die formale Akzeptanz von T-034
+voraus; die reversiblen Entscheidungsdetails entstehen als vorregistrierte
+Hypothesen im gatenden Abschnitt 0 des versionierten Entscheidungsvertrags
+`docs/ENTSCHEIDUNGSVERTRAG.md` (Spike-Klausel in `docs/QUALITAET.md`). Dieser
+Freigabelauf hat keinen Produktcode implementiert und keinen Commit erstellt;
+die formale Schema-Validierung mit dem gepinnten JsonSchema.Net bleibt gemäß
+T-022-/T-031-Präzedenz Pflichtteil des Spec-Reviewlaufs.
