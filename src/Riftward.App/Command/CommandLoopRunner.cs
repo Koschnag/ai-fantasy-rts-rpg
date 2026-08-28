@@ -49,6 +49,14 @@ internal static class CommandLoopRunner
         // reiner Schalter ohne Wert; ohne Flag bleibt Verhalten und Report
         // byteidentisch zum Bestandsstand.
         var explorationEnabled = arguments.HasFlag("--exploration");
+        var autoExitAtHorizon = arguments.HasFlag("--auto-exit-at-horizon");
+
+        if (autoExitAtHorizon && !interactive)
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --auto-exit-at-horizon ist nur zusammen mit --interactive erlaubt.");
+            return ExitCodes.Usage;
+        }
 
         // Szenario- und Skriptpruefung vor jedem teuren Schritt: unbekanntes
         // Szenario oder unlesbares/malformiertes Skript bricht ohne Report ab
@@ -108,7 +116,9 @@ internal static class CommandLoopRunner
         }
 
         return interactive
-            ? RunInteractive(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled)
+            ? RunInteractive(
+                arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks,
+                explorationEnabled, autoExitAtHorizon)
             : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled);
     }
 
@@ -323,7 +333,8 @@ internal static class CommandLoopRunner
         ParsedInputScript parsed,
         int warmupTicks,
         int horizonTicks,
-        bool explorationEnabled)
+        bool explorationEnabled,
+        bool autoExitAtHorizon)
     {
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -380,7 +391,8 @@ internal static class CommandLoopRunner
 
             var measurement = RunInteractiveLoop(
                 context.Device, resources, view, world, pipeline, camera, heroCamera, input,
-                context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks, exploration);
+                context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks,
+                exploration, autoExitAtHorizon);
 
             // Laufende ausgewertete, aber nicht mehr wirksame Wechsel sind
             // ausdrücklich im Protokoll gebunden statt still zu verschwinden.
@@ -566,7 +578,8 @@ internal static class CommandLoopRunner
         float[] projection,
         int warmupTicks,
         int horizonTicks,
-        ExplorationSession? exploration)
+        ExplorationSession? exploration,
+        bool autoExitAtHorizon)
     {
         var windowTicks = horizonTicks - warmupTicks;
         var measurement = new InteractiveMeasurement(windowTicks);
@@ -581,7 +594,8 @@ internal static class CommandLoopRunner
         var lastTickTimestamp = Stopwatch.GetTimestamp();
         var tickInterval = Stopwatch.Frequency / SimulationContract.TickRateHz;
 
-        while (!input.QuitRequested)
+        while (ShouldContinueInteractiveLoop(
+            input.QuitRequested, measurement.WindowCompleted, autoExitAtHorizon))
         {
             PumpEvents(input, ref eventBuffer, api, camera, heroCamera, pipeline, world);
 
@@ -733,6 +747,17 @@ internal static class CommandLoopRunner
         measurement.GcPauseCount = GcCollectionTotal() - collectionCountBefore;
         return measurement;
     }
+
+    /// <summary>
+    /// Hält den normalen interaktiven Spielpfad offen, erlaubt aber einem
+    /// explizit begrenzten, unbeaufsichtigten Display-Gate, nach dem letzten
+    /// vollständigen Messframe kontrolliert in Report und Capture zu laufen.
+    /// </summary>
+    internal static bool ShouldContinueInteractiveLoop(
+        bool quitRequested,
+        bool windowCompleted,
+        bool autoExitAtHorizon) =>
+        !quitRequested && (!autoExitAtHorizon || !windowCompleted);
 
     private static int RenderFrame(
         BgfxDevice device,
