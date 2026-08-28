@@ -7,6 +7,7 @@ open System.IO
 open System.Text.Json
 open Riftward.App
 open Riftward.App.Command
+open Riftward.Platform
 open Riftward.Session
 open Riftward.Simulation
 
@@ -53,7 +54,7 @@ let private runAppHost (arguments: string[]) =
 let private runToleratingTransientGate arguments =
     let exitCode, stdout, stderr = runAppHost arguments
 
-    if exitCode = ExitCodes.Map(Platform.PlatformErrorCode.CommandGateViolated) then
+    if exitCode = ExitCodes.Map(PlatformErrorCode.CommandGateViolated) then
         runAppHost arguments
     else
         exitCode, stdout, stderr
@@ -72,23 +73,25 @@ let private explorationScript (horizon: int) =
     let heroYMm = HeroTracker.PositionYMm(world)
 
     let lines =
-        [ $"intent 250 point {heroXMm} {heroYMm}"
-          "intent 260 switch" // persoenlich ab 262: Registrierung Zone 0 (Startzone)
-          "intent 400 switch" // strategisch ab 402: Mobilmachung
-          "intent 410 move 4"
-          "intent 1300 switch" // persoenlich ab 1302: Aufsuchen Zone 4
-          "intent 1500 switch" // strategisch ab 1502
-          "intent 1510 move 2"
-          "intent 2600 switch" // persoenlich ab 2602: Aufsuchen Zone 2
-          "intent 2800 switch" // strategisch ab 2802
-          "intent 2810 move 3"
-          "intent 3900 switch" // persoenlich ab 3902: Aufsuchen Zone 3
-          "intent 4200 switch" // strategisch ab 4202
-          "intent 4210 move 5"
-          "intent 5300 switch" // persoenlich ab 5302: Aufsuchen Zone 5
-          "intent 5500 switch" // strategisch ab 5502
-          "intent 5510 move 1"
-          "intent 6200 switch" ] // persoenlich ab 6202: Aufsuchen Zone 1
+        [ 250, $"intent 250 point {heroXMm} {heroYMm}"
+          260, "intent 260 switch" // persoenlich ab 262: Registrierung Zone 0 (Startzone)
+          400, "intent 400 switch" // strategisch ab 402: Mobilmachung
+          410, "intent 410 move 4"
+          1300, "intent 1300 switch" // persoenlich ab 1302: Aufsuchen Zone 4
+          1500, "intent 1500 switch" // strategisch ab 1502
+          1510, "intent 1510 move 2"
+          2600, "intent 2600 switch" // persoenlich ab 2602: Aufsuchen Zone 2
+          2800, "intent 2800 switch" // strategisch ab 2802
+          2810, "intent 2810 move 3"
+          3900, "intent 3900 switch" // persoenlich ab 3902: Aufsuchen Zone 3
+          4200, "intent 4200 switch" // strategisch ab 4202
+          4210, "intent 4210 move 5"
+          5300, "intent 5300 switch" // persoenlich ab 5302: Aufsuchen Zone 5
+          5500, "intent 5500 switch" // strategisch ab 5502
+          5510, "intent 5510 move 1"
+          6200, "intent 6200 switch" ] // persoenlich ab 6202: Aufsuchen Zone 1
+        |> List.filter (fun (tick, _) -> tick < horizon)
+        |> List.map snd
         |> String.concat "\n"
 
     $"graybox-input-script-v2 {horizon}\n{lines}\nend\n"
@@ -285,7 +288,7 @@ let observationEnforcesModeCouplingAndSingleRegistration () =
     // Persoenliche Anwesenheit an der Vorgrenze registriert genau einmal.
     session.Observe(101L, world, SessionMode.Personal)
 
-    if session.VisitedCount <> 1 || not session.IsRegistered(0) then
+    if session.VisitedCount <> 1 || not (session.IsRegistered(0)) then
         failwith "Persoenliche Anwesenheit in der Landmarkenzone registrierte nicht."
 
     let visit = session.VisitProtocol.[0]
@@ -369,10 +372,10 @@ let explorationObservationIsObservationOnlyTwinStaysByteIdentical () =
     then
         failwith "Die Intentdispositionen des Erkundungslaufs weichen vom Twin ab."
 
-    if activated.Exploration.IsNone then
+    if isNull activated.Exploration then
         failwith "Aktivierter Lauf lieferte keinen Erkundungsausweis."
 
-    if twin.Exploration.IsSome then
+    if not (isNull twin.Exploration) then
         failwith "Unaktivierter Lauf lieferte einen Erkundungsausweis."
 
 let foreignSeedChangesHashesButNotLandmarkSet () =
@@ -382,8 +385,8 @@ let foreignSeedChangesHashesButNotLandmarkSet () =
     if baseline.StartStateHash = foreign.StartStateHash || baseline.EndStateHash = foreign.EndStateHash then
         failwith "Ein fremder Seed aenderte Start- oder Endhash nicht nachweislich."
 
-    let baseLandmarks = (Option.get baseline.Exploration).Landmarks
-    let foreignLandmarks = (Option.get foreign.Exploration).Landmarks
+    let baseLandmarks = baseline.Exploration.Landmarks
+    let foreignLandmarks = foreign.Exploration.Landmarks
 
     if not (Seq.forall2 (fun a b -> a = b) baseLandmarks foreignLandmarks) then
         failwith "Ein fremder Seed veraenderte die seedunabhaengige Landmarkenmenge."
@@ -425,7 +428,7 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
 
         let json = reportJson reportPath
 
-        if not (CommandReportSchema.Validate(json).IsEmpty) then
+        if CommandReportSchema.Validate(json).Count <> 0 then
             failwith "Aktivierter Report widerspricht dem Schemavertrag (Version 3)."
 
         use document = JsonDocument.Parse(json)
@@ -550,7 +553,7 @@ let legacyRunWithoutExplorationStaysByteIdenticalSchema2 () =
 
         let json = reportJson reportPath
 
-        if not (CommandReportSchema.Validate(json).IsEmpty) then
+        if CommandReportSchema.Validate(json).Count <> 0 then
             failwith "Bestandsreport widerspricht dem Schemavertrag."
 
         if json.Contains("\"explorationSession\"", StringComparison.Ordinal) then

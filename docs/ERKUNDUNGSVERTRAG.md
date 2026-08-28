@@ -64,7 +64,8 @@ bereits pro Prozessstart (`ValidateZones` im statischen Konstruktor,
 `src/Riftward.Simulation/NavWorld.cs`: kontrollierter Fehler bei jeder
 unbetretbaren Zonenkachel). Die Ableitung selbst ist zusätzlich vertraglich
 fail-closed definiert: Besäße eine Zone keine betretbare Kachel, bricht die
-Ableitung kontrolliert mit einem definierten Vertragsfehler ab, statt einen
+Ableitung kontrolliert mit dem definierten Vertragsfehler
+`exploration-landmark-zone-without-walkable-tile` ab, statt einen
 undefinierten Anker zu bilden; der Ableitungstest hält beide Aussagen fest
 (Zonendeckung 0–5 mit betretbarem Anker je Zone sowie der kontrollierte
 Ablehnungsfall); die Ableitung konsumiert

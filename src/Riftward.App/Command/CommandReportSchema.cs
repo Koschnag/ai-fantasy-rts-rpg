@@ -68,7 +68,7 @@ public static class CommandReportSchema
 
             if (schemaVersion is not (VersionWithoutExploration or CurrentVersion))
             {
-                errors.Add($"$.schemaVersion: Schemaversion {VersionWithoutExploration} oder {CurrentVersion} erwartet.");
+                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration} oder {CurrentVersion} erwartet.");
                 return;
             }
 

@@ -1187,7 +1187,7 @@ let reportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
 
     assertHasError
         "ausserhalb"
-        (goldenReport.Replace("\"schemaVersion\":2", "\"schemaVersion\":3"))
+        (goldenReport.Replace("\"schemaVersion\":2", "\"schemaVersion\":4"))
         "Falsche Schemaversion akzeptiert"
 
     assertHasError
