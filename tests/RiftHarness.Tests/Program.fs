@@ -2157,8 +2157,7 @@ module Program =
               ExplorationTests.explorationSchemaDispatchRejectsCrossVariants
               "T-034 schema relations reject fabricated evidence fail closed",
               ExplorationTests.explorationSchemaRelationsRejectFabrication
-              "T-035 decision contract mirrors documented values",
-              DecisionTests.decisionContractMirrorsDocumentedValues
+              "T-035 decision contract mirrors documented values", DecisionTests.decisionContractMirrorsDocumentedValues
               "T-035 options derivation is pure, seed independent and fails closed",
               DecisionTests.optionsDerivationIsPureSeedIndependentAndFailsClosed
               "T-035 decision offer, choice and follow-up bind contractually",

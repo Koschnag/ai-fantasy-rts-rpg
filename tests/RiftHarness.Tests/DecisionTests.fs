@@ -104,8 +104,7 @@ let private explorationBody: string list =
 /// laeuft bis zum Abschluss (Angebot an der Abschlussgrenze), Wahl im
 /// persoenlichen Modus; Wahl B endet in der zuletzt registrierten Zone, in
 /// der der Held an der Entscheidungsgrenze bereits steht.
-let private decisionBody (chooseLine: string): string list =
-    explorationBody @ [ chooseLine ]
+let private decisionBody (chooseLine: string) : string list = explorationBody @ [ chooseLine ]
 
 let private runInProcess
     (seed: uint32)
@@ -304,10 +303,7 @@ let decisionOfferChoosesAndFollowUpBindContractually () =
     // Registrierungsgrenze), genau einmal.
     let completionBoundary = protocol.[protocol.Count - 1].EvaluationBoundaryTick
 
-    if
-        not decision.OfferOpened
-        || decision.OfferBoundaryTick <> completionBoundary
-    then
+    if not decision.OfferOpened || decision.OfferBoundaryTick <> completionBoundary then
         failwith $"Angebotsoeffnung {decision.OfferBoundaryTick} widerspricht der Abschlussgrenze {completionBoundary}."
 
     // Optionsableitung (visit-protocol-zone-options-v1): zuerst und zuletzt
@@ -502,11 +498,7 @@ let decisionIsObservationOnlyTwinStaysByteIdentical () =
     // Der Report traegt den ehrlichen, maschinenlesbaren Nichtoeffnungsgrund
     // statt stiller Leere (Vertrag Abschnitt 2).
     let foreignBlock =
-        CommandLoopRunner.BuildDecisionSession(
-            CommandReportSchema.ExecutionHeadless,
-            true,
-            foreign.Decision
-        )
+        CommandLoopRunner.BuildDecisionSession(CommandReportSchema.ExecutionHeadless, true, foreign.Decision)
         |> JsonSerializer.Serialize
         |> JsonNode.Parse
         |> fun node -> node.AsObject()
@@ -562,10 +554,7 @@ let decisionNotActivatedRejectionIsDistinguishedWithoutKernelEffect () =
     if withDecision.AppliedIntentsTotal <> withoutDecision.AppliedIntentsTotal then
         failwith "Die Fachintents veraenderten sich durch Entscheidungsabweisungen."
 
-    if
-        withDecision.RejectedIntentsTotal
-        <> withoutDecision.RejectedIntentsTotal + 2L
-    then
+    if withDecision.RejectedIntentsTotal <> withoutDecision.RejectedIntentsTotal + 2L then
         failwith "Die Stufe-1-Abweisungen fehlen in der Intentdisposition."
 
     // Vertragliche Kopplung (Vertrag Abschnitt 7): Entscheidungsschicht ohne
@@ -615,13 +604,7 @@ let private titleAtTick (bodyLines: string list) (captureTick: int64) : string =
         world.Tick()
 
         if tick = captureTick then
-            title <-
-                CommandLoopRunner.BuildTitleHudText(
-                    pipeline.CurrentEffectiveMode,
-                    world,
-                    exploration,
-                    decision
-                )
+            title <- CommandLoopRunner.BuildTitleHudText(pipeline.CurrentEffectiveMode, world, exploration, decision)
 
     title
 
@@ -630,7 +613,9 @@ let titleHudBindsDecisionStatesWithoutChangingLegacyForm () =
     // Entscheidungssegment.
     let world = SimWorld(20260826u)
     let exploration = ExplorationSession()
-    let legacy = CommandLoopRunner.BuildTitleHudText(SessionMode.Personal, world, exploration)
+
+    let legacy =
+        CommandLoopRunner.BuildTitleHudText(SessionMode.Personal, world, exploration)
 
     if legacy.Contains("Entscheidung", StringComparison.Ordinal) then
         failwith "Unaktivierte Titelzeile traegt ein Entscheidungssegment."
@@ -644,14 +629,7 @@ let titleHudBindsDecisionStatesWithoutChangingLegacyForm () =
     // Angebot offen: beide Optionszonen lesbar.
     let offerOpen = titleAtTick chooseBBody 7210L
 
-    if
-        not (
-            offerOpen.Contains(
-                $" — Entscheidung: A=Z{0} B=Z{4}",
-                StringComparison.Ordinal
-            )
-        )
-    then
+    if not (offerOpen.Contains($" — Entscheidung: A=Z{0} B=Z{4}", StringComparison.Ordinal)) then
         failwith $"Titelzeile bei offenem Angebot: {offerOpen}"
 
     // Entschieden, Folge offen bzw. abgeschlossen.
@@ -662,14 +640,7 @@ let titleHudBindsDecisionStatesWithoutChangingLegacyForm () =
 
     let decidedCompleted = titleAtTick chooseBBody 7300L
 
-    if
-        not (
-            decidedCompleted.Contains(
-                " — Folgeziel: Z4 abgeschlossen",
-                StringComparison.Ordinal
-            )
-        )
-    then
+    if not (decidedCompleted.Contains(" — Folgeziel: Z4 abgeschlossen", StringComparison.Ordinal)) then
         failwith $"Titelzeile nach abgeschlossener Wahl B: {decidedCompleted}"
 
 // ---------------------------------------------------------------------------
@@ -702,8 +673,11 @@ let cliDecisionFlowRunsHeadlessOnSchemaVersion4 () =
     let scriptPath =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t035-decision-choose-b.graybox")
 
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Decision-{Guid.NewGuid():N}.json")
-    let secondReportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Decision-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Decision-{Guid.NewGuid():N}.json")
+
+    let secondReportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Decision-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, stdout, stderr =
@@ -751,9 +725,11 @@ let cliDecisionFlowRunsHeadlessOnSchemaVersion4 () =
             failwith "Der Folgoblock widerspricht der gebundenen Abschlusswahrheit."
 
         if
-            decision.GetProperty("activationId").GetString() <> DecisionContract.ActivationId
+            decision.GetProperty("activationId").GetString()
+            <> DecisionContract.ActivationId
             || decision.GetProperty("offerRule").GetString() <> DecisionContract.OfferRuleId
-            || decision.GetProperty("optionsModel").GetString() <> DecisionContract.OptionsModelId
+            || decision.GetProperty("optionsModel").GetString()
+               <> DecisionContract.OptionsModelId
         then
             failwith "Der Reportblock traegt nicht die vertraglichen Modellkennungen."
 
@@ -777,7 +753,8 @@ let cliDecisionFlowRunsHeadlessOnSchemaVersion4 () =
 
         if
             hud.GetProperty("kind").GetString() <> DecisionContract.HudModelId
-            || channel.GetProperty("kind").GetString() <> DecisionContract.FollowUpChannelModelId
+            || channel.GetProperty("kind").GetString()
+               <> DecisionContract.FollowUpChannelModelId
             || String.IsNullOrEmpty(hud.GetProperty("reason").GetString())
             || String.IsNullOrEmpty(channel.GetProperty("reason").GetString())
         then
@@ -829,8 +806,11 @@ let cliAbChoicePairDiffersOnlyInDecisionReport () =
     let scriptB =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t035-decision-choose-b.graybox")
 
-    let reportA = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecisionA-{Guid.NewGuid():N}.json")
-    let reportB = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecisionB-{Guid.NewGuid():N}.json")
+    let reportA =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-DecisionA-{Guid.NewGuid():N}.json")
+
+    let reportB =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-DecisionB-{Guid.NewGuid():N}.json")
 
     try
         for (script, report) in [ (scriptA, reportA); (scriptB, reportB) ] do
@@ -865,8 +845,9 @@ let cliAbChoicePairDiffersOnlyInDecisionReport () =
             failwith "Der Entscheidungsblock unterscheidet die Wahl nicht."
 
         if
-            jsonInt (decisionA.GetProperty("decision")) "optionZone"
-            = jsonInt (decisionB.GetProperty("decision")) "optionZone"
+            jsonInt (decisionA.GetProperty("decision")) "optionZone" = jsonInt
+                (decisionB.GetProperty("decision"))
+                "optionZone"
         then
             failwith "Wahl A und Wahl B erzeugten dieselbe Folgenzone."
     finally
@@ -885,8 +866,11 @@ let cliChooseWithoutActivationAndUsageCouplingStayContractual () =
     let explorationScript =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t034-exploration-separated.graybox")
 
-    let reportWithChoose = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecMix-{Guid.NewGuid():N}.json")
-    let reportTwin = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecTwin-{Guid.NewGuid():N}.json")
+    let reportWithChoose =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-DecMix-{Guid.NewGuid():N}.json")
+
+    let reportTwin =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-DecTwin-{Guid.NewGuid():N}.json")
 
     try
         // Ohne --decision bleibt der Lauf ehrlich: choose wird kontrolliert
@@ -949,7 +933,8 @@ let cliChooseWithoutActivationAndUsageCouplingStayContractual () =
 
         if
             (mixedDocument.RootElement.GetProperty("inputScript").GetProperty("rejectedTotal").GetInt32())
-            <> (twinDocument.RootElement.GetProperty("inputScript").GetProperty("rejectedTotal").GetInt32()) + 1
+            <> (twinDocument.RootElement.GetProperty("inputScript").GetProperty("rejectedTotal").GetInt32())
+               + 1
         then
             failwith "Die choose-Abweisung wurde nicht kontrolliert gezaehlt."
 
@@ -962,7 +947,8 @@ let cliChooseWithoutActivationAndUsageCouplingStayContractual () =
 
     // --decision ohne --exploration ist eine Usage-Fehlanwendung (bestehende
     // Bedeutung 2), keine neue Exitcodebedeutung; kein Report entsteht.
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecUsage-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-DecUsage-{Guid.NewGuid():N}.json")
 
     try
         let usageExit, _, stderr =
@@ -1000,9 +986,11 @@ let cliChooseTokensUnderLegacyHeadersAreUnknownActions () =
     let legacyHeaders = [ "graybox-input-script-v1"; "graybox-input-script-v2" ]
 
     for header in legacyHeaders do
-        let scriptPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecLegacy-{Guid.NewGuid():N}.graybox")
+        let scriptPath =
+            Path.Combine(Path.GetTempPath(), $"RiftHarness-DecLegacy-{Guid.NewGuid():N}.graybox")
 
-        let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecLegacy-{Guid.NewGuid():N}.json")
+        let reportPath =
+            Path.Combine(Path.GetTempPath(), $"RiftHarness-DecLegacy-{Guid.NewGuid():N}.json")
 
         try
             File.WriteAllText(scriptPath, $"{header} 420\nintent 300 choose-a\nend\n")
@@ -1030,6 +1018,7 @@ let cliChooseTokensUnderLegacyHeadersAreUnknownActions () =
                 failwith "Die UnknownAction-Ablehnung erzeugte einen Report."
         finally
             File.Delete(scriptPath)
+
             if File.Exists(reportPath) then
                 File.Delete(reportPath)
 
@@ -1042,7 +1031,8 @@ let decisionSchemaDispatchRejectsCrossVariants () =
     let chooseScript =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t035-decision-choose-b.graybox")
 
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecSchema-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-DecSchema-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, _, _ =
@@ -1091,7 +1081,8 @@ let decisionSchemaRelationsRejectFabrication () =
     let chooseScript =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t035-decision-choose-b.graybox")
 
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-DecRel-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-DecRel-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, _, _ =
@@ -1205,11 +1196,7 @@ let decisionBuilderEhrlichkeitBindetDarstellungsausweise () =
 
     let preserved = CommandLoopRunner.ResolveIncompleteDecision(true, null)
 
-    if
-        isNull preserved
-        || preserved.OfferOpened
-        || preserved.Decided
-    then
+    if isNull preserved || preserved.OfferOpened || preserved.Decided then
         failwith "Exception-Teilreport verlor die angeforderte Entscheidungsaktivierung."
 
     if not (isNull (CommandLoopRunner.ResolveIncompleteDecision(false, telemetry))) then
