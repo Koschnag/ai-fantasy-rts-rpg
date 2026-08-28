@@ -55,8 +55,7 @@ public static class RepresentativeMesh
                 end.Item2,
                 end.Item3,
                 radius,
-                bone,
-                ShadeByBone(bone));
+                bone);
         }
 
         return new UnitMesh(
@@ -83,15 +82,6 @@ public static class RepresentativeMesh
             _ => 0.06,
         };
 
-    private static byte ShadeByBone(int bone) =>
-        bone switch
-        {
-            <= 8 => (byte)210,
-            >= 9 and <= 16 => (byte)170,
-            >= 17 and <= 26 => (byte)150,
-            _ => (byte)120,
-        };
-
     /// <summary>
     /// Haengt eine achsenausgerichtete Box zwischen zwei Punkten an. Die
     /// Normalen zeigen von der Segmentachse weg; alle Ecken tragen den
@@ -107,8 +97,7 @@ public static class RepresentativeMesh
         double endY,
         double endZ,
         double radius,
-        int boneIndex,
-        byte shade)
+        int boneIndex)
     {
         var axisX = endX - startX;
         var axisY = endY - startY;
@@ -166,13 +155,13 @@ public static class RepresentativeMesh
                 vertices, indices,
                 cornerBuffer[side], cornerBuffer[next],
                 cornerBuffer[4 + next], cornerBuffer[4 + side],
-                boneIndex, shade,
+                boneIndex,
                 invertNormal: true);
         }
 
         // Kappen.
-        EmitQuad(vertices, indices, cornerBuffer[4], cornerBuffer[5], cornerBuffer[6], cornerBuffer[7], boneIndex, shade);
-        EmitQuad(vertices, indices, cornerBuffer[3], cornerBuffer[2], cornerBuffer[1], cornerBuffer[0], boneIndex, shade);
+        EmitQuad(vertices, indices, cornerBuffer[4], cornerBuffer[5], cornerBuffer[6], cornerBuffer[7], boneIndex);
+        EmitQuad(vertices, indices, cornerBuffer[3], cornerBuffer[2], cornerBuffer[1], cornerBuffer[0], boneIndex);
 
         return CountVertices(vertices) - baseVertex;
     }
@@ -196,7 +185,6 @@ public static class RepresentativeMesh
         double[] c,
         double[] d,
         int boneIndex,
-        byte shade,
         bool invertNormal = false)
     {
         var e1x = b[0] - a[0];
@@ -235,10 +223,10 @@ public static class RepresentativeMesh
 
         var baseVertex = CountVertices(vertices);
 
-        AppendVertex(vertices, a, normalX, normalY, normalZ, boneIndex, shade);
-        AppendVertex(vertices, b, normalX, normalY, normalZ, boneIndex, shade);
-        AppendVertex(vertices, c, normalX, normalY, normalZ, boneIndex, shade);
-        AppendVertex(vertices, d, normalX, normalY, normalZ, boneIndex, shade);
+        AppendVertex(vertices, a, normalX, normalY, normalZ, boneIndex);
+        AppendVertex(vertices, b, normalX, normalY, normalZ, boneIndex);
+        AppendVertex(vertices, c, normalX, normalY, normalZ, boneIndex);
+        AppendVertex(vertices, d, normalX, normalY, normalZ, boneIndex);
         AppendTriangleIndices(indices, baseVertex);
 
         return 4;
@@ -264,8 +252,7 @@ public static class RepresentativeMesh
         byte normalX,
         byte normalY,
         byte normalZ,
-        int boneIndex,
-        byte shade)
+        int boneIndex)
     {
         Span<byte> bytes = stackalloc byte[UnitVertexStride];
 
@@ -279,13 +266,16 @@ public static class RepresentativeMesh
         bytes[15] = 0;
 
         bytes[16] = (byte)boneIndex;
-        bytes[17] = (byte)boneIndex;
-        bytes[18] = (byte)boneIndex;
-        bytes[19] = (byte)boneIndex;
+        bytes[17] = 0;
+        bytes[18] = 0;
+        bytes[19] = 0;
 
-        bytes[20] = shade;
-        bytes[21] = shade;
-        bytes[22] = shade;
+        // Das prozedurale Segment ist starr genau einem Knochen zugeordnet.
+        // Vier wiederholte Graustufenbytes ergaben zuvor als normalisierte
+        // Gewichte eine Summe weit ueber 1 und skalierten jede Hautmatrix.
+        bytes[20] = byte.MaxValue;
+        bytes[21] = 0;
+        bytes[22] = 0;
         bytes[23] = 0;
 
         for (var index = 0; index < UnitVertexStride; index++)

@@ -124,6 +124,32 @@ let compositionTargetsProduceNonDegenerateGeometry () =
     if units.Indices.Length <> units.TriangleCount * 3 * 2 then
         failwith "Indexbuffer des Einheitenmesh ist unvollstaendig."
 
+    // Jedes prozedurale Segment ist starr an genau einen Knochen gebunden.
+    // Die normalisierten u8-Gewichte muessen deshalb exakt 1 ergeben; eine
+    // als Gewicht missbrauchte Graustufe vergroessert sonst die gesamte
+    // affine Matrix und laesst die Figuren visuell explodieren.
+    for vertex in 0 .. units.VertexCount - 1 do
+        let offset = vertex * RepresentativeMesh.UnitVertexStride
+        let expectedBone = vertex / 24
+
+        if int units.Vertices[offset + 16] <> expectedBone then
+            failwith $"Vertex {vertex} ist an Knochen {units.Vertices[offset + 16]} statt {expectedBone} gebunden."
+
+        if
+            units.Vertices[offset + 17] <> 0uy
+            || units.Vertices[offset + 18] <> 0uy
+            || units.Vertices[offset + 19] <> 0uy
+        then
+            failwith $"Vertex {vertex} traegt ungenutzte Knochenindizes."
+
+        if
+            units.Vertices[offset + 20] <> Byte.MaxValue
+            || units.Vertices[offset + 21] <> 0uy
+            || units.Vertices[offset + 22] <> 0uy
+            || units.Vertices[offset + 23] <> 0uy
+        then
+            failwith $"Vertex {vertex} hat keine exakt normierte starre Knochenbindung."
+
     let highestIndex =
         seq {
             for chunk = 0 to (units.Indices.Length / 2) - 1 do
