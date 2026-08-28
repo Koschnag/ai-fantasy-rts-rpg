@@ -712,7 +712,8 @@ public static class CommandReportSchema
     /// eine Angebotszone und der Wahl zugeordnet; die Folgenzone ist die
     /// gewählte Zone; die Ankunft liegt an oder nach der Entscheidungsgrenze;
     /// Abschluss und Ankunftsgrenze tragen dieselbe Aussage; ohne Angebot
-    /// gibt es keine Entscheidung und keine Folge.
+    /// gibt es keine Entscheidung und keine Folge; ohne Entscheidung gibt es
+    /// keine gewählte Zone und keine Folge (Sentinel-Wahrheit vor der Wahl).
     /// </summary>
     private static void ValidateDecisionRelations(
         string path,
@@ -761,10 +762,42 @@ public static class CommandReportSchema
             ? choiceElement.GetString()
             : null;
         var chosenZone = ReadInt(decision, "optionZone");
+        var followUpZone = ReadInt(followUp, "zoneIndex");
+        var followUpCompleted = ReadBool(followUp, "completed");
+        var arrivalBoundary = ReadInt(followUp, "arrivalBoundaryTick");
 
         if (offerOpened == false && decided == true)
         {
             errors.Add($"{decisionPath}.decision: ohne Angebot gibt es keine Entscheidung.");
+        }
+
+        // Abschluss- und Ankunftsaussage ist unabhaengig vom Entscheidungsstand
+        // gebunden (Entscheidungsvertrag Abschnitt 8): ohne Abschluss keine
+        // Ankunftsgrenze, mit Abschluss die zugehoerige Grenze.
+        if (followUpCompleted != (arrivalBoundary >= 0))
+        {
+            errors.Add($"{decisionPath}.followUp: Abschluss und Ankunftsgrenze muessen dieselbe Aussage tragen.");
+        }
+
+        // Ohne Angebot existiert weder Folge noch Abschluss (unabhaengig vom
+        // Entscheidungsstand; Vertrag Abschnitt 8).
+        if (offerOpened == false
+            && ((followUpZone is { } orphanZone && orphanZone >= 0)
+                || followUpCompleted == true
+                || (arrivalBoundary is { } orphanArrival && orphanArrival >= 0)))
+        {
+            errors.Add($"{decisionPath}.followUp: ohne Angebot gibt es keine Folge.");
+        }
+
+        // Ohne Entscheidung existiert weder gewaehlte Zone noch Folge
+        // (Sentinel-Wahrheit vor der Wahl; Vertrag Abschnitte 5 und 8).
+        if (decided == false
+            && ((chosenZone is { } unchosenZone && unchosenZone >= 0)
+                || (followUpZone is { } prematureZone && prematureZone >= 0)
+                || followUpCompleted == true
+                || (arrivalBoundary is { } prematureArrival && prematureArrival >= 0)))
+        {
+            errors.Add($"{decisionPath}.followUp: ohne Entscheidung gibt es keine gewaehlte Zone und keine Folge.");
         }
 
         if (decided != true)
@@ -788,20 +821,11 @@ public static class CommandReportSchema
             errors.Add($"{decisionPath}.decision.optionZone: Wahl b muss die Optionszone B gewaehlt haben.");
         }
 
-        var followUpZone = ReadInt(followUp, "zoneIndex");
-        var followUpCompleted = ReadBool(followUp, "completed");
-        var arrivalBoundary = ReadInt(followUp, "arrivalBoundaryTick");
-
         if (chosenZone is { } picked
             && followUpZone is { } followZone
             && picked != followZone)
         {
             errors.Add($"{decisionPath}.followUp.zoneIndex: die Folgenzone ist die gewaehlte Zone.");
-        }
-
-        if (followUpCompleted != (arrivalBoundary >= 0))
-        {
-            errors.Add($"{decisionPath}.followUp: Abschluss und Ankunftsgrenze muessen dieselbe Aussage tragen.");
         }
 
         if (arrivalBoundary is { } arrival
@@ -810,14 +834,6 @@ public static class CommandReportSchema
             && arrival < decidedAt)
         {
             errors.Add($"{decisionPath}.followUp.arrivalBoundaryTick: die Ankunft liegt an oder nach der Entscheidungsgrenze.");
-        }
-
-        if (offerOpened == false
-            && ((followUpZone is { } orphanZone && orphanZone >= 0)
-                || followUpCompleted == true
-                || (arrivalBoundary is { } orphanArrival && orphanArrival >= 0)))
-        {
-            errors.Add($"{decisionPath}.followUp: ohne Angebot gibt es keine Folge.");
         }
     }
 

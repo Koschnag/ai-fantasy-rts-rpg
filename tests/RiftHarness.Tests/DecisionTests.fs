@@ -1149,6 +1149,19 @@ let decisionSchemaRelationsRejectFabrication () =
             let decision = decisionOf root
             decision["followUp"].AsObject()["arrivalBoundaryTick"] <- JsonValue.Create(-1))
 
+        // Ohne Entscheidung gibt es keine gewaehlte Zone und keine Folge
+        // (Sentinel-Wahrheit vor der Wahl; unabhaengig vom Angebotszustand).
+        reject "Folge ohne Entscheidung" "ohne Entscheidung" (fun root ->
+            let decision = decisionOf root
+            decision["decision"].AsObject()["decided"] <- JsonValue.Create(false))
+
+        // Auch eine offene Folge ohne Entscheidung (Abschluss zurueckgesetzt)
+        // traegt keine wahlgemaesse Zone oder Ankunft.
+        reject "Offene Folge ohne Entscheidung" "ohne Entscheidung" (fun root ->
+            let decision = decisionOf root
+            decision["decision"].AsObject()["decided"] <- JsonValue.Create(false)
+            decision["followUp"].AsObject()["completed"] <- JsonValue.Create(false))
+
         // Headless darf keine fensterpflichtige Darstellung behaupten.
         reject "Headless-Scheinmessung" "measured" (fun root ->
             let decision = decisionOf root
