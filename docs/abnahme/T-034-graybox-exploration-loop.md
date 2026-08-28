@@ -3,9 +3,11 @@
 **Status:** Reviewkandidat. Der direkt ausführbare Headless-Produktpfad, seine
 deterministische Beobachtungstreue und die lokale Regressionssuite sind grün.
 Die endgültige Annahme bleibt bis zum unabhängigen Review, dem
-Fresh-Checkout-/Clean-Archive-Nachweis und dem ehrlichen Interaktivsmoke auf
-einer nutzbaren Displaysession offen. Diese Datei beschreibt die aktuelle
-Produktwahrheit; sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
+Fresh-Checkout-/Clean-Archive-Nachweis und einem bestandenen visuellen
+Playtest offen. Der echte Interaktivlauf ist technisch vollständig grün;
+die Sichtprüfung des Abgriffpaars hat die vorregistrierte Lesbarkeit jedoch
+noch nicht bestätigt. Diese Datei beschreibt die aktuelle Produktwahrheit;
+sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
 
 ## Gelieferter Umfang
 
@@ -33,6 +35,10 @@ Produktwahrheit; sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
   schreibgeschützte Telemetrie. Unbesucht/besucht ist über Form plus Farbe
   unterschieden; headless werden fensterpflichtige Messungen mit Grund als
   nicht gemessen ausgewiesen.
+- `--auto-exit-at-horizon` beendet ausschließlich explizit begrenzte echte
+  Display-Gates nach dem vollständig gerenderten Messfenster kontrolliert;
+  der normale Interaktivpfad bleibt bis zum echten Quit offen. Damit kann der
+  autonome Harness Capture und Report ohne KWin-/Timeout-Eingriff abschließen.
 
 ## Kriterienstand
 
@@ -41,9 +47,9 @@ Produktwahrheit; sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
 | AC-T034-01 | erfüllt | Vertrags-Spiegeltest hält Kennungen, Alternativen, Playtestkriterien, Rückrollwege und Nichtpersistenz gegen `ERKUNDUNGSVERTRAG.md`/`ExplorationContract` konsistent. |
 | AC-T034-02 | erfüllt | Echter öffentlicher Schemaversion-3-Lauf besucht 6/6 Landmarken; Besuchsticks 262/1302/2602/4068/5302/6202, ausschließlich Modus `personal`; zwei getrennte App-Prozesse liefern byteidentische deterministische Blöcke für Szenario, Eingabe, Modussitzung, Erkundung und Hashkette. |
 | AC-T034-03 | erfüllt | Aktivierter/nicht aktivierter Twin: identische Start-/Endhashes, Kettenstichproben, Intentdispositionen und Kernbefehlsanzahl; fremder Seed ändert Start/Endhash, nicht die Landmarkenmenge; `git diff -- src/Riftward.Simulation` ist leer; Legacy-Schema 2 bleibt gültig. |
-| AC-T034-04 | teilweise | HUD-/Kanalquellen, Schemaformen und kontrollierte Headless-Aussagegrenzen sind regulär getestet. Ehrlicher Real-Display-Smoke/Playtest und gegebenenfalls der einzelne Media-Lab-konforme Abgriff stehen vor Annahme noch aus; ohne Display darf nur Code 19 belegt werden. |
+| AC-T034-04 | teilweise (`needs-work`) | Echter Wayland-/RX-570-Lauf: Exit 0, 6800/6800 Ticks, `windowCompleted=true`, Gate grün, 6/6 Besuche und hashgebundenes Abgriffpaar an Tick 6800/Hash `9b1c73996becfcf8`; strategisch `3c8183b2…db48`, persönlich `790984fc…4fe4`, beide 1920×1080 und verschieden. Die Sichtprüfung bestätigt die verlangte Lesbarkeit binnen zwei Sekunden **nicht**: strategisch liegt der abgeschlossene Zustand größtenteils außerhalb des unveränderten Kamerastands, persönlich verdeckt die auf ein Ziel mobilisierte 250-Agenten-Masse Landmarke und Heldenumfeld. Das Artefakt ist deshalb im Media Lab `needs-work`, nie Gameplay-/Atmosphärenbeleg; ein bestandener Playtest bleibt Pflicht. |
 | AC-T034-05 | erfüllt | Keine neue Abhängigkeit oder Netz-/Secretfläche; begrenzte bestehende Skripteingabe; Session bleibt BCL-only, Runtimepfad C#; alle neuen Diagnosefelder nicht gategekoppelt; Security-Gate grün. |
-| AC-T034-06 | teilweise | Release-Build 0 Warnungen/0 Fehler, Fantomas/Lint grün, Security grün, 273/273 Tests grün, Kandidatenscope und Harness-Preflight grün. Fresh-Checkout-/Clean-Archive, vollständiges Verify und unabhängiges Abschlussreview stehen noch aus. |
+| AC-T034-06 | teilweise | Release-Build 0 Warnungen/0 Fehler, Fantomas/Lint grün, Security grün, reguläre Suite einschließlich Auto-Exit-Regression grün, Kandidatenscope und Harness-Preflight grün. Fresh-Checkout-/Clean-Archive, vollständiges Verify und unabhängiges Abschlussreview stehen noch aus. |
 
 ## Lokal ausgeführte Evidenz am aktuellen Kandidaten
 
@@ -51,7 +57,7 @@ Produktwahrheit; sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
 dotnet build tests/RiftHarness.Tests/RiftHarness.Tests.fsproj -c Release --no-restore
     -> 0, 0 Warnungen, 0 Fehler
 dotnet tests/RiftHarness.Tests/bin/Release/net10.0/RiftHarness.Tests.dll
-    -> 0, 273/273
+    -> 0, reguläre Suite grün; exakte Zahl im Abschlussrepass zu binden
 ./scripts/rift.sh fmt
     -> 0, anschließend keine Formatabweichung
 ./scripts/rift.sh lint
@@ -64,6 +70,11 @@ riftward-harness-preflight
     -> 0
 git diff -- src/Riftward.Simulation
     -> leer
+env DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 \
+  XDG_SESSION_TYPE=wayland vblank_mode=0 ./scripts/rift.sh kommandoschleife \
+  ... --exploration --interactive --auto-exit-at-horizon --capture-frame ...
+    -> 0, 6800/6800, gate.pass=true, 6/6, Capture-Paar gebunden;
+       visuelles Review needs-work (keine Lesbarkeitsannahme)
 ```
 
 ## Offene Annahmepunkte
@@ -72,9 +83,11 @@ git diff -- src/Riftward.Simulation
    Kandidaten und führt die vollständigen Pflichtgates aus.
 2. Isolierter Fresh-Checkout-/Clean-Archive-Lauf belegt, dass keine
    gitignorierte Runtime-Evidenz als Fixture benötigt wird.
-3. Eine echte Displaysession belegt den Interaktivpfad, HUD-Lesbarkeit und
-   den Zwei-Kanal-Landmarkenzustand; ohne Display wird kontrolliert Code 19
-   statt eines simulierten Erfolgs dokumentiert.
+3. Der technisch grüne echte Displaypfad wird visuell repariert und erneut
+   geprüft: Abschlusszustand, Heldenumfeld und Landmarkenkanal müssen in
+   beiden Modi binnen zwei Sekunden lesbar sein. Der aktuelle Abgriff bleibt
+   ausdrücklich `needs-work`; ein Struktur-/Pixelgate ersetzt diesen
+   Playtest nicht.
 
 Erst nach diesen Punkten werden Taskmanifest und BACKLOG auf `accepted`
 gestellt. Q-GAM-001 bis Q-GAM-007, Q-GAM-010, Q-NAR-002/Q-NAR-004,
