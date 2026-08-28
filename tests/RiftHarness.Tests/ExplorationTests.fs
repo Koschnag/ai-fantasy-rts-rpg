@@ -65,10 +65,16 @@ let private runToleratingTransientGate arguments =
 /// Mobilmachung; mindestens ein vollstaendiger strategisch -> persoenlich ->
 /// strategischer Zyklus je Moduswechsel (Vertrag Abschnitte 3 und 6).
 let private explorationScript (horizon: int) =
-    // Der Vertragsheld (Agentenindex 0, gerade Agenten) startet deterministisch
-    // in Zone 0; die Auswahl liegt exakt auf seiner Startkachel (Radius 3 m
-    // selektiert die Gruppe des naechstgelegenen Agenten: Vertragsgruppe 0).
+    // Der Vertragsheld (Agentenindex 0, gerade Agenten) wird an exakt derselben
+    // Vorgrenze selektiert, an der der Skriptintent ausgewertet wird. Die
+    // Warmphase bewegt den Kern bereits deterministisch; eine Tick-0-Position
+    // waere am Auswahl-Tick 250 veraltet und liesse die Gruppenbefehle ohne
+    // Auswahl kontrolliert scheitern.
     let world = SimWorld(20260826u)
+
+    for _ in 1..250 do
+        world.Tick()
+
     let heroXMm = HeroTracker.PositionXMm(world)
     let heroYMm = HeroTracker.PositionYMm(world)
 
