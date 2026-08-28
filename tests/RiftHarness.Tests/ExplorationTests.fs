@@ -408,23 +408,28 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
     let reportPath =
         Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.json")
 
+    let secondReportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.json")
+
+    let explorationArguments targetReport =
+        [| "kommandoschleife"
+           "--scenario"
+           "kommando-graybox"
+           "--input-script"
+           scriptPath
+           "--seed"
+           "20260826"
+           "--warmup-ticks"
+           "240"
+           "--horizon-ticks"
+           "6800"
+           "--exploration"
+           "--report"
+           targetReport |]
+
     try
         let exitCode, stdout, stderr =
-            runToleratingTransientGate
-                [| "kommandoschleife"
-                   "--scenario"
-                   "kommando-graybox"
-                   "--input-script"
-                   scriptPath
-                   "--seed"
-                   "20260826"
-                   "--warmup-ticks"
-                   "240"
-                   "--horizon-ticks"
-                   "6800"
-                   "--exploration"
-                   "--report"
-                   reportPath |]
+            runToleratingTransientGate (explorationArguments reportPath)
 
         if exitCode <> ExitCodes.Ok then
             failwith $"Erkundungslauf endete mit {exitCode}: {stderr} {stdout}"
@@ -544,11 +549,43 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
 
         if jsonInt root "exitCode" <> ExitCodes.Ok then
             failwith "Report-Exitcode widerspricht der Laufbeobachtung."
+
+        // Zweiter echter App-Prozess: zeit-/messwertabhängige Felder dürfen
+        // abweichen, die deterministische Produkt- und Kettenwahrheit muss
+        // auf demselben Builderstand byteidentisch bleiben (AC-T034-02).
+        let secondExitCode, secondStdout, secondStderr =
+            runToleratingTransientGate (explorationArguments secondReportPath)
+
+        if secondExitCode <> ExitCodes.Ok then
+            failwith $"Zweiter Erkundungslauf endete mit {secondExitCode}: {secondStderr} {secondStdout}"
+
+        let secondJson = reportJson secondReportPath
+
+        if CommandReportSchema.Validate(secondJson).Count <> 0 then
+            failwith "Zweiter aktivierter Report widerspricht dem Schemavertrag."
+
+        use secondDocument = JsonDocument.Parse(secondJson)
+        let secondRoot = secondDocument.RootElement
+
+        for blockName in
+            [ "scenario"
+              "inputScript"
+              "modeSession"
+              "explorationSession"
+              "stateHashChain" ] do
+            if
+                root.GetProperty(blockName).GetRawText()
+                <> secondRoot.GetProperty(blockName).GetRawText()
+            then
+                failwith $"Die deterministische Reportwahrheit '{blockName}' weicht zwischen zwei Fresh-Prozessen ab."
     finally
         File.Delete(scriptPath)
 
         if File.Exists(reportPath) then
             File.Delete(reportPath)
+
+        if File.Exists(secondReportPath) then
+            File.Delete(secondReportPath)
 
 let legacyRunWithoutExplorationStaysByteIdenticalSchema2 () =
     // Bestandsreport (Schemaversion 2) bleibt ohne Aktivierung gueltig und
