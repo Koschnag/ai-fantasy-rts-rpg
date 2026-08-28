@@ -141,6 +141,8 @@ public sealed class ExplorationSession
     private readonly ExplorationLandmark[] _landmarks;
     private readonly bool[] _registered;
     private readonly List<ExplorationVisit> _visits = new();
+    private readonly IReadOnlyList<ExplorationLandmark> _landmarkView;
+    private IReadOnlyList<ExplorationVisit>? _visitView;
     private int _visitedCount;
 
     /// <summary>Erzeugt die Sitzung mit der seedunabhaengigen Ankerableitung.</summary>
@@ -148,13 +150,24 @@ public sealed class ExplorationSession
     {
         _landmarks = ExplorationAnchors.DeriveLandmarks();
         _registered = new bool[_landmarks.Length];
+        // Schreibschutzgrenze (Vertrag Abschnitt 2/7): die Landmarkenmenge
+        // verlässt die Sitzung ausschließlich als echte read-only View —
+        // das Backing-Array ist nie von außen mutierbar.
+        _landmarkView = Array.AsReadOnly(_landmarks);
     }
 
-    /// <summary>Landmarkenmenge in fester Zonenordnung 0 bis ZoneCount-1.</summary>
-    public IReadOnlyList<ExplorationLandmark> Landmarks => _landmarks;
+    /// <summary>
+    /// Landmarkenmenge in fester Zonenordnung 0 bis ZoneCount-1; echte
+    /// read-only View, weder Backing-Array noch mutierbarer Cast entweichen.
+    /// </summary>
+    public IReadOnlyList<ExplorationLandmark> Landmarks => _landmarkView;
 
-    /// <summary>Aufsuchprotokoll in kanonischer Registrierungsfolge.</summary>
-    public IReadOnlyList<ExplorationVisit> VisitProtocol => _visits;
+    /// <summary>
+    /// Aufsuchprotokoll in kanonischer Registrierungsfolge; echte read-only
+    /// View über der Protokollliste (Schreibschutzgrenze, kein
+    /// cast-veraenderbarer Rückgabekanal).
+    /// </summary>
+    public IReadOnlyList<ExplorationVisit> VisitProtocol => _visitView ??= _visits.AsReadOnly();
 
     /// <summary>Anzahl registrierter Landmarken dieser Sitzung.</summary>
     public int VisitedCount => _visitedCount;
@@ -208,9 +221,13 @@ public sealed class ExplorationSession
             VisitOrder: _visitedCount));
     }
 
-    /// <summary>Schreibgeschützter Ausweis des Laufs für den Report.</summary>
+    /// <summary>
+    /// Schreibgeschützter Ausweis des Laufs für den Report: Landmarkenmenge
+    /// als read-only View, Aufsuchprotokoll als defensive Kopie in
+    /// kanonischer Registrierungsfolge.
+    /// </summary>
     public ExplorationTelemetry ToTelemetry() => new(
-        Landmarks: _landmarks,
+        Landmarks: Landmarks,
         VisitProtocol: _visits.ToArray(),
         VisitedCount: _visitedCount,
         LandmarkCount: _landmarks.Length,
