@@ -196,10 +196,10 @@ let landmarkDerivationFailsClosedWithoutWalkableTile () =
 
             false
         with
-        | :? InvalidOperationException as exception ->
+        | :? InvalidOperationException as invalidOperation ->
             if
                 not (
-                    exception.Message.Contains(
+                    invalidOperation.Message.Contains(
                         ExplorationContract.RejectReasonZoneWithoutWalkableTile,
                         StringComparison.Ordinal
                     )
@@ -257,7 +257,7 @@ let explorationViewsResistExternalMutation () =
 
     // Die defensive Telemetrie-Kopie ist unabhängig von späteren
     // Registrierungen (kanonischer Ausweis des Ausweiszeitpunkts).
-    session.Observe(100L, SimWorld(20260826u), SessionMode.Personal)
+    session.Observe(100L, (SimWorld(20260826u)), SessionMode.Personal)
 
     if telemetry.VisitedCount <> 0 then
         failwith "Die Telemetrie-Kopie veraendert sich nachtraeglich mit der Sitzung."
