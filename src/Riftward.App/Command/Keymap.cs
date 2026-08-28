@@ -10,10 +10,22 @@ namespace Riftward.App.Command;
 public static class Keymap
 {
     /// <summary>
+    /// Semantischer Aktionsname der Entscheidung fuer Option A (T-035,
+    /// Entscheidungsvertrag Abschnitt 4): frei belegbare, datengetriebene
+    /// Wahltaste; Standardbelegung ist die Zifferntaste `1` (Scancode 30),
+    /// die im T-033-Stand unbesetzt war.
+    /// </summary>
+    public const string ChooseAActionName = "choose-a";
+
+    /// <summary>Semantischer Aktionsname der Entscheidung fuer Option B (T-035).</summary>
+    public const string ChooseBActionName = "choose-b";
+
+    /// <summary>
     /// Semantische Aktionsfamilie des Vertrags. <c>mode-switch</c> ist die
     /// T-033-Erweiterung (Modevertrag Abschnitt 4): frei belegbare,
     /// datengetriebene Umschaltaktion; der Standard belegt Tab (Scancode 43),
-    /// das im T-032-Stand unbesetzt war.
+    /// das im T-032-Stand unbesetzt war. <c>choose-a</c>/<c>choose-b</c> sind
+    /// die T-035-Erweiterung (Entscheidungsvertrag Abschnitt 4).
     /// </summary>
     public static readonly string[] SemanticActions =
     [
@@ -25,6 +37,8 @@ public static class Keymap
         "zoom-in",
         "zoom-out",
         "mode-switch",
+        ChooseAActionName,
+        ChooseBActionName,
     ];
 
     /// <summary>Defaultbelegung: Aktion → SDL-Scancodes (gepinnter Stand).</summary>
@@ -38,6 +52,8 @@ public static class Keymap
         ["zoom-in"] = [8, 46], // E, Equals
         ["zoom-out"] = [20, 45], // Q, Minus
         ["mode-switch"] = [43], // Tab (T-033 Modevertrag Abschnitt 4)
+        [ChooseAActionName] = [30], // Zifferntaste 1 (T-035 Entscheidungsvertrag Abschnitt 4)
+        [ChooseBActionName] = [31], // Zifferntaste 2 (T-035 Entscheidungsvertrag Abschnitt 4)
     };
 
     /// <summary>
