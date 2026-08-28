@@ -2068,6 +2068,8 @@ module Program =
               CommandLoopTests.exitCodeMappingStaysStableIncludingCommandCodes
               "T-032 interactive exit code precedence stays window bound",
               CommandLoopTests.interactiveExitCodePrecedenceStaysWindowBound
+              "T-032 interactive auto-exit stays explicit and horizon bound",
+              CommandLoopTests.interactiveAutoExitRemainsExplicitAndHorizonBound
               "T-032 CLI contract runs headless loops with controlled failures",
               CommandLoopTests.cliContractRunsHeadlessWithReportsAndControlledFailures
               "T-032 engine run is hermetic", CommandLoopTests.engineRunIsHermetic
@@ -2112,6 +2114,16 @@ module Program =
               ModeSwitchTests.interactiveReportSchemaBindsCapturePairAndHud
               "T-033 interactive hybrid wiring is bound to sources",
               ModeSwitchTests.interactiveHybridWiringIsBoundToSources
+              "T-033 personal mode hides strategic selection glyphs without state loss",
+              ModeSwitchTests.personalModeHidesStrategicSelectionGlyphs
+              "T-034 diamond markers and hero-local landmark cue stay readable",
+              ModeSwitchTests.diamondMarkersAndHeroLocalLandmarkCueStayReadable
+              "T-033 strategic capture focuses hero without mutating session camera",
+              ModeSwitchTests.strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera
+              "T-033 personal camera frustum keeps ground readable at world edges",
+              ModeSwitchTests.personalCameraFrustumKeepsGroundReadableAtWorldEdges
+              "T-033 billboard basis stays camera-facing and isotropic",
+              ModeSwitchTests.billboardBasisStaysCameraFacingAndIsotropic
               "T-033 capture pair validation is fail closed", ModeSwitchTests.capturePairValidationIsFailClosed
               "T-033 hybrid flow twin continuity identical chains and end hash",
               ModeSwitchTests.hybridFlowTwinContinuityIdenticalChainsAndEndHash
@@ -2120,7 +2132,31 @@ module Program =
               "T-033 switch reaction gate criterion is fail closed without vacuum pass",
               ModeSwitchTests.commandGateSwitchReactionCriterionIsFailClosedWithoutVacuumPass
               "T-033 CLI contract runs v2 hybrid headless with mode report and twin",
-              ModeSwitchTests.cliContractRunsV2HybridHeadlessWithModeReportAndTwin ]
+              ModeSwitchTests.cliContractRunsV2HybridHeadlessWithModeReportAndTwin
+              "T-034 exploration contract mirrors documented values",
+              ExplorationTests.explorationContractMirrorsDocumentedValues
+              "T-034 landmark derivation is deterministic, zonal and walkable",
+              ExplorationTests.landmarkDerivationIsDeterministicZonalAndWalkable
+              "T-034 landmark derivation fails closed without a walkable tile",
+              ExplorationTests.landmarkDerivationFailsClosedWithoutWalkableTile
+              "T-034 exploration views resist external mutation",
+              ExplorationTests.explorationViewsResistExternalMutation
+              "T-034 observation enforces mode coupling and single registration",
+              ExplorationTests.observationEnforcesModeCouplingAndSingleRegistration
+              "T-034 final-boundary HUD matches measured report before auto-exit",
+              ExplorationTests.finalBoundaryHudMatchesMeasuredReportBeforeAutoExit
+              "T-034 exploration is observation-only; twin stays byte identical",
+              ExplorationTests.explorationObservationIsObservationOnlyTwinStaysByteIdentical
+              "T-034 foreign seed changes hashes but not the landmark set",
+              ExplorationTests.foreignSeedChangesHashesButNotLandmarkSet
+              "T-034 headless exploration visits all landmarks on schema version 3",
+              ExplorationTests.headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3
+              "T-034 legacy run without exploration stays byte identical on schema version 2",
+              ExplorationTests.legacyRunWithoutExplorationStaysByteIdenticalSchema2
+              "T-034 schema dispatch rejects cross variants fail closed",
+              ExplorationTests.explorationSchemaDispatchRejectsCrossVariants
+              "T-034 schema relations reject fabricated evidence fail closed",
+              ExplorationTests.explorationSchemaRelationsRejectFabrication ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die

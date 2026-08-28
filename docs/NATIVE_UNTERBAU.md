@@ -285,13 +285,18 @@ diagnostische Baseline gemäß Q-OPS-001; Pflichtprofile bleiben
 ## kommandoschleife (T-032) — Kommandovertrag
 
 `kommandoschleife --scenario kommando-graybox --input-script PFAD --seed N
---report PFAD [--interactive] [--capture-frame PFAD] [--warmup-ticks N]
-[--horizon-ticks N] [--lock DATEI]` führt die erste interaktive
-Graybox-Kommandoschleife nativ auf linux-x64 im bestehenden Host aus. Ohne
-`--interactive` läuft der Befehl rein CPU-seitig ohne Fenster, Renderer und
-Netzwerk; die nativen SDL3-/bgfx-Artefakte werden nicht geladen. Der
-Sitzungskern `Riftward.Session` ist BCL-only, bildet validierte Intents
-ausschließlich auf die unveränderte öffentliche Kernbefehlsfläche
+--report PFAD [--interactive [--auto-exit-at-horizon]] [--capture-frame PFAD]
+[--exploration] [--warmup-ticks N] [--horizon-ticks N] [--lock DATEI]` führt
+die erste interaktive Graybox-Kommandoschleife nativ auf linux-x64 im
+bestehenden Host aus. Ohne `--interactive` läuft der Befehl rein CPU-seitig
+ohne Fenster, Renderer und Netzwerk; die nativen SDL3-/bgfx-Artefakte werden
+nicht geladen. `--auto-exit-at-horizon` ist ausschließlich zusammen mit
+`--interactive` erlaubt und beendet nach dem vollständig gerenderten
+Messhorizont kontrolliert in Capture und Reportabschluss; nur dieser
+begrenzte Gatepfad löst die Present-VSync-Bindung, damit ein verdecktes
+Wayland-Surface den unverändert wanduhrgebundenen 20-Hz-Simulationstakt nicht
+drosselt. Der Sitzungskern `Riftward.Session` ist BCL-only, bildet validierte
+Intents ausschließlich auf die unveränderte öffentliche Kernbefehlsfläche
 (`SimCommandKind.GroupMoveToZone`, kanonische Ordnung) ab und folgt dem
 versionierten Kommandovertrag `docs/KOMMANDOVERTRAG.md` V1.
 
@@ -344,5 +349,11 @@ strikt nach dem Messfenster genau zwei hashgebundene 1920×1080-Einzelabgriffe
 am selben Tick, T-033) nach dem
 T-023-/Media-Lab-Muster mit maschinenlesbarer Aussagegrenze Graybox-
 Zustandsbelegung; ein fehlgeschlagener Abgriff ergibt Code 38 mit
-`captured=false` und Grund. Läufe auf dem Entwickler-PC sind diagnostische
+`captured=false` und Grund. Der opt-in Parameter `--exploration` (T-034)
+aktiviert den sitzungslokalen Erkundungsauftrag über denselben Pipelinepfad:
+ohne ihn bleibt der Bestandsreport byteidentisch bei Schemaversion 2, mit ihm
+trägt der rein additive Report Schemaversion 3 den Pflichtblock
+`explorationSession`; headless und vorzeitig beendete Interaktivläufe weisen
+die fensterpflichtigen visuellen Kanäle mit Grund als nicht gemessen aus.
+Läufe auf dem Entwickler-PC sind diagnostische
 Baseline gemäß Q-OPS-001; Pflichtprofile bleiben `NOT-MEASURED`.

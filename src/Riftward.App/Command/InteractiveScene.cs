@@ -29,6 +29,7 @@ internal sealed class InteractiveSceneResources : IDisposable
     public ushort UnitVertexBuffer;
     public ushort UnitIndexBuffer;
     public ushort MarkerQuadBuffer;
+    public int MarkerVertexCount;
     public int TerrainTriangleCount;
     public ushort PaletteTexture;
     public IReadOnlyList<ushort> ShadowTextures = [];
@@ -70,6 +71,7 @@ internal sealed class InteractiveSceneResources : IDisposable
             UnitVertexBuffer = device.CreateLayoutVertexBuffer(units.Vertices, BgfxDevice.LayoutUnitMesh),
             UnitIndexBuffer = device.CreateIndexBuffer(units.Indices, uint32Indices: false),
             MarkerQuadBuffer = device.CreateLayoutVertexBuffer(quad.Vertices, BgfxDevice.LayoutParticleQuad),
+            MarkerVertexCount = quad.VertexCount,
             TerrainTriangleCount = terrain.TriangleCount,
         };
 
@@ -297,7 +299,7 @@ internal sealed class InteractiveSceneResources : IDisposable
             ProgramMarker,
             MarkerQuadBuffer,
             BgfxDevice.NoIndexBuffer,
-            4,
+            (uint)MarkerVertexCount,
             markersPointer,
             markerCount,
             RepresentativeMesh.ParticleInstanceStrideBytes,

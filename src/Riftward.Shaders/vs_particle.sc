@@ -1,5 +1,5 @@
 $input a_position, a_texcoord0, i_data0, i_data1, i_data2
-$output v_uv, v_color
+$output v_uv, v_color, v_shape
 /*
  * Project Riftward - Partikel-Vertexshader der Graybox-Benchmarkszene
  * (T-023): Kamerabillboards aus einer statischen Quadgeometrie plus
@@ -32,4 +32,5 @@ void main()
 	gl_Position = mul(u_viewProj, vec4(wpos, 1.0) );
 	v_uv = a_texcoord0;
 	v_color = i_data2;
+	v_shape = i_data1.z;
 }

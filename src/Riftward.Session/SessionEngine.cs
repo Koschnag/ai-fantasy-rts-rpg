@@ -78,7 +78,8 @@ public sealed record SessionRunResult(
     int MoveWithoutSelectionRejects,
     int KernelCommandsTotal,
     int TotalTicksExecuted,
-    ModeTelemetry Telemetry);
+    ModeTelemetry Telemetry,
+    ExplorationTelemetry? Exploration = null);
 
 /// <summary>Deterministische Percentil- und Zeitberechnung (Verfahren wie T-010/T-020/T-021).</summary>
 public static class SessionMath
@@ -138,6 +139,7 @@ public sealed class SessionPipeline
     private readonly List<int> _dispatchedMoveZones = new();
     private readonly List<ModeSwitchEvent> _switchProtocol = new();
     private readonly List<ModeSwitchEvent> _pendingSwitches = new();
+    private readonly ExplorationSession? _exploration;
     private int _scriptCursor;
     private SessionMode _effectiveMode = SessionMode.Strategic;
 
@@ -152,11 +154,16 @@ public sealed class SessionPipeline
     /// </summary>
     public IReadOnlyList<int> DispatchedMoveZonesOfLastBoundary => _dispatchedMoveZones;
 
-    public SessionPipeline(Riftward.Simulation.SimWorld world, SelectionModel selection, GrayboxIntent[] scriptedIntents)
+    public SessionPipeline(
+        Riftward.Simulation.SimWorld world,
+        SelectionModel selection,
+        GrayboxIntent[] scriptedIntents,
+        ExplorationSession? exploration = null)
     {
         World = world;
         Selection = selection;
         _scriptedIntents = scriptedIntents;
+        _exploration = exploration;
 
         for (var index = 1; index < scriptedIntents.Length; index++)
         {
@@ -170,6 +177,14 @@ public sealed class SessionPipeline
     public Riftward.Simulation.SimWorld World { get; }
 
     public SelectionModel Selection { get; }
+
+    /// <summary>
+    /// Optionale Erkundungssitzung (T-034): rein sitzungsseitige Beobachtung
+    /// an jeder Auswertungsgrenze; ohne Aktivierung null (Bestandsverhalten
+    /// byteidentisch). Die Beobachtung liest ausschließlich Heldenzone und
+    /// Sitzungsmodus schreibgeschützt und erzeugt niemals einen Kernbefehl.
+    /// </summary>
+    public ExplorationSession? Exploration => _exploration;
 
     /// <summary>Stellt einen validierten Live-Intent fuer die naechste Vorgrenze bereit.</summary>
     public void EnqueueLiveIntent(GrayboxIntent intent) => _liveQueue.Add(intent);
@@ -382,6 +397,13 @@ public sealed class SessionPipeline
             }
         }
 
+        // Rein sitzungsseitige Erkundungsbeobachtung an dieser Vorgrenze
+        // (T-034, Vertrag Abschnitt 3): liest ausschließlich Heldenzone und
+        // Sitzungsmodus schreibgeschützt, nach der Intentverarbeitung und
+        // vor dem Tick; Heldenposition und Modus sind an dieser Vorgrenze
+        // stabil. Ohne Aktivierung null — Bestandsverhalten unverändert.
+        _exploration?.Observe(tick, World, _effectiveMode);
+
         return new BoundaryOutcome
         {
             AppliedCount = applied,
@@ -539,7 +561,8 @@ public sealed record SessionRunRequest(
     GrayboxIntent[] ScriptedIntents,
     int WarmupTicks,
     int HorizonTicks,
-    bool RunSelfConsistencyPass = true);
+    bool RunSelfConsistencyPass = true,
+    bool ExplorationEnabled = false);
 
 /// <summary>
 /// Headless Sitzungslauf (Kommandovertrag Abschnitt 7): fester 20-Hz-Tick
@@ -561,7 +584,11 @@ public static class SessionEngine
         var world = new Riftward.Simulation.SimWorld(request.Seed);
         var selectionGroups = ReadAgentGroups(world);
         var selection = new SelectionModel(selectionGroups);
-        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents);
+        // Erkundung ist rein sitzungsseitig (T-034): ohne Aktivierung null,
+        // mit Aktivierung eine Beobachtung, die niemals einen Kernbefehl
+        // erzeugt und niemals Simulationszustand oder Hash berührt.
+        var exploration = request.ExplorationEnabled ? new ExplorationSession() : null;
+        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration);
 
         var windowTicks = request.HorizonTicks - request.WarmupTicks;
         var tickTimes = new double[windowTicks];
@@ -677,7 +704,8 @@ public static class SessionEngine
             MoveWithoutSelectionRejects: (int)pipeline.MoveWithoutSelectionTotal,
             KernelCommandsTotal: (int)pipeline.AppliedCommandsTotal,
             TotalTicksExecuted: request.HorizonTicks,
-            Telemetry: BuildModeTelemetry(pipeline));
+            Telemetry: BuildModeTelemetry(pipeline),
+            Exploration: exploration?.ToTelemetry());
     }
 
     /// <summary>

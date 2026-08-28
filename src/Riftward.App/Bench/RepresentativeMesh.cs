@@ -43,6 +43,12 @@ public static class RepresentativeMesh
             var parent = RepresentativeRig.ParentOf(bone);
             var end = bindPositions[bone];
             var start = parent >= 0 ? bindPositions[parent] : (0.0, end.Item2 - RootSegmentHeight, 0.0);
+            // Das sichtbare Segment beginnt am Elterngelenk und endet am
+            // Kindgelenk. Es muss deshalb starr vom Elternknochen bewegt
+            // werden: Dessen Rotation schwenkt das Segment um seinen Start.
+            // Eine Bindung an den Kindknochen rotiert stattdessen um das
+            // Segmentende und zerreisst die Silhouette in der Gehpose.
+            var skinningBone = parent >= 0 ? parent : bone;
 
             var radius = SegmentRadius(bone);
             vertexCount += AppendBox(
@@ -55,8 +61,7 @@ public static class RepresentativeMesh
                 end.Item2,
                 end.Item3,
                 radius,
-                bone,
-                ShadeByBone(bone));
+                skinningBone);
         }
 
         return new UnitMesh(
@@ -83,15 +88,6 @@ public static class RepresentativeMesh
             _ => 0.06,
         };
 
-    private static byte ShadeByBone(int bone) =>
-        bone switch
-        {
-            <= 8 => (byte)210,
-            >= 9 and <= 16 => (byte)170,
-            >= 17 and <= 26 => (byte)150,
-            _ => (byte)120,
-        };
-
     /// <summary>
     /// Haengt eine achsenausgerichtete Box zwischen zwei Punkten an. Die
     /// Normalen zeigen von der Segmentachse weg; alle Ecken tragen den
@@ -107,8 +103,7 @@ public static class RepresentativeMesh
         double endY,
         double endZ,
         double radius,
-        int boneIndex,
-        byte shade)
+        int boneIndex)
     {
         var axisX = endX - startX;
         var axisY = endY - startY;
@@ -147,15 +142,18 @@ public static class RepresentativeMesh
         // Acht Ecken: untere Ringkante (Start) und obere Ringkante (Ende).
         for (var half = 0; half < 2; half++)
         {
-            var sign = half == 0 ? -radius : radius;
             var cx = half == 0 ? startX : endX;
             var cy = half == 0 ? startY : endY;
             var cz = half == 0 ? startZ : endZ;
 
-            cornerBuffer[cursor++] = [cx + ((ux + vx) * sign), cy + ((uy + vy) * sign), cz + ((uz + vz) * sign)];
-            cornerBuffer[cursor++] = [cx + ((-ux + vx) * sign), cy + ((-uy + vy) * sign), cz + ((-uz + vz) * sign)];
-            cornerBuffer[cursor++] = [cx + ((-ux - vx) * sign), cy + ((-uy - vy) * sign), cz + ((-uz - vz) * sign)];
-            cornerBuffer[cursor++] = [cx + ((ux - vx) * sign), cy + ((uy - vy) * sign), cz + ((uz - vz) * sign)];
+            // Beide Ringe muessen dieselbe Orientierung besitzen. Ein vom
+            // Ringende abhaengiges Vorzeichen verdrehte bislang jedes
+            // Segment um 180 Grad: Die Mantelquads kreuzten sich und die
+            // Figur zerfiel im Bild in sternfoermige Dreieckssplitter.
+            cornerBuffer[cursor++] = [cx + ((ux + vx) * radius), cy + ((uy + vy) * radius), cz + ((uz + vz) * radius)];
+            cornerBuffer[cursor++] = [cx + ((-ux + vx) * radius), cy + ((-uy + vy) * radius), cz + ((-uz + vz) * radius)];
+            cornerBuffer[cursor++] = [cx + ((-ux - vx) * radius), cy + ((-uy - vy) * radius), cz + ((-uz - vz) * radius)];
+            cornerBuffer[cursor++] = [cx + ((ux - vx) * radius), cy + ((uy - vy) * radius), cz + ((uz - vz) * radius)];
         }
 
         // Vier Mantelflaechen mit aus der Geometrie abgeleiteten Normalen.
@@ -166,13 +164,13 @@ public static class RepresentativeMesh
                 vertices, indices,
                 cornerBuffer[side], cornerBuffer[next],
                 cornerBuffer[4 + next], cornerBuffer[4 + side],
-                boneIndex, shade,
+                boneIndex,
                 invertNormal: true);
         }
 
         // Kappen.
-        EmitQuad(vertices, indices, cornerBuffer[4], cornerBuffer[5], cornerBuffer[6], cornerBuffer[7], boneIndex, shade);
-        EmitQuad(vertices, indices, cornerBuffer[3], cornerBuffer[2], cornerBuffer[1], cornerBuffer[0], boneIndex, shade);
+        EmitQuad(vertices, indices, cornerBuffer[4], cornerBuffer[5], cornerBuffer[6], cornerBuffer[7], boneIndex);
+        EmitQuad(vertices, indices, cornerBuffer[3], cornerBuffer[2], cornerBuffer[1], cornerBuffer[0], boneIndex);
 
         return CountVertices(vertices) - baseVertex;
     }
@@ -196,7 +194,6 @@ public static class RepresentativeMesh
         double[] c,
         double[] d,
         int boneIndex,
-        byte shade,
         bool invertNormal = false)
     {
         var e1x = b[0] - a[0];
@@ -235,10 +232,10 @@ public static class RepresentativeMesh
 
         var baseVertex = CountVertices(vertices);
 
-        AppendVertex(vertices, a, normalX, normalY, normalZ, boneIndex, shade);
-        AppendVertex(vertices, b, normalX, normalY, normalZ, boneIndex, shade);
-        AppendVertex(vertices, c, normalX, normalY, normalZ, boneIndex, shade);
-        AppendVertex(vertices, d, normalX, normalY, normalZ, boneIndex, shade);
+        AppendVertex(vertices, a, normalX, normalY, normalZ, boneIndex);
+        AppendVertex(vertices, b, normalX, normalY, normalZ, boneIndex);
+        AppendVertex(vertices, c, normalX, normalY, normalZ, boneIndex);
+        AppendVertex(vertices, d, normalX, normalY, normalZ, boneIndex);
         AppendTriangleIndices(indices, baseVertex);
 
         return 4;
@@ -264,8 +261,7 @@ public static class RepresentativeMesh
         byte normalX,
         byte normalY,
         byte normalZ,
-        int boneIndex,
-        byte shade)
+        int boneIndex)
     {
         Span<byte> bytes = stackalloc byte[UnitVertexStride];
 
@@ -279,13 +275,16 @@ public static class RepresentativeMesh
         bytes[15] = 0;
 
         bytes[16] = (byte)boneIndex;
-        bytes[17] = (byte)boneIndex;
-        bytes[18] = (byte)boneIndex;
-        bytes[19] = (byte)boneIndex;
+        bytes[17] = 0;
+        bytes[18] = 0;
+        bytes[19] = 0;
 
-        bytes[20] = shade;
-        bytes[21] = shade;
-        bytes[22] = shade;
+        // Das prozedurale Segment ist starr genau einem Knochen zugeordnet.
+        // Vier wiederholte Graustufenbytes ergaben zuvor als normalisierte
+        // Gewichte eine Summe weit ueber 1 und skalierten jede Hautmatrix.
+        bytes[20] = byte.MaxValue;
+        bytes[21] = 0;
+        bytes[22] = 0;
         bytes[23] = 0;
 
         for (var index = 0; index < UnitVertexStride; index++)
@@ -381,17 +380,23 @@ public static class RepresentativeMesh
 
     public static ParticleQuad BuildParticleQuad()
     {
-        var vertices = new byte[4 * ParticleVertexStride];
+        // DrawSubmit verwendet ohne Indexbuffer die bgfx-Defaulttopologie
+        // Triangle-List. Deshalb stehen hier zwei explizite Dreiecke statt
+        // eines vierpunktigen Strips; andernfalls wird der vierte Vertex auf
+        // Backends mit der vertraglichen Defaulttopologie nicht gerendert.
+        var vertices = new byte[6 * ParticleVertexStride];
 
         Span<(float X, float Y, float U, float V)> corners =
         [
             (-0.5f, -0.5f, 0.0f, 0.0f),
             (0.5f, -0.5f, 1.0f, 0.0f),
             (0.5f, 0.5f, 1.0f, 1.0f),
+            (-0.5f, -0.5f, 0.0f, 0.0f),
+            (0.5f, 0.5f, 1.0f, 1.0f),
             (-0.5f, 0.5f, 0.0f, 1.0f),
         ];
 
-        for (var corner = 0; corner < 4; corner++)
+        for (var corner = 0; corner < corners.Length; corner++)
         {
             var offset = corner * ParticleVertexStride;
             WriteFloat(vertices, offset + 0, corners[corner].X);
@@ -400,7 +405,7 @@ public static class RepresentativeMesh
             WriteFloat(vertices, offset + 12, corners[corner].V);
         }
 
-        return new ParticleQuad(vertices, 4, 2);
+        return new ParticleQuad(vertices, corners.Length, 2);
     }
 
     /* --------------------------------------------------- Instanzfuellung */
@@ -457,7 +462,11 @@ public static class RepresentativeMesh
         target[offset + 11] = 1f;
     }
 
-    /// <summary>Schreibt eine Partikelinstanz (Position/Groesse, Drehung/Farbe).</summary>
+    /// <summary>
+    /// Schreibt eine runde Partikelinstanz (Position/Groesse, Drehung/Farbe).
+    /// Der Formkanal bleibt fuer den bestehenden Benchmark und Bodenpulse
+    /// unveraendert weich und kreisfoermig.
+    /// </summary>
     public static void WriteParticleInstance(
         float[] target,
         int slot,
@@ -470,6 +479,64 @@ public static class RepresentativeMesh
         float green,
         float blue,
         float alpha)
+        => WriteParticleInstance(
+            target,
+            slot,
+            worldX,
+            worldY,
+            worldZ,
+            size,
+            rotation,
+            red,
+            green,
+            blue,
+            alpha,
+            shape: 0f);
+
+    /// <summary>
+    /// Schreibt eine quadratische Glypheninstanz. Zusammen mit der
+    /// vertraglichen Drehung um pi/4 entsteht im Partikelshader eine echte
+    /// Diamantsilhouette statt eines rotationssymmetrischen Rundglows.
+    /// </summary>
+    public static void WriteDiamondInstance(
+        float[] target,
+        int slot,
+        double worldX,
+        double worldY,
+        double worldZ,
+        float size,
+        float rotation,
+        float red,
+        float green,
+        float blue,
+        float alpha)
+        => WriteParticleInstance(
+            target,
+            slot,
+            worldX,
+            worldY,
+            worldZ,
+            size,
+            rotation,
+            red,
+            green,
+            blue,
+            alpha,
+            shape: 1f);
+
+    private static void WriteParticleInstance(
+        float[] target,
+        int slot,
+        double worldX,
+        double worldY,
+        double worldZ,
+        float size,
+        float rotation,
+        float red,
+        float green,
+        float blue,
+        float alpha,
+        float shape)
     {
         var offset = slot * (ParticleInstanceStrideBytes / sizeof(float));
 
@@ -480,12 +547,17 @@ public static class RepresentativeMesh
 
         target[offset + 4] = rotation;
         target[offset + 5] = alpha;
-        target[offset + 6] = 0f;
+        // i_data1.z ist ein rein darstellseitiger Formkanal: 0 = bestehender
+        // Rundpartikel, 1 = drehbare quadratische Glyphensilhouette.
+        target[offset + 6] = shape;
         target[offset + 7] = 0f;
 
         target[offset + 8] = red;
         target[offset + 9] = green;
         target[offset + 10] = blue;
-        target[offset + 11] = 1f;
+        // Der Fragmentshader liest die Farbe einschliesslich Deckkraft aus
+        // i_data2. Nur i_data1.y zu fuellen liess Befehlspulse trotz ihrer
+        // vertraglichen Ausblendkurve bis zum harten Ablauf voll sichtbar.
+        target[offset + 11] = alpha;
     }
 }

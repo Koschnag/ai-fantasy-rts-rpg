@@ -80,7 +80,7 @@ static int PrintUsage(string message)
     + Environment.NewLine
     + "  Riftward.App kommandoschleife --scenario kommando-graybox --input-script PFAD"
     + Environment.NewLine
-    + "      --seed N --report PFAD [--interactive] [--capture-frame PFAD]"
+    + "      --seed N --report PFAD [--interactive [--auto-exit-at-horizon]] [--capture-frame PFAD]"
     + Environment.NewLine
     + "      [--warmup-ticks N] [--horizon-ticks N] [--lock DATEI]");
     return ExitCodes.Usage;

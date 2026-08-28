@@ -750,6 +750,28 @@ let interactiveExitCodePrecedenceStaysWindowBound () =
     then
         failwith "Sauberer abgeschlossener Lauf ergab nicht den Erfolgcode."
 
+let interactiveAutoExitRemainsExplicitAndHorizonBound () =
+    if not (CommandLoopRunner.ShouldContinueInteractiveLoop(false, false, false)) then
+        failwith "Normaler interaktiver Pfad schloss vor dem Horizont."
+
+    if not (CommandLoopRunner.ShouldContinueInteractiveLoop(false, true, false)) then
+        failwith "Normaler interaktiver Pfad schloss ohne explizites Auto-Exit."
+
+    if not (CommandLoopRunner.ShouldContinueInteractiveLoop(false, false, true)) then
+        failwith "Auto-Exit schloss vor dem vollstaendigen Horizont."
+
+    if CommandLoopRunner.ShouldContinueInteractiveLoop(false, true, true) then
+        failwith "Auto-Exit blieb nach dem vollstaendigen Horizont offen."
+
+    if CommandLoopRunner.ShouldContinueInteractiveLoop(true, false, false) then
+        failwith "Ein echtes Quit-Ereignis hielt den interaktiven Pfad offen."
+
+    if not (CommandLoopRunner.UsesVsyncForInteractiveRun(false)) then
+        failwith "Der normale interaktive Spielpfad verlor seine VSync-Bindung."
+
+    if CommandLoopRunner.UsesVsyncForInteractiveRun(true) then
+        failwith "Das unbeaufsichtigte Auto-Exit-Gate blieb an gedrosseltes Present gebunden."
+
 // ---------------------------------------------------------------------------
 // Keymap und Architekturgrenzen (AC-T032-08).
 // ---------------------------------------------------------------------------
@@ -1187,7 +1209,7 @@ let reportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
 
     assertHasError
         "ausserhalb"
-        (goldenReport.Replace("\"schemaVersion\":2", "\"schemaVersion\":3"))
+        (goldenReport.Replace("\"schemaVersion\":2", "\"schemaVersion\":4"))
         "Falsche Schemaversion akzeptiert"
 
     assertHasError
