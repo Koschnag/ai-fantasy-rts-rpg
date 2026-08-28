@@ -228,6 +228,10 @@ let rigEvaluatesFortyEightBonePaletteDeterministically () =
     for bone in 0 .. RepresentativeScenario.BonesPerNormalUnit - 1 do
         let offset = bone * 12
 
+        for slot in 0..11 do
+            if not (Single.IsFinite(first[offset + slot])) then
+                failwith $"Hautmatrix von Knochen {bone} enthaelt einen nichtendlichen Wert."
+
         let c0x, c0y, c0z =
             float first[offset], float first[offset + 1], float first[offset + 2]
 
@@ -252,6 +256,14 @@ let rigEvaluatesFortyEightBonePaletteDeterministically () =
               dot3 c1x c1y c1z c2x c2y c2z ] do
             if Math.Abs(crossDot) > tolerance then
                 failwith $"Hautrotation von Knochen {bone} ist nicht orthogonal ({crossDot})."
+
+        let determinant =
+            c0x * ((c1y * c2z) - (c1z * c2y))
+            + c0y * ((c1z * c2x) - (c1x * c2z))
+            + c0z * ((c1x * c2y) - (c1y * c2x))
+
+        if Math.Abs(determinant - 1.0) > tolerance then
+            failwith $"Hautrotation von Knochen {bone} spiegelt oder skaliert ({determinant})."
 
         sawAffineTranslation <-
             sawAffineTranslation
