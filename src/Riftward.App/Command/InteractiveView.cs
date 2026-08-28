@@ -48,21 +48,24 @@ internal sealed class InteractiveView : IDisposable
     /// Hoehe des heldennahen Zustands-Echos fuer die aktuelle, noch nicht
     /// registrierte Zone. Es liegt deutlich ueber Agenten und Modus-Badge.
     /// </summary>
-    public const double HeroLandmarkCueUnvisitedHeightMeters = 4.2;
+    public const double HeroLandmarkCueUnvisitedHeightMeters = 3.6;
+
+    /// <summary>Groesse des heldennahen unbesuchten Echos fuer die nahe persoenliche Kamera.</summary>
+    public const float HeroLandmarkCueUnvisitedSize = 0.70f;
 
     /// <summary>Hoehen des heldennahen Zweistufen-Echos einer registrierten Zone.</summary>
-    public const double HeroLandmarkCueRegisteredLowerHeightMeters = 3.7;
+    public const double HeroLandmarkCueRegisteredLowerHeightMeters = 3.5;
 
-    public const double HeroLandmarkCueRegisteredUpperHeightMeters = 4.9;
+    public const double HeroLandmarkCueRegisteredUpperHeightMeters = 4.25;
 
     /// <summary>
     /// Eigene Groessen des heldennahen Echos. Die festen Ankermarker bleiben
     /// groesser; vor der nahen persoenlichen Kamera wuerden dieselben Werte
     /// den Heldenkanal dominieren und die obere Stufe an den Bildrand treiben.
     /// </summary>
-    public const float HeroLandmarkCueRegisteredLowerSize = 0.90f;
+    public const float HeroLandmarkCueRegisteredLowerSize = 0.65f;
 
-    public const float HeroLandmarkCueRegisteredUpperSize = 0.75f;
+    public const float HeroLandmarkCueRegisteredUpperSize = 0.55f;
 
     /// <summary>Lesbare Groesse des ruhenden strategischen Helden-Badges.</summary>
     public const float StrategicHeroBadgeSize = 0.80f;
@@ -362,7 +365,7 @@ internal sealed class InteractiveView : IDisposable
                         heroX,
                         heroGroundY + HeroLandmarkCueUnvisitedHeightMeters,
                         heroZ,
-                        size: LandmarkMarkerSize,
+                        size: HeroLandmarkCueUnvisitedSize,
                         rotation: (float)(Math.PI / 4.0),
                         red: 0.55f,
                         green: 0.75f,

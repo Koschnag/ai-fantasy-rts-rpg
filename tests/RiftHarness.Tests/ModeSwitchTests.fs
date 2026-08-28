@@ -907,7 +907,7 @@ let diamondMarkersAndHeroLocalLandmarkCueStayReadable () =
 
     let unvisitedBottom =
         InteractiveView.HeroLandmarkCueUnvisitedHeightMeters
-        - (float InteractiveView.LandmarkMarkerSize / 2.0)
+        - (float InteractiveView.HeroLandmarkCueUnvisitedSize / 2.0)
 
     let registeredLowerBottom =
         InteractiveView.HeroLandmarkCueRegisteredLowerHeightMeters
@@ -979,7 +979,11 @@ let diamondMarkersAndHeroLocalLandmarkCueStayReadable () =
                 0.75f
                 0.95f
 
-        if cue.Length <> 1 || values.[cue.[0] + 6] <> 1.0f then
+        if
+            cue.Length <> 1
+            || values.[cue.[0] + 6] <> 1.0f
+            || not (nearly InteractiveView.HeroLandmarkCueUnvisitedSize values.[cue.[0] + 3])
+        then
             failwith $"{mode}: unbesuchtes Zustands-Echo ist am Helden nicht als einzelner Diamant gebunden."
 
     copyMarkers view strategicUnvisitedCount
