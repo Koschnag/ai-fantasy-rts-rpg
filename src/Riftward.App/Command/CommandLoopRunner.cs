@@ -362,7 +362,17 @@ internal static class CommandLoopRunner
 
         try
         {
-            context = HostBootstrap.Start(arguments, BenchRunner.DefaultWidth, BenchRunner.DefaultHeight, vsync: true);
+            // Der normale Spielpfad bleibt praesentationssynchron. Ein
+            // explizites Auto-Exit-Display-Gate darf dagegen nicht von der
+            // 5-Hz-Drossel eines gesperrten/verdeckt dargestellten Wayland-
+            // Surfaces ausgebremst werden: Die Simulation bleibt weiterhin
+            // wanduhrgebunden bei 20 Hz, nur das fuer die Evidenz unnoetige
+            // Present-Warten wird abgeschaltet.
+            context = HostBootstrap.Start(
+                arguments,
+                BenchRunner.DefaultWidth,
+                BenchRunner.DefaultHeight,
+                vsync: UsesVsyncForInteractiveRun(autoExitAtHorizon));
             (glVersion, glRenderer, _) = NativeApi.Instance.GlStrings();
             gpuIds = NativeApi.Instance.GpuIds();
 
@@ -758,6 +768,14 @@ internal static class CommandLoopRunner
         bool windowCompleted,
         bool autoExitAtHorizon) =>
         !quitRequested && (!autoExitAtHorizon || !windowCompleted);
+
+    /// <summary>
+    /// Normale Spielsitzungen praesentieren mit VSync. Ausschliesslich das
+    /// explizit begrenzte Auto-Exit-Display-Gate rendert ohne Present-Warten;
+    /// dessen Simulationstakt bleibt unabhaengig davon wanduhrgebunden.
+    /// </summary>
+    internal static bool UsesVsyncForInteractiveRun(bool autoExitAtHorizon) =>
+        !autoExitAtHorizon;
 
     private static int RenderFrame(
         BgfxDevice device,

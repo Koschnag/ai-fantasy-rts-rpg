@@ -766,6 +766,12 @@ let interactiveAutoExitRemainsExplicitAndHorizonBound () =
     if CommandLoopRunner.ShouldContinueInteractiveLoop(true, false, false) then
         failwith "Ein echtes Quit-Ereignis hielt den interaktiven Pfad offen."
 
+    if not (CommandLoopRunner.UsesVsyncForInteractiveRun(false)) then
+        failwith "Der normale interaktive Spielpfad verlor seine VSync-Bindung."
+
+    if CommandLoopRunner.UsesVsyncForInteractiveRun(true) then
+        failwith "Das unbeaufsichtigte Auto-Exit-Gate blieb an gedrosseltes Present gebunden."
+
 // ---------------------------------------------------------------------------
 // Keymap und Architekturgrenzen (AC-T032-08).
 // ---------------------------------------------------------------------------
