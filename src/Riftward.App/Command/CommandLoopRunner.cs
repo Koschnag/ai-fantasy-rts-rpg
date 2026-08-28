@@ -49,6 +49,21 @@ internal static class CommandLoopRunner
         // reiner Schalter ohne Wert; ohne Flag bleibt Verhalten und Report
         // byteidentisch zum Bestandsstand.
         var explorationEnabled = arguments.HasFlag("--exploration");
+
+        // Opt-in Aktivierung der Entscheidungsschicht (T-035,
+        // Entscheidungsvertrag Abschnitt 7): reiner Schalter ohne Wert,
+        // vertraglich an --exploration gekoppelt; --decision ohne
+        // --exploration ist eine Usage-Fehlanwendung (bestehender Exitcode,
+        // keine neue Bedeutung).
+        var decisionEnabled = arguments.HasFlag("--decision");
+
+        if (decisionEnabled && !explorationEnabled)
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --decision ist vertraglich an --exploration gekoppelt und erfordert dessen Aktivierung.");
+            return ExitCodes.Usage;
+        }
+
         var autoExitAtHorizon = arguments.HasFlag("--auto-exit-at-horizon");
 
         if (autoExitAtHorizon && !interactive)
@@ -118,8 +133,8 @@ internal static class CommandLoopRunner
         return interactive
             ? RunInteractive(
                 arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks,
-                explorationEnabled, autoExitAtHorizon)
-            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled);
+                explorationEnabled, decisionEnabled, autoExitAtHorizon)
+            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled, decisionEnabled);
     }
 
     /* ------------------------------------------------------------- Headless */
@@ -131,7 +146,8 @@ internal static class CommandLoopRunner
         ParsedInputScript parsed,
         int warmupTicks,
         int horizonTicks,
-        bool explorationEnabled)
+        bool explorationEnabled,
+        bool decisionEnabled)
     {
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -149,6 +165,7 @@ internal static class CommandLoopRunner
             return ExitCodes.Map(PlatformErrorCode.ArtifactManifestInvalid);
         }
 
+        DecisionTelemetry? decisionTelemetry = null;
         SessionRunResult result;
 
         try
@@ -159,14 +176,16 @@ internal static class CommandLoopRunner
                 WarmupTicks: warmupTicks,
                 HorizonTicks: horizonTicks,
                 RunSelfConsistencyPass: true,
-                ExplorationEnabled: explorationEnabled));
+                ExplorationEnabled: explorationEnabled,
+                DecisionEnabled: decisionEnabled));
+            decisionTelemetry = result.Decision;
         }
         catch (Exception exception)
         {
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionHeadless, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment, explorationEnabled, exploration: null);
+                commit, buildMode, environment, explorationEnabled, decisionEnabled, exploration: null, decision: decisionTelemetry);
         }
 
         var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
@@ -209,7 +228,8 @@ internal static class CommandLoopRunner
             WorkingSet: WorkingSetFrom(result),
             ExitCode: gateExitCode,
             Telemetry: result.Telemetry,
-            Exploration: result.Exploration)), BenchRunner.ReportJsonOptions) + "\n";
+            Exploration: result.Exploration,
+            Decision: result.Decision)), BenchRunner.ReportJsonOptions) + "\n";
 
         return FinishReport(reportPath, reportJson, gateExitCode);
     }
@@ -330,7 +350,11 @@ internal static class CommandLoopRunner
         SessionMode Mode,
         int HeroZone,
         int VisitedCount,
-        int LandmarkCount);
+        int LandmarkCount,
+        int DecisionStateKind,
+        int OptionZoneA,
+        int OptionZoneB,
+        int FollowUpZoneIndex);
 
     private static int RunInteractive(
         CommandLineArgs arguments,
@@ -340,6 +364,7 @@ internal static class CommandLoopRunner
         int warmupTicks,
         int horizonTicks,
         bool explorationEnabled,
+        bool decisionEnabled,
         bool autoExitAtHorizon)
     {
         var environment = SystemInfo.Capture();
@@ -363,6 +388,7 @@ internal static class CommandLoopRunner
         InteractiveSceneResources? resources = null;
         InteractiveView? view = null;
         ExplorationSession? exploration = null;
+        DecisionSession? decision = null;
         string glVersion;
         string glRenderer;
         uint gpuIds;
@@ -394,11 +420,16 @@ internal static class CommandLoopRunner
             // niemals einen Kernbefehl; ohne Aktivierung bleibt der Pfad
             // byteidentisch zum Bestandsstand.
             exploration = explorationEnabled ? new ExplorationSession() : null;
-            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration);
+            // Opt-in Entscheidungsschicht (T-035): rein sitzungsseitig,
+            // vertraglich an die Erkundungsaktivierung gekoppelt; ohne
+            // Aktivierung null (Bestandsverhalten byteidentisch).
+            decision = decisionEnabled ? new DecisionSession() : null;
+            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration, decision);
             view = new InteractiveView();
             view.BindAgentGroups(selectionGroups);
             view.BindSelection(selection);
             view.BindExploration(exploration);
+            view.BindDecision(decision);
 
             var projection = InteractiveCameraMath.Projection(BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
             var camera = new GrayboxCamera();
@@ -409,7 +440,7 @@ internal static class CommandLoopRunner
             var measurement = RunInteractiveLoop(
                 context.Device, resources, view, world, pipeline, camera, heroCamera, input,
                 context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks,
-                exploration, autoExitAtHorizon);
+                exploration, decision, autoExitAtHorizon);
 
             // Laufende ausgewertete, aber nicht mehr wirksame Wechsel sind
             // ausdrücklich im Protokoll gebunden statt still zu verschwinden.
@@ -541,7 +572,8 @@ internal static class CommandLoopRunner
                     TrianglesMax: measurement.TrianglesMax,
                     PeakMarkers: measurement.PeakMarkers),
                 Telemetry: modeTelemetry,
-                Exploration: exploration?.ToTelemetry())), BenchRunner.ReportJsonOptions) + "\n";
+                Exploration: exploration?.ToTelemetry(),
+                Decision: decision?.ToTelemetry())), BenchRunner.ReportJsonOptions) + "\n";
 
             return FinishReport(reportPath, reportJson, exitCode);
         }
@@ -557,7 +589,8 @@ internal static class CommandLoopRunner
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionInteractive, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment, explorationEnabled, exploration?.ToTelemetry());
+                commit, buildMode, environment, explorationEnabled, decisionEnabled,
+                exploration?.ToTelemetry(), decision?.ToTelemetry());
         }
         finally
         {
@@ -603,6 +636,7 @@ internal static class CommandLoopRunner
         int warmupTicks,
         int horizonTicks,
         ExplorationSession? exploration,
+        DecisionSession? decision,
         bool autoExitAtHorizon)
     {
         var windowTicks = horizonTicks - warmupTicks;
@@ -682,6 +716,33 @@ internal static class CommandLoopRunner
                     }
                 }
 
+                if (outcome.RejectedDecisionNotActivated > 0)
+                {
+                    // Vertragsabweisungen der Entscheidungsschicht (T-035,
+                    // Auswertungsordnung) sind sichtbar mit ihrer
+                    // vertraglichen Kennung statt stiller Wirkung.
+                    Console.Error.WriteLine(
+                        $"kommandoschleife: Befehl abgewiesen - {DecisionContract.RejectReasonDecisionNotActivated} bei Tick {tick}.");
+                }
+
+                if (outcome.RejectedDecisionBeforeOffer > 0)
+                {
+                    Console.Error.WriteLine(
+                        $"kommandoschleife: Befehl abgewiesen - {DecisionContract.RejectReasonChooseBeforeOffer} bei Tick {tick}.");
+                }
+
+                if (outcome.RejectedDecisionInStrategicMode > 0)
+                {
+                    Console.Error.WriteLine(
+                        $"kommandoschleife: Befehl abgewiesen - {DecisionContract.RejectReasonChooseInStrategicMode} bei Tick {tick}.");
+                }
+
+                if (outcome.RejectedDecisionAfterDecision > 0)
+                {
+                    Console.Error.WriteLine(
+                        $"kommandoschleife: Befehl abgewiesen - {DecisionContract.RejectReasonChooseAfterDecision} bei Tick {tick}.");
+                }
+
                 if (consumed)
                 {
                     // Vertragliche Zweikanalrueckmeldung (Kommandovertrag
@@ -749,7 +810,7 @@ internal static class CommandLoopRunner
             // Auto-Exit-Horizont zwingend: eine dort registrierte Landmarke
             // erhaelt keinen weiteren Schleifendurchlauf fuer ein spaeteres
             // HUD-Update.
-            UpdateTitleHud(window, pipeline, world, exploration, ref lastTitleState);
+            UpdateTitleHud(window, pipeline, world, exploration, decision, ref lastTitleState);
 
             var activeCamera = pipeline.CurrentEffectiveMode == SessionMode.Personal
                 ? InteractiveCameraMath.ActiveCamera.From(heroCamera)
@@ -962,6 +1023,23 @@ internal static class CommandLoopRunner
                         GrayboxIntentKind.SwitchMode));
                     return;
 
+                case Keymap.ChooseAActionName:
+                case Keymap.ChooseBActionName:
+                    // Frei belegbare Entscheidungsaktionen (T-035,
+                    // Entscheidungsvertrag Abschnitt 4): erzeugen an der
+                    // laufenden Vorgrenze einen Live-Wahl-Intent; rein
+                    // sitzungsseitig, kein Kernbefehl, kein
+                    // Simulationszustand. Angebot, Modus und
+                    // Entscheidungsstand waehlt die vertragliche
+                    // Auswertungsordnung an der Vorgrenze; die Abweisung ist
+                    // dort sichtbar mit ihrer vertraglichen Kennung.
+                    pipeline.EnqueueLiveIntent(new GrayboxIntent(
+                        (int)world.TickIndex,
+                        action == Keymap.ChooseAActionName
+                            ? GrayboxIntentKind.ChooseA
+                            : GrayboxIntentKind.ChooseB));
+                    return;
+
                 default:
                     input.HeldScancodes.Add(inputView.Scancode);
                     return;
@@ -1115,23 +1193,23 @@ internal static class CommandLoopRunner
     /// title-hud-mode-herozone-v1): aktueller Modus und Heldenzone in der
     /// festen Form `Riftward Graybox — Modus: Strategisch|Persönlich —
     /// Heldenzone: <Zone|–>`; bei Opt-in Aktivierung (T-034) ausschließlich
-    /// der additive, unterscheidbare Segment ` — Erkundung: <n>/<m>`, ohne
-    /// Aktivierung bleibt die Titelzeile byteidentisch zum T-033-Stand;
-    /// rein darstellseitig, nur bei Änderung gesetzt.
+    /// der additive, unterscheidbare Segment ` — Erkundung: <n>/<m>`, und
+    /// bei Entscheidungsaktivierung (T-035) ausschließlich der additive,
+    /// unterscheidbare Entscheidungs-/Folgeziel-Segment in der festen Form
+    /// des Entscheidungsvertrags Abschnitt 6 (title-hud-decision-objective-
+    /// v1); ohne Aktivierung bleibt die Titelzeile byteidentisch zum
+    /// Bestandsstand; rein darstellseitig, nur bei Änderung gesetzt.
     /// </summary>
     private static void UpdateTitleHud(
         Window window,
         SessionPipeline pipeline,
         SimWorld world,
         ExplorationSession? exploration,
+        DecisionSession? decision,
         ref TitleHudState? lastState)
     {
         var heroZone = HeroTracker.ZoneIndexOf(world);
-        var state = new TitleHudState(
-            pipeline.CurrentEffectiveMode,
-            heroZone,
-            exploration?.VisitedCount ?? -1,
-            exploration?.LandmarkCount ?? -1);
+        var state = BuildTitleHudState(pipeline.CurrentEffectiveMode, heroZone, exploration, decision);
 
         if (lastState == state)
         {
@@ -1142,6 +1220,28 @@ internal static class CommandLoopRunner
         lastState = state;
     }
 
+    private static TitleHudState BuildTitleHudState(
+        SessionMode mode,
+        int heroZone,
+        ExplorationSession? exploration,
+        DecisionSession? decision) =>
+        new(
+            mode,
+            heroZone,
+            exploration?.VisitedCount ?? -1,
+            exploration?.LandmarkCount ?? -1,
+            decision switch
+            {
+                null => -1,
+                { Decided: true, FollowUpCompleted: true } => 3,
+                { Decided: true } => 2,
+                { OfferOpened: true } => 1,
+                _ => 0,
+            },
+            decision?.OptionZoneA ?? -1,
+            decision?.OptionZoneB ?? -1,
+            decision?.FollowUpZoneIndex ?? -1);
+
     /// <summary>
     /// Reiner Test-/Vertragsanker fuer denselben Titeltext wie im echten
     /// Fensterpfad. Negative Erkundungszaehler sind ausschließlich der
@@ -1150,11 +1250,12 @@ internal static class CommandLoopRunner
     internal static string BuildTitleHudText(
         SessionMode mode,
         SimWorld world,
-        ExplorationSession? exploration) => FormatTitleHud(new TitleHudState(
+        ExplorationSession? exploration,
+        DecisionSession? decision = null) => FormatTitleHud(BuildTitleHudState(
             mode,
             HeroTracker.ZoneIndexOf(world),
-            exploration?.VisitedCount ?? -1,
-            exploration?.LandmarkCount ?? -1));
+            exploration,
+            decision));
 
     private static string FormatTitleHud(TitleHudState state)
     {
@@ -1162,7 +1263,15 @@ internal static class CommandLoopRunner
         var explorationProgress = state.VisitedCount < 0
             ? string.Empty
             : $" — Erkundung: {state.VisitedCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}/{state.LandmarkCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-        return $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(state.HeroZone < 0 ? "–" : state.HeroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}{explorationProgress}";
+        var decisionSegment = state.DecisionStateKind switch
+        {
+            0 => " — Entscheidung: –",
+            1 => $" — Entscheidung: A=Z{state.OptionZoneA.ToString(System.Globalization.CultureInfo.InvariantCulture)} B=Z{state.OptionZoneB.ToString(System.Globalization.CultureInfo.InvariantCulture)}",
+            2 => $" — Folgeziel: Z{state.FollowUpZoneIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)}",
+            3 => $" — Folgeziel: Z{state.FollowUpZoneIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)} abgeschlossen",
+            _ => string.Empty,
+        };
+        return $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(state.HeroZone < 0 ? "–" : state.HeroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}{explorationProgress}{decisionSegment}";
     }
 
     private static void HandleMotion(
@@ -1666,7 +1775,8 @@ internal static class CommandLoopRunner
         ModeTelemetry? Telemetry = null,
         long InteractiveContextRejections = 0,
         object? Hud = null,
-        ExplorationTelemetry? Exploration = null);
+        ExplorationTelemetry? Exploration = null,
+        DecisionTelemetry? Decision = null);
 
     /// <summary>
     /// Baut den Report: ohne Opt-in Aktivierung exakt den Bestandsreport
@@ -1680,9 +1790,11 @@ internal static class CommandLoopRunner
     {
         var report = new Dictionary<string, object>
         {
-            ["schemaVersion"] = ctx.Exploration is null
-                ? CommandReportSchema.VersionWithoutExploration
-                : CommandReportSchema.CurrentVersion,
+            ["schemaVersion"] = ctx.Decision is not null
+                ? DecisionContract.ReportSchemaVersionWithDecision
+                : ctx.Exploration is null
+                    ? CommandReportSchema.VersionWithoutExploration
+                    : CommandReportSchema.VersionWithExploration,
             ["mode"] = CommandReportSchema.ModeCommandLoop,
             ["executionMode"] = ctx.ExecutionMode,
             ["command"] = $"{CommandName} --scenario {SessionContract.ScenarioId} --input-script <PFAD> --seed N --report <PFAD>",
@@ -1716,6 +1828,12 @@ internal static class CommandLoopRunner
         {
             report["explorationSession"] = BuildExplorationSession(
                 ctx.ExecutionMode, ctx.WindowCompleted, exploration);
+        }
+
+        if (ctx.Decision is { } decision)
+        {
+            report[DecisionContract.ReportBlockId] = BuildDecisionSession(
+                ctx.ExecutionMode, ctx.WindowCompleted, decision);
         }
 
         report["simulationContract"] = new
@@ -1914,6 +2032,136 @@ internal static class CommandLoopRunner
                 {
                     ["measured"] = false,
                     ["kind"] = ExplorationContract.LandmarkChannelModelId,
+                    ["reason"] = unavailableReason,
+                },
+        };
+    }
+
+    /// <summary>
+    /// Entscheidungssitzungsblock des Reports (T-035, Entscheidungsvertrag
+    /// Abschnitt 8): bei Aktivierung vertraglich gebunden — Vertragsbindung,
+    /// Angebots-/Options-/Wahl-/Folgen-/Ankunftszustand mit ehrlichem
+    /// Nichtöffnungsgrund, Abweisungszähler je Auswertungsordnungsklasse,
+    /// versionierte Nichtpersistenzaussage und die fensterpflichtigen
+    /// Ausweise (headless ausdruecklich nicht gemessen mit
+    /// maschinenlesbarem Grund). Rein diagnostisch (gateCoupled=false); kein
+    /// Gate, kein Budgetwert und keine Exitcodebedeutung.
+    /// </summary>
+    internal static Dictionary<string, object> BuildDecisionSession(
+        string executionMode,
+        bool windowCompleted,
+        DecisionTelemetry decision)
+    {
+        var presentationMeasured = executionMode == CommandReportSchema.ExecutionInteractive
+            && windowCompleted;
+        var unavailableReason = executionMode == CommandReportSchema.ExecutionHeadless
+            ? ExplorationContract.HeadlessMeasurementReason
+            : "run-incomplete-decision-presentation-not-asserted";
+
+        return new Dictionary<string, object>
+        {
+            ["contract"] = new
+            {
+                document = DecisionContract.DocumentPath,
+                version = DecisionContract.ContractVersion,
+            },
+            ["activationId"] = DecisionContract.ActivationId,
+            ["offerRule"] = DecisionContract.OfferRuleId,
+            ["optionsModel"] = DecisionContract.OptionsModelId,
+            ["choiceScopingRule"] = DecisionContract.ChoiceScopingRuleId,
+            ["followUpRule"] = DecisionContract.FollowUpRuleId,
+            ["arrivalRule"] = DecisionContract.ArrivalRuleId,
+            ["offer"] = decision.OfferOpened
+                ? (object)new
+                {
+                    opened = true,
+                    boundaryTick = decision.OfferBoundaryTick,
+                    optionZoneA = decision.OptionZoneA,
+                    optionZoneB = decision.OptionZoneB,
+                }
+                : new
+                {
+                    opened = false,
+                    boundaryTick = DecisionTelemetry.UnsetBoundaryTick,
+                    optionZoneA = DecisionTelemetry.UnsetZoneIndex,
+                    optionZoneB = DecisionTelemetry.UnsetZoneIndex,
+                    reason = DecisionContract.OfferNotOpenedReason,
+                },
+            ["decision"] = decision.Decided
+                ? (object)new
+                {
+                    decided = true,
+                    boundaryTick = decision.DecisionBoundaryTick,
+                    choice = decision.Choice!,
+                    mode = decision.DecisionMode!,
+                    optionZone = decision.FollowUpZoneIndex,
+                }
+                : new
+                {
+                    decided = false,
+                    boundaryTick = DecisionTelemetry.UnsetBoundaryTick,
+                    choice = (string?)null,
+                    mode = (string?)null,
+                    optionZone = DecisionTelemetry.UnsetZoneIndex,
+                },
+            ["followUp"] = new Dictionary<string, object>
+            {
+                ["zoneIndex"] = decision.FollowUpZoneIndex,
+                ["completed"] = decision.FollowUpCompleted,
+                ["arrivalBoundaryTick"] = decision.ArrivalBoundaryTick,
+                ["gateCoupled"] = false,
+            },
+            ["rejections"] = new Dictionary<string, object>
+            {
+                ["beforeOffer"] = decision.ChooseRejectionsBeforeOffer,
+                ["inStrategicMode"] = decision.ChooseRejectionsInStrategicMode,
+                ["afterDecision"] = decision.ChooseRejectionsAfterDecision,
+                ["gateCoupled"] = false,
+            },
+            ["persistence"] = new Dictionary<string, object>
+            {
+                ["statementId"] = DecisionContract.NotPersistedStatementId,
+                ["persisted"] = DecisionContract.Persisted,
+                ["saveLoad"] = "not-continued",
+                ["replay"] = "not-continued",
+                ["gateCoupled"] = false,
+            },
+            ["gateCoupled"] = false,
+            ["hud"] = presentationMeasured
+                ? (object)new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["kind"] = DecisionContract.HudModelId,
+                    ["fields"] = new Dictionary<string, object>
+                    {
+                        ["offerOpened"] = decision.OfferOpened,
+                        ["optionZoneA"] = decision.OptionZoneA,
+                        ["optionZoneB"] = decision.OptionZoneB,
+                        ["followUpZoneIndex"] = decision.FollowUpZoneIndex,
+                        ["followUpCompleted"] = decision.FollowUpCompleted,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = DecisionContract.HudModelId,
+                    ["reason"] = unavailableReason,
+                },
+            ["followUpChannel"] = presentationMeasured
+                ? (object)new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["kind"] = DecisionContract.FollowUpChannelModelId,
+                    ["fields"] = new Dictionary<string, object>
+                    {
+                        ["zoneIndex"] = decision.FollowUpZoneIndex,
+                        ["active"] = decision.Decided,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = DecisionContract.FollowUpChannelModelId,
                     ["reason"] = unavailableReason,
                 },
         };
@@ -2270,7 +2518,9 @@ internal static class CommandLoopRunner
         string buildMode,
         SystemInfo.Environment environment,
         bool explorationEnabled,
-        ExplorationTelemetry? exploration)
+        bool decisionEnabled,
+        ExplorationTelemetry? exploration,
+        DecisionTelemetry? decision)
     {
         var verdict = new CommandGateVerdict(
             Pass: false,
@@ -2314,7 +2564,9 @@ internal static class CommandLoopRunner
                 reason = "run-incomplete-hud-not-asserted",
             },
             Exploration: ResolveIncompleteExploration(
-                explorationEnabled, exploration))), BenchRunner.ReportJsonOptions) + "\n";
+                explorationEnabled, exploration),
+            Decision: ResolveIncompleteDecision(
+                decisionEnabled, decision))), BenchRunner.ReportJsonOptions) + "\n";
 
         Console.Error.WriteLine("kommandoschleife: Teilreport gilt ausdruecklich nicht als Evidenz.");
         return FinishReport(reportPath, reportJson, ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete));
@@ -2331,6 +2583,19 @@ internal static class CommandLoopRunner
         ExplorationTelemetry? observed) =>
         explorationEnabled
             ? observed ?? new ExplorationSession().ToTelemetry()
+            : null;
+
+    /// <summary>
+    /// Erhaelt die explizit angeforderte T-035-Aktivierung auch in
+    /// Exception-Teilreports. Bereits beobachtete Telemetrie wird bewahrt;
+    /// vor der Sitzungserzeugung abgebrochene Laeufe tragen den kanonischen
+    /// leeren, aber vollstaendigen Schemaversion-4-Block.
+    /// </summary>
+    internal static DecisionTelemetry? ResolveIncompleteDecision(
+        bool decisionEnabled,
+        DecisionTelemetry? observed) =>
+        decisionEnabled
+            ? observed ?? new DecisionSession().ToTelemetry()
             : null;
 
     private static string FormatHash(ulong hash) =>
