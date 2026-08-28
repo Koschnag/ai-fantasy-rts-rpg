@@ -302,9 +302,13 @@ Verfolgungsansicht hinter der Heldenfigur; Blickpunkt ist die Heldenposition
 (Agentenindex 0), Kamera sitzt südlich (feste Nordausrichtung konsistent zur
 §4-Konvention des Kommandovertrags), Nickwinkel 55°, Anzeigedistanz 9 m,
 geclippt auf 5–16 m (Zoom-Schritte). Der wirksame Render-/Pickingblickpunkt
-wird um den Bodenabdruck des 60°-Frustums an den Welträndern des
-160×90-m-Rasters geclampt; der sitzungslokale Heldenblickpunkt bleibt dabei
-unverändert und innerhalb des Frustums. Die obere Frustumkante behält bei
+wird anhand des Bodenabdrucks des 60°-Frustums an den Welträndern des
+160×90-m-Rasters begrenzt; der sitzungslokale Heldenblickpunkt bleibt dabei
+unverändert und in der mittleren horizontalen Bildschirmhälfte. Wo am
+äußersten Rand vollständiger Bodeneckabdruck und diese Fokuslesbarkeit bei
+Mindestzoom geometrisch unvereinbar sind, hat die Fokuslesbarkeit Vorrang
+und nur der unvermeidbare Rest der fernen Ecke darf den Rand überschreiten.
+Die obere Frustumkante behält bei
 Standardzoom 25° Bodenfreiheit; der nördliche Bodenabdruck beträgt rund
 10,65 m, die maximale halbe Breite an den fernen 16:9-Bodenecken rund
 15,51 m. Die verworfene 32°-Hypothese ließ nur 2° Bodenfreiheit und mehr als
@@ -376,12 +380,13 @@ verändert denselben Weltzustand nicht.
 
 Nur für diesen opt-in Evidenzabgriff wird die strategische Kamera mit ihrem
 unveränderten Nickwinkel und höchstens ihrem Sitzungszoom so weit auf den
-Vertragshelden zentriert, wie ihr vollständiger Bodenabdruck einschließlich
-der fernen 16:9-Ecken es innerhalb des Vertragsfelds erlaubt. Am Weltrand
-wird die wirksame Abgriffdistanz bis zum strategischen Minimum von 12 m
-reduziert; reicht selbst das geometrisch nicht, hat Helden-Sichtbarkeit vor
-dem verbleibenden minimalen Randrest Vorrang. Der Sitzungszoom selbst bleibt
-unverändert. Der Held bleibt im Frustum und der Weltrand wird gerahmt. Damit
+Vertragshelden zentriert, wie ihr Bodenabdruck einschließlich der fernen
+16:9-Ecken es innerhalb des Vertragsfelds erlaubt. Am Weltrand wird die
+wirksame Abgriffdistanz bis zum strategischen Minimum von 12 m reduziert;
+reicht selbst das geometrisch nicht, bleibt der Held in der mittleren
+horizontalen Bildschirmhälfte und hat diese Lesbarkeit vor dem verbleibenden
+minimalen Randrest Vorrang. Der Sitzungszoom selbst bleibt unverändert. Der
+Held bleibt im Frustum und der Weltrand wird gerahmt. Damit
 bindet ein autonomer Skriptlauf am Weltrand keinen leeren Kamerastand; die
 laufende Sitzungskamera wird dabei weder verändert noch als Eingabe
 weiterverwendet. Der persönliche Abgriff nutzt dieselbe rein darstellseitige

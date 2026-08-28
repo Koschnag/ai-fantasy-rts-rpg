@@ -841,7 +841,7 @@ let strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera () =
         InteractiveCameraMath.GroundFootprint(capture, InteractiveCameraMath.DefaultViewportAspectRatio)
 
     assertNear "Strategischer Mindestzoom am Westabstand" 12.0 capture.DistanceMeters
-    assertNear "Strategischer Westabstand" 18.816805742712 capture.CenterXMeters
+    assertNear "Strategischer Westabstand" 12.658402871356 capture.CenterXMeters
     assertNear "Strategischer Helden-Z-Blickpunkt" expectedZ capture.CenterZMeters
     assertNear "Strategischer Nickwinkel" InteractiveCameraMath.PitchRadians capture.PitchRadians
 
@@ -863,13 +863,10 @@ let strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera () =
             GrayboxCamera.DistanceMinMeters
         )
         |> fun fitted ->
-            InteractiveCameraMath.ClampToWorldFootprint(
-                fitted,
-                InteractiveCameraMath.DefaultViewportAspectRatio
-            )
+            InteractiveCameraMath.ClampToWorldFootprint(fitted, InteractiveCameraMath.DefaultViewportAspectRatio)
 
     assertNear "Strategischer Suedostzoom" 14.931500294046 southEast.DistanceMeters
-    assertNear "Strategischer Suedostabstand X" 134.274300952582 southEast.CenterXMeters
+    assertNear "Strategischer Suedostabstand X" 141.937150476291 southEast.CenterXMeters
     assertNear "Strategischer Suedostabstand Z" 82.0 southEast.CenterZMeters
 
     if
@@ -906,7 +903,7 @@ let personalCameraFrustumKeepsGroundReadableAtWorldEdges () =
     assertNear "Persoenliche halbe Blickpunktbreite" 9.237604307034 margins.LookPlaneX
     assertNear "Persoenliche Nordsichtweite" 10.647907124186 margins.NorthZ
     assertNear "Persoenliche Suedsichtweite" 4.517189268945 margins.SouthZ
-    assertNear "Persoenlicher Westabstand" margins.X effective.CenterXMeters
+    assertNear "Persoenlicher Westabstand" 11.118802153517 effective.CenterXMeters
 
     let heroX =
         float (world.PositionXOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One

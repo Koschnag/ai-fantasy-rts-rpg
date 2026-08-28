@@ -512,10 +512,16 @@ public static class InteractiveCameraMath
 
         var worldBoundCenterX =
             ClampAxis(camera.CenterXMeters, margins.X, NavWorld.TilesX - margins.X, NavWorld.TilesX / 2.0);
+        // Der Fokus bleibt in der mittleren Bildschirmhaelfte. An extremen
+        // Raendern ist das der kleinste ehrliche Kompromiss: Die gesamte
+        // ferne Frustumecke und ein zentrierter Fokus sind geometrisch nicht
+        // gleichzeitig moeglich, ohne unter den vertraglichen Mindestzoom zu
+        // fallen.
+        var centralFocusHalfWidth = margins.LookPlaneX * 0.5;
         var focusVisibleCenterX = Math.Clamp(
             worldBoundCenterX,
-            camera.CenterXMeters - margins.LookPlaneX,
-            camera.CenterXMeters + margins.LookPlaneX);
+            camera.CenterXMeters - centralFocusHalfWidth,
+            camera.CenterXMeters + centralFocusHalfWidth);
 
         return new ActiveCamera(
             focusVisibleCenterX,
