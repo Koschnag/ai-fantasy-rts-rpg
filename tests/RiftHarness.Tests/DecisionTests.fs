@@ -475,12 +475,13 @@ let decisionIsObservationOnlyTwinStaysByteIdentical () =
     then
         failwith "Die Entscheidungsreports unterscheiden die Wahl nicht."
 
-    // (4) Fremdseed: Start-/Endhash nachweislich anders; das
-    // Entscheidungsprotokoll bleibt reine Funktion des (seedigten)
-    // Sitzungszustands — Optionen folgen dem Protokoll, Wahlzuordnung bleibt.
-    // Der weitere Horizont garantiert den Abschluss des Auftrags auch unter
-    // veraenderter Laufzeitgeometrie.
-    let foreign = runInProcess 42u 12000 chooseBBody true
+    // (4) Fremdseed: Start-/Endhash nachweislich anders; die
+    // Entscheidungsschicht bleibt reine Beobachtung des (seedigten)
+    // Sitzungszustands — die Angebotskopplung ist exakt die Abschlussfunktion
+    // der Exploration, ohne dass die Optionsableitung selbst seedabhaengig
+    // wuerde (rein gebunden an Protokollstruktur und Wahl,
+    // optionsDerivationIsPureSeedIndependentAndFailsClosed).
+    let foreign = runInProcess 42u 8000 chooseBBody true
 
     if
         foreign.StartStateHash = activated.StartStateHash
@@ -488,22 +489,36 @@ let decisionIsObservationOnlyTwinStaysByteIdentical () =
     then
         failwith "Ein fremder Seed aenderte Start- oder Endhash nicht nachweislich."
 
-    let foreignProtocol = foreign.Exploration.VisitProtocol
-
-    if foreignProtocol.Count <> NavWorld.ZoneCount || not foreign.Exploration.Completed then
-        failwith "Der gebundene Fremdseedkern suchte nicht saemtliche Landmarken auf."
+    if foreign.Decision.OfferOpened <> foreign.Exploration.Completed then
+        failwith "Die Angebotsöffnung ist nicht exakt die Abschlusskopplung der Exploration."
 
     if
-        foreign.Decision.OptionZoneA <> foreignProtocol.[0].ZoneIndex
-        || foreign.Decision.OptionZoneB <> foreignProtocol.[foreignProtocol.Count - 1].ZoneIndex
+        foreign.Decision.Decided
+        || foreign.Decision.FollowUpZoneIndex <> DecisionTelemetry.UnsetZoneIndex
+        || foreign.Decision.ArrivalBoundaryTick <> DecisionTelemetry.UnsetBoundaryTick
     then
-        failwith "Ein fremder Seed veraenderte die Optionsableitung jenseits des Protokolls."
+        failwith "Ohne abgeschlossenen Auftrag entstand eine Entscheidung oder Folge."
+
+    // Der Report traegt den ehrlichen, maschinenlesbaren Nichtoeffnungsgrund
+    // statt stiller Leere (Vertrag Abschnitt 2).
+    let foreignBlock =
+        CommandLoopRunner.BuildDecisionSession(
+            CommandReportSchema.ExecutionHeadless,
+            true,
+            foreign.Decision
+        )
+        |> JsonSerializer.Serialize
+        |> JsonNode.Parse
+        |> fun node -> node.AsObject()
+
+    let foreignOffer = foreignBlock["offer"].AsObject()
 
     if
-        foreign.Decision.Choice <> DecisionContract.ChoiceOptionBId
-        || foreign.Decision.FollowUpZoneIndex <> foreign.Decision.OptionZoneB
+        foreignOffer["opened"].GetValue<bool>()
+        || foreignOffer["reason"].GetValue<string>()
+           <> DecisionContract.OfferNotOpenedReason
     then
-        failwith "Ein fremder Seed veraenderte die Wahlzuordnung."
+        failwith "Der Nichtoeffnungsgrund fehlt oder widerspricht dem Vertrag."
 
 let decisionNotActivatedRejectionIsDistinguishedWithoutKernelEffect () =
     // Auswertungsordnung Stufe 1 (decision-not-activated) an der Pipeline:
