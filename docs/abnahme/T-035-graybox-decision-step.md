@@ -117,6 +117,15 @@ Fabrikationsmatrix, Builder-Ehrlichkeit der Darstellungsausweise.
   Slice gültig wurde; die Mutation prüft jetzt Version 5 (außerhalb der
   erlaubten Versionen). Keine bestehende Exitcode- oder Gatebedeutung wurde
   geändert; kein bereits akzeptiertes zweites Task-Manifest wurde berührt.
+- Review-Schärfung (unabhängiger Reviewlauf, 2026-08-28): Die relationale
+  Schemabindung von `decisionSession` bindet jetzt entscheidungsstand-
+  unabhängig fail-closed — Abschluss-/Ankunftsaussage, „ohne Angebot keine
+  Folge" und die Sentinel-Wahrheit vor der Wahl (ohne Entscheidung gibt es
+  keine gewählte Zone und keine Folge) gelten auch für `decided=false`;
+  Fabrikationsfälle ohne Entscheidung werden abgewiesen. Keine Vertrags-
+  änderung: Abschnitt 8 des Entscheidungsvertrags dokumentierte diese
+  Bindung bereits; die Fabrikationsmatrix prüft die beiden neuen
+  Ablehnungen (Testbestand unverändert 295/295).
 
 ## Restpunkte
 
