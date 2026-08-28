@@ -701,7 +701,11 @@ public static class InteractiveCameraMath
 
         var upX = (-forwardY * rightZ);
         var upY = (forwardZ * rightX) - (forwardX * rightZ);
-        var upZ = forwardY * rightX;
+        // up = cross(forward, right). Das Z-Glied lautet
+        // forwardX*rightY - forwardY*rightX; rightY ist hier null. Das
+        // fehlende Minus spiegelte die Achse bislang in die Bodenebene und
+        // stauchte kreisrunde Billboards bei 55 Grad zu schmalen Strichen.
+        var upZ = -forwardY * rightX;
 
         return [rightX, 0.0, rightZ, upX, upY, upZ];
     }

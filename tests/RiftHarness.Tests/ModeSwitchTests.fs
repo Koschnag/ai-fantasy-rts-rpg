@@ -925,6 +925,48 @@ let personalCameraFrustumKeepsGroundReadableAtWorldEdges () =
     then
         failwith "Darstellseitiger Weltrandabstand hat den Verfolgungskamerazustand mutiert."
 
+let billboardBasisStaysCameraFacingAndIsotropic () =
+    let dot (ax, ay, az) (bx, by, bz) = (ax * bx) + (ay * by) + (az * bz)
+    let norm vector = sqrt (dot vector vector)
+
+    let normalize (x, y, z) =
+        let length = norm (x, y, z)
+        x / length, y / length, z / length
+
+    let cross (ax, ay, az) (bx, by, bz) =
+        (ay * bz) - (az * by), (az * bx) - (ax * bz), (ax * by) - (ay * bx)
+
+    let assertNear label expected actual =
+        if abs (expected - actual) > 1e-12 then
+            failwith $"{label}: erwartet {expected:R}, erhalten {actual:R}."
+
+    for pitchDegrees in [ 25.0; HeroChaseCamera.PitchDegrees; 70.0 ] do
+        let camera =
+            InteractiveCameraMath.ActiveCamera(80.0, 45.0, 9.0, pitchDegrees * Math.PI / 180.0)
+
+        let eye = InteractiveCameraMath.EyePosition(camera)
+        let center = InteractiveCameraMath.CenterPosition(camera)
+
+        let forward =
+            normalize (center.Item1 - eye.Item1, center.Item2 - eye.Item2, center.Item3 - eye.Item3)
+
+        let basis = InteractiveCameraMath.BillboardBasis(camera)
+        let right = basis.[0], basis.[1], basis.[2]
+        let up = basis.[3], basis.[4], basis.[5]
+        let expectedUp = cross forward right
+
+        assertNear $"Billboard-Rechtsnorm bei {pitchDegrees} Grad" 1.0 (norm right)
+        assertNear $"Billboard-Obennorm bei {pitchDegrees} Grad" 1.0 (norm up)
+        assertNear $"Billboard-Rechts/Forward bei {pitchDegrees} Grad" 0.0 (dot right forward)
+        assertNear $"Billboard-Oben/Forward bei {pitchDegrees} Grad" 0.0 (dot up forward)
+        assertNear $"Billboard-Achsenwinkel bei {pitchDegrees} Grad" 0.0 (dot right up)
+
+        let expectedX, expectedY, expectedZ = expectedUp
+        let actualX, actualY, actualZ = up
+        assertNear $"Billboard-Hand X bei {pitchDegrees} Grad" expectedX actualX
+        assertNear $"Billboard-Hand Y bei {pitchDegrees} Grad" expectedY actualY
+        assertNear $"Billboard-Hand Z bei {pitchDegrees} Grad" expectedZ actualZ
+
 // ---------------------------------------------------------------------------
 // Horizontwahrheit des Wechselprotokolls (Modevertrag §4 (4)): ausgewertete,
 // nicht mehr wirksame Wechsel bleiben ausdrücklich gebunden.

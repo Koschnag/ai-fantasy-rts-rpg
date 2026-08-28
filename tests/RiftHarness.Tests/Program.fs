@@ -2120,6 +2120,8 @@ module Program =
               ModeSwitchTests.strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera
               "T-033 personal camera frustum keeps ground readable at world edges",
               ModeSwitchTests.personalCameraFrustumKeepsGroundReadableAtWorldEdges
+              "T-033 billboard basis stays camera-facing and isotropic",
+              ModeSwitchTests.billboardBasisStaysCameraFacingAndIsotropic
               "T-033 capture pair validation is fail closed", ModeSwitchTests.capturePairValidationIsFailClosed
               "T-033 hybrid flow twin continuity identical chains and end hash",
               ModeSwitchTests.hybridFlowTwinContinuityIdenticalChainsAndEndHash
