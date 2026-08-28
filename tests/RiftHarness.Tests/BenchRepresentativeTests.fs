@@ -130,7 +130,9 @@ let compositionTargetsProduceNonDegenerateGeometry () =
     // affine Matrix und laesst die Figuren visuell explodieren.
     for vertex in 0 .. units.VertexCount - 1 do
         let offset = vertex * RepresentativeMesh.UnitVertexStride
-        let expectedBone = vertex / 24
+        let segment = vertex / 24
+        let parent = RepresentativeRig.ParentOf(segment)
+        let expectedBone = if parent >= 0 then parent else segment
 
         if int units.Vertices[offset + 16] <> expectedBone then
             failwith $"Vertex {vertex} ist an Knochen {units.Vertices[offset + 16]} statt {expectedBone} gebunden."

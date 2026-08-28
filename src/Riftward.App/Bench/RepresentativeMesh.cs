@@ -43,6 +43,12 @@ public static class RepresentativeMesh
             var parent = RepresentativeRig.ParentOf(bone);
             var end = bindPositions[bone];
             var start = parent >= 0 ? bindPositions[parent] : (0.0, end.Item2 - RootSegmentHeight, 0.0);
+            // Das sichtbare Segment beginnt am Elterngelenk und endet am
+            // Kindgelenk. Es muss deshalb starr vom Elternknochen bewegt
+            // werden: Dessen Rotation schwenkt das Segment um seinen Start.
+            // Eine Bindung an den Kindknochen rotiert stattdessen um das
+            // Segmentende und zerreisst die Silhouette in der Gehpose.
+            var skinningBone = parent >= 0 ? parent : bone;
 
             var radius = SegmentRadius(bone);
             vertexCount += AppendBox(
@@ -55,7 +61,7 @@ public static class RepresentativeMesh
                 end.Item2,
                 end.Item3,
                 radius,
-                bone);
+                skinningBone);
         }
 
         return new UnitMesh(
