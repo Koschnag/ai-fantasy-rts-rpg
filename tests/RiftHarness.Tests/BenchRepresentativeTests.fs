@@ -1,6 +1,7 @@
 module BenchRepresentativeTests
 
 open System
+open System.Buffers.Binary
 open System.Collections.Generic
 open System.IO
 open System.Text.Json
@@ -123,6 +124,38 @@ let compositionTargetsProduceNonDegenerateGeometry () =
 
     if units.Indices.Length <> units.TriangleCount * 3 * 2 then
         failwith "Indexbuffer des Einheitenmesh ist unvollstaendig."
+
+    let positionOf vertex =
+        let offset = vertex * RepresentativeMesh.UnitVertexStride
+
+        struct (BinaryPrimitives.ReadSingleLittleEndian(units.Vertices.AsSpan(offset + 0, 4)),
+                BinaryPrimitives.ReadSingleLittleEndian(units.Vertices.AsSpan(offset + 4, 4)),
+                BinaryPrimitives.ReadSingleLittleEndian(units.Vertices.AsSpan(offset + 8, 4)))
+
+    let longitudinalEdge lower upper =
+        let struct (lowerX, lowerY, lowerZ) = positionOf lower
+        let struct (upperX, upperY, upperZ) = positionOf upper
+        struct (upperX - lowerX, upperY - lowerY, upperZ - lowerZ)
+
+    // Die vier Mantelquads jedes Segments verbinden korrespondierende
+    // Ringecken. Beide Laengskanten muessen deshalb parallel und gleich
+    // sein. Ein umgekehrter Startring erzeugt zwar gueltige Zaehler, aber
+    // gekreuzte Sternflaechen statt einer lesbaren Figuren-Silhouette.
+    for segment in 0 .. RepresentativeRig.BoneCount - 1 do
+        let segmentBase = segment * 24
+
+        for side in 0..3 do
+            let faceBase = segmentBase + (side * 4)
+            let struct (leftX, leftY, leftZ) = longitudinalEdge faceBase (faceBase + 3)
+            let struct (rightX, rightY, rightZ) = longitudinalEdge (faceBase + 1) (faceBase + 2)
+            let epsilon = 1e-5f
+
+            if
+                abs (leftX - rightX) > epsilon
+                || abs (leftY - rightY) > epsilon
+                || abs (leftZ - rightZ) > epsilon
+            then
+                failwith $"Segment {segment}, Mantelflaeche {side} traegt verdrehte Querschnittsringe."
 
     // Jedes prozedurale Segment ist starr an genau einen Knochen gebunden.
     // Die normalisierten u8-Gewichte muessen deshalb exakt 1 ergeben; eine

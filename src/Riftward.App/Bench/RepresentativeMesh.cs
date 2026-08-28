@@ -142,15 +142,18 @@ public static class RepresentativeMesh
         // Acht Ecken: untere Ringkante (Start) und obere Ringkante (Ende).
         for (var half = 0; half < 2; half++)
         {
-            var sign = half == 0 ? -radius : radius;
             var cx = half == 0 ? startX : endX;
             var cy = half == 0 ? startY : endY;
             var cz = half == 0 ? startZ : endZ;
 
-            cornerBuffer[cursor++] = [cx + ((ux + vx) * sign), cy + ((uy + vy) * sign), cz + ((uz + vz) * sign)];
-            cornerBuffer[cursor++] = [cx + ((-ux + vx) * sign), cy + ((-uy + vy) * sign), cz + ((-uz + vz) * sign)];
-            cornerBuffer[cursor++] = [cx + ((-ux - vx) * sign), cy + ((-uy - vy) * sign), cz + ((-uz - vz) * sign)];
-            cornerBuffer[cursor++] = [cx + ((ux - vx) * sign), cy + ((uy - vy) * sign), cz + ((uz - vz) * sign)];
+            // Beide Ringe muessen dieselbe Orientierung besitzen. Ein vom
+            // Ringende abhaengiges Vorzeichen verdrehte bislang jedes
+            // Segment um 180 Grad: Die Mantelquads kreuzten sich und die
+            // Figur zerfiel im Bild in sternfoermige Dreieckssplitter.
+            cornerBuffer[cursor++] = [cx + ((ux + vx) * radius), cy + ((uy + vy) * radius), cz + ((uz + vz) * radius)];
+            cornerBuffer[cursor++] = [cx + ((-ux + vx) * radius), cy + ((-uy + vy) * radius), cz + ((-uz + vz) * radius)];
+            cornerBuffer[cursor++] = [cx + ((-ux - vx) * radius), cy + ((-uy - vy) * radius), cz + ((-uz - vz) * radius)];
+            cornerBuffer[cursor++] = [cx + ((ux - vx) * radius), cy + ((uy - vy) * radius), cz + ((uz - vz) * radius)];
         }
 
         // Vier Mantelflaechen mit aus der Geometrie abgeleiteten Normalen.
