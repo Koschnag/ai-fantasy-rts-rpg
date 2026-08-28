@@ -16,6 +16,12 @@ public enum IntentDisposition : byte
 
     /// <summary>Intent traf erst nach seiner Zielvorgrenze ein (nur Live-Eingaben).</summary>
     RejectedLate = 3,
+
+    /// <summary>Strategischer Intent im persoenlichen Modus abgewiesen (T-033, Modevertrag Abschnitt 5).</summary>
+    RejectedStrategyIntentInPersonalMode = 4,
+
+    /// <summary>Persoenliche Lenkung im strategischen Modus abgewiesen (T-033, Modevertrag Abschnitt 5).</summary>
+    RejectedSteerIntentInStrategyMode = 5,
 }
 
 /// <summary>Ergebnis einer Vorgrenzenverarbeitung (Befehlstick).</summary>
@@ -32,6 +38,15 @@ public readonly struct BoundaryOutcome
 
     /// <summary>Anzahl an den Kern uebergebener Befehle dieses Ticks.</summary>
     public int CommandCount { get; init; }
+
+    /// <summary>Strategische Intents, die im persoenlichen Modus abgewiesen wurden (T-033).</summary>
+    public int RejectedStrategyInPersonal { get; init; }
+
+    /// <summary>Persoenliche Lenkungen, die im strategischen Modus abgewiesen wurden (T-033).</summary>
+    public int RejectedSteerInStrategy { get; init; }
+
+    /// <summary>An dieser Vorgrenze ausgewertete Moduswechsel (T-033, diagnostisch).</summary>
+    public int SwitchIntentsEvaluated { get; init; }
 }
 
 /// <summary>Aggregierte Kennzahlen eines Sitzungslaufs.</summary>
@@ -62,7 +77,8 @@ public sealed record SessionRunResult(
     int EmptyPointDeselects,
     int MoveWithoutSelectionRejects,
     int KernelCommandsTotal,
-    int TotalTicksExecuted);
+    int TotalTicksExecuted,
+    ModeTelemetry Telemetry);
 
 /// <summary>Deterministische Percentil- und Zeitberechnung (Verfahren wie T-010/T-020/T-021).</summary>
 public static class SessionMath
@@ -120,15 +136,19 @@ public sealed class SessionPipeline
     private readonly List<GrayboxIntent> _liveQueue = new();
     private readonly List<GrayboxIntent> _boundaryBatch = new();
     private readonly List<int> _dispatchedMoveZones = new();
+    private readonly List<ModeSwitchEvent> _switchProtocol = new();
+    private readonly List<ModeSwitchEvent> _pendingSwitches = new();
     private int _scriptCursor;
+    private SessionMode _effectiveMode = SessionMode.Strategic;
 
     /// <summary>
     /// Zielzonen der an derselben Vorgrenze tatsaechlich an den Kern
-    /// uebergebenen Bewegungsbefehle (ein Eintrag je angewendeter Move-Intent,
-    /// nicht je Gruppenbefehl). Wird je Vorgrenze geleert; Abgewiesene
-    /// erscheinen nie. Diagnostische Rueckgabe fuer die darstellseitige
-    /// Befehlsrueckmeldung (Kommandovertrag Abschnitt 3, Zweikanal); sie ist
-    /// niemals Teil des Simulationszustands oder Hashes.
+    /// uebergebenen Bewegungsbefehle (ein Eintrag je angewendeter Move- oder
+    /// Steer-Intent, nicht je Gruppenbefehl). Wird je Vorgrenze geleert;
+    /// Abgewiesene und dedupe-Regelte erscheinen nie. Diagnostische Rueckgabe
+    /// fuer die darstellseitige Befehlsrueckmeldung (Kommandovertrag
+    /// Abschnitt 3, Zweikanal); sie ist niemals Teil des Simulationszustands
+    /// oder Hashes.
     /// </summary>
     public IReadOnlyList<int> DispatchedMoveZonesOfLastBoundary => _dispatchedMoveZones;
 
@@ -158,14 +178,40 @@ public sealed class SessionPipeline
     public int RemainingScripted => _scriptedIntents.Length - _scriptCursor;
 
     /// <summary>
+    /// Modus, der nach der zuletzt verarbeiteten Vorgrenze fachlich gilt
+    /// (Sitzungszustand, niemals Simulationszustand oder Hash). Ein
+    /// ausgewerteter, aber noch nicht wirksamer Wechsel aendert diesen Wert
+    /// erst an seiner Wirksamkeitsgrenze M = S + 2.
+    /// </summary>
+    public SessionMode CurrentEffectiveMode => _effectiveMode;
+
+    /// <summary>Verschmelzte, vertraglich ausgewiesene Wechselprotokoll-Eintraege (T-033):
+    /// wirksame Wechsel mit gemessener Wechselreaktion und Heldenstatus,
+    /// sowie — nach <see cref="FlushPendingSwitches"/> — ausdrücklich
+    /// unwirksam gebliebene Wechsel nahe dem Laufhorizont (EffectiveInRun=false,
+    /// Endmoduswahrheit bleibt der Reportendmodus).</summary>
+    public IReadOnlyList<ModeSwitchEvent> SwitchProtocol => _switchProtocol;
+
+    /// <summary>Gesamtzaehler strategischer Intents, die im persoenlichen Modus abgewiesen wurden.</summary>
+    public long StrategyIntentsRejectedInPersonalModeTotal { get; private set; }
+
+    /// <summary>Gesamtzaehler persoenlicher Lenkungen, die im strategischen Modus abgewiesen wurden.</summary>
+    public long SteerIntentsRejectedInStrategyModeTotal { get; private set; }
+
+    /// <summary>Gesamtzaehler ruhezustandsregelter Lenkungen ohne Kernbefehl (Dedupe).</summary>
+    public long SteerIdleDedupeTotal { get; private set; }
+
+    /// <summary>
     /// Verarbeitet die Vorgrenze von <paramref name="tick"/>: Skript- und
     /// Live-Intents dieses Ticks werden vereinigt, kanonisch geordnet und
     /// ausgewertet. Zu spaet eingetroffene Live-Intents werden kontrolliert
     /// abgewiesen (RejectedLate); Skriptintents sind durch Validierung nie
-    /// zu spaet.
+    /// zu spaet. Moduswechsel werden kanonisch nach allen anderen Intents
+    /// ihres Ticks ausgewertet (Modevertrag Abschnitt 4).
     /// </summary>
     public BoundaryOutcome ProcessBoundary(long tick)
     {
+        PromoteDueSwitches(tick);
         _boundaryBatch.Clear();
         _dispatchedMoveZones.Clear();
 
@@ -202,11 +248,54 @@ public sealed class SessionPipeline
         var rejectedMoveWithoutSelection = 0;
         var emptyDeselects = 0;
         var commandTotal = 0;
+        var rejectedStrategyInPersonal = 0;
+        var rejectedSteerInStrategy = 0;
+        var switchIntentsEvaluated = 0;
         Span<Riftward.Simulation.SimCommand> commands = stackalloc Riftward.Simulation.SimCommand[
             Riftward.Simulation.SimulationContract.GroupCount];
 
         foreach (var intent in _boundaryBatch)
         {
+            // Kontexttrennung (Modevertrag Abschnitt 5): Der Modus, der an
+            // dieser Vorgrenze gilt, entscheidet vor jeder Kernuebergabe und
+            // vor jeder Auswahlwirkung. Wechsel-Intents sind in beiden Modi
+            // gültig und werden kanonisch zuletzt ausgewertet.
+            switch (intent.Kind)
+            {
+                case GrayboxIntentKind.Clear:
+                case GrayboxIntentKind.PointSelect:
+                case GrayboxIntentKind.BoxSelect:
+                case GrayboxIntentKind.GroupMoveToZone:
+                    if (_effectiveMode == SessionMode.Personal)
+                    {
+                        Journal(intent, IntentDisposition.RejectedStrategyIntentInPersonalMode);
+                        StrategyIntentsRejectedInPersonalModeTotal++;
+                        rejected++;
+                        rejectedStrategyInPersonal++;
+                        continue;
+                    }
+
+                    break;
+
+                case GrayboxIntentKind.SteerGroupToZone:
+                    if (_effectiveMode == SessionMode.Strategic)
+                    {
+                        Journal(intent, IntentDisposition.RejectedSteerIntentInStrategyMode);
+                        SteerIntentsRejectedInStrategyModeTotal++;
+                        rejected++;
+                        rejectedSteerInStrategy++;
+                        continue;
+                    }
+
+                    break;
+
+                case GrayboxIntentKind.SwitchMode:
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Unbekannte Intentart erreicht die Pipeline.");
+            }
+
             switch (intent.Kind)
             {
                 case GrayboxIntentKind.Clear:
@@ -277,6 +366,17 @@ public sealed class SessionPipeline
                     applied++;
                     break;
 
+                case GrayboxIntentKind.SteerGroupToZone:
+                    applied += ApplySteering(intent, tick, ref commandTotal);
+                    break;
+
+                case GrayboxIntentKind.SwitchMode:
+                    EvaluateModeSwitch(tick);
+                    switchIntentsEvaluated++;
+                    Journal(intent, IntentDisposition.Applied);
+                    applied++;
+                    break;
+
                 default:
                     throw new InvalidOperationException("Unbekannte Intentart erreicht die Pipeline.");
             }
@@ -289,7 +389,117 @@ public sealed class SessionPipeline
             RejectedMoveWithoutSelection = rejectedMoveWithoutSelection,
             EmptyPointDeselects = emptyDeselects,
             CommandCount = commandTotal,
+            RejectedStrategyInPersonal = rejectedStrategyInPersonal,
+            RejectedSteerInStrategy = rejectedSteerInStrategy,
+            SwitchIntentsEvaluated = switchIntentsEvaluated,
         };
+    }
+
+    /// <summary>
+    /// Fuehrt eine durchgelassene persoenliche Lenkung aus: Dedupe-Regel gegen
+    /// das aktuelle Kernziel der Heldengruppe, sonst exakt ein Kernbefehl
+    /// GroupMoveToZone auf Gruppe 0 (Modevertrag Abschnitt 3).
+    /// </summary>
+    private int ApplySteering(GrayboxIntent intent, long tick, ref int commandTotal)
+    {
+        var zone = checked((int)intent.A);
+
+        if (World.TargetZoneOfGroup(ModeContract.HeroGroupIndex) == zone)
+        {
+            SteerIdleDedupeTotal++;
+            Journal(intent, IntentDisposition.Applied);
+            return 1;
+        }
+
+        Span<Riftward.Simulation.SimCommand> steeringCommand = stackalloc Riftward.Simulation.SimCommand[1];
+        steeringCommand[0] = new Riftward.Simulation.SimCommand(
+            (int)tick,
+            ModeContract.HeroGroupIndex,
+            Riftward.Simulation.SimCommandKind.GroupMoveToZone,
+            zone);
+        World.ApplyCommands(steeringCommand);
+        commandTotal++;
+        AppliedCommandsTotal++;
+        _dispatchedMoveZones.Add(zone);
+        Journal(intent, IntentDisposition.Applied);
+        return 1;
+    }
+
+    /// <summary>
+    /// Auswertung eines Wechsel-Intents an der Vorgrenze seines Ticks: kein
+    /// Kernbefehl, kein Simulationszustand; die Wirkung tritt erstmals an der
+    /// uebernächsten Gültigkeitsprüfung M = S + 2 in Kraft (Modevertrag
+    /// Abschnitt 4).
+    /// </summary>
+    private void EvaluateModeSwitch(long tick)
+    {
+        var newMode = _effectiveMode == SessionMode.Strategic ? SessionMode.Personal : SessionMode.Strategic;
+        _pendingSwitches.Add(new ModeSwitchEvent(
+            IntentTick: tick,
+            EvaluatedBoundaryTick: tick,
+            EffectiveBoundaryTick: tick + ModeContract.SwitchReactionTargetTicks,
+            PreviousMode: _effectiveMode,
+            NewMode: newMode,
+            EffectiveInRun: false,
+            SwitchReactionTicks: 0,
+            HeroPositionXMm: 0,
+            HeroPositionYMm: 0,
+            HeroZoneIndex: -1,
+            HeroPathState: 0));
+    }
+
+    /// <summary>
+    /// Fördert fällige Wechsel an ihre Wirksamkeitsgrenze: ab der Vorgrenze
+    /// M = S + 2 bildet der neue Modus den Kontext; der Ausweis liest den
+    /// Heldenstatus (Position, Zone, Pfadstatus) von Agentenindex 0 am
+    /// Wirksamkeitszeitpunkt schreibgeschützt aus dem Kern.
+    /// </summary>
+    private void PromoteDueSwitches(long tick)
+    {
+        for (var index = _pendingSwitches.Count - 1; index >= 0; index--)
+        {
+            var pending = _pendingSwitches[index];
+
+            if (pending.EffectiveBoundaryTick != tick)
+            {
+                continue;
+            }
+
+            _pendingSwitches.RemoveAt(index);
+            _effectiveMode = pending.NewMode;
+            _switchProtocol.Add(pending with
+            {
+                EffectiveInRun = true,
+                SwitchReactionTicks = tick - pending.IntentTick,
+                HeroPositionXMm = HeroTracker.PositionXMm(World),
+                HeroPositionYMm = HeroTracker.PositionYMm(World),
+                HeroZoneIndex = HeroTracker.ZoneIndexOf(World),
+                HeroPathState = HeroTracker.PathStateOf(World),
+            });
+        }
+    }
+
+    /// <summary>
+    /// Schließt den Lauf ab: ausgewertete Wechsel, deren Wirksamkeitsgrenze
+    /// M = S + 2 hinter dem Laufhorizont läge, werden ausdrücklich mit
+    /// EffectiveInRun=false ins Wechselprotokoll übernommen, statt still zu
+    /// verschwinden (Modevertrag Abschnitt 4); der Sitzungsmodus ändert sich
+    /// an keiner Wirksamkeitsgrenze mehr, der Reportendmodus bleibt die
+    /// Wahrheit des Laufs. Headless ruft <see cref="SessionEngine.Run"/> diese
+    /// Methode nach dem Messfenster, der Interaktivpfad nach dem Loop-Ende.
+    /// </summary>
+    public void FlushPendingSwitches()
+    {
+        foreach (var pending in _pendingSwitches)
+        {
+            _switchProtocol.Add(pending with
+            {
+                EffectiveInRun = false,
+                SwitchReactionTicks = 0,
+            });
+        }
+
+        _pendingSwitches.Clear();
     }
 
     /// <summary>Gesamtzaehler der angewendeten Intents (diagnostisch).</summary>
@@ -423,6 +633,7 @@ public static class SessionEngine
         }
 
         var endStateHash = world.ComputeStateHash();
+        pipeline.FlushPendingSwitches();
         var gcPauseSumMs = (GC.GetTotalPauseDuration() - pauseSumBefore).TotalMilliseconds;
         var gcPauseCount = GcCollectionTotal() - collectionCountBefore;
 
@@ -465,7 +676,43 @@ public static class SessionEngine
             EmptyPointDeselects: (int)pipeline.EmptyPointDeselectTotal,
             MoveWithoutSelectionRejects: (int)pipeline.MoveWithoutSelectionTotal,
             KernelCommandsTotal: (int)pipeline.AppliedCommandsTotal,
-            TotalTicksExecuted: request.HorizonTicks);
+            TotalTicksExecuted: request.HorizonTicks,
+            Telemetry: BuildModeTelemetry(pipeline));
+    }
+
+    /// <summary>
+    /// Aggregiert die Modus-Telemetrie der Pipeline (T-033): Wechselprotokoll,
+    /// Kontextabweisungszähler, Lenk-Dedupe und die Wechselreaktions-
+    /// verteilung ausschließlich über die innerhalb des Laufs wirksamen
+    /// Wechsel (Modevertrag Abschnitte 4 und 7). Öffentlich, damit der
+    /// interaktive Lauf desselben Befehls dieselbe Aggregation über denselben
+    /// Pipelinepfad erzeugt wie der headless Lauf.
+    /// </summary>
+    public static ModeTelemetry BuildModeTelemetry(SessionPipeline pipeline)
+    {
+        var effective = new List<long>();
+
+        foreach (var entry in pipeline.SwitchProtocol)
+        {
+            if (entry.EffectiveInRun)
+            {
+                effective.Add(entry.SwitchReactionTicks);
+            }
+        }
+
+        var maxSwitchReaction = effective.Count == 0 ? 0 : effective.Max();
+        return new ModeTelemetry(
+            InitialMode: SessionMode.Strategic,
+            FinalMode: pipeline.CurrentEffectiveMode,
+            SwitchProtocol: pipeline.SwitchProtocol.ToArray(),
+            StrategyIntentsRejectedInPersonalMode: pipeline.StrategyIntentsRejectedInPersonalModeTotal,
+            SteerIntentsRejectedInStrategyMode: pipeline.SteerIntentsRejectedInStrategyModeTotal,
+            SteerIdleDedupes: pipeline.SteerIdleDedupeTotal,
+            MaxSwitchReactionTicks: maxSwitchReaction,
+            SwitchReactionP50Ticks: SessionMath.Percentile(effective, 0.50),
+            SwitchReactionP95Ticks: SessionMath.Percentile(effective, 0.95),
+            SwitchReactionP99Ticks: SessionMath.Percentile(effective, 0.99),
+            SwitchReactionSampleCount: effective.Count);
     }
 
     /// <summary>Liest die zeitinvarianten Agentengruppen schreibgeschützt aus dem Kernsnapshot.</summary>

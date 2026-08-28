@@ -145,6 +145,20 @@ public sealed class Window : IDisposable
         (_api.GetPointerProperty(_api.GetWindowProperties(Handle), Sdl3Native.PropX11Display, 0),
          checked((ulong)Math.Max(0, _api.GetNumberProperty(_api.GetWindowProperties(Handle), Sdl3Native.PropX11Window, 0))));
 
+    /// <summary>
+    /// T-033: Setzt den Fenstertitel des Mindest-HUD (Modevertrag Abschnitt 8,
+    /// title-hud-mode-herozone-v1). Kontrollierter Fehler statt stiller Wirkung.
+    /// </summary>
+    public void SetTitle(string title)
+    {
+        if (!_api.SetWindowTitle(Handle, title))
+        {
+            throw new PlatformException(new PlatformError(
+                PlatformErrorCode.WindowFailed,
+                $"Fenstertitel konnte nicht gesetzt werden: {_api.GetError()}"));
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)

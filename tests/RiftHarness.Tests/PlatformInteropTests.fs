@@ -13,6 +13,9 @@ type SdlApiFake() =
     member val CreatedWindows: nativeint list = [] with get, set
     member val DestroyedWindows: nativeint list = [] with get, set
 
+    // T-033: Titel-HUD-Naht; der Fake zeichnet Titel auf, ohne natives SDL zu beruehren.
+    member val SetWindowTitleCalls: string list = [] with get, set
+
     interface ISdlApi with
         member this.Init(_) =
             this.InitCalls <- this.InitCalls + 1
@@ -26,6 +29,10 @@ type SdlApiFake() =
 
         member this.DestroyWindow(window) =
             this.DestroyedWindows <- window :: this.DestroyedWindows
+
+        member this.SetWindowTitle(_, title) =
+            this.SetWindowTitleCalls <- title :: this.SetWindowTitleCalls
+            true
 
         member _.PollEvent(_: SdlEventBuffer byref) = false
 

@@ -41,7 +41,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-030 | E-004 | erste vollständige Graybox-Schleife von Erkundung bis Basiskampf | Z-001 | XL | MUST | DRAFT |
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DONE |
 | T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
-| T-033 | E-004 | kleinster Hybrid-Mode-Switch-Prototyp: persönlicher Third-Person-Heldenmodus und strategischer RTS-Modus über dem unveränderten Simulationskern mit Hashketten-Kontinuitätsnachweis | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
+| T-033 | E-004 | kleinster Hybrid-Mode-Switch-Prototyp: persönlicher Third-Person-Heldenmodus und strategischer RTS-Modus über dem unveränderten Simulationskern mit Hashketten-Kontinuitätsnachweis | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -1223,7 +1223,14 @@ abgenommenen T-032-Baseline hat gemäß Release-Modus der Projektleitung
 Vorrang vor neuer Kampf-, Wirtschafts-, Content- oder Audiobreite; genau das
 spezifiziert `T-033`.
 
-T-033 (`.ai/tasks/T-033-mode-switch-prototype.json`, `READY`) ist der kleinste
+T-033 (`.ai/tasks/T-033-mode-switch-prototype.json`, seit dem unabhängigen
+Review-/Vollendungslauf 2026-08-28 `DONE`; Abnahmedoku
+`docs/abnahme/T-033-mode-switch-prototype.md` inklusive echtem Wayland-Repass
+der Hauptinstanz mit hashgebundenem Abgriffpaar und Media-Lab-Eintrag
+EVD-T033-MODE-PAIR-001; der hierfür in der T-032-Linie verschobene Posten
+`allocationStrictnessRegression` wurde in diesem Slice als
+Fresh-Process-Probe ohne Assertionabschwächung geschlossen, nur die übrigen
+drei verschobenen Posten bleiben offen) ist der kleinste
 prüfbare Hybrid-Mode-Switch-Prototyp über dem unveränderten Simulationskern:
 Der Vertragsheld ist die im Modevertrag versionierte neue Sitzungsbezeichnung
 für den stabilen Agentenindex 0 in der bestehenden Vertragsgruppe 0 (deren

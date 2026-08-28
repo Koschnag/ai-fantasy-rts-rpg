@@ -71,7 +71,8 @@ public sealed record ParsedInputScript(
     long WarmupTicks,
     string ScriptSha256Hex,
     ulong IntentPlanHash,
-    string IntentPlanHashHex);
+    string IntentPlanHashHex,
+    string FormatId);
 
 /// <summary>
 /// Strenger Einzelpass-Parser des Diagnoseformats graybox-input-script-v1
@@ -82,7 +83,8 @@ public sealed record ParsedInputScript(
 /// </summary>
 public static class InputScriptParser
 {
-    private const string HeaderPrefix = "graybox-input-script-v1 ";
+    private const string HeaderPrefixV1 = "graybox-input-script-v1 ";
+    private const string HeaderPrefixV2 = "graybox-input-script-v2 ";
     private const string EndLine = "end";
 
     public static ParsedInputScript Parse(byte[] rawBytes, ScriptWindowRules rules)
@@ -123,18 +125,33 @@ public static class InputScriptParser
             .Replace('\r', '\n')
             .Split('\n');
 
-        if (lines.Length == 0 || !lines[0].StartsWith(HeaderPrefix, StringComparison.Ordinal))
+        string headerPrefix;
+        string formatId;
+
+        if (lines.Length > 0 && lines[0].StartsWith(HeaderPrefixV1, StringComparison.Ordinal))
+        {
+            headerPrefix = HeaderPrefixV1;
+            formatId = SessionContract.ScriptFormatId;
+        }
+        else if (lines.Length > 0 && lines[0].StartsWith(HeaderPrefixV2, StringComparison.Ordinal))
+        {
+            // T-033: erweiterte Obermengengrammatik; die v1-Grammatik bleibt
+            // unverändert (keine stille Formatdrift innerhalb einer Version).
+            headerPrefix = HeaderPrefixV2;
+            formatId = ModeContract.ScriptFormatIdV2;
+        }
+        else
         {
             throw new InputScriptException(InputScriptRejectReason.HeaderMalformed, 1, "Kopfzeile fehlt oder ist malformed.");
         }
 
-        if (!TryParseInt32(lines[0].AsSpan(HeaderPrefix.Length), out var horizonTicks))
+        if (!TryParseInt32(lines[0].AsSpan(headerPrefix.Length), out var horizonTicks))
         {
             throw new InputScriptException(InputScriptRejectReason.HeaderMalformed, 1, "Horizont ist keine nichtnegative Ganzzahl.");
         }
 
         ValidateHorizon(horizonTicks, rules);
-
+        var allowsModeActions = formatId == ModeContract.ScriptFormatIdV2;
         var intents = new List<GrayboxIntent>(capacity: 64);
         var ended = false;
 
@@ -168,7 +185,7 @@ public static class InputScriptParser
                 throw new InputScriptException(InputScriptRejectReason.LineMalformed, lineNumber, "Leerzeile im Skriptkoerper.");
             }
 
-            intents.Add(ParseIntentLine(line, lineNumber, rules));
+            intents.Add(ParseIntentLine(line, lineNumber, rules, allowsModeActions));
         }
 
         if (!ended)
@@ -228,7 +245,8 @@ public static class InputScriptParser
             WarmupTicks: rules.WarmupTicks,
             ScriptSha256Hex: scriptSha256Hex,
             IntentPlanHash: planHash,
-            IntentPlanHashHex: planHash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture));
+            IntentPlanHashHex: planHash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture),
+            FormatId: formatId);
     }
 
     private static void ValidateHorizon(int horizonTicks, ScriptWindowRules rules)
@@ -261,7 +279,7 @@ public static class InputScriptParser
         }
     }
 
-    private static GrayboxIntent ParseIntentLine(string line, int lineNumber, ScriptWindowRules rules)
+    private static GrayboxIntent ParseIntentLine(string line, int lineNumber, ScriptWindowRules rules, bool allowsModeActions)
     {
         var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -290,15 +308,56 @@ public static class InputScriptParser
 
         return action switch
         {
-            "clear" => new GrayboxIntent(tick, GrayboxIntentKind.Clear),
+            "clear" => BuildClear(tokens, lineNumber, tick),
             "point" => BuildPoint(tokens, lineNumber, tick),
             "box" => BuildBox(tokens, lineNumber, tick),
             "move" => BuildMove(tokens, lineNumber, tick),
+            "steer" when allowsModeActions => BuildSteer(tokens, lineNumber, tick),
+            "switch" when allowsModeActions => BuildSwitch(tokens, lineNumber, tick),
             _ => throw new InputScriptException(
                 InputScriptRejectReason.UnknownAction,
                 lineNumber,
-                $"Aktion '{action}' gehoert nicht zur Vertragsverbmenge."),
+                $"Aktion '{action}' gehoert nicht zur Vertragsverbmenge dieses Formats."),
         };
+    }
+
+    /// <summary>
+    /// Moduswechsel ohne Parameter; kontextfrei grammatisch gültig, der
+    /// Moduskontext eines Ticks entscheidet erst die Pipeline (Modevertrag
+    /// Abschnitt 6).
+    /// </summary>
+    private static GrayboxIntent BuildSwitch(string[] tokens, int lineNumber, int tick)
+    {
+        RequireTokenCount(tokens, 3, lineNumber);
+        return new GrayboxIntent(tick, GrayboxIntentKind.SwitchMode);
+    }
+
+    /// <summary>
+    /// Auswahlwiderruf ohne Parameter; die Tokenzahl wird wie bei allen
+    /// Verben gegen die Vertragsgrammatik erzwungen, sodass Zusatztokens
+    /// kontrolliert als <c>LineMalformed</c> abgewiesen werden.
+    /// </summary>
+    private static GrayboxIntent BuildClear(string[] tokens, int lineNumber, int tick)
+    {
+        RequireTokenCount(tokens, 3, lineNumber);
+        return new GrayboxIntent(tick, GrayboxIntentKind.Clear);
+    }
+
+    private static GrayboxIntent BuildSteer(string[] tokens, int lineNumber, int tick)
+    {
+        RequireTokenCount(tokens, 4, lineNumber);
+
+        if (!TryParseInt32(tokens[3], out var zone)
+            || zone < 0
+            || zone >= Riftward.Simulation.NavWorld.ZoneCount)
+        {
+            throw new InputScriptException(
+                InputScriptRejectReason.RangeViolation,
+                lineNumber,
+                $"Zonenindex muss in [0, {Riftward.Simulation.NavWorld.ZoneCount - 1}] liegen.");
+        }
+
+        return new GrayboxIntent(tick, GrayboxIntentKind.SteerGroupToZone, zone);
     }
 
     private static GrayboxIntent BuildPoint(string[] tokens, int lineNumber, int tick)

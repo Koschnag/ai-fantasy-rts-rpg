@@ -1,152 +1,152 @@
 {
-  "schemaVersion": 1,
-  "gates": [
-    {
-      "id": "G-SPEC",
-      "purpose": "Auftrag, Anforderungen und Abnahmekriterien sind nachverfolgbar",
-      "requiredFor": [
-        "code",
-        "content",
-        "asset"
-      ],
-      "command": null,
-      "status": "manual-baseline",
-      "passCondition": "Task ist schemakonform, quellenverknüpft und besitzt testbare Kriterien sowie Entscheidungshoheit"
-    },
-    {
-      "id": "G-FORMAT",
-      "purpose": "Formatierung ist deterministisch und unverändert",
-      "requiredFor": [
-        "code",
-        "data"
-      ],
-      "command": "./scripts/rift.sh lint",
-      "status": "implemented-for-fsharp",
-      "passCondition": "Exit 0"
-    },
-    {
-      "id": "G-STATIC",
-      "purpose": "Compiler, Analyzer, Schema- und AOT-Warnungen bestehen",
-      "requiredFor": [
-        "code",
-        "data"
-      ],
-      "command": "./scripts/rift.sh build",
-      "status": "implemented-for-current-solution",
-      "passCondition": "Exit 0 und keine ungeklärten Warnungen; zusätzliche aufgabenspezifische Validatoren bestehen"
-    },
-    {
-      "id": "G-TEST",
-      "purpose": "Relevante Unit-, Integrations- und Replay-Tests bestehen",
-      "requiredFor": [
-        "code",
-        "gameplay"
-      ],
-      "command": "./scripts/rift.sh test",
-      "status": "implemented-for-harness",
-      "passCondition": "Exit 0, keine ungeklärten Skips oder Flakes"
-    },
-    {
-      "id": "G-HARNESS",
-      "purpose": "Runs, Hashketten, RAG-Quellen und Index sind integer",
-      "requiredFor": [
-        "tooling",
-        "memory",
-        "autonomous-run"
-      ],
-      "command": "./scripts/rift.sh verify",
-      "status": "implemented-for-current-harness",
-      "passCondition": "Exit 0 und valid=true"
-    },
-    {
-      "id": "G-DATA",
-      "purpose": "Schemas, Referenzen, Lokalisierung und persistente Fixtures sind gültig",
-      "requiredFor": [
-        "data",
-        "content",
-        "save"
-      ],
-      "command": "./scripts/rift.sh savecheck --report PFAD (Save-Fixture-Anteil); übrige Anteile aufgabenspezifische Validatoren",
-      "status": "partial-save-fixtures-implemented-via-savevertrag-t031",
-      "passCondition": "Alle für den Task betroffenen Schemas und Referenzen sind validiert. Für den Save-Fixture-Anteil (T-031) gilt: Der Savevertrag docs/SAVEVERTRAG.md V1 ist implementiert; ./scripts/rift.sh savecheck besteht fail-closed die unterscheidbare Korruptionsmatrix gemäß DATENMODELL-Fixturliste mit dokumentierter Zurückstellung der Klasse finalitätsnah gültig zugunsten der Contentstufe, Roundtrip-, Fortsetzungs-, Atomaritäts- und Migrationsprüfungen sowie den aus Kalibrierläufen abgeleiteten Größen-Sanity-Schwellwert; die OFFEN-Stellen für Cooked-Paket-, Definitions- und Replayformate bleiben unberührt"
-    },
-    {
-      "id": "G-PERF",
-      "purpose": "Betroffene Performancebudgets sind gemessen und eingehalten",
-      "requiredFor": [
-        "runtime",
-        "asset",
-        "content"
-      ],
-      "command": "./scripts/rift.sh bench --scenario bench-empty | bench-sim | bench-representative; ./scripts/rift.sh soak --scenario soak-replay; ./scripts/rift.sh kommandoschleife --scenario kommando-graybox (T-032: Nachweisort der Budgetzeile Eingabe-zu-Reaktion)",
-      "status": "partial-bench-empty-bench-sim-and-representative-implemented-soak-replay-implemented",
-      "passCondition": "BENCH-EMPTY erfüllt seine p99-, Allokations-, Draw-, Shader- und RSS-Grenzen fail-closed im Report (Schemaversion 1). BENCH-SIM erfüllt fail-closed die harte Tickzeitgrenze von 16 ms bei ausgewiesenem 8-ms-Ziel sowie die in docs/SIMULATIONSVERTRAG.md fixierte Allokationsgrenze je warmem Tick (0 Bytes, innerhalb der Auftragsobergrenze 1 KiB); Report Schemaversion 2 mit Zustands-Hashkette; headless nicht anwendbare Kennzahlen sind unavailable mit Grund. BENCH-REPRESENTATIVE (T-023, Report Schemaversion 3) verbindet die Komposition der Szenebudgettabelle codegebunden (350 sichtbare/250 simulierte Einheiten, 48 Bones je normaler Einheit, eine Sonne plus vier lokale Schattenlichter mit aktiven Schattenpaessen, Partikelspitze am Budgetpeak 5000) und entscheidet fail-closed ausschließlich gegen PERFORMANCE_BUDGET.md und den AC-T010-07/T-020/T-021-Praezedenz (33,3 ms Frame-p99, GPU 14 ms Ziel/30 ms hart, Tick 8 ms Ziel/16 ms hart, ≤1 KiB Allokationen je warmem Frame, ≤1200 Draw-/Submit-Aufrufe, ≤2 Mio. sichtbare Dreiecke Low ohne Schattenwiederholung, ≤5000 Partikel, null Laufzeitshaderkompilierungen, Arbeitssatz 3500 MiB Ziel/4500 MiB hart); die Kartenlade-Budgetzeile bleibt Eigentum von BENCH-LOAD. SOAK-REPLAY (T-022, Reportlinie mode=soak Schemaversion 2) weist NF-002 nach Soakvertrag docs/SOAKVERTRAG.md V2 nach (Projektleitungsentscheidung 2026-08-25): mindestens drei unabhängige Fresh-Prozess-Wiederholungsläufe über den kompletten skriptierten Planhorizont nativ linux-x64, je Lauf fail-closed ausschließlich gegen die absoluten Grenzwerte des Vertrags (doppelte Leak-Schwellwertform mit Konsistenzbedingung, Fortschritts-Watchdog, strenge Per-Tick-Allokation gemäß Simulationsvertrag §5, Golden-Fixture-Kettenintegrität), je Report als Evidenzeinheit markiert; das Restrisiko des nicht nachgewiesenen zusammenhängenden Achtstunden-Echtzeitbetriebs ist vertraglich ausgewiesen (Vertrag Abschnitt 6), der frühere autoritative Achtstundenlauf wurde absichtlich abgebrochen und darf nicht neu gestartet werden; die fensterweise Tickzeitdrift ist gatefrei diagnostisch und die tolerierte Benchmarkstreuung (Q-TEC-010) bleibt offen. Pflichtprofilbestehen entsteht ausschließlich durch deklarierte Bindung an die zugehörige Referenzklasse auf von der Projektleitung benannten Referenzrechnern. Bis dahin bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH NOT-MEASURED (Q-OPS-001-Klärungsprotokoll 2026-08-24); Läufe auf dem Entwickler-PC gelten als diagnostische Baseline. Die übrigen Pflichtszenarien (BENCH-ARMY/BATTLE/BASE/PATH/LOAD) sind noch nicht implementiert und schlagen mit Exitcode 25 fehl. KOMMANDO-GRAYBOX (T-032, Reportlinie mode=kommandoschleife Schemaversion 1) weist die Budgetzeile Eingabe-zu-Reaktion nach docs/KOMMANDOVERTRAG.md V1 nach: Reaktionsticks von Befehlstick bis erstem Effektsnapshot bei vertraglichen 20 Hz, abgeleitet auf Ziel <= 2 Ticks / hart <= 3 Ticks mit transparenter Arithmetik (100 ms bzw. 150 ms geteilt durch 50 ms je Tick); das Gate entscheidet fail-closed ausschliesslich gegen die dokumentierten absoluten Grenzwerte (Tickzeit 16 ms hart/8 ms Ziel gemaeß Simulationsvertrag V1, Allokation 0 Bytes je warmem Tick nach Vertragsmethode, max reactionTicks <= 3, null Laufzeitshaderkompilierungen, headless Ketten-Selbstkonsistenz); alle uebrigen Messfelder sind diagnostisch gateCoupled=false. Kein Budgetwert dieser Tabelle wird dadurch geaendert; Pflichtprofile bleiben bis zur Benennung von Referenzrechnern NOT-MEASURED (Q-OPS-001)."
-    },
-    {
-      "id": "G-VISUAL",
-      "purpose": "Golden-Szenen, Lesbarkeit, Atmosphäre und Originalität bestehen",
-      "requiredFor": [
-        "rendering",
-        "ui",
-        "asset",
-        "content"
-      ],
-      "command": null,
-      "status": "rubric-only",
-      "passCondition": "ATMOSPHAERE.md-Rubrik mindestens 80/100, kein Bereich unter 7 und Originalitätsgate bestanden"
-    },
-    {
-      "id": "G-PROVENANCE",
-      "purpose": "Lizenz, Ursprung, Version und Hash sind vollständig",
-      "requiredFor": [
-        "dependency",
-        "asset",
-        "model"
-      ],
-      "command": "./scripts/rift.sh assets-check",
-      "status": "implemented-for-assets",
-      "passCondition": "Exit 0; für Shipping zusätzlich globaler Lauf mit --require-local --require-approved und shippingReady=true"
-    },
-    {
-      "id": "G-SECURITY",
-      "purpose": "Secrets, Eingabegrenzen und relevante Bedrohungen sind geprüft",
-      "requiredFor": [
-        "code",
-        "tooling",
-        "release"
-      ],
-      "command": "./scripts/rift.sh security",
-      "status": "baseline-implemented",
-      "coverage": [
-        "secret-heuristics",
-        "nuget-audit",
-        "json-syntax",
-        "git-lfs-pointer-fsck"
-      ],
-      "passCondition": "Exit 0; aufgabenspezifische Threat-, Lizenz- und Releaseprüfungen zusätzlich erfüllt",
-      "releaseSufficient": false
-    },
-    {
-      "id": "G-PLATFORM",
-      "purpose": "Betroffene RIDs bauen nativ und bestehen ABI-/Gameplay-Smokes",
-      "requiredFor": [
-        "runtime",
-        "interop",
-        "release"
-      ],
-      "command": null,
-      "status": "unavailable",
-      "passCondition": "Jeder betroffene RID besitzt einen nativen grünen Build- und Smoke-Nachweis"
-    },
-    {
-      "id": "G-PACKAGE",
-      "purpose": "Releasepakete sind reproduzierbar, vollständig und startfähig",
-      "requiredFor": [
-        "release"
-      ],
-      "command": "./scripts/rift.sh package",
-      "status": "unavailable",
-      "passCondition": "Artefakt, Manifest, Hash, Lizenztexte, Signierung und Installationssmoke sind grün"
-    }
-  ]
+ "schemaVersion": 1,
+ "gates": [
+  {
+   "id": "G-SPEC",
+   "purpose": "Auftrag, Anforderungen und Abnahmekriterien sind nachverfolgbar",
+   "requiredFor": [
+    "code",
+    "content",
+    "asset"
+   ],
+   "command": null,
+   "status": "manual-baseline",
+   "passCondition": "Task ist schemakonform, quellenverknüpft und besitzt testbare Kriterien sowie Entscheidungshoheit"
+  },
+  {
+   "id": "G-FORMAT",
+   "purpose": "Formatierung ist deterministisch und unverändert",
+   "requiredFor": [
+    "code",
+    "data"
+   ],
+   "command": "./scripts/rift.sh lint",
+   "status": "implemented-for-fsharp",
+   "passCondition": "Exit 0"
+  },
+  {
+   "id": "G-STATIC",
+   "purpose": "Compiler, Analyzer, Schema- und AOT-Warnungen bestehen",
+   "requiredFor": [
+    "code",
+    "data"
+   ],
+   "command": "./scripts/rift.sh build",
+   "status": "implemented-for-current-solution",
+   "passCondition": "Exit 0 und keine ungeklärten Warnungen; zusätzliche aufgabenspezifische Validatoren bestehen"
+  },
+  {
+   "id": "G-TEST",
+   "purpose": "Relevante Unit-, Integrations- und Replay-Tests bestehen",
+   "requiredFor": [
+    "code",
+    "gameplay"
+   ],
+   "command": "./scripts/rift.sh test",
+   "status": "implemented-for-harness",
+   "passCondition": "Exit 0, keine ungeklärten Skips oder Flakes"
+  },
+  {
+   "id": "G-HARNESS",
+   "purpose": "Runs, Hashketten, RAG-Quellen und Index sind integer",
+   "requiredFor": [
+    "tooling",
+    "memory",
+    "autonomous-run"
+   ],
+   "command": "./scripts/rift.sh verify",
+   "status": "implemented-for-current-harness",
+   "passCondition": "Exit 0 und valid=true"
+  },
+  {
+   "id": "G-DATA",
+   "purpose": "Schemas, Referenzen, Lokalisierung und persistente Fixtures sind gültig",
+   "requiredFor": [
+    "data",
+    "content",
+    "save"
+   ],
+   "command": "./scripts/rift.sh savecheck --report PFAD (Save-Fixture-Anteil); übrige Anteile aufgabenspezifische Validatoren",
+   "status": "partial-save-fixtures-implemented-via-savevertrag-t031",
+   "passCondition": "Alle für den Task betroffenen Schemas und Referenzen sind validiert. Für den Save-Fixture-Anteil (T-031) gilt: Der Savevertrag docs/SAVEVERTRAG.md V1 ist implementiert; ./scripts/rift.sh savecheck besteht fail-closed die unterscheidbare Korruptionsmatrix gemäß DATENMODELL-Fixturliste mit dokumentierter Zurückstellung der Klasse finalitätsnah gültig zugunsten der Contentstufe, Roundtrip-, Fortsetzungs-, Atomaritäts- und Migrationsprüfungen sowie den aus Kalibrierläufen abgeleiteten Größen-Sanity-Schwellwert; die OFFEN-Stellen für Cooked-Paket-, Definitions- und Replayformate bleiben unberührt"
+  },
+  {
+   "id": "G-PERF",
+   "purpose": "Betroffene Performancebudgets sind gemessen und eingehalten",
+   "requiredFor": [
+    "runtime",
+    "asset",
+    "content"
+   ],
+   "command": "./scripts/rift.sh bench --scenario bench-empty | bench-sim | bench-representative; ./scripts/rift.sh soak --scenario soak-replay; ./scripts/rift.sh kommandoschleife --scenario kommando-graybox (T-032: Nachweisort der Budgetzeile Eingabe-zu-Reaktion; T-033: dieselbe Zeile traegt zusaetzlich die Wechselreaktion des Moduswechsels, Nachweisort modeSession.switchReactionTicks und fail-closed gate.switchReaction desselben Reports gemäß docs/MODEVERTRAG.md V1)",
+   "status": "partial-bench-empty-bench-sim-and-representative-implemented-soak-replay-implemented",
+   "passCondition": "BENCH-EMPTY erfüllt seine p99-, Allokations-, Draw-, Shader- und RSS-Grenzen fail-closed im Report (Schemaversion 1). BENCH-SIM erfüllt fail-closed die harte Tickzeitgrenze von 16 ms bei ausgewiesenem 8-ms-Ziel sowie die in docs/SIMULATIONSVERTRAG.md fixierte Allokationsgrenze je warmem Tick (0 Bytes, innerhalb der Auftragsobergrenze 1 KiB); Report Schemaversion 2 mit Zustands-Hashkette; headless nicht anwendbare Kennzahlen sind unavailable mit Grund. BENCH-REPRESENTATIVE (T-023, Report Schemaversion 3) verbindet die Komposition der Szenebudgettabelle codegebunden (350 sichtbare/250 simulierte Einheiten, 48 Bones je normaler Einheit, eine Sonne plus vier lokale Schattenlichter mit aktiven Schattenpaessen, Partikelspitze am Budgetpeak 5000) und entscheidet fail-closed ausschließlich gegen PERFORMANCE_BUDGET.md und den AC-T010-07/T-020/T-021-Praezedenz (33,3 ms Frame-p99, GPU 14 ms Ziel/30 ms hart, Tick 8 ms Ziel/16 ms hart, ≤1 KiB Allokationen je warmem Frame, ≤1200 Draw-/Submit-Aufrufe, ≤2 Mio. sichtbare Dreiecke Low ohne Schattenwiederholung, ≤5000 Partikel, null Laufzeitshaderkompilierungen, Arbeitssatz 3500 MiB Ziel/4500 MiB hart); die Kartenlade-Budgetzeile bleibt Eigentum von BENCH-LOAD. SOAK-REPLAY (T-022, Reportlinie mode=soak Schemaversion 2) weist NF-002 nach Soakvertrag docs/SOAKVERTRAG.md V2 nach (Projektleitungsentscheidung 2026-08-25): mindestens drei unabhängige Fresh-Prozess-Wiederholungsläufe über den kompletten skriptierten Planhorizont nativ linux-x64, je Lauf fail-closed ausschließlich gegen die absoluten Grenzwerte des Vertrags (doppelte Leak-Schwellwertform mit Konsistenzbedingung, Fortschritts-Watchdog, strenge Per-Tick-Allokation gemäß Simulationsvertrag §5, Golden-Fixture-Kettenintegrität), je Report als Evidenzeinheit markiert; das Restrisiko des nicht nachgewiesenen zusammenhängenden Achtstunden-Echtzeitbetriebs ist vertraglich ausgewiesen (Vertrag Abschnitt 6), der frühere autoritative Achtstundenlauf wurde absichtlich abgebrochen und darf nicht neu gestartet werden; die fensterweise Tickzeitdrift ist gatefrei diagnostisch und die tolerierte Benchmarkstreuung (Q-TEC-010) bleibt offen. Pflichtprofilbestehen entsteht ausschließlich durch deklarierte Bindung an die zugehörige Referenzklasse auf von der Projektleitung benannten Referenzrechnern. Bis dahin bleiben HW-PC-MIN, HW-MAC-MIN und HW-PC-HIGH NOT-MEASURED (Q-OPS-001-Klärungsprotokoll 2026-08-24); Läufe auf dem Entwickler-PC gelten als diagnostische Baseline. Die übrigen Pflichtszenarien (BENCH-ARMY/BATTLE/BASE/PATH/LOAD) sind noch nicht implementiert und schlagen mit Exitcode 25 fehl. KOMMANDO-GRAYBOX (T-032, Reportlinie mode=kommandoschleife Schemaversion 1) weist die Budgetzeile Eingabe-zu-Reaktion nach docs/KOMMANDOVERTRAG.md V1 nach: Reaktionsticks von Befehlstick bis erstem Effektsnapshot bei vertraglichen 20 Hz, abgeleitet auf Ziel <= 2 Ticks / hart <= 3 Ticks mit transparenter Arithmetik (100 ms bzw. 150 ms geteilt durch 50 ms je Tick); das Gate entscheidet fail-closed ausschliesslich gegen die dokumentierten absoluten Grenzwerte (Tickzeit 16 ms hart/8 ms Ziel gemaeß Simulationsvertrag V1, Allokation 0 Bytes je warmem Tick nach Vertragsmethode, max reactionTicks <= 3, null Laufzeitshaderkompilierungen, headless Ketten-Selbstkonsistenz); alle uebrigen Messfelder sind diagnostisch gateCoupled=false. T-033 erweitert dieselbe Gatematrix um Kriterium 6 (Modevertrag docs/MODEVERTRAG.md V1 Abschnitt 7): die Wechselreaktion des Moduswechsels (switchReactionTicks = M - S bei vertraglichen 20 Hz, Ziel 2 Ticks / hart 3 Ticks, abgeleitet aus derselben Budgetzeile Eingabe-zu-Reaktion mit transparenter Arithmetik 100 ms bzw. 150 ms geteilt durch 50 ms je Tick) ist als eigenes fail-closed Reportfeld gebunden; ohne wirksamen Wechsel im Lauf ist das Kriterium ausdruecklich nicht auswertbar (evaluated=false mit maschinenlesbarem Grund) und wird nie als gemessener Pass ausgegeben. Die Verfolgungskamera des persoenlichen Modus ist rein darstellseitig; es entsteht kein neuer budgettragender Pfad und kein Budgetwert dieser Tabelle wird geaendert. Kein Budgetwert dieser Tabelle wird dadurch geaendert; Pflichtprofile bleiben bis zur Benennung von Referenzrechnern NOT-MEASURED (Q-OPS-001)."
+  },
+  {
+   "id": "G-VISUAL",
+   "purpose": "Golden-Szenen, Lesbarkeit, Atmosphäre und Originalität bestehen",
+   "requiredFor": [
+    "rendering",
+    "ui",
+    "asset",
+    "content"
+   ],
+   "command": null,
+   "status": "rubric-only",
+   "passCondition": "ATMOSPHAERE.md-Rubrik mindestens 80/100, kein Bereich unter 7 und Originalitätsgate bestanden"
+  },
+  {
+   "id": "G-PROVENANCE",
+   "purpose": "Lizenz, Ursprung, Version und Hash sind vollständig",
+   "requiredFor": [
+    "dependency",
+    "asset",
+    "model"
+   ],
+   "command": "./scripts/rift.sh assets-check",
+   "status": "implemented-for-assets",
+   "passCondition": "Exit 0; für Shipping zusätzlich globaler Lauf mit --require-local --require-approved und shippingReady=true"
+  },
+  {
+   "id": "G-SECURITY",
+   "purpose": "Secrets, Eingabegrenzen und relevante Bedrohungen sind geprüft",
+   "requiredFor": [
+    "code",
+    "tooling",
+    "release"
+   ],
+   "command": "./scripts/rift.sh security",
+   "status": "baseline-implemented",
+   "coverage": [
+    "secret-heuristics",
+    "nuget-audit",
+    "json-syntax",
+    "git-lfs-pointer-fsck"
+   ],
+   "passCondition": "Exit 0; aufgabenspezifische Threat-, Lizenz- und Releaseprüfungen zusätzlich erfüllt",
+   "releaseSufficient": false
+  },
+  {
+   "id": "G-PLATFORM",
+   "purpose": "Betroffene RIDs bauen nativ und bestehen ABI-/Gameplay-Smokes",
+   "requiredFor": [
+    "runtime",
+    "interop",
+    "release"
+   ],
+   "command": null,
+   "status": "unavailable",
+   "passCondition": "Jeder betroffene RID besitzt einen nativen grünen Build- und Smoke-Nachweis"
+  },
+  {
+   "id": "G-PACKAGE",
+   "purpose": "Releasepakete sind reproduzierbar, vollständig und startfähig",
+   "requiredFor": [
+    "release"
+   ],
+   "command": "./scripts/rift.sh package",
+   "status": "unavailable",
+   "passCondition": "Artefakt, Manifest, Hash, Lizenztexte, Signierung und Installationssmoke sind grün"
+  }
+ ]
 }

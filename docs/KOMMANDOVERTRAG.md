@@ -293,3 +293,65 @@ Graybox-Kommandoschleife über der Vertragswelt
 Minimap-, Fog-of-War-, Kontrollgruppen-, Formations- oder
 Kontextbefehlssemantik, kein Save-/Replay-/Cooked-Format und keine
 Cross-Plattform-Aussagen. GAME_DESIGN.md bleibt unberührt.
+
+## 12. Modus-Scoping beider Eingabekontexte (`mode-scoping-v1`, T-033)
+
+**Status:** Autorisierte, additive, versionierte Präzisierung dieses
+Vertrags gemäß dem gatenden Abschnitt 0 (c) des Auftrags
+`.ai/tasks/T-033-mode-switch-prototype.json` und dem Modevertrag
+(`docs/MODEVERTRAG.md`, Abschnitt 5). Sie ändert keine Festlegung der
+Abschnitte 1 bis 11 und gilt ausschließlich für Läufe, deren Eingabekontext
+der Hybrid-Erweiterung unterliegt; die Abschnitte 2, 3 und 9 bleiben im
+strategischen Modus zeichentreu unverändert. Kennungen sind in
+`src/Riftward.Session/ModeContract.cs` gespiegelt.
+
+**Scoping-Regel (`mode-scoping-v1`):** Der Modus ist Sitzungszustand und
+niemals Teil des Simulationszustands oder Hashes. Im **strategischen Modus**
+gilt die Semantik der Abschnitte 2, 3 und 9 unverändert (Punktwahl,
+Rahmenwahl, Bewegung, Maussemantik, Kamera). Im **persönlichen Modus** sind
+Auswahl- und strategische Bewegungssemantik **nicht gebunden**: die
+persönliche Lenkung (`steer`, Modevertrag Abschnitt 3) ist der einzige
+Befehlskanal; Zoom belegt die Distanz der Verfolgungskamera; Zieh-Schwenken
+mit der mittleren Taste ist ohne Wirkung. Die Wechselaktion ist in beiden
+Modi gültig.
+
+**Kontextabweisung:** Strategische Intents (`clear`, `point`, `box`, `move`)
+im persönlichen Modus und die persönliche Lenkung (`steer`) im strategischen
+Modus werden **vor der Kernübergabe** mit unterscheidbaren, maschinenlesbaren
+Dispositionen abgewiesen: `strategy-intent-in-personal-mode` und
+`steer-intent-in-strategy-mode` — ohne Kernbefehl, ohne Zustandsänderung,
+ohne Prozessschaden. Im Skriptpfad erscheinen die Dispositionen als
+maschinenlesbare Intentausweise und Reportzähler; im Interaktivpfad gilt die
+fixierte Hypothese `context-visible-rejection-v1`: ein kontextfalscher
+interaktiver Impuls erhält eine kontextierte, maschinenlesbare Abweisung am
+Live-Pfad (UF-Fehlerzeile mit der Kennung) und erhöht den Reportzähler
+`interactiveContextRejections`. Dass „nicht erreichbar" messbar ist, bindet
+ein Strukturreview der interaktiven Eingabepfade: die gebundene Semantik kann
+im Fremdmodus weder Auswahlzustand noch Kernbefehl noch Lenkbefehl
+auslösen.
+
+**Keymap-Erweiterung:** Die Keymapfamilie des Abschnitts 9 erhält die
+zusätzliche, frei belegbare semantische Aktion `mode-switch` mit der
+Standardbelegung Tab (Scancode 43, im Abschnitt-9-Stand unbesetzt); die
+Maussemantik des Abschnitts 9 bleibt unverändert umbelegbar-nie. Die
+Validierungsregeln des Abschnitts 9 (mindestens eine Bindung je Aktion,
+keine Doppelbindungen, keine unbekannten Namen) gelten unverändert.
+
+**Skriptoberfläche:** Beide Eingabekontexte werden im Diagnoseformat
+`graybox-input-script-v2` (Modevertrag Abschnitt 6) ausgedrückt; die
+Legacy-Grammatik des Abschnitts 5 bleibt byteidentisch gültig und kennt
+ausschließlich die Vier-Verbmenge. Kontextkorrektheit ist keine
+Parserfrage: kontextfalsche Intents sind grammatisch gültig und werden
+pipeline-seitig abgewiesen, weil der Moduskontext eines Ticks erst im Lauf
+festliegt.
+
+**Alternativen:** Fremdmodus-Befehle puffern und nach dem Wechsel ausführen
+(verletzt Tickbindung und Kontexttrennung — abgelehnt); stummes Ignorieren
+kontextfalscher interaktiver Impulse (unprüfbar aus Spielersicht; bleibt als
+Rückrollweg von `context-visible-rejection-v1` dokumentiert).
+
+**Rückrollweg:** Die Präzisierung ist als Abschnitt 12 versioniert; jede
+Änderung einer Wahl erfolgt über den Modevertrag als Vertragsversion 2 mit
+Fixture-Regeneration, ohne die Abschnitte 1 bis 11 rückwirkend umzudeuten.
+Die abschließenden Wahlen der Wechsel-Detailregel bleiben Q-GAM-010
+vorbehalten (`OFFEN`).
