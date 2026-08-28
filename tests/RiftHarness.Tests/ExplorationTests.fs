@@ -95,7 +95,8 @@ let private explorationScript (horizon: int) =
     $"graybox-input-script-v2 {horizon}\n{lines}\nend\n"
 
 let private writeTempScript (horizon: int) =
-    let path = Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.graybox")
+    let path =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.graybox")
 
     File.WriteAllText(path, explorationScript horizon)
     path
@@ -167,7 +168,10 @@ let landmarkDerivationIsDeterministicZonalAndWalkable () =
         if not (NavWorld.IsInsideZone(landmark.ZoneIndex, landmark.AnchorTileX, landmark.AnchorTileY)) then
             failwith $"Anker der Zone {landmark.ZoneIndex} liegt ausserhalb der Vertragszonenschranken."
 
-        if not landmark.Walkable || not (NavWorld.IsWalkable(landmark.AnchorTileX, landmark.AnchorTileY)) then
+        if
+            not landmark.Walkable
+            || not (NavWorld.IsWalkable(landmark.AnchorTileX, landmark.AnchorTileY))
+        then
             failwith $"Anker der Zone {landmark.ZoneIndex} liegt auf einer unpassierbaren Kachel."
 
     // Seedunabhaengigkeit: die Ableitung ist eine reine Funktion der
@@ -187,13 +191,8 @@ let landmarkDerivationFailsClosedWithoutWalkableTile () =
     // synthetischen Begehbarkeit gebunden.
     let raised =
         try
-            ExplorationAnchors.DeriveFrom(
-                2,
-                NavWorld.TilesX,
-                NavWorld.TilesY,
-                (fun _ _ _ -> true),
-                (fun _ _ -> false))
-                |> ignore
+            ExplorationAnchors.DeriveFrom(2, NavWorld.TilesX, NavWorld.TilesY, (fun _ _ _ -> true), (fun _ _ -> false))
+            |> ignore
 
             false
         with
@@ -342,7 +341,8 @@ let private runSession seed exploration =
             WarmupTicks = 30,
             HorizonTicks = 400,
             RunSelfConsistencyPass = false,
-            ExplorationEnabled = exploration)
+            ExplorationEnabled = exploration
+        )
     )
 
 let explorationObservationIsObservationOnlyTwinStaysByteIdentical () =
@@ -380,7 +380,10 @@ let foreignSeedChangesHashesButNotLandmarkSet () =
     let baseline = runSession 20260826u true
     let foreign = runSession 42u true
 
-    if baseline.StartStateHash = foreign.StartStateHash || baseline.EndStateHash = foreign.EndStateHash then
+    if
+        baseline.StartStateHash = foreign.StartStateHash
+        || baseline.EndStateHash = foreign.EndStateHash
+    then
         failwith "Ein fremder Seed aenderte Start- oder Endhash nicht nachweislich."
 
     let baseLandmarks = baseline.Exploration.Landmarks
@@ -401,7 +404,9 @@ let private jsonInt (element: JsonElement) (name: string) = element.GetProperty(
 
 let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
     let scriptPath = writeTempScript 6800
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.json")
+
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, stdout, stderr =
@@ -443,7 +448,10 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
 
         let visitedCount = jsonInt progress "visitedCount"
 
-        if visitedCount <> NavWorld.ZoneCount || not (progress.GetProperty("completed").GetBoolean()) then
+        if
+            visitedCount <> NavWorld.ZoneCount
+            || not (progress.GetProperty("completed").GetBoolean())
+        then
             failwith $"Der Headless-Flow suchte nicht saemtliche Landmarken auf ({visitedCount}/{NavWorld.ZoneCount})."
 
         if progress.GetProperty("gateCoupled").GetBoolean() then
@@ -452,7 +460,8 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
         let persistence = exploration.GetProperty("persistence")
 
         if
-            persistence.GetProperty("statementId").GetString() <> ExplorationContract.NotPersistedStatementId
+            persistence.GetProperty("statementId").GetString()
+            <> ExplorationContract.NotPersistedStatementId
             || persistence.GetProperty("persisted").GetBoolean()
         then
             failwith "Die maschinenlesbare Nichtpersistenzaussage fehlt oder widerspricht."
@@ -466,8 +475,19 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
 
             if
                 not (landmark.GetProperty("walkable").GetBoolean())
-                || not (NavWorld.IsInsideZone(zone, landmark.GetProperty("anchorTileX").GetInt32(), landmark.GetProperty("anchorTileY").GetInt32()))
-                || not (NavWorld.IsWalkable(landmark.GetProperty("anchorTileX").GetInt32(), landmark.GetProperty("anchorTileY").GetInt32()))
+                || not (
+                    NavWorld.IsInsideZone(
+                        zone,
+                        landmark.GetProperty("anchorTileX").GetInt32(),
+                        landmark.GetProperty("anchorTileY").GetInt32()
+                    )
+                )
+                || not (
+                    NavWorld.IsWalkable(
+                        landmark.GetProperty("anchorTileX").GetInt32(),
+                        landmark.GetProperty("anchorTileY").GetInt32()
+                    )
+                )
             then
                 failwith $"Reportanker der Zone {zone} widerspricht der Kernelgeometrie."
 
@@ -493,7 +513,10 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
             seenZones <- seenZones ||| (1 <<< visit.GetProperty("zoneIndex").GetInt32())
             order <- order + 1
 
-        if protocol.GetArrayLength() <> NavWorld.ZoneCount || seenZones <> (1 <<< NavWorld.ZoneCount) - 1 then
+        if
+            protocol.GetArrayLength() <> NavWorld.ZoneCount
+            || seenZones <> (1 <<< NavWorld.ZoneCount) - 1
+        then
             failwith "Aufsuchprotokoll deckt nicht jede Landmarke genau einmal ab."
 
         let hud = exploration.GetProperty("hud")
@@ -513,7 +536,8 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
             failwith "Headless behauptet einen Landmarkenzustandskanal."
 
         if
-            channel.GetProperty("kind").GetString() <> ExplorationContract.LandmarkChannelModelId
+            channel.GetProperty("kind").GetString()
+            <> ExplorationContract.LandmarkChannelModelId
             || String.IsNullOrEmpty(channel.GetProperty("reason").GetString())
         then
             failwith "Headless Kanalausweis fehlt an Grund statt stiller Behauptung."
@@ -522,6 +546,7 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
             failwith "Report-Exitcode widerspricht der Laufbeobachtung."
     finally
         File.Delete(scriptPath)
+
         if File.Exists(reportPath) then
             File.Delete(reportPath)
 
@@ -529,7 +554,9 @@ let legacyRunWithoutExplorationStaysByteIdenticalSchema2 () =
     // Bestandsreport (Schemaversion 2) bleibt ohne Aktivierung gueltig und
     // traegt keinen Erkundungsblock (Vertrag Abschnitt 6).
     let scriptPath = writeTempScript 420
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Legacy-{Guid.NewGuid():N}.json")
+
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Legacy-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, stdout, stderr =
@@ -591,6 +618,7 @@ let legacyRunWithoutExplorationStaysByteIdenticalSchema2 () =
             File.Delete(reportPath + ".exploration")
     finally
         File.Delete(scriptPath)
+
         if File.Exists(reportPath) then
             File.Delete(reportPath)
 
@@ -598,7 +626,9 @@ let explorationSchemaDispatchRejectsCrossVariants () =
     // Fail-closed: Schemaversion 2 toleriert keinen Erkundungsblock,
     // Schemaversion 3 verlangt ihn vollstaendig.
     let scriptPath = writeTempScript 420
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Schema-{Guid.NewGuid():N}.json")
+
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Schema-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, _, _ =
@@ -621,24 +651,26 @@ let explorationSchemaDispatchRejectsCrossVariants () =
             failwith "Bestandslauf fuer den Schemadispatch schlug fehl."
 
         let json = reportJson reportPath
-        let withBlock = json.Replace("\"exitCode\"", "\"explorationSession\":{},\"exitCode\"")
+
+        let withBlock =
+            json.Replace("\"exitCode\"", "\"explorationSession\":{},\"exitCode\"")
 
         if CommandReportSchema.Validate(withBlock).Count = 0 then
             failwith "Schemaversion 2 tolerierte einen Erkundungsblock."
 
         let withoutBlock =
-            json.Replace("\"schemaVersion\":2", "\"schemaVersion\":3").Replace(
-                "\"modeSession\"",
-                "\"explorationSession\":{},\"modeSession\""
-            )
+            json
+                .Replace("\"schemaVersion\":2", "\"schemaVersion\":3")
+                .Replace("\"modeSession\"", "\"explorationSession\":{},\"modeSession\"")
 
         if
             (CommandReportSchema.Validate(withoutBlock)
-                |> Seq.exists (fun error -> error.Contains("explorationSession", StringComparison.Ordinal)))
+             |> Seq.exists (fun error -> error.Contains("explorationSession", StringComparison.Ordinal)))
             |> not
         then
             failwith "Ein Version-3-Report ohne vollstaendigen Block wurde nicht erkannt."
     finally
         File.Delete(scriptPath)
+
         if File.Exists(reportPath) then
             File.Delete(reportPath)
