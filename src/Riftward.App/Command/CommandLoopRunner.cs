@@ -45,6 +45,11 @@ internal static class CommandLoopRunner
             return ExitCodes.Usage;
         }
 
+        // Opt-in Aktivierung der Erkundung (T-034, Vertrag Abschnitt 6):
+        // reiner Schalter ohne Wert; ohne Flag bleibt Verhalten und Report
+        // byteidentisch zum Bestandsstand.
+        var explorationEnabled = arguments.HasFlag("--exploration");
+
         // Szenario- und Skriptpruefung vor jedem teuren Schritt: unbekanntes
         // Szenario oder unlesbares/malformiertes Skript bricht ohne Report ab
         // (Code 37), statt einen Scheinbericht zu erzeugen.
@@ -103,8 +108,8 @@ internal static class CommandLoopRunner
         }
 
         return interactive
-            ? RunInteractive(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks)
-            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks);
+            ? RunInteractive(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled)
+            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled);
     }
 
     /* ------------------------------------------------------------- Headless */
@@ -115,7 +120,8 @@ internal static class CommandLoopRunner
         uint seed,
         ParsedInputScript parsed,
         int warmupTicks,
-        int horizonTicks)
+        int horizonTicks,
+        bool explorationEnabled)
     {
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -142,7 +148,8 @@ internal static class CommandLoopRunner
                 ScriptedIntents: parsed.Intents,
                 WarmupTicks: warmupTicks,
                 HorizonTicks: horizonTicks,
-                RunSelfConsistencyPass: true));
+                RunSelfConsistencyPass: true,
+                ExplorationEnabled: explorationEnabled));
         }
         catch (Exception exception)
         {
@@ -191,7 +198,8 @@ internal static class CommandLoopRunner
             Display: null,
             WorkingSet: WorkingSetFrom(result),
             ExitCode: gateExitCode,
-            Telemetry: result.Telemetry)), BenchRunner.ReportJsonOptions) + "\n";
+            Telemetry: result.Telemetry,
+            Exploration: result.Exploration)), BenchRunner.ReportJsonOptions) + "\n";
 
         return FinishReport(reportPath, reportJson, gateExitCode);
     }
@@ -314,7 +322,8 @@ internal static class CommandLoopRunner
         uint seed,
         ParsedInputScript parsed,
         int warmupTicks,
-        int horizonTicks)
+        int horizonTicks,
+        bool explorationEnabled)
     {
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -352,10 +361,16 @@ internal static class CommandLoopRunner
             var world = new SimWorld(seed);
             var selectionGroups = SessionEngine.ReadAgentGroups(world);
             var selection = new SelectionModel(selectionGroups);
-            var pipeline = new SessionPipeline(world, selection, parsed.Intents);
+            // Opt-in Erkundung (T-034): die Beobachtung lebt ausschließlich
+            // in Riftward.Session, liest schreibgeschützt und erzeugt
+            // niemals einen Kernbefehl; ohne Aktivierung bleibt der Pfad
+            // byteidentisch zum Bestandsstand.
+            var exploration = explorationEnabled ? new ExplorationSession() : null;
+            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration);
             view = new InteractiveView();
             view.BindAgentGroups(selectionGroups);
             view.BindSelection(selection);
+            view.BindExploration(exploration);
 
             var projection = InteractiveCameraMath.Projection(BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
             var camera = new GrayboxCamera();
@@ -365,7 +380,7 @@ internal static class CommandLoopRunner
 
             var measurement = RunInteractiveLoop(
                 context.Device, resources, view, world, pipeline, camera, heroCamera, input,
-                context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks);
+                context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks, exploration);
 
             // Laufende ausgewertete, aber nicht mehr wirksame Wechsel sind
             // ausdrücklich im Protokoll gebunden statt still zu verschwinden.
@@ -489,7 +504,8 @@ internal static class CommandLoopRunner
                     DrawCallsMax: measurement.DrawCallsMax,
                     TrianglesMax: measurement.TrianglesMax,
                     PeakMarkers: measurement.PeakMarkers),
-                Telemetry: modeTelemetry)), BenchRunner.ReportJsonOptions) + "\n";
+                Telemetry: modeTelemetry,
+                Exploration: exploration?.ToTelemetry())), BenchRunner.ReportJsonOptions) + "\n";
 
             return FinishReport(reportPath, reportJson, exitCode);
         }
@@ -549,7 +565,8 @@ internal static class CommandLoopRunner
         NativeApi api,
         float[] projection,
         int warmupTicks,
-        int horizonTicks)
+        int horizonTicks,
+        ExplorationSession? exploration)
     {
         var windowTicks = horizonTicks - warmupTicks;
         var measurement = new InteractiveMeasurement(windowTicks);
@@ -588,7 +605,7 @@ internal static class CommandLoopRunner
                 heroCamera.Follow(world);
             }
 
-            UpdateTitleHud(window, pipeline, world, ref lastTitle);
+            UpdateTitleHud(window, pipeline, world, exploration, ref lastTitle);
 
             var catchUp = 0;
             var now = Stopwatch.GetTimestamp();
@@ -1035,13 +1052,24 @@ internal static class CommandLoopRunner
     /// Mindest-HUD in der Fenstertitelzeile (T-033, Modevertrag Abschnitt 8,
     /// title-hud-mode-herozone-v1): aktueller Modus und Heldenzone in der
     /// festen Form `Riftward Graybox — Modus: Strategisch|Persönlich —
-    /// Heldenzone: <Zone|–>`; rein darstellseitig, nur bei Änderung gesetzt.
+    /// Heldenzone: <Zone|–>`; bei Opt-in Aktivierung (T-034) ausschließlich
+    /// der additive, unterscheidbare Segment ` — Erkundung: <n>/<m>`, ohne
+    /// Aktivierung bleibt die Titelzeile byteidentisch zum T-033-Stand;
+    /// rein darstellseitig, nur bei Änderung gesetzt.
     /// </summary>
-    private static void UpdateTitleHud(Window window, SessionPipeline pipeline, SimWorld world, ref string lastTitle)
+    private static void UpdateTitleHud(
+        Window window,
+        SessionPipeline pipeline,
+        SimWorld world,
+        ExplorationSession? exploration,
+        ref string lastTitle)
     {
         var modeText = pipeline.CurrentEffectiveMode == SessionMode.Personal ? "Persönlich" : "Strategisch";
         var heroZone = HeroTracker.ZoneIndexOf(world);
-        var title = $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(heroZone < 0 ? "–" : heroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}";
+        var explorationProgress = exploration is null
+            ? string.Empty
+            : $" — Erkundung: {exploration.VisitedCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}/{exploration.LandmarkCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        var title = $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(heroZone < 0 ? "–" : heroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}{explorationProgress}";
 
         if (title == lastTitle)
         {
@@ -1523,47 +1551,67 @@ internal static class CommandLoopRunner
         InteractiveExtras? InteractiveExtras = null,
         ModeTelemetry? Telemetry = null,
         long InteractiveContextRejections = 0,
-        object? Hud = null);
+        object? Hud = null,
+        ExplorationTelemetry? Exploration = null);
 
-    internal static object BuildReport(ReportContext ctx) => new
+    /// <summary>
+    /// Baut den Report: ohne Opt-in Aktivierung exakt den Bestandsreport
+    /// (Schemaversion 2, byteidentisch zum T-033-Stand); bei Aktivierung
+    /// rein additiv die Schemaversion 3 mit dem vollstaendigen
+    /// explorationSession-Block (T-034, Vertrag Abschnitte 6 und 7). Die
+    /// Feldreihenfolge ist fixiert, damit die Schemaversion 2-Reports
+    /// byteidentisch bleiben.
+    /// </summary>
+    internal static object BuildReport(ReportContext ctx)
     {
-        schemaVersion = CommandReportSchema.CurrentVersion,
-        mode = CommandReportSchema.ModeCommandLoop,
-        executionMode = ctx.ExecutionMode,
-        command = $"{CommandName} --scenario {SessionContract.ScenarioId} --input-script <PFAD> --seed N --report <PFAD>",
-        scenario = new
+        var report = new Dictionary<string, object>
         {
-            id = SessionContract.ScenarioId,
-            seed = ctx.Seed,
-            tickRateHz = SimulationContract.TickRateHz,
-            agentCount = SimulationContract.AgentCount,
-            worldId = SimulationContract.WorldId,
-            content = SessionContract.ContentId,
-        },
-        commandContract = new
-        {
-            document = SessionContract.DocumentPath,
-            version = SessionContract.ContractVersion,
-            scriptFormat = ctx.Parsed.FormatId,
-            selectionModel = SessionContract.SelectionModelId,
-            cameraModel = SessionContract.CameraModelId,
-            diagnosticOnlyReplayDisclaimer = true,
-            modeContract = new
+            ["schemaVersion"] = ctx.Exploration is null
+                ? CommandReportSchema.VersionWithoutExploration
+                : CommandReportSchema.CurrentVersion,
+            ["mode"] = CommandReportSchema.ModeCommandLoop,
+            ["executionMode"] = ctx.ExecutionMode,
+            ["command"] = $"{CommandName} --scenario {SessionContract.ScenarioId} --input-script <PFAD> --seed N --report <PFAD>",
+            ["scenario"] = new
             {
-                document = ModeContract.DocumentPath,
-                version = ModeContract.ContractVersion,
+                id = SessionContract.ScenarioId,
+                seed = ctx.Seed,
+                tickRateHz = SimulationContract.TickRateHz,
+                agentCount = SimulationContract.AgentCount,
+                worldId = SimulationContract.WorldId,
+                content = SessionContract.ContentId,
             },
-        },
-        modeSession = BuildModeSession(ctx),
-        simulationContract = new
+            ["commandContract"] = new
+            {
+                document = SessionContract.DocumentPath,
+                version = SessionContract.ContractVersion,
+                scriptFormat = ctx.Parsed.FormatId,
+                selectionModel = SessionContract.SelectionModelId,
+                cameraModel = SessionContract.CameraModelId,
+                diagnosticOnlyReplayDisclaimer = true,
+                modeContract = new
+                {
+                    document = ModeContract.DocumentPath,
+                    version = ModeContract.ContractVersion,
+                },
+            },
+            ["modeSession"] = BuildModeSession(ctx),
+        };
+
+        if (ctx.Exploration is { } exploration)
+        {
+            report["explorationSession"] = BuildExplorationSession(ctx, exploration);
+        }
+
+        report["simulationContract"] = new
         {
             document = SimulationContract.DocumentPath,
             version = SimulationContract.ContractVersion,
             numericModel = SimulationContract.NumericModelId,
             hashAlgorithm = SimulationContract.HashAlgorithmId,
             allocationLimitBytesPerWarmTick = SimulationContract.AllocationLimitBytesPerWarmTick,
-        },
-        inputScript = new
+        };
+        report["inputScript"] = new
         {
             scriptSha256 = ctx.Parsed.ScriptSha256Hex,
             intentPlanHash = ctx.Parsed.IntentPlanHashHex,
@@ -1576,11 +1624,11 @@ internal static class CommandLoopRunner
             moveWithoutSelectionRejects = ctx.MoveWithoutSelectionRejects,
             noZoneRejects = ctx.NoZoneRejects,
             kernelCommandsTotal = ctx.KernelCommandsTotal,
-        },
-        startedAtUtc = ctx.ProcessStart,
-        finishedAtUtc = DateTime.UtcNow,
-        environment = BuildEnvironment(ctx),
-        measurement = new
+        };
+        report["startedAtUtc"] = ctx.ProcessStart;
+        report["finishedAtUtc"] = DateTime.UtcNow;
+        report["environment"] = BuildEnvironment(ctx);
+        report["measurement"] = new
         {
             warmupTicks = (long)ctx.WarmupTicks,
             sampleTicks = (long)(ctx.HorizonTicks - ctx.WarmupTicks),
@@ -1588,9 +1636,9 @@ internal static class CommandLoopRunner
             hashSampleIntervalTicks = (long)SessionContract.HashSampleIntervalTicks,
             rssSampleIntervalTicks = (long)SessionContract.RssSampleIntervalTicks,
             windowCompleted = ctx.WindowCompleted,
-        },
-        metrics = BuildMetrics(ctx),
-        stateHashChain = new
+        };
+        report["metrics"] = BuildMetrics(ctx);
+        report["stateHashChain"] = new
         {
             unit = "hex64",
             method = SimulationContract.HashAlgorithmId,
@@ -1598,8 +1646,8 @@ internal static class CommandLoopRunner
             intervalSampleTicks = ctx.IntervalSampleTicks,
             intervalHashes = ctx.IntervalHashes.Select(FormatHash).ToArray(),
             end = FormatHash(ctx.EndHash),
-        },
-        gate = new
+        };
+        report["gate"] = new
         {
             limits = new
             {
@@ -1633,9 +1681,9 @@ internal static class CommandLoopRunner
             violations = ctx.WindowCompleted
                 ? ctx.Verdict.Violations
                 : ctx.Verdict.Violations.Append("run-incomplete-no-evidence").ToArray(),
-        },
-        openQuestions = OpenQuestions(),
-        profiles = ProfileBinding.MandatoryWithoutReferenceHardware()
+        };
+        report["openQuestions"] = OpenQuestions();
+        report["profiles"] = ProfileBinding.MandatoryWithoutReferenceHardware()
             .Select(status => new
             {
                 id = status.ProfileId,
@@ -1643,15 +1691,111 @@ internal static class CommandLoopRunner
                 boundReferenceClass = status.BoundReferenceClass,
                 reason = status.Reason,
             })
-            .ToArray(),
-        baseline = new
+            .ToArray();
+        report["baseline"] = new
         {
             classification = "diagnostic-developer-workstation",
             protocol = "qops001-2026-08-24",
-        },
-        frameEvidence = BuildFrameEvidence(ctx.Capture),
-        exitCode = ctx.ExitCode,
-    };
+        };
+        report["frameEvidence"] = BuildFrameEvidence(ctx.Capture);
+        report["exitCode"] = ctx.ExitCode;
+
+        return report;
+    }
+
+    /// <summary>
+    /// Erkundungssitzungsblock des Reports (T-034, Vertrag Abschnitt 7): bei
+    /// Aktivierung vertraglich gebunden — Vertragsbindung, Landmarkenmenge
+    /// in fester Zonenordnung, Aufsuchprotokoll in kanonischer
+    /// Registrierungsfolge, Fortschritt/Abschluss, versionierte
+    /// Nichtpersistenzaussage und die fensterpflichtigen Ausweise
+    /// (headless ausdruecklich nicht gemessen mit maschinenlesbarem Grund).
+    /// Rein diagnostisch (gateCoupled=false); kein Gate, kein Budgetwert und
+    /// keine Exitcodebedeutung.
+    /// </summary>
+    private static Dictionary<string, object> BuildExplorationSession(ReportContext ctx, ExplorationTelemetry exploration)
+    {
+        var interactive = ctx.ExecutionMode == CommandReportSchema.ExecutionInteractive;
+
+        return new Dictionary<string, object>
+        {
+            ["contract"] = new
+            {
+                document = ExplorationContract.DocumentPath,
+                version = ExplorationContract.ContractVersion,
+            },
+            ["activationId"] = ExplorationContract.ActivationId,
+            ["landmarkModel"] = ExplorationContract.LandmarkModelId,
+            ["visitRule"] = ExplorationContract.VisitRuleId,
+            ["counterModel"] = ExplorationContract.CounterModelId,
+            ["landmarks"] = exploration.Landmarks.Select(landmark => new Dictionary<string, object>
+            {
+                ["zoneIndex"] = landmark.ZoneIndex,
+                ["anchorTileX"] = landmark.AnchorTileX,
+                ["anchorTileY"] = landmark.AnchorTileY,
+                ["walkable"] = landmark.Walkable,
+            }).ToArray(),
+            ["visitProtocol"] = exploration.VisitProtocol.Select(visit => new Dictionary<string, object>
+            {
+                ["evaluationBoundaryTick"] = visit.EvaluationBoundaryTick,
+                ["zoneIndex"] = visit.ZoneIndex,
+                ["mode"] = visit.Mode,
+                ["visitOrder"] = visit.VisitOrder,
+                ["gateCoupled"] = false,
+            }).ToArray(),
+            ["progress"] = new Dictionary<string, object>
+            {
+                ["visitedCount"] = exploration.VisitedCount,
+                ["landmarkCount"] = exploration.LandmarkCount,
+                ["completed"] = exploration.Completed,
+                ["gateCoupled"] = false,
+            },
+            ["persistence"] = new Dictionary<string, object>
+            {
+                ["statementId"] = ExplorationContract.NotPersistedStatementId,
+                ["persisted"] = ExplorationContract.Persisted,
+                ["saveLoad"] = "not-continued",
+                ["replay"] = "not-continued",
+                ["gateCoupled"] = false,
+            },
+            ["gateCoupled"] = false,
+            ["hud"] = interactive
+                ? (object)new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["kind"] = ExplorationContract.HudModelId,
+                    ["fields"] = new Dictionary<string, object>
+                    {
+                        ["visitedCount"] = exploration.VisitedCount,
+                        ["landmarkCount"] = exploration.LandmarkCount,
+                        ["completed"] = exploration.Completed,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = ExplorationContract.HudModelId,
+                    ["reason"] = ExplorationContract.HeadlessMeasurementReason,
+                },
+            ["landmarkChannel"] = interactive
+                ? (object)new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["kind"] = ExplorationContract.LandmarkChannelModelId,
+                    ["fields"] = new Dictionary<string, object>
+                    {
+                        ["landmarkCount"] = exploration.LandmarkCount,
+                        ["registeredCount"] = exploration.VisitedCount,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = ExplorationContract.LandmarkChannelModelId,
+                    ["reason"] = ExplorationContract.HeadlessMeasurementReason,
+                },
+        };
+    }
 
     private static Dictionary<string, object> BuildEnvironment(ReportContext ctx)
     {
