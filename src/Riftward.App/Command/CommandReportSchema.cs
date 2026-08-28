@@ -612,8 +612,8 @@ public static class CommandReportSchema
             new RObj(
                 ("decided", new RBool(false)),
                 ("boundaryTick", new RInt((int)DecisionTelemetry.UnsetBoundaryTick)),
-                ("choice", new RStr()),
-                ("mode", new RStr()),
+                ("choice", new RNullableStr()),
+                ("mode", new RNullableStr()),
                 ("optionZone", new RInt(DecisionTelemetry.UnsetZoneIndex))),
         ])),
         ("followUp", new RObj(

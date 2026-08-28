@@ -2100,8 +2100,8 @@ internal static class CommandLoopRunner
                 {
                     decided = false,
                     boundaryTick = DecisionTelemetry.UnsetBoundaryTick,
-                    choice = string.Empty,
-                    mode = string.Empty,
+                    choice = (string?)null,
+                    mode = (string?)null,
                     optionZone = DecisionTelemetry.UnsetZoneIndex,
                 },
             ["followUp"] = new Dictionary<string, object>
