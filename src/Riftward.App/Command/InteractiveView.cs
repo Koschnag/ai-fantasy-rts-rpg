@@ -20,19 +20,39 @@ internal sealed class InteractiveView : IDisposable
     /// <summary>Lebensdauer eines Befehlspulses in Ticks.</summary>
     public const int CommandPulseTicks = 40;
 
-    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse, Held-Badge plus Landmarkenkanal).</summary>
+    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse, Held-Badge, Landmarkenkanal plus Folgezielmarker).</summary>
     public const int MarkerCapacity =
         SimulationContract.AgentCount
         + SimulationContract.GroupCount
         + 1
         + 2
-        + (2 * NavWorld.ZoneCount);
+        + (2 * NavWorld.ZoneCount)
+        + 3;
 
     /// <summary>Ankerhoehe des unbesuchten Landmarkenmarkers in Metern (Vertrag Abschnitt 5).</summary>
     public const double LandmarkMarkerHeightMeters = 1.6;
 
     /// <summary>Groesse des ruhenden unbesuchten Landmarkenmarkers.</summary>
     public const float LandmarkMarkerSize = 1.15f;
+
+    /// <summary>
+    /// Hoehen der dreistufigen Folgeziel-Markiersaeule (T-035,
+    /// Entscheidungsvertrag Abschnitt 6, follow-up-marker-channel-v1):
+    /// untere Ebene ruhend mit fester Orientierung pi/4, mittlere und obere
+    /// Ebene rotieren mit der Tickzahl.
+    /// </summary>
+    public const double FollowUpMarkerLowerHeightMeters = 1.2;
+
+    public const double FollowUpMarkerMiddleHeightMeters = 2.4;
+
+    public const double FollowUpMarkerUpperHeightMeters = 3.6;
+
+    /// <summary>Groessen der dreistufigen Folgeziel-Markiersaeule.</summary>
+    public const float FollowUpMarkerLowerSize = 1.30f;
+
+    public const float FollowUpMarkerMiddleSize = 1.15f;
+
+    public const float FollowUpMarkerUpperSize = 1.00f;
 
     /// <summary>Hoehen der zweistufigen registrierten Markiersaeule.</summary>
     public const double RegisteredLandmarkLowerHeightMeters = 1.4;
@@ -100,6 +120,8 @@ internal sealed class InteractiveView : IDisposable
 
     private ExplorationSession? _exploration;
 
+    private DecisionSession? _decision;
+
     public InteractiveView()
     {
         _unitsHandle = GCHandle.Alloc(_units, GCHandleType.Pinned);
@@ -132,6 +154,17 @@ internal sealed class InteractiveView : IDisposable
     /// oder Hash.
     /// </summary>
     public void BindExploration(ExplorationSession? exploration) => _exploration = exploration;
+
+    /// <summary>
+    /// Bindet die optionale Entscheidungssitzung fuer den Folgezielkanal
+    /// (T-035, Entscheidungsvertrag Abschnitt 6, follow-up-marker-channel-
+    /// v1): ohne Aktivierung null (Bestandsdarstellung byteidentisch); der
+    /// Marker liest ausschließlich Folgenzone und Entscheidungsstand
+    /// schreibgeschützt und ist niemals Teil von Simulationszustand oder
+    /// Hash. Vertragskopplung: eine Entscheidungsschicht existiert nur mit
+    /// aktivierter Erkundung, deren Landmarkenanker den Markerort bindet.
+    /// </summary>
+    public void BindDecision(DecisionSession? decision) => _decision = decision;
 
     /// <summary>Meldet einen abgesetzten Gruppenbefehl fuer die Puls-Rueckmeldung.</summary>
     public void NotifyCommandIssued(long tickIndex, int zone)
@@ -459,6 +492,71 @@ internal sealed class InteractiveView : IDisposable
                         blue: 0.60f,
                         alpha: 0.95f);
                 }
+            }
+        }
+
+        // Kanal 5 (T-035, Entscheidungsvertrag Abschnitt 6,
+        // follow-up-marker-channel-v1): genau ein unterscheidbarer
+        // Folgezielmarker am bestehenden Landmarkenanker der gewaehlten Zone,
+        // aktiv ab der Entscheidung bis zum Sitzungsende. Zwei unterscheidbare
+        // visuelle Kanaele (NF-005, nie reine Farbcodierung): dreistufige
+        // Markiersaeule (drei Diamantebenen bei 1,2/2,4/3,6 m; untere Ebene
+        // ruhend mit fester Orientierung pi/4, mittlere und obere Ebene
+        // rotieren mit der Tickzahl; Groessen 1,30/1,15/1,00) in warmem
+        // Violett (0,86/0,45/0,98). Die Formkanaltrennung (dreistufig gegenueber
+        // einstufig-unbesucht und zweistufig-registriert) und der Farbkanal
+        // trennen den Marker von Auswahlglyphe, Befehlspuls, Badge und beiden
+        // Landmarkenzustaenden. Ohne Entscheidungsaktivierung oder vor der
+        // Entscheidung entsteht kein Marker; der Anker, die Angebots-/Wahl-/
+        // Abschlussregeln und der Kernzustand bleiben unberuehrt.
+        if (_decision is { } decidedSession && decidedSession.Decided
+            && markerCount + 3 <= MarkerCapacity)
+        {
+            var followUpZone = decidedSession.FollowUpZoneIndex;
+
+            if (followUpZone >= 0 && followUpZone < NavWorld.ZoneCount)
+            {
+                var anchor = ExplorationAnchors.DeriveLandmarks()[followUpZone];
+                var anchorWorldX = RepresentativeLandscape.ToWorldX(anchor.AnchorTileX + 0.5);
+                var anchorWorldZ = RepresentativeLandscape.ToWorldZ(anchor.AnchorTileY + 0.5);
+                var anchorGroundY = RepresentativeLandscape.HeightAt(anchorWorldX, anchorWorldZ);
+
+                RepresentativeMesh.WriteDiamondInstance(
+                    _markers,
+                    markerCount++,
+                    anchorWorldX,
+                    anchorGroundY + FollowUpMarkerLowerHeightMeters,
+                    anchorWorldZ,
+                    size: FollowUpMarkerLowerSize,
+                    rotation: (float)(Math.PI / 4.0),
+                    red: 0.86f,
+                    green: 0.45f,
+                    blue: 0.98f,
+                    alpha: 0.95f);
+                RepresentativeMesh.WriteDiamondInstance(
+                    _markers,
+                    markerCount++,
+                    anchorWorldX,
+                    anchorGroundY + FollowUpMarkerMiddleHeightMeters,
+                    anchorWorldZ,
+                    size: FollowUpMarkerMiddleSize,
+                    rotation: (float)(tickIndex * 0.12),
+                    red: 0.86f,
+                    green: 0.45f,
+                    blue: 0.98f,
+                    alpha: 0.95f);
+                RepresentativeMesh.WriteDiamondInstance(
+                    _markers,
+                    markerCount++,
+                    anchorWorldX,
+                    anchorGroundY + FollowUpMarkerUpperHeightMeters,
+                    anchorWorldZ,
+                    size: FollowUpMarkerUpperSize,
+                    rotation: (float)(tickIndex * 0.12),
+                    red: 0.86f,
+                    green: 0.45f,
+                    blue: 0.98f,
+                    alpha: 0.95f);
             }
         }
 

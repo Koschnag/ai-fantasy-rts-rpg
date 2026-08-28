@@ -26,8 +26,14 @@ public static class CommandReportSchema
     /// <summary>Schemaversion ohne Erkundungsaktivierung (Bestandsstand, T-032/T-033).</summary>
     public const int VersionWithoutExploration = ExplorationContract.ReportSchemaVersionWithoutExploration;
 
+    /// <summary>Schemaversion mit Erkundungsaktivierung (T-034: rein additiv um explorationSession).</summary>
+    public const int VersionWithExploration = ExplorationContract.ReportSchemaVersionWithExploration;
+
     /// <summary>Aktuelle Schemaversion (T-034: rein additiv um explorationSession).</summary>
     public const int CurrentVersion = ExplorationContract.ReportSchemaVersionWithExploration;
+
+    /// <summary>Schemaversion mit Entscheidungsaktivierung (T-035: rein additiv um decisionSession).</summary>
+    public const int VersionWithDecision = DecisionContract.ReportSchemaVersionWithDecision;
 
     public const string ModeCommandLoop = "kommandoschleife";
     public const string ExecutionHeadless = "headless";
@@ -47,12 +53,18 @@ public static class CommandReportSchema
 
     internal static RObj InteractiveExplorationBody { get; } = BuildBody(ExecutionInteractive, CurrentVersion);
 
+    internal static RObj HeadlessDecisionBody { get; } = BuildBody(ExecutionHeadless, VersionWithDecision);
+
+    internal static RObj InteractiveDecisionBody { get; } = BuildBody(ExecutionInteractive, VersionWithDecision);
+
     /// <summary>
     /// Versions- und Ausführungsdispatch: Die Schemaversion
     /// <see cref="VersionWithoutExploration"/> (Bestandsstand) toleriert
     /// keinen Erkundungsblock, die Schemaversion <see cref="CurrentVersion"/>
-    /// verlangt ihn vollstaendig; beide Versionen waehlen strikt zwischen
-    /// headless und interaktiv (T-034, Erkundungsvertrag Abschnitt 6).
+    /// verlangt ihn vollstaendig; die Schemaversion
+    /// <see cref="VersionWithDecision"/> verlangt zusaetzlich den
+    /// Entscheidungssitzungsblock vollstaendig (T-035). Alle Versionen
+    /// waehlen strikt zwischen headless und interaktiv.
     /// </summary>
     private sealed class SchemaVersionDispatch : ReportNode
     {
@@ -66,9 +78,9 @@ public static class CommandReportSchema
                 return;
             }
 
-            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion))
+            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion or VersionWithDecision))
             {
-                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration} oder {CurrentVersion} erwartet.");
+                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration}, {CurrentVersion} oder {VersionWithDecision} erwartet.");
                 return;
             }
 
@@ -85,6 +97,8 @@ public static class CommandReportSchema
                 (VersionWithoutExploration, ExecutionInteractive) => InteractiveBody,
                 (CurrentVersion, ExecutionHeadless) => HeadlessExplorationBody,
                 (CurrentVersion, ExecutionInteractive) => InteractiveExplorationBody,
+                (VersionWithDecision, ExecutionHeadless) => HeadlessDecisionBody,
+                (VersionWithDecision, ExecutionInteractive) => InteractiveDecisionBody,
                 _ => null,
             };
 
@@ -106,6 +120,12 @@ public static class CommandReportSchema
             if (schemaVersion == CurrentVersion)
             {
                 ValidateExplorationRelations(path, element, errors);
+            }
+
+            if (schemaVersion == VersionWithDecision)
+            {
+                ValidateExplorationRelations(path, element, errors);
+                ValidateDecisionRelations(path, element, errors);
             }
         }
     }

@@ -164,7 +164,28 @@ public sealed class DecisionSession
     /// </summary>
     private void OpenOffer(long boundaryTick, ExplorationSession exploration)
     {
-        var protocol = exploration.VisitProtocol;
+        var (firstZone, lastZone) = DeriveOptions(exploration.VisitProtocol);
+
+        _offerOpened = true;
+        _offerBoundaryTick = boundaryTick;
+        _optionZoneA = firstZone;
+        _optionZoneB = lastZone;
+    }
+
+    /// <summary>
+    /// Reine Optionsableitung des Vertrags (<c>visit-protocol-zone-options-
+    /// v1</c>, Vertrag Abschnitt 3): Option A ist die Zone der zuerst, Option
+    /// B die der zuletzt registrierten Landmarke; weniger als zwei
+    /// verschiedene Zonen brechen kontrolliert mit dem vertraglichen
+    /// Vertragsfehler ab. Interne Testbindung des Fail-closed-Randfalls, der
+    /// im gebundenen Erkundungsvertrag (jede Landmarke registriert
+    /// hoechstens einmal, der Abschluss verlangt saemtliche Zonen)
+    /// unerreichbar ist.
+    /// </summary>
+    internal static (int OptionZoneA, int OptionZoneB) DeriveOptions(
+        IReadOnlyList<ExplorationVisit> protocol)
+    {
+        ArgumentNullException.ThrowIfNull(protocol);
 
         if (protocol.Count < 2)
         {
@@ -181,10 +202,7 @@ public sealed class DecisionSession
                 $"{DecisionContract.RejectReasonInsufficientDistinctZones}: zuerst ({firstZone}) und zuletzt ({lastZone}) registrierte Zone sind identisch; kontrollierter Vertragsfehler statt Angebotsöffnung.");
         }
 
-        _offerOpened = true;
-        _offerBoundaryTick = boundaryTick;
-        _optionZoneA = firstZone;
-        _optionZoneB = lastZone;
+        return (firstZone, lastZone);
     }
 
     /// <summary>
