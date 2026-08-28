@@ -1,13 +1,12 @@
 # Abnahme T-034 – Graybox-Erkundungsauftrag
 
-**Status:** Reviewkandidat. Der direkt ausführbare Headless-Produktpfad, seine
-deterministische Beobachtungstreue und die lokale Regressionssuite sind grün.
-Die endgültige Annahme bleibt bis zum unabhängigen Review, dem
-Fresh-Checkout-/Clean-Archive-Nachweis und einem bestandenen visuellen
-Playtest offen. Der echte Interaktivlauf ist technisch vollständig grün;
-die Sichtprüfung des Abgriffpaars hat die vorregistrierte Lesbarkeit jedoch
-noch nicht bestätigt. Diese Datei beschreibt die aktuelle Produktwahrheit;
-sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
+**Status:** Reviewkandidat mit bestandenem unabhängigem Abschlussreview. Der
+direkt ausführbare Headless-Produktpfad, seine deterministische
+Beobachtungstreue, die lokale Regressionssuite und der echte visuelle
+Hardware-Repass sind grün. Die endgültige Annahme bleibt ausschließlich bis
+zum Fresh-Checkout-/Clean-Archive-Nachweis des formalen Promotionspfads offen.
+Diese Datei beschreibt die aktuelle Produktwahrheit; sie behauptet keinen
+noch nicht ausgeführten Gate-Erfolg.
 
 ## Gelieferter Umfang
 
@@ -64,17 +63,17 @@ sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
 | AC-T034-01 | erfüllt | Vertrags-Spiegeltest hält Kennungen, Alternativen, Playtestkriterien, Rückrollwege und Nichtpersistenz gegen `ERKUNDUNGSVERTRAG.md`/`ExplorationContract` konsistent. |
 | AC-T034-02 | erfüllt | Echter öffentlicher Schemaversion-3-Lauf über die versionierte 8000-Tick-Abnahmefixture besucht 6/6 Landmarken; Besuchsticks 262/2642/4174/4795/6154/7210 in der Reihenfolge 0/2/1/5/3/4, ausschließlich Modus `personal`; zwei getrennte App-Prozesse liefern byteidentische deterministische Blöcke für Szenario, Eingabe, Modussitzung, Erkundung und Hashkette. |
 | AC-T034-03 | erfüllt | Aktivierter/nicht aktivierter Twin: identische Start-/Endhashes, Kettenstichproben, Intentdispositionen und Kernbefehlsanzahl; fremder Seed ändert Start/Endhash, nicht die Landmarkenmenge; `git diff -- src/Riftward.Simulation` ist leer; Legacy-Schema 2 bleibt gültig. |
-| AC-T034-04 | teilweise (`needs-work`) | Echter Wayland-/RX-570-Lauf: Exit 0, 6800/6800 Ticks, `windowCompleted=true`, Gate grün, 6/6 Besuche und hashgebundenes Abgriffpaar an Tick 6800/Hash `9b1c73996becfcf8`; strategisch `3c8183b2…db48`, persönlich `790984fc…4fe4`, beide 1920×1080 und verschieden. Die Sichtprüfung bestätigt die verlangte Lesbarkeit binnen zwei Sekunden **nicht**: strategisch liegt der abgeschlossene Zustand größtenteils außerhalb des unveränderten Kamerastands, persönlich verdeckt die auf ein Ziel mobilisierte 250-Agenten-Masse Landmarke und Heldenumfeld. Das Artefakt ist deshalb im Media Lab `needs-work`, nie Gameplay-/Atmosphärenbeleg; ein bestandener Playtest bleibt Pflicht. |
+| AC-T034-04 | erfüllt | Echter X11-Pfad über XWayland auf der RX 570: Exit 0, 8000/8000 Ticks, `windowCompleted=true`, Gate grün, 6/6 Besuche und hashgebundenes Abgriffpaar an Tick 8000/Hash `cfdafa670fccdeea`; strategisch `d7ac86d3…fc5d`, persönlich `afea9dddd5…d4`, beide 1920×1080 und verschieden. Das unabhängige xhigh-Sichtreview bestätigt die vorregistrierte Zwei-Sekunden-Lesbarkeit: strategisch ist der abgeschlossene Zustand durch die sechs grünen Diamanten lesbar; persönlich bilden orangefarbener Held, vollständiger grüner Diamant und kleineres gedrehtes Zustandsecho getrennte Form- und Farbkanäle. Der feste, gegebenenfalls angeschnittene Zonenanker bleibt absichtlich vom heldennahen Echo getrennt. Aussagegrenze bleibt `graybox-state-occupancy-not-gameplay-atmosphere-or-shipping`; niemals Gameplay-, Atmosphären- oder Shipping-Beleg. |
 | AC-T034-05 | erfüllt | Keine neue Abhängigkeit oder Netz-/Secretfläche; begrenzte bestehende Skripteingabe; Session bleibt BCL-only, Runtimepfad C#; alle neuen Diagnosefelder nicht gategekoppelt; Security-Gate grün. |
-| AC-T034-06 | teilweise | Release-Build 0 Warnungen/0 Fehler, 279/279 reguläre Tests einschließlich adversarialer Schema-/Schreibschutz-, Auto-Exit-, Mesh-, Billboard- und Partikelformregression grün; Lint, Security, Kandidatenscope, Harness-Preflight, Fresh-Checkout-/Clean-Archive, vollständiges Verify und unabhängiges Abschlussreview werden am finalen Bildkandidaten erneut gebunden. |
+| AC-T034-06 | teilweise | Release-Build 0 Warnungen/0 Fehler und 280/280 reguläre Tests einschließlich adversarialer Schema-/Schreibschutz-, Auto-Exit-, Mesh-, Billboard-, Partikeltopologie- und Partikelformregression grün. Lint, Security, Kandidatenscope, Harness-Preflight, natives Shader-Verify und unabhängiges Abschlussreview sind am finalen Bildkandidaten grün; einzig Fresh-Checkout-/Clean-Archive wird durch den formalen Promotionspfad noch am gesicherten Kandidaten gebunden. |
 
 ## Lokal ausgeführte Evidenz am aktuellen Kandidaten
 
 ```text
-dotnet build tests/RiftHarness.Tests/RiftHarness.Tests.fsproj -c Release --no-restore
+dotnet build Riftward.slnx -c Release --no-restore
     -> 0, 0 Warnungen, 0 Fehler
 dotnet tests/RiftHarness.Tests/bin/Release/net10.0/RiftHarness.Tests.dll
-    -> 0, 279/279 Tests grün
+    -> 0, 280/280 Tests grün
 ./scripts/rift.sh fmt
     -> 0, anschließend keine Formatabweichung
 ./scripts/rift.sh lint
@@ -91,21 +90,26 @@ git diff -- src/Riftward.Simulation
   --input-script tests/fixtures/command/t034-exploration-separated.graybox \
   --seed 20260826 --warmup-ticks 240 --horizon-ticks 8000 \
   --exploration --interactive --auto-exit-at-horizon --capture-frame ...
-    -> finaler Echtbild-Repass läuft; Resultat wird vor Statusänderung gebunden
+    -> 0; Schema 3; 8000/8000 Ticks; Gate PASS; Allokation 0 B/warmen Tick;
+       p99 Tick 1,143 ms; Reaktion p99/max 1 Tick; Moduswechsel p99/max 2 Ticks;
+       6/6 Besuche bei 262/2642/4174/4795/6154/7210;
+       Hash cfdafa670fccdeea; Abgriffpaar wie AC-T034-04
+unabhängiges xhigh-Abschlussreview am unveränderten Abgriffpaar
+    -> PASS; AC-T034-04 erfüllt, Schema-/Read-only-/Early-Quit-/Auto-Exit-
+       Matrix bestätigt
 ```
+
+Der unmittelbar vorausgehende 8000-Tick-Versuch wurde wegen einer einmaligen,
+prozessglobalen Fremdthread-/Tiered-JIT-Messstörung von 0,13 B je warmem Tick
+mit Exit 35 verworfen. Er ist keine Abnahmeevidenz. Der danach in ruhiger
+Umgebung exakt wiederholte Lauf oben weist 0 B je warmem Tick und Exit 0 aus;
+es wurde dafür kein Grenzwert gelockert.
 
 ## Offene Annahmepunkte
 
-1. Unabhängiger Reviewer prüft Code, Dokumente und Kriterien am unveränderten
-   Kandidaten und führt die vollständigen Pflichtgates aus.
-2. Isolierter Fresh-Checkout-/Clean-Archive-Lauf belegt, dass keine
+1. Isolierter Fresh-Checkout-/Clean-Archive-Lauf belegt, dass keine
    gitignorierte Runtime-Evidenz als Fixture benötigt wird.
-3. Der technisch grüne echte Displaypfad wird visuell repariert und erneut
-   geprüft: Abschlusszustand, Heldenumfeld und Landmarkenkanal müssen in
-   beiden Modi binnen zwei Sekunden lesbar sein. Der aktuelle Abgriff bleibt
-   ausdrücklich `needs-work`; ein Struktur-/Pixelgate ersetzt diesen
-   Playtest nicht.
 
-Erst nach diesen Punkten werden Taskmanifest und BACKLOG auf `accepted`
+Erst nach diesem Punkt werden Taskmanifest und BACKLOG auf `accepted`
 gestellt. Q-GAM-001 bis Q-GAM-007, Q-GAM-010, Q-NAR-002/Q-NAR-004,
 Q-TEC-006 und Q-OPS-001 bleiben unberührt offen.

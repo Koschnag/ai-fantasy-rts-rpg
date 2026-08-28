@@ -42,7 +42,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DONE |
 | T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-033 | E-004 | kleinster Hybrid-Mode-Switch-Prototyp: persönlicher Third-Person-Heldenmodus und strategischer RTS-Modus über dem unveränderten Simulationskern mit Hashketten-Kontinuitätsnachweis | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
-| T-034 | E-004 | kleinster spielbarer Erkundungsauftrag-Loop: modusgebundenes Aufsuchen deterministischer Graybox-Landmarken mit strategischer Mobilmachung über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
+| T-034 | E-004 | kleinster spielbarer Erkundungsauftrag-Loop: modusgebundenes Aufsuchen deterministischer Graybox-Landmarken mit strategischer Mobilmachung über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -979,8 +979,10 @@ Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`) sowie an echten kreativen
 Produktentscheidungen (`T-030` samt seiner geplanten Folgeslices, dahinter
 `T-040`/`T-041`) beziehungsweise an getrennten Generator- und Storage-/Backup-
 Freigaben (`T-050`/`T-051`). `T-033` ist seit dem unabhängigen Review-/
-Vollendungslauf 2026-08-28 `DONE`; `T-034` ist seit 2026-08-28 als dritter
-Slice der T-030-Zerlegung `READY` (Freigabevermerk am Ende dieser Datei).
+Vollendungslauf 2026-08-28 `DONE`; `T-034` befindet sich nach Implementierung,
+grünen lokalen Gates und bestandenem unabhängigem Sicht-/Abschlussreview in
+`REVIEW`. Der Fresh-Checkout-/Clean-Archive-Nachweis des formalen
+Promotionspfads steht noch aus (Freigabevermerk am Ende dieser Datei).
 
 ## Vorlage für eine Umsetzungseinheit
 
@@ -1290,3 +1292,12 @@ versionierten Erkundungsvertrags `docs/ERKUNDUNGSVERTRAG.md` (Spike-Klausel in
 und keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
 JsonSchema.Net bleibt gemäß T-022-/T-031-Präzedenz Pflichtteil des
 Spec-Reviewlaufs.
+
+Der Implementierungs- und unabhängige Abschlussreviewlauf vom 2026-08-28 hat
+den direkt ausführbaren Erkundungspfad einschließlich des echten
+X11-/XWayland-RX-570-Abgriffpaars technisch und visuell bestanden; AC-T034-01
+bis AC-T034-05 sind erfüllt. T-034 steht deshalb jetzt auf `REVIEW`. Die
+Statuspromotion auf `DONE`/`accepted` bleibt dem Fresh-Checkout-/Clean-Archive-
+Nachweis und der sicheren repo-gebundenen Promotion des exakten Kandidaten
+vorbehalten; Details und Aussagegrenze stehen in
+`docs/abnahme/T-034-graybox-exploration-loop.md`.
