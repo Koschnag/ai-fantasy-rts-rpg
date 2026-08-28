@@ -1339,10 +1339,13 @@ internal static class CommandLoopRunner
                     BenchRunner.DefaultHeight);
 
                 // Abgriff 1: strategische Darstellung über den gebundenen
-                // Weltzustand (Graybox-Kamerastand der Sitzung).
+                // Weltzustand. Nur der opt-in Evidenzabgriff zentriert den
+                // unveränderten Zoomstand auf den Vertragshelden, damit ein
+                // autonomer Skriptlauf am Weltrand keinen ehrlosen Leerblick
+                // als Modusbeleg erzeugt; die Sitzungskamera bleibt unberührt.
                 var strategicBmp = RenderCaptureFrame(
                     device, resources, view, world,
-                    InteractiveCameraMath.ActiveCamera.From(strategicCamera),
+                    StrategicCaptureCamera(strategicCamera, world),
                     projection, SessionMode.Strategic, readBackTexture, rtTexture);
 
                 // Abgriff 2: persönliche Darstellung über denselben
@@ -1414,6 +1417,26 @@ internal static class CommandLoopRunner
             return new CaptureOutcome(true, false, true, "artifact-not-writable");
         }
     }
+
+    /// <summary>
+    /// Rein lokale Kamera des opt-in Abgriffs: gleicher strategischer Zoom
+    /// und Nickwinkel, aber um den Vertragshelden zentriert. Mutiert weder
+    /// Sitzungskamera noch Welt und ist deshalb kein Eingabe-/Gameplaypfad.
+    /// </summary>
+    internal static InteractiveCameraMath.ActiveCamera StrategicCaptureCamera(
+        GrayboxCamera sessionCamera,
+        SimWorld world) =>
+        new(
+            Math.Clamp(
+                world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
+                0.0,
+                NavWorld.TilesX),
+            Math.Clamp(
+                world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
+                0.0,
+                NavWorld.TilesY),
+            sessionCamera.DistanceMeters,
+            InteractiveCameraMath.PitchRadians);
 
     /// <summary>Rendert und liest einen einzelnen Abgriff des Paars zurück.</summary>
     private static byte[] RenderCaptureFrame(

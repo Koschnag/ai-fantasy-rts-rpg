@@ -786,6 +786,67 @@ let interactiveHybridWiringIsBoundToSources () =
     if steeringCallSites <> 5 then
         failwith $"Interaktive Lenkung hat {steeringCallSites} statt 5 Bindungsorten (Definition plus vier Richtungen)."
 
+let personalModeHidesStrategicSelectionGlyphs () =
+    let world = SimWorld(20260826u)
+    let groups = SessionEngine.ReadAgentGroups(world)
+    let selection = SelectionModel(groups)
+
+    selection.EvaluateBox(world, Int64.MinValue, Int64.MinValue, Int64.MaxValue, Int64.MaxValue)
+
+    if selection.SelectedCount <> SimulationContract.GroupCount then
+        failwith "Testfixture selektierte nicht alle Vertragsgruppen."
+
+    use view = new InteractiveView()
+    view.BindAgentGroups(groups)
+    view.BindSelection(selection)
+
+    let strategicCount = view.WriteFrameState(world, 100L, SessionMode.Strategic)
+    let personalCount = view.WriteFrameState(world, 100L, SessionMode.Personal)
+    let strategicAgain = view.WriteFrameState(world, 100L, SessionMode.Strategic)
+
+    if strategicCount <> SimulationContract.AgentCount + 1 then
+        failwith $"Strategische Auswahlglyphen sind unvollstaendig ({strategicCount})."
+
+    if personalCount <> 1 then
+        failwith $"Persoenlicher Modus zeigt {personalCount - 1} strategische Auswahlglyphen."
+
+    if
+        strategicAgain <> strategicCount
+        || selection.SelectedCount <> SimulationContract.GroupCount
+    then
+        failwith "Rein visuelles Ausblenden hat den erhaltenen Auswahlzustand veraendert."
+
+let strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera () =
+    let world = SimWorld(20260826u)
+    let sessionCamera = GrayboxCamera()
+    sessionCamera.Pan(-31.0, -17.0)
+    sessionCamera.SetDistance(47.0)
+
+    let before =
+        sessionCamera.CenterXMeters, sessionCamera.CenterZMeters, sessionCamera.DistanceMeters
+
+    let capture = CommandLoopRunner.StrategicCaptureCamera(sessionCamera, world)
+
+    let expectedX =
+        float (world.PositionXOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One
+
+    let expectedZ =
+        float (world.PositionYOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One
+
+    if
+        capture.CenterXMeters <> expectedX
+        || capture.CenterZMeters <> expectedZ
+        || capture.DistanceMeters <> sessionCamera.DistanceMeters
+        || capture.PitchRadians <> InteractiveCameraMath.PitchRadians
+    then
+        failwith "Strategischer Evidenzabgriff fokussiert den Helden nicht mit unveraenderter Kamerapostur."
+
+    if
+        before
+        <> (sessionCamera.CenterXMeters, sessionCamera.CenterZMeters, sessionCamera.DistanceMeters)
+    then
+        failwith "Strategischer Evidenzfokus hat die laufende Sitzungskamera mutiert."
+
 // ---------------------------------------------------------------------------
 // Horizontwahrheit des Wechselprotokolls (Modevertrag §4 (4)): ausgewertete,
 // nicht mehr wirksame Wechsel bleiben ausdrücklich gebunden.

@@ -174,8 +174,16 @@ internal sealed class InteractiveView : IDisposable
     {
         var markerCount = 0;
 
-        // Kanal 1: Auswahlglyphe (Form ueber der Einheit, warmton).
-        for (var agent = 0; agent < world.AgentCount && markerCount < MarkerCapacity; agent++)
+        // Kanal 1: Auswahlglyphe (Form ueber der Einheit, warmton). Die
+        // Auswahl bleibt beim Moduswechsel als Sitzungszustand erhalten,
+        // wird im persoenlichen Modus aber nicht dargestellt: Dort ist die
+        // strategische Auswahlsemantik nicht gebunden, und insbesondere eine
+        // grosse Armee darf den Helden-/Landmarkenkanal nicht verdecken.
+        for (var agent = 0;
+            visualMode == SessionMode.Strategic
+            && agent < world.AgentCount
+            && markerCount < MarkerCapacity;
+            agent++)
         {
             if (_selection is null || !_selection.IsSelected(_agentGroups[agent]))
             {

@@ -324,6 +324,12 @@ Auswahlglyphe) trennen Badge, Auswahlglyphe und Befehlspuls. **Rückrollweg:**
 Badge-Parameter sind Hypothesenkonstanten; Änderung ohne Vertragspflicht,
 solange die Zwei-Kanal-Erkennbarkeit erhalten bleibt.
 
+Bestehende strategische Auswahlglyphen bleiben beim Wechsel als
+Sitzungszustand erhalten, werden im persönlichen Modus aber nicht gerendert:
+Auswahlsemantik ist dort nach Abschnitt 5 nicht gebunden, und eine große
+selektierte Formation darf Helden-Badge und Landmarkenkanal nicht verdecken.
+Beim Rückwechsel erscheinen die unverändert erhaltenen Auswahlglyphen wieder.
+
 **Mindest-HUD (`title-hud-mode-herozone-v1`):** Die Fenstertitelzeile trägt
 aktuellen Modus und Heldenzone in der festen Form
 `Riftward Graybox — Modus: Strategisch|Persönlich — Heldenzone: <Zone|–>`.
@@ -359,6 +365,13 @@ Flag entsteht keine Datei; das Messverhalten ist identisch. Ein
 fehlgeschlagener Abgriff ergibt Code 38 mit `captured=false` und Grund. Die
 Modusumschaltung zwischen beiden Abgriffen ist rein darstellseitig und
 verändert denselben Weltzustand nicht.
+
+Nur für diesen opt-in Evidenzabgriff wird die strategische Kamera mit ihrem
+unveränderten Sitzungszoom und Nickwinkel auf den Vertragshelden zentriert.
+Damit bindet ein autonomer Skriptlauf am Weltrand keinen leeren Kamerastand;
+die laufende Sitzungskamera wird dabei weder verändert noch als Eingabe
+weiterverwendet. Der persönliche Abgriff nutzt unverändert die vertragliche
+Verfolgungskamera.
 
 ## 9. Vorregistriertes Playtestprotokoll
 

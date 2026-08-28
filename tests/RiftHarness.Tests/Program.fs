@@ -2114,6 +2114,10 @@ module Program =
               ModeSwitchTests.interactiveReportSchemaBindsCapturePairAndHud
               "T-033 interactive hybrid wiring is bound to sources",
               ModeSwitchTests.interactiveHybridWiringIsBoundToSources
+              "T-033 personal mode hides strategic selection glyphs without state loss",
+              ModeSwitchTests.personalModeHidesStrategicSelectionGlyphs
+              "T-033 strategic capture focuses hero without mutating session camera",
+              ModeSwitchTests.strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera
               "T-033 capture pair validation is fail closed", ModeSwitchTests.capturePairValidationIsFailClosed
               "T-033 hybrid flow twin continuity identical chains and end hash",
               ModeSwitchTests.hybridFlowTwinContinuityIdenticalChainsAndEndHash
