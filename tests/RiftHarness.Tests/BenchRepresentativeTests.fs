@@ -205,8 +205,40 @@ let compositionTargetsProduceNonDegenerateGeometry () =
 
     let quad = RepresentativeMesh.BuildParticleQuad()
 
-    if quad.Vertices.Length <> 4 * RepresentativeMesh.ParticleVertexStride then
+    if
+        quad.VertexCount <> 6
+        || quad.TrianglesPerInstance <> 2
+        || quad.Vertices.Length <> 6 * RepresentativeMesh.ParticleVertexStride
+    then
         failwith "Partikelquad-Geometrie degeneriert."
+
+    let readQuadVertex vertex =
+        let offset = vertex * RepresentativeMesh.ParticleVertexStride
+
+        (BitConverter.ToSingle(quad.Vertices, offset),
+         BitConverter.ToSingle(quad.Vertices, offset + 4),
+         BitConverter.ToSingle(quad.Vertices, offset + 8),
+         BitConverter.ToSingle(quad.Vertices, offset + 12))
+
+    let expectedQuadVertices =
+        [| (-0.5f, -0.5f, 0.0f, 0.0f)
+           (0.5f, -0.5f, 1.0f, 0.0f)
+           (0.5f, 0.5f, 1.0f, 1.0f)
+           (-0.5f, -0.5f, 0.0f, 0.0f)
+           (0.5f, 0.5f, 1.0f, 1.0f)
+           (-0.5f, 0.5f, 0.0f, 1.0f) |]
+
+    if Array.init quad.VertexCount readQuadVertex <> expectedQuadVertices then
+        failwith "Partikelquad ist nicht als zwei kanonische Triangle-List-Dreiecke mit voller UV-Abdeckung gebunden."
+
+    for triangle = 0 to 1 do
+        let x0, y0, _, _ = readQuadVertex (triangle * 3)
+        let x1, y1, _, _ = readQuadVertex (triangle * 3 + 1)
+        let x2, y2, _, _ = readQuadVertex (triangle * 3 + 2)
+        let signedDoubleArea = ((x1 - x0) * (y2 - y0)) - ((y1 - y0) * (x2 - x0))
+
+        if signedDoubleArea <= 0.0f then
+            failwith $"Partikelquad-Dreieck {triangle} besitzt kein konsistentes positives Winding."
 
     let particleInstance =
         Array.zeroCreate<float32> (RepresentativeMesh.ParticleInstanceStrideBytes / sizeof<float32>)

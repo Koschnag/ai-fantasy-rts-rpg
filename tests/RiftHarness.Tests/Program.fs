@@ -2116,6 +2116,8 @@ module Program =
               ModeSwitchTests.interactiveHybridWiringIsBoundToSources
               "T-033 personal mode hides strategic selection glyphs without state loss",
               ModeSwitchTests.personalModeHidesStrategicSelectionGlyphs
+              "T-034 diamond markers and hero-local landmark cue stay readable",
+              ModeSwitchTests.diamondMarkersAndHeroLocalLandmarkCueStayReadable
               "T-033 strategic capture focuses hero without mutating session camera",
               ModeSwitchTests.strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera
               "T-033 personal camera frustum keeps ground readable at world edges",
@@ -2150,7 +2152,9 @@ module Program =
               "T-034 legacy run without exploration stays byte identical on schema version 2",
               ExplorationTests.legacyRunWithoutExplorationStaysByteIdenticalSchema2
               "T-034 schema dispatch rejects cross variants fail closed",
-              ExplorationTests.explorationSchemaDispatchRejectsCrossVariants ]
+              ExplorationTests.explorationSchemaDispatchRejectsCrossVariants
+              "T-034 schema relations reject fabricated evidence fail closed",
+              ExplorationTests.explorationSchemaRelationsRejectFabrication ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die

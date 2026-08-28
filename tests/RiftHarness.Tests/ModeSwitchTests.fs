@@ -3,6 +3,7 @@ module ModeSwitchTests
 open System
 open System.Diagnostics
 open System.IO
+open System.Runtime.InteropServices
 open System.Text.Json
 open Riftward.App
 open Riftward.App.Bench
@@ -815,6 +816,241 @@ let personalModeHidesStrategicSelectionGlyphs () =
         || selection.SelectedCount <> SimulationContract.GroupCount
     then
         failwith "Rein visuelles Ausblenden hat den erhaltenen Auswahlzustand veraendert."
+
+let diamondMarkersAndHeroLocalLandmarkCueStayReadable () =
+    let stride = RepresentativeMesh.ParticleInstanceStrideBytes / sizeof<float32>
+    let nearly expected actual = abs (expected - actual) <= 0.00001f
+
+    let copyMarkers (view: InteractiveView) count =
+        let values = Array.zeroCreate<float32> (count * stride)
+        Marshal.Copy(view.MarkersPointer, values, 0, values.Length)
+        values
+
+    let matchingMarkers (values: float32[]) count x y z red green blue =
+        [| for slot in 0 .. count - 1 do
+               let offset = slot * stride
+
+               if
+                   nearly x values.[offset]
+                   && nearly y values.[offset + 1]
+                   && nearly z values.[offset + 2]
+                   && nearly red values.[offset + 8]
+                   && nearly green values.[offset + 9]
+                   && nearly blue values.[offset + 10]
+               then
+                   yield offset |]
+
+    // Der Instanzkanal muss Kreis und Glyphe wirklich unterscheiden. So
+    // bleibt der bestehende Benchmark-/Befehlspuls rund, waehrend Badge und
+    // Landmarken nicht mehr nur behauptete, rotationssymmetrische Diamanten
+    // sind.
+    let shapeProbe = Array.zeroCreate<float32> (2 * stride)
+
+    RepresentativeMesh.WriteParticleInstance(shapeProbe, 0, 1.0, 2.0, 3.0, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f)
+
+    RepresentativeMesh.WriteDiamondInstance(
+        shapeProbe,
+        1,
+        1.0,
+        2.0,
+        3.0,
+        1.0f,
+        float32 (Math.PI / 4.0),
+        1.0f,
+        1.0f,
+        1.0f,
+        1.0f
+    )
+
+    if shapeProbe.[6] <> 0.0f || shapeProbe.[stride + 6] <> 1.0f then
+        failwith "Partikelinstanzen binden Rund- und Diamantform nicht unterscheidbar."
+
+    let vertexShader = readDocument "src/Riftward.Shaders/vs_particle.sc"
+    let fragmentShader = readDocument "src/Riftward.Shaders/fs_particle.sc"
+    let varyingDefinition = readDocument "src/Riftward.Shaders/particle_varying.def.sc"
+
+    for fragment in [ "v_shape = i_data1.z"; "$output v_uv, v_color, v_shape" ] do
+        if not (vertexShader.Contains(fragment, StringComparison.Ordinal)) then
+            failwith $"Partikel-Vertexshader bindet den Formkanal nicht ({fragment})."
+
+    for fragment in
+        [ "$input v_uv, v_color, v_shape"
+          "squareDistance = max(abs(centered.x), abs(centered.y))"
+          "mix(radiusSquared, squareDistance, isGlyph)"
+          "smoothstep(0.0, 0.08, 1.0 - squareDistance)" ] do
+        if not (fragmentShader.Contains(fragment, StringComparison.Ordinal)) then
+            failwith $"Partikel-Fragmentshader erzeugt keine echte Glyphensilhouette ({fragment})."
+
+    if not (varyingDefinition.Contains("float v_shape : TEXCOORD1", StringComparison.Ordinal)) then
+        failwith "Partikel-Varyingdefinition transportiert den Formkanal nicht."
+
+    let interactiveSceneSource =
+        readDocument "src/Riftward.App/Command/InteractiveScene.cs"
+
+    let representativeRunnerSource =
+        readDocument "src/Riftward.App/Bench/RepBenchRunner.cs"
+
+    for source, fragments in
+        [ (interactiveSceneSource, [ "MarkerVertexCount = quad.VertexCount"; "(uint)MarkerVertexCount" ])
+          (representativeRunnerSource,
+           [ "ParticleVertexCount: quad.VertexCount"
+             "(uint)resources.ParticleVertexCount" ]) ] do
+        for fragment in fragments do
+            if not (source.Contains(fragment, StringComparison.Ordinal)) then
+                failwith $"Partikel-Draw bindet die explizite Triangle-List-Vertexzahl nicht ({fragment})."
+
+    // Die lokalen Echos liegen selbst bei maximaler Badge-Ausdehnung mit
+    // Abstand ueber dem Heldenkanal; die beiden registrierten Stufen sind
+    // ebenfalls disjunkt. Damit koennen 250 Einheiten die Hinweise nicht
+    // durch reine Boden-/Koerperueberlagerung verschlucken.
+    let badgeTop = 2.6 + (float InteractiveView.StrategicHeroBadgeSize / 2.0)
+
+    let unvisitedBottom =
+        InteractiveView.HeroLandmarkCueUnvisitedHeightMeters
+        - (float InteractiveView.LandmarkMarkerSize / 2.0)
+
+    let registeredLowerBottom =
+        InteractiveView.HeroLandmarkCueRegisteredLowerHeightMeters
+        - (float InteractiveView.RegisteredLandmarkLowerSize / 2.0)
+
+    let registeredLowerTop =
+        InteractiveView.HeroLandmarkCueRegisteredLowerHeightMeters
+        + (float InteractiveView.RegisteredLandmarkLowerSize / 2.0)
+
+    let registeredUpperBottom =
+        InteractiveView.HeroLandmarkCueRegisteredUpperHeightMeters
+        - (float InteractiveView.RegisteredLandmarkUpperSize / 2.0)
+
+    if
+        unvisitedBottom <= badgeTop
+        || registeredLowerBottom <= badgeTop
+        || registeredUpperBottom <= registeredLowerTop
+    then
+        failwith "Heldennahes Landmarken-Echo ist vertikal nicht frei lesbar."
+
+    let world = SimWorld(20260826u)
+    let groups = SessionEngine.ReadAgentGroups(world)
+    let selection = SelectionModel(groups)
+    let exploration = ExplorationSession()
+
+    // Adversarial: alle 250 realen Agenten erhalten strategische Glyphen.
+    // Der Held-/Landmarkenhinweis muss trotzdem innerhalb der Kapazitaet
+    // geschrieben und an Agent 0 statt am moeglicherweise entfernten Anker
+    // auffindbar bleiben.
+    selection.EvaluateBox(world, Int64.MinValue, Int64.MinValue, Int64.MaxValue, Int64.MaxValue)
+
+    use view = new InteractiveView()
+    view.BindAgentGroups(groups)
+    view.BindSelection(selection)
+    view.BindExploration(exploration)
+
+    let heroZone = HeroTracker.ZoneIndexOf(world)
+
+    if heroZone < 0 then
+        failwith "Testheld liegt ausserhalb jeder Vertragszone."
+
+    let heroX =
+        RepresentativeLandscape.ToWorldX(float (world.PositionXOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One)
+        |> float32
+
+    let heroZ =
+        RepresentativeLandscape.ToWorldZ(float (world.PositionYOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One)
+        |> float32
+
+    let heroGround = RepresentativeLandscape.HeightAt(float heroX, float heroZ)
+
+    let strategicUnvisitedCount =
+        view.WriteFrameState(world, 100L, SessionMode.Strategic)
+
+    let expectedUnvisited = SimulationContract.AgentCount + 1 + 1 + NavWorld.ZoneCount
+
+    if strategicUnvisitedCount <> expectedUnvisited then
+        failwith $"Unbesuchter Maximalfall schrieb {strategicUnvisitedCount} statt {expectedUnvisited} Marker."
+
+    let assertUnvisitedCue mode count (values: float32[]) =
+        let cue =
+            matchingMarkers
+                values
+                count
+                heroX
+                (float32 (heroGround + InteractiveView.HeroLandmarkCueUnvisitedHeightMeters))
+                heroZ
+                0.55f
+                0.75f
+                0.95f
+
+        if cue.Length <> 1 || values.[cue.[0] + 6] <> 1.0f then
+            failwith $"{mode}: unbesuchtes Zustands-Echo ist am Helden nicht als einzelner Diamant gebunden."
+
+    copyMarkers view strategicUnvisitedCount
+    |> assertUnvisitedCue "Strategischer Modus" strategicUnvisitedCount
+
+    let personalUnvisitedCount = view.WriteFrameState(world, 100L, SessionMode.Personal)
+    let expectedPersonalUnvisited = 1 + 1 + NavWorld.ZoneCount
+
+    if personalUnvisitedCount <> expectedPersonalUnvisited then
+        failwith
+            $"Persoenlicher unbesuchter Fall schrieb {personalUnvisitedCount} statt {expectedPersonalUnvisited} Marker."
+
+    copyMarkers view personalUnvisitedCount
+    |> assertUnvisitedCue "Persoenlicher Modus" personalUnvisitedCount
+
+    exploration.Observe(101L, world, SessionMode.Personal)
+
+    if not (exploration.IsRegistered(heroZone)) then
+        failwith "Testvorbedingung registrierte die aktuelle Heldenzone nicht."
+
+    let strategicRegisteredCount =
+        view.WriteFrameState(world, 101L, SessionMode.Strategic)
+
+    let expectedRegistered =
+        SimulationContract.AgentCount + 1 + 2 + NavWorld.ZoneCount + 1
+
+    if strategicRegisteredCount <> expectedRegistered then
+        failwith $"Registrierter Maximalfall schrieb {strategicRegisteredCount} statt {expectedRegistered} Marker."
+
+    let assertRegisteredCue mode count (values: float32[]) =
+        let lower =
+            matchingMarkers
+                values
+                count
+                heroX
+                (float32 (heroGround + InteractiveView.HeroLandmarkCueRegisteredLowerHeightMeters))
+                heroZ
+                0.40f
+                0.90f
+                0.60f
+
+        let upper =
+            matchingMarkers
+                values
+                count
+                heroX
+                (float32 (heroGround + InteractiveView.HeroLandmarkCueRegisteredUpperHeightMeters))
+                heroZ
+                0.40f
+                0.90f
+                0.60f
+
+        if lower.Length <> 1 || upper.Length <> 1 then
+            failwith $"{mode}: registriertes heldennahes Zweistufen-Echo fehlt."
+
+        if values.[lower.[0] + 6] <> 1.0f || values.[upper.[0] + 6] <> 1.0f then
+            failwith $"{mode}: registriertes Zustands-Echo verwendet nicht die Diamantform."
+
+    copyMarkers view strategicRegisteredCount
+    |> assertRegisteredCue "Strategischer Modus" strategicRegisteredCount
+
+    let personalRegisteredCount =
+        view.WriteFrameState(world, 101L, SessionMode.Personal)
+
+    let expectedPersonal = 1 + 2 + NavWorld.ZoneCount + 1
+
+    if personalRegisteredCount <> expectedPersonal then
+        failwith $"Persoenlicher registrierter Fall schrieb {personalRegisteredCount} statt {expectedPersonal} Marker."
+
+    copyMarkers view personalRegisteredCount
+    |> assertRegisteredCue "Persoenlicher Modus" personalRegisteredCount
 
 let strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera () =
     let world = SimWorld(20260826u)

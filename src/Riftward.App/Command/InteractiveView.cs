@@ -25,10 +25,35 @@ internal sealed class InteractiveView : IDisposable
         SimulationContract.AgentCount
         + SimulationContract.GroupCount
         + 1
+        + 2
         + (2 * NavWorld.ZoneCount);
 
     /// <summary>Ankerhoehe des unbesuchten Landmarkenmarkers in Metern (Vertrag Abschnitt 5).</summary>
-    public const double LandmarkMarkerHeightMeters = 1.4;
+    public const double LandmarkMarkerHeightMeters = 1.6;
+
+    /// <summary>Groesse des ruhenden unbesuchten Landmarkenmarkers.</summary>
+    public const float LandmarkMarkerSize = 1.15f;
+
+    /// <summary>Hoehen der zweistufigen registrierten Markiersaeule.</summary>
+    public const double RegisteredLandmarkLowerHeightMeters = 1.4;
+
+    public const double RegisteredLandmarkUpperHeightMeters = 3.6;
+
+    /// <summary>Groessen der zweistufigen registrierten Markiersaeule.</summary>
+    public const float RegisteredLandmarkLowerSize = 1.25f;
+
+    public const float RegisteredLandmarkUpperSize = 1.05f;
+
+    /// <summary>
+    /// Hoehe des heldennahen Zustands-Echos fuer die aktuelle, noch nicht
+    /// registrierte Zone. Es liegt deutlich ueber Agenten und Modus-Badge.
+    /// </summary>
+    public const double HeroLandmarkCueUnvisitedHeightMeters = 4.2;
+
+    /// <summary>Hoehen des heldennahen Zweistufen-Echos einer registrierten Zone.</summary>
+    public const double HeroLandmarkCueRegisteredLowerHeightMeters = 4.0;
+
+    public const double HeroLandmarkCueRegisteredUpperHeightMeters = 5.6;
 
     /// <summary>Lesbare Groesse des ruhenden strategischen Helden-Badges.</summary>
     public const float StrategicHeroBadgeSize = 0.80f;
@@ -265,7 +290,7 @@ internal sealed class InteractiveView : IDisposable
             if (visualMode == SessionMode.Personal)
             {
                 var breath = PersonalHeroBadgeBreath * Math.Sin(tickIndex * 0.35);
-                RepresentativeMesh.WriteParticleInstance(
+                RepresentativeMesh.WriteDiamondInstance(
                     _markers,
                     markerCount++,
                     heroX,
@@ -280,7 +305,7 @@ internal sealed class InteractiveView : IDisposable
             }
             else
             {
-                RepresentativeMesh.WriteParticleInstance(
+                RepresentativeMesh.WriteDiamondInstance(
                     _markers,
                     markerCount++,
                     heroX,
@@ -299,12 +324,71 @@ internal sealed class InteractiveView : IDisposable
         // landmark-state-channel-v1): darstellseitige Landmarkenmarker am
         // Anker mit zwei unterscheidbaren visuellen Kanaelen (NF-005, nie
         // reine Farbcodierung). Unbesucht: ruhender Einzel-Diamant (feste
-        // Orientierung pi/4), kuehles Blaugrau (0.55/0.75/0.95), Groesse 1.0,
-        // Hoehe 1.4 m. Registriert: zweistufige Markiersaeule — unten
+        // Orientierung pi/4), kuehles Blaugrau (0.55/0.75/0.95), Groesse 1.15,
+        // Hoehe 1.6 m. Registriert: zweistufige Markiersaeule — unten
         // ruhend, oben rotierend mit der Tickzahl — kuehles Gruen
         // (0.40/0.90/0.60). Ohne Aktivierung entsteht kein Marker.
         if (_exploration is { } exploration)
         {
+            // Der eigentliche Landmarkenmarker bleibt am vertraglichen Anker.
+            // Da die Registrierung jedoch zonenweit gilt, kann dieser Anker
+            // weit vom Helden und damit ausserhalb eines heldenzentrierten
+            // Abgriffs liegen. Ein rein darstellseitiges Zustands-Echo ueber
+            // dem Helden macht die aktuelle Zonenlandmarke in beiden Modi
+            // ablesbar, ohne Anker, Besuchsregel oder Kernzustand zu aendern.
+            var heroZone = HeroTracker.ZoneIndexOf(world);
+
+            if (heroZone >= 0 && heroZone < exploration.LandmarkCount)
+            {
+                var heroX = RepresentativeLandscape.ToWorldX(world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One);
+                var heroZ = RepresentativeLandscape.ToWorldZ(world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One);
+                var heroGroundY = RepresentativeLandscape.HeightAt(heroX, heroZ);
+                var currentLandmarkRegistered = exploration.IsRegistered(heroZone);
+
+                if (!currentLandmarkRegistered && markerCount < MarkerCapacity)
+                {
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        heroX,
+                        heroGroundY + HeroLandmarkCueUnvisitedHeightMeters,
+                        heroZ,
+                        size: LandmarkMarkerSize,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.55f,
+                        green: 0.75f,
+                        blue: 0.95f,
+                        alpha: 0.95f);
+                }
+                else if (markerCount + 2 <= MarkerCapacity)
+                {
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        heroX,
+                        heroGroundY + HeroLandmarkCueRegisteredLowerHeightMeters,
+                        heroZ,
+                        size: RegisteredLandmarkLowerSize,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        heroX,
+                        heroGroundY + HeroLandmarkCueRegisteredUpperHeightMeters,
+                        heroZ,
+                        size: RegisteredLandmarkUpperSize,
+                        rotation: (float)(tickIndex * 0.12),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                }
+            }
+
             foreach (var landmark in exploration.Landmarks)
             {
                 if (markerCount + 2 > MarkerCapacity)
@@ -319,14 +403,14 @@ internal sealed class InteractiveView : IDisposable
                 if (!exploration.IsRegistered(landmark.ZoneIndex))
                 {
                     // Unbesucht: ruhender Einzel-Diamant, feste Orientierung
-                    // pi/4, kuehles Blaugrau, Groesse 1.0, Hoehe 1.4 m.
-                    RepresentativeMesh.WriteParticleInstance(
+                    // pi/4, kuehles Blaugrau, Groesse 1.15, Hoehe 1.6 m.
+                    RepresentativeMesh.WriteDiamondInstance(
                         _markers,
                         markerCount++,
                         landmarkWorldX,
                         landmarkGroundY + LandmarkMarkerHeightMeters,
                         landmarkWorldZ,
-                        size: 1.0f,
+                        size: LandmarkMarkerSize,
                         rotation: (float)(Math.PI / 4.0),
                         red: 0.55f,
                         green: 0.75f,
@@ -338,25 +422,25 @@ internal sealed class InteractiveView : IDisposable
                     // Registriert: zweistufige Markiersaeule (unten ruhend,
                     // oben rotierend mit der Tickzahl), kuehles Gruen; die
                     // Gesamtform ist klar zweigeteilt (NF-005).
-                    RepresentativeMesh.WriteParticleInstance(
+                    RepresentativeMesh.WriteDiamondInstance(
                         _markers,
                         markerCount++,
                         landmarkWorldX,
-                        landmarkGroundY + 0.5,
+                        landmarkGroundY + RegisteredLandmarkLowerHeightMeters,
                         landmarkWorldZ,
-                        size: 0.90f,
+                        size: RegisteredLandmarkLowerSize,
                         rotation: (float)(Math.PI / 4.0),
                         red: 0.40f,
                         green: 0.90f,
                         blue: 0.60f,
                         alpha: 0.95f);
-                    RepresentativeMesh.WriteParticleInstance(
+                    RepresentativeMesh.WriteDiamondInstance(
                         _markers,
                         markerCount++,
                         landmarkWorldX,
-                        landmarkGroundY + 2.3,
+                        landmarkGroundY + RegisteredLandmarkUpperHeightMeters,
                         landmarkWorldZ,
-                        size: 0.80f,
+                        size: RegisteredLandmarkUpperSize,
                         rotation: (float)(tickIndex * 0.12),
                         red: 0.40f,
                         green: 0.90f,

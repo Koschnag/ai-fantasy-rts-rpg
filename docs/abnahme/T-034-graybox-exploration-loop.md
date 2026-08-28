@@ -19,37 +19,53 @@ sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
 - `Riftward.Session` hält Landmarken, Besuchsprotokoll und Fortschritt hinter
   echten schreibgeschützten Sichten. Die Vorgrenzenbeobachtung liest nur
   Heldenzone und wirksamen Modus, erzeugt keinen Kernbefehl und berührt weder
-  Simulationszustand noch Hashkette.
+  Simulationszustand noch Hashkette. Auch die defensive Telemetrie-
+  Momentaufnahme ist weder als Array noch über `IList` indexweise mutierbar.
 - `kommandoschleife --exploration` aktiviert denselben Headless- oder
   Interaktivpfad. Ohne Opt-in bleibt der Bestandsreport unverändert bei
   Schemaversion 2; mit Opt-in verlangt Schemaversion 3 den additiven Block
   `explorationSession` mit Landmarken, persönlichem Besuchsprotokoll,
   Fortschritt/Abschluss, Nichtpersistenzaussage und ehrlichen visuellen
   Kanalgrenzen.
-- Der vollständige deterministische Headless-Flow mobilisiert strategisch
-  über die bestehende Rahmenwahl alle fünf Vertragsgruppen (einschließlich
-  Heldengruppe 0), besucht die sechs Zonen persönlich in der Reihenfolge
-  0/4/2/3/5/1 und schließt den Auftrag ohne neue Eingabeaktion,
-  Kernänderung, Budget- oder Exitcodebedeutung ab.
+- Die versionierte Abnahmefixture
+  `tests/fixtures/command/t034-exploration-separated.graybox` mobilisiert
+  strategisch die vier Nichtheldengruppen aus dem persönlichen Umfeld,
+  bewegt sie für die Bildprüfung später wieder in die Startzone und führt
+  den Vertragshelden über denselben bestehenden Lenkkanal persönlich durch
+  die sechs Zonen in der Reihenfolge 0/2/1/5/3/4. Der Auftrag schließt ohne
+  neue Eingabeaktion, Kernänderung, Budget- oder Exitcodebedeutung ab.
 - Interaktiv konsumieren Titel-HUD und Landmarkenzustandskanal dieselbe
-  schreibgeschützte Telemetrie. Unbesucht/besucht ist über Form plus Farbe
-  unterschieden; headless werden fensterpflichtige Messungen mit Grund als
-  nicht gemessen ausgewiesen.
+  schreibgeschützte Telemetrie. Unbesucht/besucht ist über echte, per Instanz
+  gebundene Diamantform plus Farbe unterschieden; runde Befehlspulse behalten
+  ihren getrennten Formkanal. Neben dem unveränderten festen Anker schließt
+  ein hohes heldennahes Zustandsecho die Offscreen-Lücke der zonenweiten
+  Registrierung. Headless und vorzeitig beendete Interaktivläufe weisen
+  fensterpflichtige Messungen mit Grund als nicht gemessen aus.
+- Der Report-Schemator prüft nicht nur Typen: kanonische begehbare Anker,
+  eindeutige persönliche Besuchsfolge, fortlaufende Reihenfolge und die
+  Relationen Protokoll ↔ Fortschritt ↔ Abschluss ↔ gemessene
+  Darstellungszähler sind adversarial fail-closed gebunden. Ein angefordertes
+  `--exploration` bleibt auch im Exception-Teilreport als ehrlicher,
+  unvollständiger Schemaversion-3-Block erhalten.
 - `--auto-exit-at-horizon` beendet ausschließlich explizit begrenzte echte
   Display-Gates nach dem vollständig gerenderten Messfenster kontrolliert;
   der normale Interaktivpfad bleibt bis zum echten Quit offen. Damit kann der
   autonome Harness Capture und Report ohne KWin-/Timeout-Eingriff abschließen.
+  Nur dieser begrenzte Gatepfad deaktiviert Present-VSync, damit ein
+  verdecktes oder gesperrtes Wayland-Surface den unverändert wanduhrgebundenen
+  20-Hz-Simulationstakt nicht auf 5 Hz drosselt; der normale Spielpfad bleibt
+  VSync-gebunden.
 
 ## Kriterienstand
 
 | Kriterium | Stand | Gebundene Evidenz |
 |---|---|---|
 | AC-T034-01 | erfüllt | Vertrags-Spiegeltest hält Kennungen, Alternativen, Playtestkriterien, Rückrollwege und Nichtpersistenz gegen `ERKUNDUNGSVERTRAG.md`/`ExplorationContract` konsistent. |
-| AC-T034-02 | erfüllt | Echter öffentlicher Schemaversion-3-Lauf besucht 6/6 Landmarken; Besuchsticks 262/1302/2602/4068/5302/6202, ausschließlich Modus `personal`; zwei getrennte App-Prozesse liefern byteidentische deterministische Blöcke für Szenario, Eingabe, Modussitzung, Erkundung und Hashkette. |
+| AC-T034-02 | erfüllt | Echter öffentlicher Schemaversion-3-Lauf über die versionierte 8000-Tick-Abnahmefixture besucht 6/6 Landmarken; Besuchsticks 262/2642/4174/4795/6154/7210 in der Reihenfolge 0/2/1/5/3/4, ausschließlich Modus `personal`; zwei getrennte App-Prozesse liefern byteidentische deterministische Blöcke für Szenario, Eingabe, Modussitzung, Erkundung und Hashkette. |
 | AC-T034-03 | erfüllt | Aktivierter/nicht aktivierter Twin: identische Start-/Endhashes, Kettenstichproben, Intentdispositionen und Kernbefehlsanzahl; fremder Seed ändert Start/Endhash, nicht die Landmarkenmenge; `git diff -- src/Riftward.Simulation` ist leer; Legacy-Schema 2 bleibt gültig. |
 | AC-T034-04 | teilweise (`needs-work`) | Echter Wayland-/RX-570-Lauf: Exit 0, 6800/6800 Ticks, `windowCompleted=true`, Gate grün, 6/6 Besuche und hashgebundenes Abgriffpaar an Tick 6800/Hash `9b1c73996becfcf8`; strategisch `3c8183b2…db48`, persönlich `790984fc…4fe4`, beide 1920×1080 und verschieden. Die Sichtprüfung bestätigt die verlangte Lesbarkeit binnen zwei Sekunden **nicht**: strategisch liegt der abgeschlossene Zustand größtenteils außerhalb des unveränderten Kamerastands, persönlich verdeckt die auf ein Ziel mobilisierte 250-Agenten-Masse Landmarke und Heldenumfeld. Das Artefakt ist deshalb im Media Lab `needs-work`, nie Gameplay-/Atmosphärenbeleg; ein bestandener Playtest bleibt Pflicht. |
 | AC-T034-05 | erfüllt | Keine neue Abhängigkeit oder Netz-/Secretfläche; begrenzte bestehende Skripteingabe; Session bleibt BCL-only, Runtimepfad C#; alle neuen Diagnosefelder nicht gategekoppelt; Security-Gate grün. |
-| AC-T034-06 | teilweise | Release-Build 0 Warnungen/0 Fehler, Fantomas/Lint grün, Security grün, reguläre Suite einschließlich Auto-Exit-Regression grün, Kandidatenscope und Harness-Preflight grün. Fresh-Checkout-/Clean-Archive, vollständiges Verify und unabhängiges Abschlussreview stehen noch aus. |
+| AC-T034-06 | teilweise | Release-Build 0 Warnungen/0 Fehler, 279/279 reguläre Tests einschließlich adversarialer Schema-/Schreibschutz-, Auto-Exit-, Mesh-, Billboard- und Partikelformregression grün; Lint, Security, Kandidatenscope, Harness-Preflight, Fresh-Checkout-/Clean-Archive, vollständiges Verify und unabhängiges Abschlussreview werden am finalen Bildkandidaten erneut gebunden. |
 
 ## Lokal ausgeführte Evidenz am aktuellen Kandidaten
 
@@ -57,7 +73,7 @@ sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
 dotnet build tests/RiftHarness.Tests/RiftHarness.Tests.fsproj -c Release --no-restore
     -> 0, 0 Warnungen, 0 Fehler
 dotnet tests/RiftHarness.Tests/bin/Release/net10.0/RiftHarness.Tests.dll
-    -> 0, reguläre Suite grün; exakte Zahl im Abschlussrepass zu binden
+    -> 0, 279/279 Tests grün
 ./scripts/rift.sh fmt
     -> 0, anschließend keine Formatabweichung
 ./scripts/rift.sh lint
@@ -70,11 +86,11 @@ riftward-harness-preflight
     -> 0
 git diff -- src/Riftward.Simulation
     -> leer
-env DISPLAY=:0 WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 \
-  XDG_SESSION_TYPE=wayland vblank_mode=0 ./scripts/rift.sh kommandoschleife \
-  ... --exploration --interactive --auto-exit-at-horizon --capture-frame ...
-    -> 0, 6800/6800, gate.pass=true, 6/6, Capture-Paar gebunden;
-       visuelles Review needs-work (keine Lesbarkeitsannahme)
+./scripts/rift.sh kommandoschleife --scenario kommando-graybox \
+  --input-script tests/fixtures/command/t034-exploration-separated.graybox \
+  --seed 20260826 --warmup-ticks 240 --horizon-ticks 8000 \
+  --exploration --interactive --auto-exit-at-horizon --capture-frame ...
+    -> finaler Echtbild-Repass läuft; Resultat wird vor Statusänderung gebunden
 ```
 
 ## Offene Annahmepunkte

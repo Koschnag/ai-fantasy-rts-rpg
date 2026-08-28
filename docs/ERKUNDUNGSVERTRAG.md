@@ -200,18 +200,29 @@ in beiden Modi ablesbar, beide niemals Teil von Simulationszustand oder Hash:
    Aktivierung bleibt die Titelzeile byteidentisch zum T-033-Stand). Kennung
    `title-hud-expedition-progress-v1`; Lesezeit ≤ 2 s.
 2. **Landmarkenzustandskanal:** Je Landmarke ein darstellseitiger Marker am
-   Anker (Höhe 1,4 m) mit zwei unterscheidbaren visuellen Kanaelen gemäß
+   Anker mit zwei unterscheidbaren visuellen Kanaelen gemäß
    NF-005 (Form plus Farbe, nie reine Farbcodierung): **unbesucht** —
    ruhender Einzel-Diamant, feste Orientierung π/4, kühles Blaugrau
-   (0,55/0,75/0,95), Größe 1,0; **registriert** — zweistufige Markiersäule
-   (unten ruhend, oben rotierend mit der Tickzahl), kühles Grün
+   (0,55/0,75/0,95), Höhe 1,6 m und Größe 1,15; **registriert** —
+   zweistufige Markiersäule (unten ruhend bei 1,4 m/Größe 1,25, oben
+   rotierend mit der Tickzahl bei 3,6 m/Größe 1,05), kühles Grün
    (0,40/0,90/0,60), Gesamtform klar zweigeteilt. Die Kombination aus
    Formkanal (ruhend-einstufig gegenüber zweistufig-rotierend) und Farbkanal
    trennt den Kanal von Auswahlglyphe (warmes Amber, klein, rotierend über
    Agenten), Befehlspuls (wachsend, bodenverankert, Cyan) und Held-/Modus-
    Badge (Diamant über dem Helden, 2,6 m, Cyan/Orange). Ohne Aktivierung
    entsteht kein Landmarkenmarker; die Bestandsdarstellung bleibt
-   byteidentisch.
+   byteidentisch. Da die Registrierung vertraglich zonenweit und nicht an
+   Ankernähe gebunden ist, wiederholt derselbe bestehende Partikelkanal den
+   Zustand der aktuellen Heldenzone zusätzlich als rein darstellungsseitiges
+   Echo direkt über dem Helden: unbesucht als ein blauer Diamant bei 4,2 m,
+   registriert als zwei getrennte grüne Diamanten bei 4,0/5,6 m. Größen und
+   Farben entsprechen dem jeweiligen Ankermarker. Das Echo verschiebt keinen
+   Anker, ändert weder Aufsuchregel noch Fortschritt und ist nie Simulations-
+   oder Hashzustand; es schließt ausschließlich die generische Offscreen-
+   Lücke zwischen zonenweiter Registrierung und heldenzentrierter Kamera.
+   Badge, Anker und Echo nutzen einen per Instanz gebundenen echten
+   Glyphenpfad; Befehlspulse bleiben im getrennten Formkanal rund.
 
 **Alternativen:** gerenderte Text-HUD (neue Schrift-/Renderfläche — späterer
 Slice, Modevertrag-Abschnitt-8-Präzedenz); reine Farbcodierung des
@@ -263,7 +274,15 @@ Ausführungsarten; `gateCoupled=false` für sämtliche Mess- und Protokollfelder
 - im Interaktivmodus der HUD-Ausweis (`title-hud-expedition-progress-v1`)
   und der Landmarkenkanalausweis (`landmark-state-channel-v1`); headless
   ausdrücklich nicht gemessen mit maschinenlesbarem Grund statt stiller
-  Behauptung
+  Behauptung. Auch ein vorzeitig beendetes Interaktivfenster weist beide
+  Kanäle mit Grund als nicht gemessen aus; `measured=true` setzt einen
+  tatsächlich abgeschlossenen Fensterhorizont voraus.
+
+Der Schemator prüft diese Felder nicht nur einzeln, sondern bindet sie
+relational fail-closed: Anker müssen der kanonischen betretbaren
+Kernelgeometrie entsprechen; Besuche sind zoneneindeutig, strikt fortlaufend
+und ausschließlich persönlich; Protokolllänge, `visitedCount`, `completed`
+und gemessene HUD-/Kanalzähler müssen dieselbe Aussage tragen.
 
 Der Headless-Erkundungsflow läuft über denselben öffentlichen Befehl und
 dasselbe Skriptformat `graybox-input-script-v2` (keine neue Grammatik oder

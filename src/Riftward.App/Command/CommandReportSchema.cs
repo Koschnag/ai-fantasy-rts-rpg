@@ -95,6 +95,18 @@ public static class CommandReportSchema
             }
 
             body.Check(path, element, errors);
+
+            // Closed shapes und Wertebereiche genuegen fuer die additiven
+            // T-034-Felder nicht: Der Report muss auch seine relationalen
+            // Aussagen beweisen. Andernfalls koennten einzeln wohlgeformte,
+            // aber untereinander widerspruechliche Protokoll-, Fortschritts-
+            // und Darstellungswerte als Evidenz passieren.
+            ValidatePresentationMeasurementRelations(path, element, errors);
+
+            if (schemaVersion == CurrentVersion)
+            {
+                ValidateExplorationRelations(path, element, errors);
+            }
         }
     }
 
@@ -307,6 +319,36 @@ public static class CommandReportSchema
                     errors.Add($"{path}[{count}].zoneIndex: Landmarken muessen in fester Zonenordnung erscheinen.");
                 }
 
+                if (item.ValueKind == JsonValueKind.Object
+                    && item.TryGetProperty("zoneIndex", out zoneIndex)
+                    && zoneIndex.TryGetInt32(out zoneIndexValue)
+                    && zoneIndexValue >= 0
+                    && zoneIndexValue < Riftward.Simulation.NavWorld.ZoneCount
+                    && item.TryGetProperty("anchorTileX", out var anchorTileX)
+                    && anchorTileX.TryGetInt32(out var anchorTileXValue)
+                    && item.TryGetProperty("anchorTileY", out var anchorTileY)
+                    && anchorTileY.TryGetInt32(out var anchorTileYValue))
+                {
+                    if (!Riftward.Simulation.NavWorld.IsInsideZone(
+                        zoneIndexValue, anchorTileXValue, anchorTileYValue))
+                    {
+                        errors.Add($"{path}[{count}]: Ankerkachel liegt nicht in ihrer Vertragszone.");
+                    }
+
+                    if (!Riftward.Simulation.NavWorld.IsWalkable(anchorTileXValue, anchorTileYValue))
+                    {
+                        errors.Add($"{path}[{count}]: Ankerkachel ist in der gebundenen Vertragswelt nicht betretbar.");
+                    }
+
+                    var expected = ExplorationAnchors.DeriveLandmarks()[zoneIndexValue];
+
+                    if (anchorTileXValue != expected.AnchorTileX
+                        || anchorTileYValue != expected.AnchorTileY)
+                    {
+                        errors.Add($"{path}[{count}]: Ankerkachel widerspricht der kanonischen zeilenmajoritischen Ableitung.");
+                    }
+                }
+
                 count++;
             }
 
@@ -329,6 +371,228 @@ public static class CommandReportSchema
         ("mode", ModeName()),
         ("visitOrder", new RInt(1, Riftward.Simulation.NavWorld.ZoneCount)),
         ("gateCoupled", new RBool(false)));
+
+    /// <summary>
+    /// Relationale T-034-Bindung: eindeutige Zonen, strikt kanonische
+    /// Besuchsreihenfolge und -zeit, ausschliesslich persoenliche
+    /// Registrierung sowie identische Zaehler-/Abschlussaussagen in
+    /// Protokoll, Fortschritt und den gemessenen Darstellungskaenaelen.
+    /// </summary>
+    private static void ValidateExplorationRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("explorationSession", out var exploration)
+            || exploration.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var explorationPath = $"{path}.explorationSession";
+        var protocolCount = -1;
+
+        if (exploration.TryGetProperty("visitProtocol", out var protocol)
+            && protocol.ValueKind == JsonValueKind.Array)
+        {
+            protocolCount = protocol.GetArrayLength();
+
+            if (protocolCount > Riftward.Simulation.NavWorld.ZoneCount)
+            {
+                errors.Add($"{explorationPath}.visitProtocol: hoechstens {Riftward.Simulation.NavWorld.ZoneCount} eindeutige Registrierungen erwartet.");
+            }
+
+            var seenZones = new bool[Riftward.Simulation.NavWorld.ZoneCount];
+            long previousBoundaryTick = -1;
+            var index = 0;
+
+            foreach (var visit in protocol.EnumerateArray())
+            {
+                if (visit.ValueKind == JsonValueKind.Object)
+                {
+                    if (visit.TryGetProperty("visitOrder", out var visitOrder)
+                        && visitOrder.TryGetInt64(out var visitOrderValue)
+                        && visitOrderValue != index + 1L)
+                    {
+                        errors.Add($"{explorationPath}.visitProtocol[{index}].visitOrder: fortlaufender Wert {index + 1} erwartet.");
+                    }
+
+                    if (visit.TryGetProperty("mode", out var mode)
+                        && mode.ValueKind == JsonValueKind.String
+                        && !string.Equals(mode.GetString(), ModeContract.ModePersonalId, StringComparison.Ordinal))
+                    {
+                        errors.Add($"{explorationPath}.visitProtocol[{index}].mode: Registrierung ist ausschliesslich im persoenlichen Modus zulaessig.");
+                    }
+
+                    if (visit.TryGetProperty("zoneIndex", out var zoneIndex)
+                        && zoneIndex.TryGetInt32(out var zoneIndexValue)
+                        && zoneIndexValue >= 0
+                        && zoneIndexValue < seenZones.Length)
+                    {
+                        if (seenZones[zoneIndexValue])
+                        {
+                            errors.Add($"{explorationPath}.visitProtocol[{index}].zoneIndex: Landmarkenzone wurde mehrfach registriert.");
+                        }
+
+                        seenZones[zoneIndexValue] = true;
+                    }
+
+                    if (visit.TryGetProperty("evaluationBoundaryTick", out var boundaryTick)
+                        && boundaryTick.TryGetInt64(out var boundaryTickValue))
+                    {
+                        if (index > 0 && boundaryTickValue <= previousBoundaryTick)
+                        {
+                            errors.Add($"{explorationPath}.visitProtocol[{index}].evaluationBoundaryTick: strikt steigende Registrierungsgrenzen erwartet.");
+                        }
+
+                        previousBoundaryTick = boundaryTickValue;
+                    }
+                }
+
+                index++;
+            }
+        }
+
+        if (!exploration.TryGetProperty("progress", out var progress)
+            || progress.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        int? visitedCount = null;
+        bool? completed = null;
+
+        if (progress.TryGetProperty("visitedCount", out var visited)
+            && visited.TryGetInt32(out var visitedValue))
+        {
+            visitedCount = visitedValue;
+
+            if (protocolCount >= 0 && visitedValue != protocolCount)
+            {
+                errors.Add($"{explorationPath}.progress.visitedCount: Wert muss der Laenge des Aufsuchprotokolls entsprechen.");
+            }
+        }
+
+        if (progress.TryGetProperty("completed", out var completedElement)
+            && completedElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            completed = completedElement.GetBoolean();
+
+            if (visitedCount is { } count
+                && completed.Value != (count == Riftward.Simulation.NavWorld.ZoneCount))
+            {
+                errors.Add($"{explorationPath}.progress.completed: muss genau visitedCount == landmarkCount abbilden.");
+            }
+        }
+
+        ValidateMeasuredExplorationFields(
+            explorationPath, exploration, visitedCount, completed, errors);
+    }
+
+    private static void ValidateMeasuredExplorationFields(
+        string path,
+        JsonElement exploration,
+        int? visitedCount,
+        bool? completed,
+        List<string> errors)
+    {
+        if (exploration.TryGetProperty("hud", out var hud)
+            && hud.ValueKind == JsonValueKind.Object
+            && hud.TryGetProperty("measured", out var hudMeasured)
+            && hudMeasured.ValueKind == JsonValueKind.True
+            && hud.TryGetProperty("fields", out var hudFields)
+            && hudFields.ValueKind == JsonValueKind.Object)
+        {
+            if (visitedCount is { } count
+                && hudFields.TryGetProperty("visitedCount", out var hudVisited)
+                && hudVisited.TryGetInt32(out var hudVisitedValue)
+                && hudVisitedValue != count)
+            {
+                errors.Add($"{path}.hud.fields.visitedCount: widerspricht dem gebundenen Fortschritt.");
+            }
+
+            if (completed is { } isCompleted
+                && hudFields.TryGetProperty("completed", out var hudCompleted)
+                && hudCompleted.ValueKind is JsonValueKind.True or JsonValueKind.False
+                && hudCompleted.GetBoolean() != isCompleted)
+            {
+                errors.Add($"{path}.hud.fields.completed: widerspricht dem gebundenen Abschlussstatus.");
+            }
+        }
+
+        if (exploration.TryGetProperty("landmarkChannel", out var channel)
+            && channel.ValueKind == JsonValueKind.Object
+            && channel.TryGetProperty("measured", out var channelMeasured)
+            && channelMeasured.ValueKind == JsonValueKind.True
+            && channel.TryGetProperty("fields", out var channelFields)
+            && channelFields.ValueKind == JsonValueKind.Object
+            && visitedCount is { } registeredCount
+            && channelFields.TryGetProperty("registeredCount", out var registered)
+            && registered.TryGetInt32(out var registeredValue)
+            && registeredValue != registeredCount)
+        {
+            errors.Add($"{path}.landmarkChannel.fields.registeredCount: widerspricht dem gebundenen Fortschritt.");
+        }
+    }
+
+    /// <summary>
+    /// Ein visueller Kanal darf nur dann als gemessen gelten, wenn ein
+    /// interaktives Fenster sein Messfenster tatsaechlich abgeschlossen hat.
+    /// Headless- und Early-Quit-Reports muessen fail-closed unavailable
+    /// ausweisen, statt allein aus executionMode eine Sichtbarkeit abzuleiten.
+    /// </summary>
+    private static void ValidatePresentationMeasurementRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("executionMode", out var executionMode)
+            || executionMode.ValueKind != JsonValueKind.String
+            || !root.TryGetProperty("measurement", out var measurement)
+            || measurement.ValueKind != JsonValueKind.Object
+            || !measurement.TryGetProperty("windowCompleted", out var windowCompleted)
+            || windowCompleted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            return;
+        }
+
+        var shouldBeMeasured = string.Equals(
+                executionMode.GetString(), ExecutionInteractive, StringComparison.Ordinal)
+            && windowCompleted.GetBoolean();
+
+        ValidateMeasuredFlag(
+            path, root, "modeSession", "hud", shouldBeMeasured, errors);
+
+        if (root.TryGetProperty("explorationSession", out _))
+        {
+            ValidateMeasuredFlag(
+                path, root, "explorationSession", "hud", shouldBeMeasured, errors);
+            ValidateMeasuredFlag(
+                path, root, "explorationSession", "landmarkChannel", shouldBeMeasured, errors);
+        }
+    }
+
+    private static void ValidateMeasuredFlag(
+        string path,
+        JsonElement root,
+        string blockName,
+        string channelName,
+        bool expected,
+        List<string> errors)
+    {
+        if (root.TryGetProperty(blockName, out var block)
+            && block.ValueKind == JsonValueKind.Object
+            && block.TryGetProperty(channelName, out var channel)
+            && channel.ValueKind == JsonValueKind.Object
+            && channel.TryGetProperty("measured", out var measured)
+            && measured.ValueKind is JsonValueKind.True or JsonValueKind.False
+            && measured.GetBoolean() != expected)
+        {
+            errors.Add($"{path}.{blockName}.{channelName}.measured: erwarteter Wert {expected.ToString().ToLowerInvariant()} fuer Ausfuehrungsart und Fensterabschluss.");
+        }
+    }
 
     /// <summary>
     /// Titel-HUD-Ausweis der Erkundung (Vertrag Abschnitte 5 und 7): im

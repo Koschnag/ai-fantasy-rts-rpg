@@ -5,6 +5,7 @@ open System.Collections.Generic
 open System.Diagnostics
 open System.IO
 open System.Text.Json
+open System.Text.Json.Nodes
 open Riftward.App
 open Riftward.App.Command
 open Riftward.Platform
@@ -121,8 +122,15 @@ let explorationContractMirrorsDocumentedValues () =
     if ExplorationContract.Persisted then
         failwith "Die Nichtpersistenzaussage ist verletzt."
 
-    if InteractiveView.LandmarkMarkerHeightMeters <> 1.4 then
-        failwith "Ankerhoehe des unbesuchten Landmarkenmarkers entspricht nicht dem Vertrag (1,4 m)."
+    if
+        InteractiveView.LandmarkMarkerHeightMeters <> 1.6
+        || InteractiveView.LandmarkMarkerSize <> 1.15f
+        || InteractiveView.RegisteredLandmarkLowerHeightMeters <> 1.4
+        || InteractiveView.RegisteredLandmarkUpperHeightMeters <> 3.6
+        || InteractiveView.RegisteredLandmarkLowerSize <> 1.25f
+        || InteractiveView.RegisteredLandmarkUpperSize <> 1.05f
+    then
+        failwith "Landmarkenmarker-Abmessungen entsprechen nicht dem lesbaren Zweistufenvertrag."
 
     let document = readDocument ExplorationContract.DocumentPath
 
@@ -235,6 +243,9 @@ let explorationViewsResistExternalMutation () =
     if box telemetry.VisitProtocol :? List<ExplorationVisit> then
         failwith "Der Telemetrieausweis gibt die Protokollliste als konkreten Listentyp heraus."
 
+    if box telemetry.VisitProtocol :? ExplorationVisit[] then
+        failwith "Der Telemetrieausweis gibt eine indexweise veraenderbare Arraykopie heraus."
+
     // Jede Schreibweise über die Sammlungsschnittstelle ist kontrolliert
     // abgewiesen (ReadOnlyCollection: IsReadOnly=true, Add wirft).
     let assertReadOnly (label: string) (view: IReadOnlyList<'a>) =
@@ -255,10 +266,29 @@ let explorationViewsResistExternalMutation () =
     assertReadOnly "VisitProtocol" session.VisitProtocol
     assertReadOnly "ToTelemetry().VisitProtocol" telemetry.VisitProtocol
 
+    // Auch die IList-Indexmutation muss scheitern. ICollection.Add allein
+    // haette die fruehere nackte Arraykopie uebersehen, weil Arrays Add
+    // ablehnen, ihre vorhandenen Elemente aber sehr wohl ersetzen lassen.
+    let assertIndexReadOnly (label: string) (view: IReadOnlyList<'a>) =
+        match box view with
+        | :? IList<'a> as list when list.Count > 0 ->
+            let original = list.[0]
+
+            try
+                list.[0] <- original
+                failwith $"{label}: Indexmutation der read-only View wurde akzeptiert."
+            with :? NotSupportedException ->
+                ()
+        | :? IList<'a> -> ()
+        | _ -> failwith $"{label}: Keine indexpruefbare Sammlungssicht erhalten."
+
+    // Einen echten Eintrag erzeugen und dessen Telemetrieansicht pruefen.
+    session.Observe(100L, (SimWorld(20260826u)), SessionMode.Personal)
+    let populatedTelemetry = session.ToTelemetry()
+    assertIndexReadOnly "ToTelemetry().VisitProtocol" populatedTelemetry.VisitProtocol
+
     // Die defensive Telemetrie-Kopie ist unabhängig von späteren
     // Registrierungen (kanonischer Ausweis des Ausweiszeitpunkts).
-    session.Observe(100L, (SimWorld(20260826u)), SessionMode.Personal)
-
     if telemetry.VisitedCount <> 0 then
         failwith "Die Telemetrie-Kopie veraendert sich nachtraeglich mit der Sitzung."
 
@@ -403,7 +433,12 @@ let private reportJson (path: string) = File.ReadAllText(path)
 let private jsonInt (element: JsonElement) (name: string) = element.GetProperty(name).GetInt32()
 
 let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
-    let scriptPath = writeTempScript 6800
+    // Dieselbe versionierte, armeegetrennte Fixture traegt Headless-
+    // Determinismus und den echten Display-Playtest. Dadurch ist der
+    // visuelle Abnahmelauf auf einem frischen Checkout reproduzierbar und
+    // nicht von einem ignorierten lokalen Artefakt abhaengig.
+    let scriptPath =
+        Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t034-exploration-separated.graybox")
 
     let reportPath =
         Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.json")
@@ -422,7 +457,7 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
            "--warmup-ticks"
            "240"
            "--horizon-ticks"
-           "6800"
+           "8000"
            "--exploration"
            "--report"
            targetReport |]
@@ -579,8 +614,6 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
             then
                 failwith $"Die deterministische Reportwahrheit '{blockName}' weicht zwischen zwei Fresh-Prozessen ab."
     finally
-        File.Delete(scriptPath)
-
         if File.Exists(reportPath) then
             File.Delete(reportPath)
 
@@ -706,6 +739,152 @@ let explorationSchemaDispatchRejectsCrossVariants () =
             |> not
         then
             failwith "Ein Version-3-Report ohne vollstaendigen Block wurde nicht erkannt."
+    finally
+        File.Delete(scriptPath)
+
+        if File.Exists(reportPath) then
+            File.Delete(reportPath)
+
+// ---------------------------------------------------------------------------
+// Adversariale NF-007-Bindung: einzeln wohlgeformte Werte duerfen weder die
+// Kernelgeometrie noch Protokoll/Fortschritt/Abschluss widersprechen. Dazu
+// Early-Quit-/Exception-Ehrlichkeit der additiven Schemaversion 3.
+// ---------------------------------------------------------------------------
+
+let explorationSchemaRelationsRejectFabrication () =
+    let scriptPath = writeTempScript 420
+
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-Schema-{Guid.NewGuid():N}.json")
+
+    try
+        let exitCode, stdout, stderr =
+            runToleratingTransientGate
+                [| "kommandoschleife"
+                   "--scenario"
+                   "kommando-graybox"
+                   "--input-script"
+                   scriptPath
+                   "--seed"
+                   "20260826"
+                   "--warmup-ticks"
+                   "240"
+                   "--horizon-ticks"
+                   "420"
+                   "--exploration"
+                   "--report"
+                   reportPath |]
+
+        if exitCode <> ExitCodes.Ok then
+            failwith $"Golden-Erkundungsreport endete mit {exitCode}: {stderr} {stdout}"
+
+        let golden = reportJson reportPath
+
+        if CommandReportSchema.Validate(golden).Count <> 0 then
+            failwith "Golden-Erkundungsreport verletzte den relationalen Schemavertrag."
+
+        let explorationOf (root: JsonObject) = root["explorationSession"].AsObject()
+
+        let reject (label: string) (needle: string) (mutate: JsonObject -> unit) =
+            let root = JsonNode.Parse(golden).AsObject()
+            mutate root
+            let errors = CommandReportSchema.Validate(root.ToJsonString())
+
+            if errors.Count = 0 then
+                failwith $"{label}: relational gefaelschter Report wurde akzeptiert."
+
+            if
+                not (
+                    errors
+                    |> Seq.exists (fun error -> error.Contains(needle, StringComparison.Ordinal))
+                )
+            then
+                let joinedErrors = String.concat "; " errors
+                failwith $"{label}: erwartete Fehlerkennung '{needle}' fehlt: {joinedErrors}"
+
+        reject "Fremder/unbetretbarer Anker" "Ankerkachel" (fun root ->
+            let exploration = explorationOf root
+            let landmark = (exploration["landmarks"].AsArray()[0]).AsObject()
+            landmark["anchorTileX"] <- JsonValue.Create(0)
+            landmark["anchorTileY"] <- JsonValue.Create(0))
+
+        reject "Strategischer Scheinbesuch" "persoenlichen Modus" (fun root ->
+            let exploration = explorationOf root
+            let visit = (exploration["visitProtocol"].AsArray()[0]).AsObject()
+            visit["mode"] <- JsonValue.Create(ModeContract.ModeStrategicId))
+
+        reject "Nichtfortlaufende Besuchsreihenfolge" "fortlaufender Wert" (fun root ->
+            let exploration = explorationOf root
+            let visit = (exploration["visitProtocol"].AsArray()[0]).AsObject()
+            visit["visitOrder"] <- JsonValue.Create(2))
+
+        reject "Protokoll-/Zaehlerwiderspruch" "Laenge des Aufsuchprotokolls" (fun root ->
+            let exploration = explorationOf root
+            let progress = exploration["progress"].AsObject()
+            progress["visitedCount"] <- JsonValue.Create(0))
+
+        reject "Falscher Abschluss" "visitedCount == landmarkCount" (fun root ->
+            let exploration = explorationOf root
+            let progress = exploration["progress"].AsObject()
+            progress["completed"] <- JsonValue.Create(true))
+
+        reject "Doppelte Landmarkenzone" "mehrfach registriert" (fun root ->
+            let exploration = explorationOf root
+            let protocol = exploration["visitProtocol"].AsArray()
+            let duplicate = protocol[0].DeepClone().AsObject()
+            let previousTick = duplicate["evaluationBoundaryTick"].GetValue<int64>()
+            duplicate["evaluationBoundaryTick"] <- JsonValue.Create(previousTick + 1L)
+            duplicate["visitOrder"] <- JsonValue.Create(2)
+            protocol.Add(duplicate)
+            exploration["progress"].AsObject()["visitedCount"] <- JsonValue.Create(2))
+
+        // Builder-Ehrlichkeit ohne echtes Display: Nur ein vollstaendig
+        // abgeschlossenes Interaktivfenster darf HUD und Landmarkenkanal als
+        // gemessen ausweisen.
+        let telemetry = ExplorationSession().ToTelemetry()
+
+        let presentationMeasured execution windowCompleted =
+            let source =
+                CommandLoopRunner.BuildExplorationSession(execution, windowCompleted, telemetry)
+
+            let block = JsonNode.Parse(JsonSerializer.Serialize(source)).AsObject()
+
+            let hudMeasured = (block["hud"].AsObject()["measured"]).GetValue<bool>()
+
+            let channelMeasured =
+                (block["landmarkChannel"].AsObject()["measured"]).GetValue<bool>()
+
+            hudMeasured, channelMeasured
+
+        if
+            presentationMeasured CommandReportSchema.ExecutionInteractive true
+            <> (true, true)
+        then
+            failwith "Vollstaendiger Interaktivlauf wies seine Erkundungsdarstellung nicht messend aus."
+
+        if
+            presentationMeasured CommandReportSchema.ExecutionInteractive false
+            <> (false, false)
+        then
+            failwith "Early-Quit-Interaktivlauf behauptete eine nicht abgeschlossene Erkundungsdarstellung."
+
+        if
+            presentationMeasured CommandReportSchema.ExecutionHeadless true
+            <> (false, false)
+        then
+            failwith "Headless-Lauf behauptete fensterpflichtige Erkundungsdarstellung."
+
+        let preserved = CommandLoopRunner.ResolveIncompleteExploration(true, null)
+
+        if
+            isNull preserved
+            || preserved.LandmarkCount <> NavWorld.ZoneCount
+            || preserved.VisitedCount <> 0
+        then
+            failwith "Exception-Teilreport verlor die angeforderte Erkundungsaktivierung."
+
+        if not (isNull (CommandLoopRunner.ResolveIncompleteExploration(false, telemetry))) then
+            failwith "Teilreport ohne Opt-in erfand einen Erkundungsblock."
     finally
         File.Delete(scriptPath)
 

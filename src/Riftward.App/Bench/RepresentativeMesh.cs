@@ -380,17 +380,23 @@ public static class RepresentativeMesh
 
     public static ParticleQuad BuildParticleQuad()
     {
-        var vertices = new byte[4 * ParticleVertexStride];
+        // DrawSubmit verwendet ohne Indexbuffer die bgfx-Defaulttopologie
+        // Triangle-List. Deshalb stehen hier zwei explizite Dreiecke statt
+        // eines vierpunktigen Strips; andernfalls wird der vierte Vertex auf
+        // Backends mit der vertraglichen Defaulttopologie nicht gerendert.
+        var vertices = new byte[6 * ParticleVertexStride];
 
         Span<(float X, float Y, float U, float V)> corners =
         [
             (-0.5f, -0.5f, 0.0f, 0.0f),
             (0.5f, -0.5f, 1.0f, 0.0f),
             (0.5f, 0.5f, 1.0f, 1.0f),
+            (-0.5f, -0.5f, 0.0f, 0.0f),
+            (0.5f, 0.5f, 1.0f, 1.0f),
             (-0.5f, 0.5f, 0.0f, 1.0f),
         ];
 
-        for (var corner = 0; corner < 4; corner++)
+        for (var corner = 0; corner < corners.Length; corner++)
         {
             var offset = corner * ParticleVertexStride;
             WriteFloat(vertices, offset + 0, corners[corner].X);
@@ -399,7 +405,7 @@ public static class RepresentativeMesh
             WriteFloat(vertices, offset + 12, corners[corner].V);
         }
 
-        return new ParticleQuad(vertices, 4, 2);
+        return new ParticleQuad(vertices, corners.Length, 2);
     }
 
     /* --------------------------------------------------- Instanzfuellung */
@@ -456,7 +462,11 @@ public static class RepresentativeMesh
         target[offset + 11] = 1f;
     }
 
-    /// <summary>Schreibt eine Partikelinstanz (Position/Groesse, Drehung/Farbe).</summary>
+    /// <summary>
+    /// Schreibt eine runde Partikelinstanz (Position/Groesse, Drehung/Farbe).
+    /// Der Formkanal bleibt fuer den bestehenden Benchmark und Bodenpulse
+    /// unveraendert weich und kreisfoermig.
+    /// </summary>
     public static void WriteParticleInstance(
         float[] target,
         int slot,
@@ -469,6 +479,64 @@ public static class RepresentativeMesh
         float green,
         float blue,
         float alpha)
+        => WriteParticleInstance(
+            target,
+            slot,
+            worldX,
+            worldY,
+            worldZ,
+            size,
+            rotation,
+            red,
+            green,
+            blue,
+            alpha,
+            shape: 0f);
+
+    /// <summary>
+    /// Schreibt eine quadratische Glypheninstanz. Zusammen mit der
+    /// vertraglichen Drehung um pi/4 entsteht im Partikelshader eine echte
+    /// Diamantsilhouette statt eines rotationssymmetrischen Rundglows.
+    /// </summary>
+    public static void WriteDiamondInstance(
+        float[] target,
+        int slot,
+        double worldX,
+        double worldY,
+        double worldZ,
+        float size,
+        float rotation,
+        float red,
+        float green,
+        float blue,
+        float alpha)
+        => WriteParticleInstance(
+            target,
+            slot,
+            worldX,
+            worldY,
+            worldZ,
+            size,
+            rotation,
+            red,
+            green,
+            blue,
+            alpha,
+            shape: 1f);
+
+    private static void WriteParticleInstance(
+        float[] target,
+        int slot,
+        double worldX,
+        double worldY,
+        double worldZ,
+        float size,
+        float rotation,
+        float red,
+        float green,
+        float blue,
+        float alpha,
+        float shape)
     {
         var offset = slot * (ParticleInstanceStrideBytes / sizeof(float));
 
@@ -479,7 +547,9 @@ public static class RepresentativeMesh
 
         target[offset + 4] = rotation;
         target[offset + 5] = alpha;
-        target[offset + 6] = 0f;
+        // i_data1.z ist ein rein darstellseitiger Formkanal: 0 = bestehender
+        // Rundpartikel, 1 = drehbare quadratische Glyphensilhouette.
+        target[offset + 6] = shape;
         target[offset + 7] = 0f;
 
         target[offset + 8] = red;

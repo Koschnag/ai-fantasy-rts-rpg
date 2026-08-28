@@ -166,7 +166,7 @@ internal static class CommandLoopRunner
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionHeadless, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment);
+                commit, buildMode, environment, explorationEnabled, exploration: null);
         }
 
         var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
@@ -356,6 +356,7 @@ internal static class CommandLoopRunner
         HostBootstrap.Context? context = null;
         InteractiveSceneResources? resources = null;
         InteractiveView? view = null;
+        ExplorationSession? exploration = null;
         string glVersion;
         string glRenderer;
         uint gpuIds;
@@ -386,7 +387,7 @@ internal static class CommandLoopRunner
             // in Riftward.Session, liest schreibgeschützt und erzeugt
             // niemals einen Kernbefehl; ohne Aktivierung bleibt der Pfad
             // byteidentisch zum Bestandsstand.
-            var exploration = explorationEnabled ? new ExplorationSession() : null;
+            exploration = explorationEnabled ? new ExplorationSession() : null;
             var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration);
             view = new InteractiveView();
             view.BindAgentGroups(selectionGroups);
@@ -505,16 +506,23 @@ internal static class CommandLoopRunner
                 WorkingSet: workingSet,
                 ExitCode: exitCode,
                 InteractiveContextRejections: input.InteractiveContextRejections,
-                Hud: new
-                {
-                    measured = true,
-                    kind = ModeContract.HudModelId,
-                    fields = new
+                Hud: measurement.WindowCompleted
+                    ? (object)new
                     {
-                        mode = ModeName(pipeline.CurrentEffectiveMode),
-                        heroZone = HeroTracker.ZoneIndexOf(world),
+                        measured = true,
+                        kind = ModeContract.HudModelId,
+                        fields = new
+                        {
+                            mode = ModeName(pipeline.CurrentEffectiveMode),
+                            heroZone = HeroTracker.ZoneIndexOf(world),
+                        },
+                    }
+                    : new
+                    {
+                        measured = false,
+                        kind = ModeContract.HudModelId,
+                        reason = "run-incomplete-hud-not-asserted",
                     },
-                },
                 InteractiveExtras: new InteractiveExtras(
                     FrameBand: new FrameBandValues(
                         PercentileOrDefault(measurement.FrameTimes, 0.50),
@@ -543,7 +551,7 @@ internal static class CommandLoopRunner
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionInteractive, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment);
+                commit, buildMode, environment, explorationEnabled, exploration?.ToTelemetry());
         }
         finally
         {
@@ -1672,7 +1680,8 @@ internal static class CommandLoopRunner
 
         if (ctx.Exploration is { } exploration)
         {
-            report["explorationSession"] = BuildExplorationSession(ctx, exploration);
+            report["explorationSession"] = BuildExplorationSession(
+                ctx.ExecutionMode, ctx.WindowCompleted, exploration);
         }
 
         report["simulationContract"] = new
@@ -1785,9 +1794,16 @@ internal static class CommandLoopRunner
     /// Rein diagnostisch (gateCoupled=false); kein Gate, kein Budgetwert und
     /// keine Exitcodebedeutung.
     /// </summary>
-    private static Dictionary<string, object> BuildExplorationSession(ReportContext ctx, ExplorationTelemetry exploration)
+    internal static Dictionary<string, object> BuildExplorationSession(
+        string executionMode,
+        bool windowCompleted,
+        ExplorationTelemetry exploration)
     {
-        var interactive = ctx.ExecutionMode == CommandReportSchema.ExecutionInteractive;
+        var presentationMeasured = executionMode == CommandReportSchema.ExecutionInteractive
+            && windowCompleted;
+        var unavailableReason = executionMode == CommandReportSchema.ExecutionHeadless
+            ? ExplorationContract.HeadlessMeasurementReason
+            : "run-incomplete-exploration-presentation-not-asserted";
 
         return new Dictionary<string, object>
         {
@@ -1831,7 +1847,7 @@ internal static class CommandLoopRunner
                 ["gateCoupled"] = false,
             },
             ["gateCoupled"] = false,
-            ["hud"] = interactive
+            ["hud"] = presentationMeasured
                 ? (object)new Dictionary<string, object>
                 {
                     ["measured"] = true,
@@ -1847,9 +1863,9 @@ internal static class CommandLoopRunner
                 {
                     ["measured"] = false,
                     ["kind"] = ExplorationContract.HudModelId,
-                    ["reason"] = ExplorationContract.HeadlessMeasurementReason,
+                    ["reason"] = unavailableReason,
                 },
-            ["landmarkChannel"] = interactive
+            ["landmarkChannel"] = presentationMeasured
                 ? (object)new Dictionary<string, object>
                 {
                     ["measured"] = true,
@@ -1864,7 +1880,7 @@ internal static class CommandLoopRunner
                 {
                     ["measured"] = false,
                     ["kind"] = ExplorationContract.LandmarkChannelModelId,
-                    ["reason"] = ExplorationContract.HeadlessMeasurementReason,
+                    ["reason"] = unavailableReason,
                 },
         };
     }
@@ -2218,7 +2234,9 @@ internal static class CommandLoopRunner
         int horizonTicks,
         string commit,
         string buildMode,
-        SystemInfo.Environment environment)
+        SystemInfo.Environment environment,
+        bool explorationEnabled,
+        ExplorationTelemetry? exploration)
     {
         var verdict = new CommandGateVerdict(
             Pass: false,
@@ -2260,11 +2278,26 @@ internal static class CommandLoopRunner
                 measured = false,
                 kind = ModeContract.HudModelId,
                 reason = "run-incomplete-hud-not-asserted",
-            })), BenchRunner.ReportJsonOptions) + "\n";
+            },
+            Exploration: ResolveIncompleteExploration(
+                explorationEnabled, exploration))), BenchRunner.ReportJsonOptions) + "\n";
 
         Console.Error.WriteLine("kommandoschleife: Teilreport gilt ausdruecklich nicht als Evidenz.");
         return FinishReport(reportPath, reportJson, ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete));
     }
+
+    /// <summary>
+    /// Erhaelt die explizit angeforderte T-034-Aktivierung auch in
+    /// Exception-Teilreports. Bereits beobachtete Telemetrie wird bewahrt;
+    /// vor der Sitzungserzeugung abgebrochene Laeufe tragen den kanonischen
+    /// leeren, aber vollstaendigen Schemaversion-3-Block.
+    /// </summary>
+    internal static ExplorationTelemetry? ResolveIncompleteExploration(
+        bool explorationEnabled,
+        ExplorationTelemetry? observed) =>
+        explorationEnabled
+            ? observed ?? new ExplorationSession().ToTelemetry()
+            : null;
 
     private static string FormatHash(ulong hash) =>
         hash.ToString(SimReportSchema.HashFormat, CultureInfo.InvariantCulture);

@@ -228,7 +228,11 @@ public sealed class ExplorationSession
     /// </summary>
     public ExplorationTelemetry ToTelemetry() => new(
         Landmarks: Landmarks,
-        VisitProtocol: _visits.ToArray(),
+        // Die defensive Momentaufnahme darf auch nicht ueber einen
+        // IReadOnlyList-zu-Array-Cast indexweise veraenderbar sein. Eine
+        // nackte ToArray()-Rueckgabe waere zwar von der Sitzung entkoppelt,
+        // aber kein schreibgeschuetzter Ausweis im Sinn des Vertrags.
+        VisitProtocol: Array.AsReadOnly(_visits.ToArray()),
         VisitedCount: _visitedCount,
         LandmarkCount: _landmarks.Length,
         Completed: Completed);
