@@ -576,7 +576,7 @@ let decisionNotActivatedRejectionIsDistinguishedWithoutKernelEffect () =
             SessionEngine.Run(
                 SessionRunRequest(
                     Seed = 20260826u,
-                    ScriptedIntents = parseScript 400 explorationBody,
+                    ScriptedIntents = parseScript 400 [ "intent 300 switch" ],
                     WarmupTicks = 240,
                     HorizonTicks = 400,
                     RunSelfConsistencyPass = false,
