@@ -750,6 +750,22 @@ let interactiveExitCodePrecedenceStaysWindowBound () =
     then
         failwith "Sauberer abgeschlossener Lauf ergab nicht den Erfolgcode."
 
+let interactiveAutoExitRemainsExplicitAndHorizonBound () =
+    if not (CommandLoopRunner.ShouldContinueInteractiveLoop(false, false, false)) then
+        failwith "Normaler interaktiver Pfad schloss vor dem Horizont."
+
+    if not (CommandLoopRunner.ShouldContinueInteractiveLoop(false, true, false)) then
+        failwith "Normaler interaktiver Pfad schloss ohne explizites Auto-Exit."
+
+    if not (CommandLoopRunner.ShouldContinueInteractiveLoop(false, false, true)) then
+        failwith "Auto-Exit schloss vor dem vollstaendigen Horizont."
+
+    if CommandLoopRunner.ShouldContinueInteractiveLoop(false, true, true) then
+        failwith "Auto-Exit blieb nach dem vollstaendigen Horizont offen."
+
+    if CommandLoopRunner.ShouldContinueInteractiveLoop(true, false, false) then
+        failwith "Ein echtes Quit-Ereignis hielt den interaktiven Pfad offen."
+
 // ---------------------------------------------------------------------------
 // Keymap und Architekturgrenzen (AC-T032-08).
 // ---------------------------------------------------------------------------

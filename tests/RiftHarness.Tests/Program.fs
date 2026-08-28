@@ -2068,6 +2068,8 @@ module Program =
               CommandLoopTests.exitCodeMappingStaysStableIncludingCommandCodes
               "T-032 interactive exit code precedence stays window bound",
               CommandLoopTests.interactiveExitCodePrecedenceStaysWindowBound
+              "T-032 interactive auto-exit stays explicit and horizon bound",
+              CommandLoopTests.interactiveAutoExitRemainsExplicitAndHorizonBound
               "T-032 CLI contract runs headless loops with controlled failures",
               CommandLoopTests.cliContractRunsHeadlessWithReportsAndControlledFailures
               "T-032 engine run is hermetic", CommandLoopTests.engineRunIsHermetic
