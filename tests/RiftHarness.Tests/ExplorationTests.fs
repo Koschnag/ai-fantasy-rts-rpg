@@ -355,7 +355,9 @@ let observationEnforcesModeCouplingAndSingleRegistration () =
 let finalBoundaryHudMatchesMeasuredReportBeforeAutoExit () =
     let world = SimWorld(20260826u)
     let exploration = ExplorationSession()
-    let before = CommandLoopRunner.BuildTitleHudText(SessionMode.Personal, world, exploration)
+
+    let before =
+        CommandLoopRunner.BuildTitleHudText(SessionMode.Personal, world, exploration)
 
     if not (before.Contains("Erkundung: 0/6", StringComparison.Ordinal)) then
         failwith "Initialer Erkundungs-HUD-Ausweis war nicht 0/6."
@@ -366,13 +368,13 @@ let finalBoundaryHudMatchesMeasuredReportBeforeAutoExit () =
     // denselben Zustand ausweisen.
     exploration.Observe(7999L, world, SessionMode.Personal)
     let telemetry = exploration.ToTelemetry()
-    let after = CommandLoopRunner.BuildTitleHudText(SessionMode.Personal, world, exploration)
+
+    let after =
+        CommandLoopRunner.BuildTitleHudText(SessionMode.Personal, world, exploration)
+
     let report =
-        CommandLoopRunner.BuildExplorationSession(
-            CommandReportSchema.ExecutionInteractive,
-            true,
-            telemetry
-        )
+        CommandLoopRunner.BuildExplorationSession(CommandReportSchema.ExecutionInteractive, true, telemetry)
+
     let reportHud = report["hud"] :?> Dictionary<string, obj>
     let reportFields = reportHud["fields"] :?> Dictionary<string, obj>
 
@@ -392,19 +394,29 @@ let finalBoundaryHudMatchesMeasuredReportBeforeAutoExit () =
     // Boundary-Catch-up-Schleife und vor dem Rendern. So kann Auto-Exit nie
     // mit einem vor der letzten Registrierung gebauten Titel schliessen.
     let source = readDocument "src/Riftward.App/Command/CommandLoopRunner.cs"
+
     let loopStart =
         source.IndexOf("private static InteractiveMeasurement RunInteractiveLoop(", StringComparison.Ordinal)
+
     let boundary =
         source.IndexOf("var outcome = pipeline.ProcessBoundary(tick);", loopStart, StringComparison.Ordinal)
+
     let hudUpdate =
         source.IndexOf(
             "UpdateTitleHud(window, pipeline, world, exploration, ref lastTitleState);",
             boundary,
             StringComparison.Ordinal
         )
-    let render = source.IndexOf("var markerCount = RenderFrame(", hudUpdate, StringComparison.Ordinal)
 
-    if loopStart < 0 || boundary < loopStart || hudUpdate < boundary || render < hudUpdate then
+    let render =
+        source.IndexOf("var markerCount = RenderFrame(", hudUpdate, StringComparison.Ordinal)
+
+    if
+        loopStart < 0
+        || boundary < loopStart
+        || hudUpdate < boundary
+        || render < hudUpdate
+    then
         failwith "Interaktiver Caller bindet das HUD nicht nach Boundary-Catch-up und vor Render."
 
 // ---------------------------------------------------------------------------
