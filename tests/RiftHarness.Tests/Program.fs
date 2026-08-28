@@ -2143,6 +2143,8 @@ module Program =
               ExplorationTests.explorationViewsResistExternalMutation
               "T-034 observation enforces mode coupling and single registration",
               ExplorationTests.observationEnforcesModeCouplingAndSingleRegistration
+              "T-034 final-boundary HUD matches measured report before auto-exit",
+              ExplorationTests.finalBoundaryHudMatchesMeasuredReportBeforeAutoExit
               "T-034 exploration is observation-only; twin stays byte identical",
               ExplorationTests.explorationObservationIsObservationOnlyTwinStaysByteIdentical
               "T-034 foreign seed changes hashes but not the landmark set",

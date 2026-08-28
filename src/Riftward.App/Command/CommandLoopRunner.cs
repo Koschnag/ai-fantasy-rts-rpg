@@ -326,6 +326,12 @@ internal static class CommandLoopRunner
         }
     }
 
+    private readonly record struct TitleHudState(
+        SessionMode Mode,
+        int HeroZone,
+        int VisitedCount,
+        int LandmarkCount);
+
     private static int RunInteractive(
         CommandLineArgs arguments,
         string reportPath,
@@ -603,7 +609,7 @@ internal static class CommandLoopRunner
         var measurement = new InteractiveMeasurement(windowTicks);
         var pauseSumBeforeMs = GC.GetTotalPauseDuration().TotalMilliseconds;
         var collectionCountBefore = GcCollectionTotal();
-        var lastTitle = string.Empty;
+        TitleHudState? lastTitleState = null;
 
         measurement.IntervalSampleTicks[0] = world.TickIndex;
         measurement.IntervalHashes[0] = world.ComputeStateHash();
@@ -636,8 +642,6 @@ internal static class CommandLoopRunner
                 // gebunden (KOMMANDOVERTRAG Abschnitt 12).
                 heroCamera.Follow(world);
             }
-
-            UpdateTitleHud(window, pipeline, world, exploration, ref lastTitle);
 
             var catchUp = 0;
             var now = Stopwatch.GetTimestamp();
@@ -739,6 +743,13 @@ internal static class CommandLoopRunner
                     measurement.WindowCompleted = true;
                 }
             }
+
+            // Der Titel muss den Zustand nach allen in diesem Frame
+            // verarbeiteten Vorgrenzen zeigen. Das ist insbesondere am
+            // Auto-Exit-Horizont zwingend: eine dort registrierte Landmarke
+            // erhaelt keinen weiteren Schleifendurchlauf fuer ein spaeteres
+            // HUD-Update.
+            UpdateTitleHud(window, pipeline, world, exploration, ref lastTitleState);
 
             var activeCamera = pipeline.CurrentEffectiveMode == SessionMode.Personal
                 ? InteractiveCameraMath.ActiveCamera.From(heroCamera)
@@ -1113,22 +1124,45 @@ internal static class CommandLoopRunner
         SessionPipeline pipeline,
         SimWorld world,
         ExplorationSession? exploration,
-        ref string lastTitle)
+        ref TitleHudState? lastState)
     {
-        var modeText = pipeline.CurrentEffectiveMode == SessionMode.Personal ? "Persönlich" : "Strategisch";
         var heroZone = HeroTracker.ZoneIndexOf(world);
-        var explorationProgress = exploration is null
-            ? string.Empty
-            : $" — Erkundung: {exploration.VisitedCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}/{exploration.LandmarkCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-        var title = $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(heroZone < 0 ? "–" : heroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}{explorationProgress}";
+        var state = new TitleHudState(
+            pipeline.CurrentEffectiveMode,
+            heroZone,
+            exploration?.VisitedCount ?? -1,
+            exploration?.LandmarkCount ?? -1);
 
-        if (title == lastTitle)
+        if (lastState == state)
         {
             return;
         }
 
-        window.SetTitle(title);
-        lastTitle = title;
+        window.SetTitle(FormatTitleHud(state));
+        lastState = state;
+    }
+
+    /// <summary>
+    /// Reiner Test-/Vertragsanker fuer denselben Titeltext wie im echten
+    /// Fensterpfad. Negative Erkundungszaehler sind ausschließlich der
+    /// interne Nichtaktivierungs-Sentinel und erscheinen nie im Titel.
+    /// </summary>
+    internal static string BuildTitleHudText(
+        SessionMode mode,
+        SimWorld world,
+        ExplorationSession? exploration) => FormatTitleHud(new TitleHudState(
+            mode,
+            HeroTracker.ZoneIndexOf(world),
+            exploration?.VisitedCount ?? -1,
+            exploration?.LandmarkCount ?? -1));
+
+    private static string FormatTitleHud(TitleHudState state)
+    {
+        var modeText = state.Mode == SessionMode.Personal ? "Persönlich" : "Strategisch";
+        var explorationProgress = state.VisitedCount < 0
+            ? string.Empty
+            : $" — Erkundung: {state.VisitedCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}/{state.LandmarkCount.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        return $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(state.HeroZone < 0 ? "–" : state.HeroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}{explorationProgress}";
     }
 
     private static void HandleMotion(
