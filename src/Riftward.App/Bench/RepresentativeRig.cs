@@ -408,6 +408,16 @@ public static class RepresentativeRig
                     _scratchRotation, _scratchTranslation, bone,
                     _scratchRotation, _scratchTranslation, bone,
                     _jointRotation, ZeroTranslation, 0);
+            }
+
+            // Erst nachdem die vollständige Posenhierarchie aufgebaut ist,
+            // wird Welt(Pose) * BindInverse zur Hautmatrix. Würde ein
+            // Elternknochen schon innerhalb der ersten Schleife in den
+            // Skinraum überschrieben, erbten seine Kinder statt der
+            // Posenweltmatrix eine bereits bindkorrigierte Matrix und
+            // drifteten entlang langer Ketten um viele Meter auseinander.
+            for (var bone = 0; bone < BoneCount; bone++)
+            {
                 Multiply(
                     _scratchRotation, _scratchTranslation, bone,
                     _scratchRotation, _scratchTranslation, bone,
