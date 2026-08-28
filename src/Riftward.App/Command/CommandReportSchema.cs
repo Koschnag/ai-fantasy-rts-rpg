@@ -171,6 +171,16 @@ public static class CommandReportSchema
             fields.Add(("explorationSession", ExplorationSessionBody()));
         }
 
+        // Rein additive Schemaversion 4 (T-035, Entscheidungsvertrag
+        // Abschnitt 8): ausschließlich neue Felder, keine Umdeutung;
+        // vertraglich an die Erkundungsaktivierung gekoppelt, daher traegt
+        // die Entscheidungs-Schemaversion stets auch den Erkundungsblock.
+        if (version == VersionWithDecision)
+        {
+            fields.Add(("explorationSession", ExplorationSessionBody()));
+            fields.Add((DecisionContract.ReportBlockId, DecisionSessionBody()));
+        }
+
         fields.AddRange(new List<(string Name, ReportNode Node)>
         {
             ("simulationContract", new RObj(
@@ -557,6 +567,274 @@ public static class CommandReportSchema
     }
 
     /// <summary>
+    /// Entscheidungssitzungsblock (T-035, Entscheidungsvertrag Abschnitt 8):
+    /// bei Aktivierung vertraglich gebunden — Vertrags- und Modellkennungen,
+    /// Angebot (Optionszonen bzw. ehrlicher Nichtöffnungsgrund), Entscheidung
+    /// mit Modus und gewählter Zone, Folge mit Ankunft, Abweisungszähler der
+    /// Auswertungsordnung, versionierte Nichtpersistenzaussage und die
+    /// fensterpflichtigen Darstellungsausweise. Rein diagnostisch
+    /// (gateCoupled=false); kein Feld koppelt an ein Gate oder einen
+    /// Budgetwert, und keine Exitcodebedeutung entsteht.
+    /// </summary>
+    private static RObj DecisionSessionBody() => new(
+        ("contract", new RObj(
+            ("document", new RLit(DecisionContract.DocumentPath)),
+            ("version", new RLit(DecisionContract.ContractVersion)))),
+        ("activationId", new RLit(DecisionContract.ActivationId)),
+        ("offerRule", new RLit(DecisionContract.OfferRuleId)),
+        ("optionsModel", new RLit(DecisionContract.OptionsModelId)),
+        ("choiceScopingRule", new RLit(DecisionContract.ChoiceScopingRuleId)),
+        ("followUpRule", new RLit(DecisionContract.FollowUpRuleId)),
+        ("arrivalRule", new RLit(DecisionContract.ArrivalRuleId)),
+        ("offer", new FlagAlternative("opened",
+        [
+            new RObj(
+                ("opened", new RBool(true)),
+                ("boundaryTick", new RInt(0)),
+                ("optionZoneA", ZoneIndexNode()),
+                ("optionZoneB", ZoneIndexNode())),
+            new RObj(
+                ("opened", new RBool(false)),
+                ("boundaryTick", new RInt((int)DecisionTelemetry.UnsetBoundaryTick)),
+                ("optionZoneA", new RInt(DecisionTelemetry.UnsetZoneIndex)),
+                ("optionZoneB", new RInt(DecisionTelemetry.UnsetZoneIndex)),
+                ("reason", new LiteralAlternative([DecisionContract.OfferNotOpenedReason]))),
+        ])),
+        ("decision", new FlagAlternative("decided",
+        [
+            new RObj(
+                ("decided", new RBool(true)),
+                ("boundaryTick", new RInt(0)),
+                ("choice", new LiteralAlternative(
+                    [DecisionContract.ChoiceOptionAId, DecisionContract.ChoiceOptionBId])),
+                ("mode", new LiteralAlternative([ModeContract.ModePersonalId])),
+                ("optionZone", ZoneIndexNode())),
+            new RObj(
+                ("decided", new RBool(false)),
+                ("boundaryTick", new RInt((int)DecisionTelemetry.UnsetBoundaryTick)),
+                ("choice", new RStr()),
+                ("mode", new RStr()),
+                ("optionZone", new RInt(DecisionTelemetry.UnsetZoneIndex))),
+        ])),
+        ("followUp", new RObj(
+            ("zoneIndex", new RInt(DecisionTelemetry.UnsetZoneIndex, Riftward.Simulation.NavWorld.ZoneCount - 1)),
+            ("completed", new RBool()),
+            ("arrivalBoundaryTick", new RInt((int)DecisionTelemetry.UnsetBoundaryTick)),
+            ("gateCoupled", new RBool(false)))),
+        ("rejections", new RObj(
+            ("beforeOffer", new RInt(0)),
+            ("inStrategicMode", new RInt(0)),
+            ("afterDecision", new RInt(0)),
+            ("gateCoupled", new RBool(false)))),
+        ("persistence", new RObj(
+            ("statementId", new RLit(DecisionContract.NotPersistedStatementId)),
+            ("persisted", new RBool(false)),
+            ("saveLoad", new RLit("not-continued")),
+            ("replay", new RLit("not-continued")),
+            ("gateCoupled", new RBool(false)))),
+        ("gateCoupled", new RBool(false)),
+        ("hud", DecisionHudAlternative()),
+        ("followUpChannel", DecisionChannelAlternative()));
+
+    /// <summary>Zonenknoten inklusive vertraglichem Sentinel.</summary>
+    private static RInt ZoneIndexNode() =>
+        new(DecisionTelemetry.UnsetZoneIndex, Riftward.Simulation.NavWorld.ZoneCount - 1);
+
+    /// <summary>
+    /// Titel-HUD-Ausweis der Entscheidung (Vertrag Abschnitte 6 und 8): im
+    /// Interaktivmodus messend mit Angebots-, Options-, Folgen- und
+    /// Abschlusszustand; headless und in unvollständigen Läufen ausdrücklich
+    /// nicht gemessen mit maschinenlesbarem Grund statt stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative DecisionHudAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(DecisionContract.HudModelId)),
+                ("fields", new RObj(
+                    ("offerOpened", new RBool()),
+                    ("optionZoneA", ZoneIndexNode()),
+                    ("optionZoneB", ZoneIndexNode()),
+                    ("followUpZoneIndex", ZoneIndexNode()),
+                    ("followUpCompleted", new RBool())))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(DecisionContract.HudModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
+    /// Folgezielkanal-Bindung (T-035, Vertrag Abschnitte 6 und 8): im
+    /// Interaktivmodus messend ausgewiesen; headless ausdrücklich nicht
+    /// gemessen mit maschinenlesbarem Grund statt stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative DecisionChannelAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(DecisionContract.FollowUpChannelModelId)),
+                ("fields", new RObj(
+                    ("zoneIndex", ZoneIndexNode()),
+                    ("active", new RBool())))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(DecisionContract.FollowUpChannelModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>Alternativnode, der auf einem booleschen Feld mit festem Namen dispatcht.</summary>
+    private sealed class FlagAlternative(string flagName, IReadOnlyList<RObj> shapes) : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                errors.Add($"{path}: Objekt erwartet.");
+                return;
+            }
+
+            if (!element.TryGetProperty(flagName, out var flag)
+                || flag.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                errors.Add($"{path}.{flagName}: boolesche Kennung erwartet.");
+                return;
+            }
+
+            shapes[flag.GetBoolean() ? 0 : 1].Check(path, element, errors);
+        }
+    }
+
+    /// <summary>
+    /// Relationale T-035-Bindung (Entscheidungsvertrag Abschnitt 8,
+    /// fail-closed): die Angebotszonen sind verschieden; die gewählte Zone ist
+    /// eine Angebotszone und der Wahl zugeordnet; die Folgenzone ist die
+    /// gewählte Zone; die Ankunft liegt an oder nach der Entscheidungsgrenze;
+    /// Abschluss und Ankunftsgrenze tragen dieselbe Aussage; ohne Angebot
+    /// gibt es keine Entscheidung und keine Folge.
+    /// </summary>
+    private static void ValidateDecisionRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("decisionSession", out var decisionSession)
+            || decisionSession.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var decisionPath = $"{path}.decisionSession";
+
+        if (!decisionSession.TryGetProperty("offer", out var offer)
+            || offer.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var offerOpened = ReadBool(offer, "opened");
+        var optionZoneA = ReadInt(offer, "optionZoneA");
+        var optionZoneB = ReadInt(offer, "optionZoneB");
+
+        if (offerOpened == true
+            && optionZoneA is { } zoneA
+            && optionZoneB is { } zoneB
+            && zoneA == zoneB)
+        {
+            errors.Add($"{decisionPath}.offer: die beiden Optionszonen muessen verschieden sein.");
+        }
+
+        if (!decisionSession.TryGetProperty("decision", out var decision)
+            || decision.ValueKind != JsonValueKind.Object
+            || !decisionSession.TryGetProperty("followUp", out var followUp)
+            || followUp.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var decided = ReadBool(decision, "decided");
+        var decisionBoundary = ReadInt(decision, "boundaryTick");
+        var choice = decision.TryGetProperty("choice", out var choiceElement)
+            && choiceElement.ValueKind == JsonValueKind.String
+            ? choiceElement.GetString()
+            : null;
+        var chosenZone = ReadInt(decision, "optionZone");
+
+        if (offerOpened == false && decided == true)
+        {
+            errors.Add($"{decisionPath}.decision: ohne Angebot gibt es keine Entscheidung.");
+        }
+
+        if (decided != true)
+        {
+            return;
+        }
+
+        if (choice == DecisionContract.ChoiceOptionAId
+            && optionZoneA is { } boundA
+            && chosenZone is { } pickedA
+            && pickedA != boundA)
+        {
+            errors.Add($"{decisionPath}.decision.optionZone: Wahl a muss die Optionszone A gewaehlt haben.");
+        }
+
+        if (choice == DecisionContract.ChoiceOptionBId
+            && optionZoneB is { } boundB
+            && chosenZone is { } pickedB
+            && pickedB != boundB)
+        {
+            errors.Add($"{decisionPath}.decision.optionZone: Wahl b muss die Optionszone B gewaehlt haben.");
+        }
+
+        var followUpZone = ReadInt(followUp, "zoneIndex");
+        var followUpCompleted = ReadBool(followUp, "completed");
+        var arrivalBoundary = ReadInt(followUp, "arrivalBoundaryTick");
+
+        if (chosenZone is { } picked
+            && followUpZone is { } followZone
+            && picked != followZone)
+        {
+            errors.Add($"{decisionPath}.followUp.zoneIndex: die Folgenzone ist die gewaehlte Zone.");
+        }
+
+        if (followUpCompleted != (arrivalBoundary >= 0))
+        {
+            errors.Add($"{decisionPath}.followUp: Abschluss und Ankunftsgrenze muessen dieselbe Aussage tragen.");
+        }
+
+        if (arrivalBoundary is { } arrival
+            && decisionBoundary is { } decidedAt
+            && arrival >= 0
+            && arrival < decidedAt)
+        {
+            errors.Add($"{decisionPath}.followUp.arrivalBoundaryTick: die Ankunft liegt an oder nach der Entscheidungsgrenze.");
+        }
+
+        if (offerOpened == false
+            && ((followUpZone is { } orphanZone && orphanZone >= 0)
+                || followUpCompleted == true
+                || (arrivalBoundary is { } orphanArrival && orphanArrival >= 0)))
+        {
+            errors.Add($"{decisionPath}.followUp: ohne Angebot gibt es keine Folge.");
+        }
+    }
+
+    private static bool? ReadBool(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value)
+        && value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
+            : null;
+
+    private static int? ReadInt(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt32(out var parsed)
+            ? parsed
+            : null;
+
+    /// <summary>
     /// Ein visueller Kanal darf nur dann als gemessen gelten, wenn ein
     /// interaktives Fenster sein Messfenster tatsaechlich abgeschlossen hat.
     /// Headless- und Early-Quit-Reports muessen fail-closed unavailable
@@ -591,6 +869,14 @@ public static class CommandReportSchema
                 path, root, "explorationSession", "hud", shouldBeMeasured, errors);
             ValidateMeasuredFlag(
                 path, root, "explorationSession", "landmarkChannel", shouldBeMeasured, errors);
+        }
+
+        if (root.TryGetProperty("decisionSession", out _))
+        {
+            ValidateMeasuredFlag(
+                path, root, "decisionSession", "hud", shouldBeMeasured, errors);
+            ValidateMeasuredFlag(
+                path, root, "decisionSession", "followUpChannel", shouldBeMeasured, errors);
         }
     }
 
@@ -764,11 +1050,11 @@ public static class CommandReportSchema
 
     /// <summary>
     /// Skriptformatbindung: Der Report weist das tatsächlich gelaufene Format
-    /// aus (Legacy v1 oder T-033-Obermenge v2); ein fremder Bezeichner wird
-    /// abgewiesen.
+    /// aus (Legacy v1, T-033-Obermenge v2 oder T-035-Obermenge v3); ein
+    /// fremder Bezeichner wird abgewiesen.
     /// </summary>
     private static LiteralAlternative ScriptFormat() =>
-        new([SessionContract.ScriptFormatId, ModeContract.ScriptFormatIdV2]);
+        new([SessionContract.ScriptFormatId, ModeContract.ScriptFormatIdV2, DecisionContract.ScriptFormatIdV3]);
 
     /// <summary>
     /// Modussitzungsblock (T-033, Modevertrag Abschnitt 7): Wechselprotokoll
