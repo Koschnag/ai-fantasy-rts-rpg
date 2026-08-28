@@ -219,6 +219,49 @@ let rigEvaluatesFortyEightBonePaletteDeterministically () =
     if maxAbs > 2.0 then
         failwith $"Palettenwerte verlassen den Graybox-Bereich ({maxAbs})."
 
+    // Jede lineare Hautmatrix muss eine echte Rotation bleiben. Dieser
+    // Nachweis faengt insbesondere nicht alias-sichere In-Place-Produkte ab,
+    // die Spalte 0 beim Berechnen der Folgespalten wiederverwenden.
+    let dot3 ax ay az bx by bz = (ax * bx) + (ay * by) + (az * bz)
+    let mutable sawAffineTranslation = false
+
+    for bone in 0 .. RepresentativeScenario.BonesPerNormalUnit - 1 do
+        let offset = bone * 12
+
+        let c0x, c0y, c0z =
+            float first[offset], float first[offset + 1], float first[offset + 2]
+
+        let c1x, c1y, c1z =
+            float first[offset + 4], float first[offset + 5], float first[offset + 6]
+
+        let c2x, c2y, c2z =
+            float first[offset + 8], float first[offset + 9], float first[offset + 10]
+
+        let tolerance = 0.0001
+
+        for lengthSquared in
+            [ dot3 c0x c0y c0z c0x c0y c0z
+              dot3 c1x c1y c1z c1x c1y c1z
+              dot3 c2x c2y c2z c2x c2y c2z ] do
+            if Math.Abs(lengthSquared - 1.0) > tolerance then
+                failwith $"Hautrotation von Knochen {bone} ist nicht normiert ({lengthSquared})."
+
+        for crossDot in
+            [ dot3 c0x c0y c0z c1x c1y c1z
+              dot3 c0x c0y c0z c2x c2y c2z
+              dot3 c1x c1y c1z c2x c2y c2z ] do
+            if Math.Abs(crossDot) > tolerance then
+                failwith $"Hautrotation von Knochen {bone} ist nicht orthogonal ({crossDot})."
+
+        sawAffineTranslation <-
+            sawAffineTranslation
+            || Math.Abs(float first[offset + 3]) > 0.000001
+            || Math.Abs(float first[offset + 7]) > 0.000001
+            || Math.Abs(float first[offset + 11]) > 0.000001
+
+    if not sawAffineTranslation then
+        failwith "Die RGBA-Palette hat alle berechneten Gelenktranslationen verworfen."
+
 /// Das Kameraflugskript bleibt deterministisch und hashgebunden (AC-T023-01/03).
 let cameraFlightIsDeterministicAndCanonical () =
     let samples = RepresentativeCameraFlight.Samples(defaultSeed, 64)
