@@ -42,6 +42,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-031 | E-004 | versioniertes atomares Save/Load besteht Roundtrip-, Abbruch-, Korruptions- und Wiederherstellungsfixtures | Z-001, F-005, NF-002 | L | MUST | DONE |
 | T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-033 | E-004 | kleinster Hybrid-Mode-Switch-Prototyp: persönlicher Third-Person-Heldenmodus und strategischer RTS-Modus über dem unveränderten Simulationskern mit Hashketten-Kontinuitätsnachweis | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
+| T-034 | E-004 | kleinster spielbarer Erkundungsauftrag-Loop: modusgebundenes Aufsuchen deterministischer Graybox-Landmarken mit strategischer Mobilmachung über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -977,8 +978,9 @@ Die verbleibenden DRAFT-Einheiten hängen an Referenzhardware- und
 Runner-Benennung (Q-OPS-001/Q-OPS-002 für `T-011`) sowie an echten kreativen
 Produktentscheidungen (`T-030` samt seiner geplanten Folgeslices, dahinter
 `T-040`/`T-041`) beziehungsweise an getrennten Generator- und Storage-/Backup-
-Freigaben (`T-050`/`T-051`). `T-033` ist seit 2026-08-27 als zweiter Slice der
-T-030-Zerlegung `READY` (Freigabevermerk am Ende dieser Datei).
+Freigaben (`T-050`/`T-051`). `T-033` ist seit dem unabhängigen Review-/
+Vollendungslauf 2026-08-28 `DONE`; `T-034` ist seit 2026-08-28 als dritter
+Slice der T-030-Zerlegung `READY` (Freigabevermerk am Ende dieser Datei).
 
 ## Vorlage für eine Umsetzungseinheit
 
@@ -1268,3 +1270,23 @@ wird in diesem Slice nicht behauptet. Das Manifest ist gegen
 `.ai/schemas/task.schema.json` mit dem gepinnten JsonSchema.Net 8.0.5 gültig
 (16/16 Manifeste unter `.ai/tasks/`); dieser Freigabelauf hat keinen
 Produktcode implementiert und keinen Commit erstellt.
+
+T-034 wurde am 2026-08-28 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) als dritter Slice der T-030-Zerlegung auf
+`READY` gesetzt; die vollständige Auswahlkette, Blockerbehandlung und
+Reversibilitätsbindung stehen im `releaseNote` des Manifests
+`.ai/tasks/T-034-graybox-exploration-loop.json` und in der Klärungszeile
+2026-08-28 in `docs/OFFENE_FRAGEN.md`. Kurz: Der kleinste player-visible
+Fortsetzungsschritt der akzeptierten UF-001-Erkundungsphase über T-032/T-033 —
+strategische Mobilmachung, persönliches Aufsuchen deterministischer,
+assetfreier Graybox-Landmarken, sitzungslokaler Fortschritt mit Zwei-Modi-Feedback —
+ohne Kampf, Wirtschaft, Contentbreite, Fog of War oder Antworten auf Q-GAM-001
+bis Q-GAM-007, Q-GAM-010, Q-NAR-002/Q-NAR-004; sitzungslokaler Fortschritt und
+Moduspersistenz bleiben der Savevertrags-Erweiterung gemäß ADR 008
+Sequenzierungsnote vorbehalten (Q-TEC-006 unberührt); die reversiblen Details
+entstehen als vorregistrierte Hypothesen im gatenden Abschnitt 0 des
+versionierten Erkundungsvertrags `docs/ERKUNDUNGSVERTRAG.md` (Spike-Klausel in
+`docs/QUALITAET.md`). Dieser Freigabelauf hat keinen Produktcode implementiert
+und keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
+JsonSchema.Net bleibt gemäß T-022-/T-031-Präzedenz Pflichtteil des
+Spec-Reviewlaufs.
