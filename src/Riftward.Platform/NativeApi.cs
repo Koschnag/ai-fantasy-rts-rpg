@@ -18,6 +18,9 @@ public interface ISdlApi
 
     void DestroyWindow(nint window);
 
+    /// <summary>T-033: Fenstertitel des Mindest-HUD setzen (Modevertrag Abschnitt 8).</summary>
+    bool SetWindowTitle(nint window, string title);
+
     bool PollEvent(ref SdlEventBuffer eventBuffer);
 
     uint GetWindowProperties(nint window);
@@ -141,6 +144,8 @@ public sealed class NativeApi : ISdlApi, IBgfxApi
         Sdl3Native.SDL_CreateWindow(title, width, height, flags);
 
     public void DestroyWindow(nint window) => Sdl3Native.SDL_DestroyWindow(window);
+
+    public bool SetWindowTitle(nint window, string title) => Sdl3Native.SDL_SetWindowTitle(window, title);
 
     public bool PollEvent(ref SdlEventBuffer eventBuffer) => Sdl3Native.SDL_PollEvent(ref eventBuffer);
 

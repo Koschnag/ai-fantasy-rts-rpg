@@ -2,11 +2,13 @@ namespace Riftward.Session;
 
 /// <summary>
 /// Dokumentierte Grenzwerte des Kommandoschleifen-Gates (Kommandovertrag
+/// Abschnitt 7, T-033 erweitert um Kriterium 6 der Gatematrix im Modevertrag
 /// Abschnitt 7). Fail-closed: Es entscheidet ausschließlich gegen diese
 /// absoluten Grenzwerte; alle uebrigen Messfelder sind diagnostisch
 /// (gateCoupled=false). Die Werte stammen unveraendert aus dem
-/// Simulationsvertrag V1, docs/PERFORMANCE_BUDGET.md und der Reaktions-
-/// ableitung des Kommandovertrags Abschnitt 6.
+/// Simulationsvertrag V1, docs/PERFORMANCE_BUDGET.md, der Reaktions-
+/// ableitung des Kommandovertrags Abschnitt 6 und der Wechselreaktions-
+/// ableitung des Modevertrags Abschnitt 4.
 /// </summary>
 public sealed record CommandGateLimits(
     double P99TickTimeHardLimitMs = Riftward.Simulation.SimulationContract.P99TickTimeHardLimitMs,
@@ -14,7 +16,9 @@ public sealed record CommandGateLimits(
     long AllocationsPerWarmTickLimitBytes = Riftward.Simulation.SimulationContract.AllocationLimitBytesPerWarmTick,
     int ReactionHardLimitTicks = SessionContract.ReactionHardLimitTicks,
     int ReactionTargetTicks = SessionContract.ReactionTargetTicks,
-    bool RuntimeShaderCompilationAllowed = false)
+    bool RuntimeShaderCompilationAllowed = false,
+    int SwitchReactionHardLimitTicks = ModeContract.SwitchReactionHardLimitTicks,
+    int SwitchReactionTargetTicks = ModeContract.SwitchReactionTargetTicks)
 {
     public static CommandGateLimits Documented { get; } = new();
 }
@@ -27,16 +31,22 @@ public readonly record struct CommandGateInputs(
     long ReactionSampleCount,
     bool RuntimeShaderCompilationObserved,
     /// <summary>Null im Interaktivmodus: Kriterium nicht auswertbar (live Eingaben), wird nicht behauptet.</summary>
-    bool? StateChainSelfConsistent);
+    bool? StateChainSelfConsistent,
+    long MaxSwitchReactionTicks = 0,
+    int SwitchReactionSampleCount = 0);
 
 /// <summary>Ergebnis einer Gateentscheidung mit stabilen Verletzungskennungen.</summary>
 public sealed record CommandGateVerdict(
     bool Pass,
     bool TickTimeTargetMet,
     bool ReactionTargetMet,
-    IReadOnlyList<string> Violations)
+    IReadOnlyList<string> Violations,
+    /// <summary>Kriterium 6 war mit mindestens einem wirksamen Wechsel messbar.</summary>
+    bool SwitchReactionEvaluated = false,
+    /// <summary>Zielerfuellung von Kriterium 6; ohne Messung ohne Aussage (false).</summary>
+    bool SwitchReactionTargetMet = false)
 {
-    public static readonly CommandGateVerdict Empty = new(true, true, true, []);
+    public static readonly CommandGateVerdict Empty = new(true, true, true, [], false, false);
 }
 
 /// <summary>
@@ -61,9 +71,12 @@ public static class CommandGate
     public const string ViolationChainInconsistent =
         "state-chain-self-inconsistent";
 
+    public const string ViolationSwitchReaction =
+        "switch-reaction-ticks-above-hard-limit";
+
     public static CommandGateVerdict Evaluate(CommandGateLimits limits, CommandGateInputs inputs)
     {
-        var violations = new List<string>(5);
+        var violations = new List<string>(6);
         var tickTimeTargetMet = inputs.P99TickTimeMs <= limits.P99TickTimeTargetMs;
         var reactionTargetMet = true;
 
@@ -97,10 +110,31 @@ public static class CommandGate
             violations.Add(ViolationChainInconsistent);
         }
 
+        // Kriterium 6 (Modevertrag Abschnitt 7): Die Wechselreaktion ist
+        // ausschließlich über die innerhalb des Laufs wirksamen Wechsel
+        // messbar. Ohne wirksamen Wechsel ist das Kriterium ausdrücklich
+        // NICHT auswertbar (SwitchReactionEvaluated = false) und wird nie
+        // als gemessener Pass ausgegeben; erst eine Messung über der harten
+        // Grenze erzeugt die fail-closed Verletzung.
+        var switchReactionEvaluated = inputs.SwitchReactionSampleCount > 0;
+        var switchReactionTargetMet = false;
+
+        if (switchReactionEvaluated)
+        {
+            switchReactionTargetMet = inputs.MaxSwitchReactionTicks <= limits.SwitchReactionTargetTicks;
+
+            if (inputs.MaxSwitchReactionTicks > limits.SwitchReactionHardLimitTicks)
+            {
+                violations.Add(ViolationSwitchReaction);
+            }
+        }
+
         return new CommandGateVerdict(
             Pass: violations.Count == 0,
             TickTimeTargetMet: tickTimeTargetMet,
             ReactionTargetMet: reactionTargetMet,
-            Violations: violations);
+            Violations: violations,
+            SwitchReactionEvaluated: switchReactionEvaluated,
+            SwitchReactionTargetMet: switchReactionTargetMet);
     }
 }

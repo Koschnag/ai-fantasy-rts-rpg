@@ -9,7 +9,12 @@ namespace Riftward.App.Command;
 /// </summary>
 public static class Keymap
 {
-    /// <summary>Semantische Aktionsfamilie des Vertrags.</summary>
+    /// <summary>
+    /// Semantische Aktionsfamilie des Vertrags. <c>mode-switch</c> ist die
+    /// T-033-Erweiterung (Modevertrag Abschnitt 4): frei belegbare,
+    /// datengetriebene Umschaltaktion; der Standard belegt Tab (Scancode 43),
+    /// das im T-032-Stand unbesetzt war.
+    /// </summary>
     public static readonly string[] SemanticActions =
     [
         "quit",
@@ -19,6 +24,7 @@ public static class Keymap
         "pan-right",
         "zoom-in",
         "zoom-out",
+        "mode-switch",
     ];
 
     /// <summary>Defaultbelegung: Aktion → SDL-Scancodes (gepinnter Stand).</summary>
@@ -31,6 +37,7 @@ public static class Keymap
         ["pan-right"] = [7, 79], // D, Right
         ["zoom-in"] = [8, 46], // E, Equals
         ["zoom-out"] = [20, 45], // Q, Minus
+        ["mode-switch"] = [43], // Tab (T-033 Modevertrag Abschnitt 4)
     };
 
     /// <summary>

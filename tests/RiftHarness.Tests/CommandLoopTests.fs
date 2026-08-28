@@ -528,14 +528,66 @@ let reactionGatePositiveProofAndFaultInjectionMatrix () =
         failwith "Interaktive Nichtauswertbarkeit durfte das Gate nicht falten."
 
 let allocationStrictnessRegression () =
-    let result = runEngine defaultSeed (engineIntents ())
+    // Frische Prozessisolierung (Nebenreparatur für die Schlussfreigabe): Der
+    // strenge 0-Bytes-Nachweis misst vertragstreu prozessweit mit
+    // GC.GetTotalAllocatedBytes; läuft er spät im monolithischen
+    // Suiteprozess, fallen zufällige Runtime-/Hintergrundthread-Allokationen
+    // in das enge Messfenster (beobachtet: 30,24 Bytes statt 0). Das
+    // Messfenster läuft deshalb in einem dedizierten Fresh-Prozess der
+    // Test-DLL mit dem vertraglichen Messfenster 240/1200 und den Intents im
+    // Fenster; die Exakt-Null-Assertion und die GC-Pausenprüfung bleiben
+    // unverändert, kein Schwellwert, kein per-thread-Zähler, kein Retry.
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), "rift-t032-allocprobe-" + Guid.NewGuid().ToString("N") + ".json")
 
-    if result.Metrics.AllocationsPerWarmTickBytes <> 0.0 then
-        failwith
-            $"Allokation je warmem Tick war {result.Metrics.AllocationsPerWarmTickBytes}, Vertrag verlangt exakt 0."
+    try
+        let startInfo = ProcessStartInfo("dotnet")
+        startInfo.UseShellExecute <- false
+        startInfo.RedirectStandardError <- true
+        startInfo.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "RiftHarness.Tests.dll"))
+        startInfo.ArgumentList.Add("--t032-allocation-probe")
+        startInfo.ArgumentList.Add(reportPath)
 
-    if result.Metrics.GcPauseCount <> 0L then
-        failwith "Messfenster erzeugte GC-Pausen."
+        use processHandle = Process.Start(startInfo)
+        let probeError = processHandle.StandardError.ReadToEnd()
+        processHandle.WaitForExit()
+
+        if processHandle.ExitCode <> 0 then
+            failwith $"Allokationsprobe brach kontrolliert ab: {probeError}"
+
+        use document = JsonDocument.Parse(File.ReadAllText(reportPath))
+        let perWarmTick = document.RootElement.GetProperty("perWarmTick").GetDouble()
+        let gcPauseCount = document.RootElement.GetProperty("gcPauseCount").GetInt64()
+
+        if perWarmTick <> 0.0 then
+            failwith $"Allokation je warmem Tick war {perWarmTick}, Vertrag verlangt exakt 0."
+
+        if gcPauseCount <> 0L then
+            failwith "Messfenster erzeugte GC-Pausen."
+    finally
+        File.Delete(reportPath)
+
+/// <summary>
+/// Frisch-Prozess-Eingang der Allokationsprobe (--t032-allocation-probe):
+/// unveränderte exakte-0-Messbasis der SessionEngine (240/1200, Intents im
+/// Messfenster, Selbstkonsistenzpass), Schreibt perWarmTick und GC-Pausen
+/// als einzeiliges JSON-Report.
+/// </summary>
+let runT032AllocationProbe (reportPath: string) =
+    let probeIntents () : GrayboxIntent[] =
+        [| GrayboxIntent(300, GrayboxIntentKind.BoxSelect, 1000L, 1000L, 159000L, 89000L)
+           GrayboxIntent(305, GrayboxIntentKind.GroupMoveToZone, 2L)
+           GrayboxIntent(320, GrayboxIntentKind.Clear)
+           GrayboxIntent(330, GrayboxIntentKind.PointSelect, 20000L, 30000L)
+           GrayboxIntent(340, GrayboxIntentKind.GroupMoveToZone, 4L) |]
+
+    let result =
+        SessionEngine.Run(SessionRunRequest(defaultSeed, probeIntents (), 240, 1200, true))
+
+    let perWarmTick =
+        result.Metrics.AllocationsPerWarmTickBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+
+    File.WriteAllText(reportPath, $"{{\"perWarmTick\":{perWarmTick},\"gcPauseCount\":{result.Metrics.GcPauseCount}}}")
 
 let cameraModelClampsWorldEdgesAndZoom () =
     let camera = GrayboxCamera()
@@ -1115,8 +1167,8 @@ let riftScriptKommandoschleifeContractKeepsAppBuildGuard () =
 // Report-Schema: Golden-Fixture und Fabrikationsmatrix (AC-T032-02/05).
 // ---------------------------------------------------------------------------
 
-let private goldenReport =
-    """{"schemaVersion":1,"mode":"kommandoschleife","executionMode":"headless","command":"./scripts/rift.sh kommandoschleife --scenario kommando-graybox --input-script \u003CPFAD\u003E --seed N --report \u003CPFAD\u003E","scenario":{"id":"kommando-graybox","seed":20260826,"tickRateHz":20,"agentCount":250,"worldId":"riftward-simworld-graybox-v1","content":"synthetic-graybox-command-loop"},"commandContract":{"document":"docs/KOMMANDOVERTRAG.md","version":"1","scriptFormat":"graybox-input-script-v1","selectionModel":"graybox-selection-model-v0","cameraModel":"graybox-camera-model-v0","diagnosticOnlyReplayDisclaimer":true},"simulationContract":{"document":"docs/SIMULATIONSVERTRAG.md","version":"1","numericModel":"q16-16-fixed-point-intonly-v1","hashAlgorithm":"fnv1a64-canonical-chain-v1","allocationLimitBytesPerWarmTick":0},"inputScript":{"scriptSha256":"cbcab89e6961e4bfeaad33f3dde8b63cd17c27e892f66d11b6396cd8c51ffc33","intentPlanHash":"4b891064971749c2","horizonTicks":420,"warmupTicks":240,"intentsTotal":4,"appliedTotal":4,"rejectedTotal":0,"emptyPointDeselects":1,"moveWithoutSelectionRejects":0,"noZoneRejects":0,"kernelCommandsTotal":5},"startedAtUtc":"2026-08-26T07:42:17.6202299Z","finishedAtUtc":"2026-08-26T07:42:18.266729Z","environment":{"os":{"type":"Linux","kernelRelease":"7.0.0-30-generic"},"cpu":{"model":"Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz"},"rid":"linux-x64","commit":"068974c9e606e6b023d4708ffc7cc12be5dda7a9","buildMode":"Release","display":{"measured":false,"reason":"headless-mode-native-artifacts-not-loaded"},"pins":[{"id":"sdl3","refType":"tag","ref":"release-3.4.14","commit":"147a8ee32dbf9ac02f3794964490687b6bbda1bc","sourceSha256":"9d57b178fb297e121ef2605275937b7afaa7cd24d99ce1f95953e69e7a2535d6","licenseSpdx":"zlib"},{"id":"bgfx","refType":"commit","ref":"35a98dd6453cf25dc75c68e233abb400836d5920","commit":"35a98dd6453cf25dc75c68e233abb400836d5920","sourceSha256":"68ecda67f15b43e0b324b338dfe6b49b58bbbc684d2c5a718c674198db15fee4","licenseSpdx":"BSD-2-Clause"},{"id":"bx","refType":"commit","ref":"9e3fadf6f11380031486be704d2ff46ca143664f","commit":"9e3fadf6f11380031486be704d2ff46ca143664f","sourceSha256":"84740909a73336fa6192f3489cff8ba338b1c525103c291cbf7554a77002eb1a","licenseSpdx":"BSD-2-Clause"},{"id":"bimg","refType":"commit","ref":"371d90098b1fd017cd00205979d5ef74b8c3ed62","commit":"371d90098b1fd017cd00205979d5ef74b8c3ed62","sourceSha256":"a1464cfbbbbbb1712df9231bb5c5442e3728f78110c7072d5145892e428fd937","licenseSpdx":"BSD-2-Clause"}]},"measurement":{"warmupTicks":240,"sampleTicks":180,"ticksExecuted":420,"hashSampleIntervalTicks":60,"rssSampleIntervalTicks":60,"windowCompleted":true},"metrics":{"tickTimeMs":{"unit":"ms","method":"stopwatch-tick-delta","p50":0.276,"p95":0.655,"p99":0.864},"managedAllocationsBytes":{"unit":"bytes","method":"gc-total-allocated-bytes-precise-delta-per-tick-sum","perWarmTick":0},"reactionTicks":{"unit":"ticks","method":"command-submission-tick-to-first-effect-state-hash-delta","p50":1,"p95":1,"p99":1,"max":1,"count":4,"target":2,"hardLimit":3},"runtimeShaderCompilation":{"unit":"bool","method":"offline-shaderc-binaries-only","value":false},"gcPauseSumMs":{"unit":"ms","method":"gc-get-total-pause-duration-delta","value":0,"gateCoupled":false},"gcPauseCount":{"unit":"count","method":"gc-collection-count-gen0-to2-delta","value":0,"gateCoupled":false},"activeAgents":{"unit":"count","method":"soa-agent-count-fixed","value":250,"gateCoupled":false},"workingSetKiB":{"measured":false,"reason":"headless-session-does-not-sample-rss"},"frameTimeMs":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"gpuTimeMs":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"drawSubmitCallsPerFrame":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"visibleTrianglesPerFrame":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"concurrentMarkers":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"}},"stateHashChain":{"unit":"hex64","method":"fnv1a64-canonical-chain-v1","start":"20f84cdb183a4364","intervalSampleTicks":[240,300,360,420],"intervalHashes":["20f84cdb183a4364","7666fff5fa0ddb47","72eb588d50649f45","978aab19406daa26"],"end":"978aab19406daa26"},"gate":{"limits":{"p99TickTimeHardLimitMs":16,"p99TickTimeTargetMs":8,"allocationsPerWarmTickBytesMax":0,"reactionHardLimitTicks":3,"reactionTargetTicks":2,"runtimeShaderCompilationAllowed":false},"stateChainSelfConsistency":{"evaluated":true},"pass":true,"tickTimeTargetMet":true,"reactionTargetMet":true,"violations":[]},"openQuestions":{"qtec004":"open","qtec006":"open","qtec010":"open","qgam001":"open","qgam002":"open","qgam003":"open","qgam004":"open","qgam005":"open","qgam006":"open","qgam007":"open","qnar002":"open"},"profiles":[{"id":"hw-pc-min","status":"NOT-MEASURED","boundReferenceClass":null,"reason":"mandatory-profile-not-measured-no-reference-hardware"},{"id":"hw-mac-min","status":"NOT-MEASURED","boundReferenceClass":null,"reason":"mandatory-profile-not-measured-no-reference-hardware"},{"id":"hw-pc-high","status":"NOT-MEASURED","boundReferenceClass":null,"reason":"mandatory-profile-not-measured-no-reference-hardware"}],"baseline":{"classification":"diagnostic-developer-workstation","protocol":"qops001-2026-08-24"},"frameEvidence":{"captured":false,"reason":"capture-not-requested"},"exitCode":0}"""
+let goldenReport =
+    """{"schemaVersion":2,"mode":"kommandoschleife","executionMode":"headless","command":"./scripts/rift.sh kommandoschleife --scenario kommando-graybox --input-script \u003CPFAD\u003E --seed N --report \u003CPFAD\u003E","scenario":{"id":"kommando-graybox","seed":20260826,"tickRateHz":20,"agentCount":250,"worldId":"riftward-simworld-graybox-v1","content":"synthetic-graybox-command-loop"},"commandContract":{"document":"docs/KOMMANDOVERTRAG.md","version":"1","scriptFormat":"graybox-input-script-v1","selectionModel":"graybox-selection-model-v0","cameraModel":"graybox-camera-model-v0","diagnosticOnlyReplayDisclaimer":true,"modeContract":{"document":"docs/MODEVERTRAG.md","version":"1"}},"modeSession":{"contract":{"document":"docs/MODEVERTRAG.md","version":"1"},"initialMode":"strategic","finalMode":"strategic","switchProtocol":[],"strategyIntentsRejectedInPersonalMode":0,"steerIntentsRejectedInStrategyMode":0,"steerIdleDedupes":0,"interactiveContextRejections":0,"hud":{"measured":false,"kind":"title-hud-mode-herozone-v1","reason":"headless-run-without-window"},"switchReactionTicks":{"unit":"ticks","method":"mode-switch-intent-tick-to-first-validity-boundary-in-new-mode","p50":0,"p95":0,"p99":0,"max":0,"count":0,"target":2,"hardLimit":3,"gateCoupled":false}},"simulationContract":{"document":"docs/SIMULATIONSVERTRAG.md","version":"1","numericModel":"q16-16-fixed-point-intonly-v1","hashAlgorithm":"fnv1a64-canonical-chain-v1","allocationLimitBytesPerWarmTick":0},"inputScript":{"scriptSha256":"cbcab89e6961e4bfeaad33f3dde8b63cd17c27e892f66d11b6396cd8c51ffc33","intentPlanHash":"4b891064971749c2","horizonTicks":420,"warmupTicks":240,"intentsTotal":4,"appliedTotal":4,"rejectedTotal":0,"emptyPointDeselects":1,"moveWithoutSelectionRejects":0,"noZoneRejects":0,"kernelCommandsTotal":5},"startedAtUtc":"2026-08-26T07:42:17.6202299Z","finishedAtUtc":"2026-08-26T07:42:18.266729Z","environment":{"os":{"type":"Linux","kernelRelease":"7.0.0-30-generic"},"cpu":{"model":"Intel(R) Core(TM) i7-3770 CPU @ 3.40GHz"},"rid":"linux-x64","commit":"068974c9e606e6b023d4708ffc7cc12be5dda7a9","buildMode":"Release","display":{"measured":false,"reason":"headless-mode-native-artifacts-not-loaded"},"pins":[{"id":"sdl3","refType":"tag","ref":"release-3.4.14","commit":"147a8ee32dbf9ac02f3794964490687b6bbda1bc","sourceSha256":"9d57b178fb297e121ef2605275937b7afaa7cd24d99ce1f95953e69e7a2535d6","licenseSpdx":"zlib"},{"id":"bgfx","refType":"commit","ref":"35a98dd6453cf25dc75c68e233abb400836d5920","commit":"35a98dd6453cf25dc75c68e233abb400836d5920","sourceSha256":"68ecda67f15b43e0b324b338dfe6b49b58bbbc684d2c5a718c674198db15fee4","licenseSpdx":"BSD-2-Clause"},{"id":"bx","refType":"commit","ref":"9e3fadf6f11380031486be704d2ff46ca143664f","commit":"9e3fadf6f11380031486be704d2ff46ca143664f","sourceSha256":"84740909a73336fa6192f3489cff8ba338b1c525103c291cbf7554a77002eb1a","licenseSpdx":"BSD-2-Clause"},{"id":"bimg","refType":"commit","ref":"371d90098b1fd017cd00205979d5ef74b8c3ed62","commit":"371d90098b1fd017cd00205979d5ef74b8c3ed62","sourceSha256":"a1464cfbbbbbb1712df9231bb5c5442e3728f78110c7072d5145892e428fd937","licenseSpdx":"BSD-2-Clause"}]},"measurement":{"warmupTicks":240,"sampleTicks":180,"ticksExecuted":420,"hashSampleIntervalTicks":60,"rssSampleIntervalTicks":60,"windowCompleted":true},"metrics":{"tickTimeMs":{"unit":"ms","method":"stopwatch-tick-delta","p50":0.276,"p95":0.655,"p99":0.864},"managedAllocationsBytes":{"unit":"bytes","method":"gc-total-allocated-bytes-precise-delta-per-tick-sum","perWarmTick":0},"reactionTicks":{"unit":"ticks","method":"command-submission-tick-to-first-effect-state-hash-delta","p50":1,"p95":1,"p99":1,"max":1,"count":4,"target":2,"hardLimit":3},"runtimeShaderCompilation":{"unit":"bool","method":"offline-shaderc-binaries-only","value":false},"gcPauseSumMs":{"unit":"ms","method":"gc-get-total-pause-duration-delta","value":0,"gateCoupled":false},"gcPauseCount":{"unit":"count","method":"gc-collection-count-gen0-to2-delta","value":0,"gateCoupled":false},"activeAgents":{"unit":"count","method":"soa-agent-count-fixed","value":250,"gateCoupled":false},"workingSetKiB":{"measured":false,"reason":"headless-session-does-not-sample-rss"},"frameTimeMs":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"gpuTimeMs":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"drawSubmitCallsPerFrame":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"visibleTrianglesPerFrame":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"},"concurrentMarkers":{"measured":false,"reason":"headless-cpu-scenario-no-renderer"}},"stateHashChain":{"unit":"hex64","method":"fnv1a64-canonical-chain-v1","start":"20f84cdb183a4364","intervalSampleTicks":[240,300,360,420],"intervalHashes":["20f84cdb183a4364","7666fff5fa0ddb47","72eb588d50649f45","978aab19406daa26"],"end":"978aab19406daa26"},"gate":{"limits":{"p99TickTimeHardLimitMs":16,"p99TickTimeTargetMs":8,"allocationsPerWarmTickBytesMax":0,"reactionHardLimitTicks":3,"reactionTargetTicks":2,"runtimeShaderCompilationAllowed":false,"switchReactionHardLimitTicks":3,"switchReactionTargetTicks":2},"stateChainSelfConsistency":{"evaluated":true},"switchReaction":{"evaluated":false,"reason":"no-effective-mode-switch-in-run"},"pass":true,"tickTimeTargetMet":true,"reactionTargetMet":true,"violations":[]},"openQuestions":{"qtec004":"open","qtec006":"open","qtec010":"open","qgam001":"open","qgam002":"open","qgam003":"open","qgam004":"open","qgam005":"open","qgam006":"open","qgam007":"open","qgam010":"open","qnar002":"open"},"profiles":[{"id":"hw-pc-min","status":"NOT-MEASURED","boundReferenceClass":null,"reason":"mandatory-profile-not-measured-no-reference-hardware"},{"id":"hw-mac-min","status":"NOT-MEASURED","boundReferenceClass":null,"reason":"mandatory-profile-not-measured-no-reference-hardware"},{"id":"hw-pc-high","status":"NOT-MEASURED","boundReferenceClass":null,"reason":"mandatory-profile-not-measured-no-reference-hardware"}],"baseline":{"classification":"diagnostic-developer-workstation","protocol":"qops001-2026-08-24"},"frameEvidence":{"captured":false,"reason":"capture-not-requested"},"exitCode":0}"""
 
 let reportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
     if CommandReportSchema.Validate(goldenReport).Count <> 0 then
@@ -1135,18 +1187,77 @@ let reportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
 
     assertHasError
         "ausserhalb"
-        (goldenReport.Replace("\"schemaVersion\":1", "\"schemaVersion\":2"))
+        (goldenReport.Replace("\"schemaVersion\":2", "\"schemaVersion\":3"))
         "Falsche Schemaversion akzeptiert"
 
     assertHasError
         "unbekanntes Feld"
-        (goldenReport.Replace("{\"schemaVersion\":1", "{\"schemaVersion\":1,\"fabriziert\":true"))
+        (goldenReport.Replace("{\"schemaVersion\":2", "{\"schemaVersion\":2,\"fabriziert\":true"))
         "Fabriziertes Feld akzeptiert"
 
     assertHasError
         "konstanter Wert"
         (goldenReport.Replace("kommando-graybox", "anderes-szenario"))
         "Fremdes Szenario akzeptiert"
+
+    // Modussitzungsblock (T-033): Ein leerer Block verletzt die Pflichtfelder;
+    // ein fremder Modusname oder Skriptformatbezeichner wird abgewiesen.
+    assertHasError
+        "Pflichtfeld"
+        (goldenReport.Replace(
+            "\"modeSession\":{\"contract\":{\"document\":\"docs/MODEVERTRAG.md\",\"version\":\"1\"},\"initialMode\":\"strategic\",\"finalMode\":\"strategic\",\"switchProtocol\":[],\"strategyIntentsRejectedInPersonalMode\":0,\"steerIntentsRejectedInStrategyMode\":0,\"steerIdleDedupes\":0,\"interactiveContextRejections\":0,\"hud\":{\"measured\":false,\"kind\":\"title-hud-mode-herozone-v1\",\"reason\":\"headless-run-without-window\"},\"switchReactionTicks\":{\"unit\":\"ticks\",\"method\":\"mode-switch-intent-tick-to-first-validity-boundary-in-new-mode\",\"p50\":0,\"p95\":0,\"p99\":0,\"max\":0,\"count\":0,\"target\":2,\"hardLimit\":3,\"gateCoupled\":false}},",
+            "\"modeSession\":{},"
+        ))
+        "Modussitzungsblock ohne Pflichtfelder akzeptiert"
+
+    assertHasError
+        "konstanter Wert"
+        (goldenReport.Replace("\"finalMode\":\"strategic\"", "\"finalMode\":\"dritter-modus\""))
+        "Fremder Modusname akzeptiert"
+
+    assertHasError
+        "konstanter Wert"
+        (goldenReport.Replace(
+            "\"scriptFormat\":\"graybox-input-script-v1\"",
+            "\"scriptFormat\":\"graybox-input-script-v9\""
+        ))
+        "Fremde Skriptformatkennung akzeptiert"
+
+    // Titel-HUD-Bindung (T-033): Nichtauswertung ohne Grund und ein gemessener
+    // Ausweis ohne Felder sind unzulaessig gebunden.
+    assertHasError
+        "Pflichtfeld"
+        (goldenReport.Replace(
+            "\"hud\":{\"measured\":false,\"kind\":\"title-hud-mode-herozone-v1\",\"reason\":\"headless-run-without-window\"}",
+            "\"hud\":{\"measured\":false,\"kind\":\"title-hud-mode-herozone-v1\"}"
+        ))
+        "HUD-Nichtauswertung ohne Grund akzeptiert"
+
+    assertHasError
+        "Pflichtfeld"
+        (goldenReport.Replace(
+            "\"hud\":{\"measured\":false,\"kind\":\"title-hud-mode-herozone-v1\",\"reason\":\"headless-run-without-window\"}",
+            "\"hud\":{\"measured\":true,\"kind\":\"title-hud-mode-herozone-v1\"}"
+        ))
+        "HUD-Messausweis ohne Felder akzeptiert"
+
+    // Kriterium 6 (Modevertrag §7): Nichtauswertung ohne Grund und ein
+    // Vakuumpass mit evaluiert=true ohne Messung sind unzulaessig gebunden.
+    assertHasError
+        "Pflichtfeld"
+        (goldenReport.Replace(
+            "\"switchReaction\":{\"evaluated\":false,\"reason\":\"no-effective-mode-switch-in-run\"}",
+            "\"switchReaction\":{\"evaluated\":false}"
+        ))
+        "Wechselreaktionsnichtauswertung ohne Grund akzeptiert"
+
+    assertHasError
+        "Pflichtfeld"
+        (goldenReport.Replace(
+            "\"switchReaction\":{\"evaluated\":false,\"reason\":\"no-effective-mode-switch-in-run\"}",
+            "\"switchReaction\":{\"evaluated\":true}"
+        ))
+        "Wechselreaktionsvakuumpass ohne Messwerte akzeptiert"
 
     // Headless darf GPU-/Rendererwerte nicht messend ausweisen.
     assertHasError
@@ -1304,22 +1415,27 @@ let interactiveCommandPulseRendersThenExpires () =
     try
         view.BindAgentGroups(SessionEngine.ReadAgentGroups(world))
 
-        let baseMarkerCount = view.WriteFrameState(world, 1000L)
+        // T-033: Der vertragliche Held-/Modus-Badge (MODEVERTRAG Abschnitt 8)
+        // ist in beiden Modi dauerhaft präsent; ohne Auswahl und Befehl
+        // entsteht daher genau dieser eine Marker.
+        let baseMarkerCount = view.WriteFrameState(world, 1000L, SessionMode.Strategic)
 
-        if baseMarkerCount <> 0 then
-            failwith $"Ohne Auswahl und Befehl entstanden {baseMarkerCount} Marker."
+        if baseMarkerCount <> 1 then
+            failwith $"Ohne Auswahl und Befehl entstanden {baseMarkerCount} statt 1 Marker (Held-Badge)."
 
         view.NotifyCommandIssued(1000L, 1)
 
-        let growingMarkerCount = view.WriteFrameState(world, 1015L)
+        let growingMarkerCount = view.WriteFrameState(world, 1015L, SessionMode.Strategic)
 
-        if growingMarkerCount < 1 then
+        if growingMarkerCount < 2 then
             failwith "Angemeldeter Befehlspuls fehlte im Markerzustand."
 
         let expiringTick = 1000L + int64 InteractiveView.CommandPulseTicks
-        let expiredMarkerCount = view.WriteFrameState(world, expiringTick)
 
-        if expiredMarkerCount <> 0 then
+        let expiredMarkerCount =
+            view.WriteFrameState(world, expiringTick, SessionMode.Strategic)
+
+        if expiredMarkerCount <> 1 then
             failwith "Der Befehlspuls lief vertraglich nie ab."
     finally
         view.Dispose()

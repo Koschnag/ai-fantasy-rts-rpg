@@ -6,7 +6,9 @@ namespace Riftward.App.Command;
 
 /// <summary>
 /// Maschinenpruefbarer Evidenzvertrag des Kommandoschleifen-Reports
-/// (Schemaversion 1, NF-007-Linie). Fail-closed: fehlende Pflichtfelder,
+/// (Schemaversion 2, NF-007-Linie; T-033 erhoehht die Schemaversion rein
+/// additiv um den Modussitzungsblock, die Wechselreaktionsgatekopplung und
+/// die Modevertragsbindung). Fail-closed: fehlende Pflichtfelder,
 /// falsche Typen, erfundene Messwerte ohne Methodenkennung, nicht begruendete
 /// unavailable-Kennzeichnungen und unbekannte Felder lassen die Pruefung
 /// fehlschlagen. Die Ausfuehrungsart (headless/interaktiv) waehlt strikte
@@ -17,7 +19,7 @@ namespace Riftward.App.Command;
 /// </summary>
 public static class CommandReportSchema
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const string ModeCommandLoop = "kommandoschleife";
     public const string ExecutionHeadless = "headless";
     public const string ExecutionInteractive = "interactive";
@@ -78,10 +80,14 @@ public static class CommandReportSchema
         ("commandContract", new RObj(
             ("document", new RLit(SessionContract.DocumentPath)),
             ("version", new RLit(SessionContract.ContractVersion)),
-            ("scriptFormat", new RLit(SessionContract.ScriptFormatId)),
+            ("scriptFormat", ScriptFormat()),
             ("selectionModel", new RLit(SessionContract.SelectionModelId)),
             ("cameraModel", new RLit(SessionContract.CameraModelId)),
-            ("diagnosticOnlyReplayDisclaimer", new RBool(true)))),
+            ("diagnosticOnlyReplayDisclaimer", new RBool(true)),
+            ("modeContract", new RObj(
+                ("document", new RLit(ModeContract.DocumentPath)),
+                ("version", new RLit(ModeContract.ContractVersion)))))),
+        ("modeSession", ModeSessionBody()),
         ("simulationContract", new RObj(
             ("document", new RLit(Riftward.Simulation.SimulationContract.DocumentPath)),
             ("version", new RLit(Riftward.Simulation.SimulationContract.ContractVersion)),
@@ -138,8 +144,11 @@ public static class CommandReportSchema
                 ("allocationsPerWarmTickBytesMax", new RInt(0)),
                 ("reactionHardLimitTicks", new RInt(SessionContract.ReactionHardLimitTicks, SessionContract.ReactionHardLimitTicks)),
                 ("reactionTargetTicks", new RInt(SessionContract.ReactionTargetTicks, SessionContract.ReactionTargetTicks)),
-                ("runtimeShaderCompilationAllowed", new RBool(false)))),
+                ("runtimeShaderCompilationAllowed", new RBool(false)),
+                ("switchReactionHardLimitTicks", new RInt(ModeContract.SwitchReactionHardLimitTicks, ModeContract.SwitchReactionHardLimitTicks)),
+                ("switchReactionTargetTicks", new RInt(ModeContract.SwitchReactionTargetTicks, ModeContract.SwitchReactionTargetTicks)))),
             ("stateChainSelfConsistency", ChainConsistencyAlternative()),
+            ("switchReaction", SwitchReactionAlternative()),
             ("pass", new RBool()),
             ("tickTimeTargetMet", new RBool()),
             ("reactionTargetMet", new RBool()),
@@ -155,6 +164,7 @@ public static class CommandReportSchema
             ("qgam005", new RLit("open")),
             ("qgam006", new RLit("open")),
             ("qgam007", new RLit("open")),
+            ("qgam010", new RLit("open")),
             ("qnar002", new RLit("open")))),
         ("profiles", new RArr(new RObj(
             ("id", new RStr()),
@@ -167,10 +177,21 @@ public static class CommandReportSchema
         ("frameEvidence", new FrameEvidenceAlternative()),
         ("exitCode", new RInt(int.MinValue, int.MaxValue)));
 
-    /// <summary>Anzeigebindung: im Interaktivmodus messend, headless unavailable mit Grund.</summary>
+    /// <summary>
+    /// Anzeigebindung: im Interaktivmodus messend in der tatsächlichen
+    /// Builderform (Renderer, GPU-Kennungen, GL-Version; T-033
+    /// Nebenreparatur: die frühere unit/method-Form passte nie zum Builder
+    /// und hätte jeden echten Interaktivlauf am Schemator scheitern lassen),
+    /// headless unavailable mit Grund.
+    /// </summary>
     private static ReportNode Display(string executionMode) =>
         executionMode == ExecutionInteractive
-            ? RMetric.Measurable("renderer", new RStr(), "glVersion", new RStr())
+            ? new RObj(
+                ("measured", new RBool(true)),
+                ("renderer", new RStr()),
+                ("vendorId", new RInt(0)),
+                ("deviceId", new RInt(0)),
+                ("glVersion", new RStr()))
             : new UnavailableOnly();
 
     private static RObj Metrics(string executionMode)
@@ -260,6 +281,163 @@ public static class CommandReportSchema
             ("gateCoupled", new RBool(false)),
         };
         return new RObj(fields.ToArray());
+    }
+
+    /// <summary>
+    /// Skriptformatbindung: Der Report weist das tatsächlich gelaufene Format
+    /// aus (Legacy v1 oder T-033-Obermenge v2); ein fremder Bezeichner wird
+    /// abgewiesen.
+    /// </summary>
+    private static LiteralAlternative ScriptFormat() =>
+        new([SessionContract.ScriptFormatId, ModeContract.ScriptFormatIdV2]);
+
+    /// <summary>
+    /// Modussitzungsblock (T-033, Modevertrag Abschnitt 7): Wechselprotokoll
+    /// je Grenze inklusive Heldenstatus von Agentenindex 0, Kontextabwei-
+    /// sungszähler, Lenk-Dedupe und die diagnostische Wechselreaktions-
+    /// verteilung. Rein diagnostisch; die fail-closed Koppelung von Kriterium
+    /// 6 erfolgt ausschließlich über gate.switchReaction.
+    /// </summary>
+    private static RObj ModeSessionBody() => new(
+        ("contract", new RObj(
+            ("document", new RLit(ModeContract.DocumentPath)),
+            ("version", new RLit(ModeContract.ContractVersion)))),
+        ("initialMode", ModeName()),
+        ("finalMode", ModeName()),
+        ("switchProtocol", new RArr(SwitchEvent())),
+        ("strategyIntentsRejectedInPersonalMode", new RInt(0)),
+        ("steerIntentsRejectedInStrategyMode", new RInt(0)),
+        ("steerIdleDedupes", new RInt(0)),
+        ("interactiveContextRejections", new RInt(0)),
+        ("hud", HudAlternative()),
+        ("switchReactionTicks", new RObj(
+            ("unit", new RLit("ticks")),
+            ("method", new RLit("mode-switch-intent-tick-to-first-validity-boundary-in-new-mode")),
+            ("p50", new RInt(0)),
+            ("p95", new RInt(0)),
+            ("p99", new RInt(0)),
+            ("max", new RInt(0)),
+            ("count", new RInt(0)),
+            ("target", new RInt(ModeContract.SwitchReactionTargetTicks, ModeContract.SwitchReactionTargetTicks)),
+            ("hardLimit", new RInt(ModeContract.SwitchReactionHardLimitTicks, ModeContract.SwitchReactionHardLimitTicks)),
+            ("gateCoupled", new RBool(false)))));
+
+    /// <summary>Maschinenlesbarer Modusname des Modevertrags.</summary>
+    private static LiteralAlternative ModeName() =>
+        new([ModeContract.ModeStrategicId, ModeContract.ModePersonalId]);
+
+    private static RObj SwitchEvent() => new(
+        ("intentTick", new RInt(0)),
+        ("evaluatedBoundaryTick", new RInt(0)),
+        ("effectiveBoundaryTick", new RInt(0)),
+        ("previousMode", ModeName()),
+        ("newMode", ModeName()),
+        ("effectiveInRun", new RBool()),
+        ("switchReactionTicks", new RInt(0)),
+        ("heroPositionXMm", new RInt(0)),
+        ("heroPositionYMm", new RInt(0)),
+        ("heroZoneIndex", new RInt(-1)),
+        ("heroPathState", new RInt(0, 255)));
+
+    /// <summary>
+    /// Kriterium 6 der Gatematrix (Modevertrag Abschnitt 7): entweder
+    /// über mindestens einen wirksamen Wechsel ausgewertet
+    /// ({ evaluated: true, max, targetMet }) oder ausdrücklich nicht
+    /// auswertbar mit maschinenlesbarem Grund; ein stiller Vakuumpass ohne
+    /// Messung ist unzulaessig.
+    /// </summary>
+    private static EvaluatedAlternative SwitchReactionAlternative() =>
+        new(
+        [
+            new RObj(
+                ("evaluated", new RBool(true)),
+                ("max", new RInt(0)),
+                ("targetMet", new RBool())),
+            new RObj(
+                ("evaluated", new RBool(false)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>Alternativnode, der exakt einen der gebundenen Literalwerte akzeptiert.</summary>
+    private sealed class LiteralAlternative(IReadOnlyList<string> literals) : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.String)
+            {
+                errors.Add($"{path}: Zeichenkettenliteral erwartet.");
+                return;
+            }
+
+            var value = element.GetString() ?? string.Empty;
+
+            if (!literals.Contains(value, StringComparer.Ordinal))
+            {
+                errors.Add($"{path}: konstanter Wert [{string.Join("|", literals)}] erwartet.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Titel-HUD-Bindung (T-033, Modevertrag Abschnitt 8): im Interaktivmodus
+    /// gebundener Modus/Heldenzonenausweis; headless und in unvollständigen
+    /// Läufen ausdrücklich nicht gemessen mit maschinenlesbarem Grund statt
+    /// stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative HudAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(ModeContract.HudModelId)),
+                ("fields", new RObj(
+                    ("mode", ModeName()),
+                    ("heroZone", new RInt(-1, Riftward.Simulation.NavWorld.ZoneCount - 1))))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(ModeContract.HudModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
+    /// Abgriffbindung (T-033, Modevertrag Abschnitt 8): Bei captured=true
+    /// bindet der Report das Abgriffpaar — exakt zwei Einzelabgriffe, je einer
+    /// pro Modus über demselben Weltzustand am selben Tick, je hashgebunden
+    /// (SHA-256, Abmessungen, Format, Modus) mit der Aussagegrenze
+    /// Graybox-Zustandsbelegung und dem gemeinsamen gebundenen Weltzustand
+    /// (Tick und Zustands-Hash).
+    /// </summary>
+    private sealed class CapturePairAlternative : ReportNode
+    {
+        private static readonly RObj CaptureShape = new(
+            ("mode", new LiteralAlternative([ModeContract.ModeStrategicId, ModeContract.ModePersonalId])),
+            ("sha256", Sha256),
+            ("width", new RInt(1920, 1920)),
+            ("height", new RInt(1080, 1080)),
+            ("format", new RLit(Bench.FrameEvidence.FormatId)),
+            ("statementLimit", new RLit(CommandFrameEvidence.StatementLimit)));
+
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.Array)
+            {
+                errors.Add($"{path}: Abgriffpaar-Array erwartet.");
+                return;
+            }
+
+            var count = 0;
+
+            foreach (var item in element.EnumerateArray())
+            {
+                CaptureShape.Check($"{path}[{count}]", item, errors);
+                count++;
+            }
+
+            if (count != 2)
+            {
+                errors.Add($"{path}: exakt zwei Einzelabgriffe (je einer pro Modus) erwartet.");
+            }
+        }
     }
 
     /// <summary>
@@ -380,11 +558,9 @@ public static class CommandReportSchema
                 new RObj(
                     ("captured", new RBool(true)),
                     ("afterMeasurementWindow", new RBool(true)),
-                    ("width", new RInt(1920, 1920)),
-                    ("height", new RInt(1080, 1080)),
-                    ("format", new RLit(Bench.FrameEvidence.FormatId)),
-                    ("sha256", Sha256),
-                    ("statementLimit", new RLit(CommandFrameEvidence.StatementLimit))).Check(path, element, errors);
+                    ("boundTick", new RInt(0)),
+                    ("boundStateHash", Hex),
+                    ("captures", new CapturePairAlternative())).Check(path, element, errors);
             }
             else
             {

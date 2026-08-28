@@ -52,6 +52,13 @@ internal static partial class Sdl3Native
     [LibraryImport("SDL3")]
     internal static partial void SDL_DestroyWindow(nint window);
 
+    // T-033: Fenstertitel des Mindest-HUD (Modevertrag Abschnitt 8,
+    // title-hud-mode-herozone-v1); Signatur gegen den gepinnten
+    // release-3.4.14-Stand (SDL_video.h) verifiziert.
+    [LibraryImport("SDL3", StringMarshalling = StringMarshalling.Utf8)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    internal static partial bool SDL_SetWindowTitle(nint window, string title);
+
     [LibraryImport("SDL3")]
     [return: MarshalAs(UnmanagedType.U1)]
     internal static partial bool SDL_PollEvent(ref SdlEventBuffer @event);

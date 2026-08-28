@@ -1,12 +1,16 @@
 namespace Riftward.Session;
 
 /// <summary>
-/// Intentarten der Graybox-Kommandoschleife (Kommandovertrag Abschnitt 2).
-/// Die numerische Reihenfolge ist vertraglich: Innerhalb eines Ticks werden
+/// Intentarten der Graybox-Kommandoschleife (Kommandovertrag Abschnitt 2,
+/// erweitert um die T-033-Obermenge gemäß Modevertrag Abschnitt 6). Die
+/// numerische Reihenfolge ist vertraglich: Innerhalb eines Ticks werden
 /// Intents in aufsteigender Kindreihenfolge ausgefuehrt, bei Gleichstand nach
-/// den Parametern als numerisches Tupel. Nur <see cref="GroupMoveToZone"/>
-/// erzeugt Kernbefehle (SimCommandKind.GroupMoveToZone); alle uebrigen Arten
-/// sind rein darstellseitig.
+/// den Parametern als numerisches Tupel. <see cref="GroupMoveToZone"/> und
+/// <see cref="SteerGroupToZone"/> erzeugen Kernbefehle
+/// (SimCommandKind.GroupMoveToZone); <see cref="SwitchMode"/> wird kanonisch
+/// zuletzt ausgewertet, ist nie Kontextbildner seines eigenen Ticks und
+/// erzeugt niemals einen Kernbefehl; alle uebrigen Arten sind rein
+/// darstellseitig.
 /// </summary>
 public enum GrayboxIntentKind : byte
 {
@@ -21,6 +25,12 @@ public enum GrayboxIntentKind : byte
 
     /// <summary>Gruppenbewegung: je ausgewaehlter Gruppe ein Kernbefehl GroupMoveToZone.</summary>
     GroupMoveToZone = 3,
+
+    /// <summary>Persoenliche Lenkung: genau ein Kernbefehl GroupMoveToZone auf der Vertragsgruppe des Helden (T-033).</summary>
+    SteerGroupToZone = 4,
+
+    /// <summary>Moduswechsel an der Tickgrenze: kein Kernbefehl, kein Simulationszustand (T-033).</summary>
+    SwitchMode = 5,
 }
 
 /// <summary>
@@ -45,7 +55,7 @@ public readonly struct GrayboxIntent : IComparable<GrayboxIntent>, IEquatable<Gr
 
     public GrayboxIntentKind Kind { get; }
 
-    /// <summary>Erster Parameter: point x / box x0 / move zoneIndex.</summary>
+    /// <summary>Erster Parameter: point x / box x0 / move zoneIndex / steer zoneIndex.</summary>
     public long A { get; }
 
     /// <summary>Zweiter Parameter: point y / box y0.</summary>
@@ -168,10 +178,12 @@ public static class IntentCodec
                 break;
 
             case GrayboxIntentKind.GroupMoveToZone:
+            case GrayboxIntentKind.SteerGroupToZone:
                 WriteInt32(target, 5, checked((int)intent.A));
                 break;
 
             case GrayboxIntentKind.Clear:
+            case GrayboxIntentKind.SwitchMode:
                 break;
 
             default:
