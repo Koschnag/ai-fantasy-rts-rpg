@@ -980,12 +980,16 @@ Produktentscheidungen (`T-030` samt seiner geplanten Folgeslices, dahinter
 `T-040`/`T-041`) beziehungsweise an getrennten Generator- und Storage-/Backup-
 Freigaben (`T-050`/`T-051`). `T-033` ist seit dem unabhängigen Review-/
 Vollendungslauf 2026-08-28 `DONE`; `T-034` befindet sich nach Implementierung,
-grünen lokalen Gates und bestandenem unabhängigem Sichtreview in `REVIEW`.
-Ein späterer Audit fand eine Finalgrenzen-Reihenfolgelücke im Titel-HUD; der
+grünen lokalen Gates, bestandenem unabhängigem Sichtreview und dem
+abgeschlossenen unabhängigen Abschlussreview 2026-08-28 in `REVIEW`. Ein
+späterer Audit fand eine Finalgrenzen-Reihenfolgelücke im Titel-HUD; der
 Kandidat ist repariert und mit einer 281. Regression sowie einem nativen
-Display-Repass grün. Dadurch sind erneutes unabhängiges Abschlussreview und
-Fresh-Checkout-/Clean-Archive-Nachweis des formalen Promotionspfads am neuen
-exakten Kandidaten noch offen (Freigabevermerk am Ende dieser Datei).
+Display-Repass grün. Das erneute unabhängige Abschlussreview hat den exakten
+reparierten Kandidaten vollständig geprüft, alle schnellen Gates erneut grün
+gebunden und drei dokumentarische Wahrheitskorrekturen zurückgebunden. Nur
+der formale Promotionspfad (Fresh-Checkout-Gate auf dem eingecheckten Baum und
+sichere repo-gebundene Promotion des exakten Kandidaten) ist noch offen
+(Freigabevermerk am Ende dieser Datei).
 
 ## Vorlage für eine Umsetzungseinheit
 
@@ -1303,8 +1307,12 @@ bis AC-T034-05 sind erfüllt. Ein nachfolgender Audit deckte auf, dass ein
 Besuch an der letzten Simulationsgrenze zwar korrekt im Report stand, der
 Fenstertitel vor Auto-Exit aber noch den vorherigen Zähler zeigen konnte. Die
 Reihenfolge ist repariert; 281/281 Tests und ein nativer Finalgrenzen-
-Displaylauf sind grün. T-034 bleibt `REVIEW`. Die Statuspromotion auf
-`DONE`/`accepted` bleibt dem erneuten unabhängigen Abschlussreview, dem
-Fresh-Checkout-/Clean-Archive-Nachweis und der sicheren repo-gebundenen
-Promotion des exakten reparierten Kandidaten vorbehalten; Details und
+Displaylauf sind grün. Das unabhängige Abschlussreview vom 2026-08-28 hat den
+exakten reparierten Kandidaten vollständig geprüft (beobachtungstreuer
+Headless-Lauf, relationaler Schema-, Fresh-Archive- und Simulations-Blob-
+Nachweis), alle schnellen Gates erneut grün gebunden und drei
+dokumentarische Wahrheitskorrekturen zurückgebunden; AC-T034-06 ist erfüllt.
+T-034 bleibt `REVIEW`: Die Statuspromotion auf `DONE`/`accepted` bleibt dem
+formalen Promotionspfad (Fresh-Checkout-Gate auf dem eingecheckten exakten
+Baum und sichere repo-gebundene Promotion) vorbehalten; Details und
 Aussagegrenze stehen in `docs/abnahme/T-034-graybox-exploration-loop.md`.

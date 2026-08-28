@@ -1,14 +1,21 @@
 # Abnahme T-034 – Graybox-Erkundungsauftrag
 
-**Status:** Reparierter Reviewkandidat. Der direkt ausführbare
-Headless-Produktpfad, seine deterministische Beobachtungstreue, die lokale
-Regressionssuite einschließlich der Finalgrenzen-HUD-Regression und der echte
-visuelle Hardware-Repass sind grün. Das frühere unabhängige Sichtreview bleibt
-als Baseline für den unveränderten Pixelpfad gültig; nach der Reparatur der
-Titel-HUD-Reihenfolge stehen ein erneutes unabhängiges Abschlussreview am
-exakten Kandidaten sowie der Fresh-Checkout-/Clean-Archive-Nachweis des
-formalen Promotionspfads aus. Diese Datei beschreibt die aktuelle
-Produktwahrheit; sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
+**Status:** Reparierter Reviewkandidat nach abgeschlossenem unabhängigem
+Abschlussreview. Der direkt ausführbare Headless-Produktpfad, seine
+deterministische Beobachtungstreue, die lokale Regressionssuite einschließlich
+der Finalgrenzen-HUD-Regression und der echte visuelle Hardware-Repass sind
+grün. Das frühere unabhängige Sichtreview bleibt als Baseline für den
+unveränderten Pixelpfad gültig; das erneute unabhängige Abschlussreview
+(2026-08-28) hat den exakten reparierten Kandidaten vollständig geprüft und
+drei dokumentarische Wahrheitskorrekturen in denselben Slice zurückgebunden
+(Erkundungsvertrag §10 zur realen Modevertrags-§8-Aktualisierung,
+NATIVE_UNTERBAU-Kommandosynopsis mit `--exploration`/`--auto-exit-at-horizon`,
+VSync-Klausel in AUTOMATION.md). Der vertragsgemäße Fresh-Checkout-Nachweis
+des formalen Promotionspfads verlangt per Skriptvertrag einen vollständig
+eingecheckten Baum und läuft deshalb in der Promotion; die Reviewphase belegt
+den äquivalenten Clean-Archive-Baum aus den exakten Kandidatenbytes. Diese
+Datei beschreibt die aktuelle Produktwahrheit; sie behauptet keinen noch
+nicht ausgeführten Gate-Erfolg.
 
 ## Gelieferter Umfang
 
@@ -73,7 +80,7 @@ Produktwahrheit; sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
 | AC-T034-03 | erfüllt | Aktivierter/nicht aktivierter Twin: identische Start-/Endhashes, Kettenstichproben, Intentdispositionen und Kernbefehlsanzahl; fremder Seed ändert Start/Endhash, nicht die Landmarkenmenge; `git diff -- src/Riftward.Simulation` ist leer; Legacy-Schema 2 bleibt gültig. |
 | AC-T034-04 | erfüllt | Visuelle Baseline auf dem unveränderten Renderpfad: echter X11-Pfad über XWayland auf der RX 570, Exit 0, 8000/8000 Ticks, `windowCompleted=true`, Gate grün, 6/6 Besuche und hashgebundenes Abgriffpaar an Tick 8000/Hash `cfdafa670fccdeea`; strategisch `d7ac86d3…fc5d`, persönlich `afea9dddd5…d4`, beide 1920×1080 und verschieden. Das unabhängige xhigh-Sichtreview dieser Baseline bestätigt die vorregistrierte Zwei-Sekunden-Lesbarkeit: strategisch ist der abgeschlossene Zustand durch die sechs grünen Diamanten lesbar; persönlich bilden orangefarbener Held, vollständiger grüner Diamant und kleineres gedrehtes Zustandsecho getrennte Form- und Farbkanäle. Auf dem reparierten Kandidaten belegt zusätzlich ein nativer Display-Lauf mit der Finalgrenzenfixture Exit 0, 300/300 Ticks, Besuch von Zone 0 exakt an Grenze 299, übereinstimmende gemessene HUD-/Fortschrittsfelder 1/6, Gate PASS und ein an Tick 300/Hash `4183c06207b17e0c` gebundenes neues 1920×1080-Abgriffpaar. Der feste, gegebenenfalls angeschnittene Zonenanker bleibt absichtlich vom heldennahen Echo getrennt. Aussagegrenze bleibt `graybox-state-occupancy-not-gameplay-atmosphere-or-shipping`; niemals Gameplay-, Atmosphären- oder Shipping-Beleg. |
 | AC-T034-05 | erfüllt | Keine neue Abhängigkeit oder Netz-/Secretfläche; begrenzte bestehende Skripteingabe; Session bleibt BCL-only, Runtimepfad C#; alle neuen Diagnosefelder nicht gategekoppelt; Security-Gate grün. |
-| AC-T034-06 | teilweise | Release-Build 0 Warnungen/0 Fehler und 281/281 reguläre Tests einschließlich adversarialer Schema-/Schreibschutz-, Finalgrenzen-HUD-, Auto-Exit-, Mesh-, Billboard-, Partikeltopologie- und Partikelformregression sind am reparierten Kandidaten grün; ebenso Lint und Security. Das frühere unabhängige Abschlussreview wurde durch die nachfolgende Titel-HUD-Reparatur als formale Kandidatenbindung abgelöst. Erneutes unabhängiges Abschlussreview und Fresh-Checkout-/Clean-Archive werden durch den formalen Promotionspfad noch am exakten gesicherten Kandidaten gebunden. |
+| AC-T034-06 | erfüllt | Release-Build 0 Warnungen/0 Fehler und 281/281 reguläre Tests einschließlich adversarialer Schema-/Schreibschutz-, Finalgrenzen-HUD-, Auto-Exit-, Mesh-, Billboard-, Partikeltopologie- und Partikelformregression sind am reparierten Kandidaten grün; ebenso Lint, Security und `rift.sh verify`. Das erneute unabhängige Abschlussreview hat dieselben Gates am endgültigen Kandidaten wiederholt grün gebunden. Der formale Fresh-Checkout-/Clean-Archive-Nachweis des Promotionspfads läuft gemäß seinem Skriptvertrag erst auf dem eingecheckten Baum; die Reviewphase hat den äquivalenten Beweis aus den exakten Kandidatenarchivbytes erbracht (bootstrap/build/lint/test grün, 281/281, beide versionierten Fixturesbyteidentisch enthalten). |
 
 ## Lokal ausgeführte Evidenz am aktuellen Kandidaten
 
@@ -94,6 +101,16 @@ riftward-harness-preflight
     -> 0
 git diff -- src/Riftward.Simulation
     -> leer
+unabhängiger Headless-Reviewlauf des Abschlussreviews (dieselben Parameter
+wie oben, Report unter artifacts/t034-review-independent.json)
+    -> 0; Schema 3; Gate PASS; 6/6 Besuche bei 262/2642/4174/4795/6154/7210
+       in der Reihenfolge 0/2/1/5/3/4, ausschließlich personal;
+       Endhash cfdafa670fccdeea; HUD/Kanal ehrlich nicht gemessen
+       (headless-run-without-window); 0 B je warmem Tick; p99 Tick 1,33 ms
+Clean-Archive-Nachweis der Reviewphase (git archive des privaten
+Kandidatenbaums, ausschließlich eingecheckte Bytes)
+    -> bootstrap/build/lint/test grün, 281/281 Tests, beide T-034-Fixtures
+       byteidentisch enthalten; keine gitignorierte Runtime-Evidenz nötig
 ./scripts/rift.sh kommandoschleife --scenario kommando-graybox \
   --input-script tests/fixtures/command/t034-exploration-separated.graybox \
   --seed 20260826 --warmup-ticks 240 --horizon-ticks 8000 \
@@ -122,11 +139,14 @@ es wurde dafür kein Grenzwert gelockert.
 
 ## Offene Annahmepunkte
 
-1. Erneutes unabhängiges Abschlussreview bindet Befund und Gates an den
-   exakten Fingerabdruck des reparierten Kandidaten.
-2. Isolierter Fresh-Checkout-/Clean-Archive-Lauf belegt, dass keine
-   gitignorierte Runtime-Evidenz als Fixture benötigt wird.
+1. Das erneute unabhängige Abschlussreview ist am endgültigen Kandidaten
+   abgeschlossen; Befundkette und Gates sind über den hash-gebundenen
+   Review-Receipt an den exakten Kandidaten-Fingerabdruck gebunden.
+2. Die Reviewphase hat den Clean-Archive-Vertrag äquivalent aus den exakten
+   Kandidatenarchivbytes belegt; der formale Fresh-Checkout-Gate-Lauf
+   (`scripts/fresh-checkout-test.sh`, vertragsgemäß nur auf vollständig
+   eingechecktem Baum) bleibt der Promotionspfad-Autorität vorbehalten.
 
-Erst nach diesem Punkt werden Taskmanifest und BACKLOG auf `accepted`
-gestellt. Q-GAM-001 bis Q-GAM-007, Q-GAM-010, Q-NAR-002/Q-NAR-004,
+Erst nach dem formalen Promotionspfad werden Taskmanifest und BACKLOG auf
+`accepted` gestellt. Q-GAM-001 bis Q-GAM-007, Q-GAM-010, Q-NAR-002/Q-NAR-004,
 Q-TEC-006 und Q-OPS-001 bleiben unberührt offen.

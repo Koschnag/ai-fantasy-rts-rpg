@@ -340,4 +340,12 @@ Audio- oder Shipping-Assetaussage (Q-TEC-007, Q-AST-001/Q-AST-002), keine
 Persistenz in jeder Form, keinen Windows-/macOS-Scope (T-011,
 Q-OPS-002/Q-OPS-003) und keine Budgetänderung jeder Art. GAME_DESIGN.md und
 ANFORDERUNGEN.md bleiben durch die Implementierung unberührt;
-`docs/KOMMANDOVERTRAG.md` und `docs/MODEVERTRAG.md` bleiben unverändert.
+`docs/KOMMANDOVERTRAG.md` bleibt byteidentisch. `docs/MODEVERTRAG.md` erhält
+ausschließlich die darstellseitigen Aktualisierungen dieses Auftrags:
+Verfolgungskamera 55° mit verworfenen 32°-/45°-Alternativen und
+Bodenabdruckregel, Badge-Größen, Ausblendung der strategischen Auswahlglyphen
+im persönlichen Modus sowie die Zentrierung des opt-in Abgriffs auf den
+Vertragshelden — jeweils gedeckt durch die eigenen Rückrollklauseln des
+Modevertrags Abschnitt 8 (Hypothesenkonstanten ohne Vertragsversionswechsel).
+Wechsel-, Verb-, Eingabe- und Exitcode-Semantik des Modevertrags bleiben
+unverändert.
