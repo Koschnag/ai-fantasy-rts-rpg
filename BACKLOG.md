@@ -980,9 +980,12 @@ Produktentscheidungen (`T-030` samt seiner geplanten Folgeslices, dahinter
 `T-040`/`T-041`) beziehungsweise an getrennten Generator- und Storage-/Backup-
 Freigaben (`T-050`/`T-051`). `T-033` ist seit dem unabhängigen Review-/
 Vollendungslauf 2026-08-28 `DONE`; `T-034` befindet sich nach Implementierung,
-grünen lokalen Gates und bestandenem unabhängigem Sicht-/Abschlussreview in
-`REVIEW`. Der Fresh-Checkout-/Clean-Archive-Nachweis des formalen
-Promotionspfads steht noch aus (Freigabevermerk am Ende dieser Datei).
+grünen lokalen Gates und bestandenem unabhängigem Sichtreview in `REVIEW`.
+Ein späterer Audit fand eine Finalgrenzen-Reihenfolgelücke im Titel-HUD; der
+Kandidat ist repariert und mit einer 281. Regression sowie einem nativen
+Display-Repass grün. Dadurch sind erneutes unabhängiges Abschlussreview und
+Fresh-Checkout-/Clean-Archive-Nachweis des formalen Promotionspfads am neuen
+exakten Kandidaten noch offen (Freigabevermerk am Ende dieser Datei).
 
 ## Vorlage für eine Umsetzungseinheit
 
@@ -1293,11 +1296,15 @@ und keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
 JsonSchema.Net bleibt gemäß T-022-/T-031-Präzedenz Pflichtteil des
 Spec-Reviewlaufs.
 
-Der Implementierungs- und unabhängige Abschlussreviewlauf vom 2026-08-28 hat
-den direkt ausführbaren Erkundungspfad einschließlich des echten
+Der Implementierungs- und unabhängige Sichtreviewlauf vom 2026-08-28 hat den
+direkt ausführbaren Erkundungspfad einschließlich des echten
 X11-/XWayland-RX-570-Abgriffpaars technisch und visuell bestanden; AC-T034-01
-bis AC-T034-05 sind erfüllt. T-034 steht deshalb jetzt auf `REVIEW`. Die
-Statuspromotion auf `DONE`/`accepted` bleibt dem Fresh-Checkout-/Clean-Archive-
-Nachweis und der sicheren repo-gebundenen Promotion des exakten Kandidaten
-vorbehalten; Details und Aussagegrenze stehen in
-`docs/abnahme/T-034-graybox-exploration-loop.md`.
+bis AC-T034-05 sind erfüllt. Ein nachfolgender Audit deckte auf, dass ein
+Besuch an der letzten Simulationsgrenze zwar korrekt im Report stand, der
+Fenstertitel vor Auto-Exit aber noch den vorherigen Zähler zeigen konnte. Die
+Reihenfolge ist repariert; 281/281 Tests und ein nativer Finalgrenzen-
+Displaylauf sind grün. T-034 bleibt `REVIEW`. Die Statuspromotion auf
+`DONE`/`accepted` bleibt dem erneuten unabhängigen Abschlussreview, dem
+Fresh-Checkout-/Clean-Archive-Nachweis und der sicheren repo-gebundenen
+Promotion des exakten reparierten Kandidaten vorbehalten; Details und
+Aussagegrenze stehen in `docs/abnahme/T-034-graybox-exploration-loop.md`.
