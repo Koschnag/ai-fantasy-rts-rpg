@@ -189,7 +189,8 @@ public static class RepresentativeRig
     /// Auswerter einer Einheitenpose: traegt alle Zwischenmatrizen im
     /// Instanzfeld (keine Allokation je Aufruf) und schreibt die Palette
     /// als RGBA32F-Texelzeile: je Knochen drei Spaltentexel der affinen
-    /// Weltmatrix (Spalten 0 bis 2; Spalte 3 ist implizit (0,0,0,1)).
+    /// Weltmatrix. XYZ tragen die Rotationsspalte; die drei W-Komponenten
+    /// tragen gemeinsam die Translation der impliziten vierten Spalte.
     /// Hautmatrix je Knochen: Welt(bone, Pose) * BindInverse(bone).
     /// </summary>
     public sealed class PoseEvaluator
@@ -242,25 +243,38 @@ public static class RepresentativeRig
             var ai = aBone * 9;
             var bi = bBone * 9;
             var oi = outBone * 9;
+            Span<double> resultRotation = stackalloc double[9];
+            Span<double> resultTranslation = stackalloc double[3];
 
             for (var row = 0; row < 3; row++)
             {
                 for (var column = 0; column < 3; column++)
                 {
-                    var value =
+                    resultRotation[(row * 3) + column] =
                         (aR[ai + (row * 3) + 0] * bR[bi + (0 * 3) + column])
                         + (aR[ai + (row * 3) + 1] * bR[bi + (1 * 3) + column])
                         + (aR[ai + (row * 3) + 2] * bR[bi + (2 * 3) + column]);
-
-                    outR[oi + (row * 3) + column] = value;
                 }
 
-                var tx = aR[ai + (row * 3) + 0] * bT[(bBone * 3) + 0]
-                    + aR[ai + (row * 3) + 1] * bT[(bBone * 3) + 1]
-                    + aR[ai + (row * 3) + 2] * bT[(bBone * 3) + 2]
+                resultTranslation[row] =
+                    (aR[ai + (row * 3) + 0] * bT[(bBone * 3) + 0])
+                    + (aR[ai + (row * 3) + 1] * bT[(bBone * 3) + 1])
+                    + (aR[ai + (row * 3) + 2] * bT[(bBone * 3) + 2])
                     + aT[(aBone * 3) + row];
+            }
 
-                outT[outBone * 3 + row] = tx;
+            // Beide Eingabebloecke koennen denselben Arraybereich wie das
+            // Ziel belegen (Hierarchie: out == b; Pose/Bind: out == a).
+            // Erst der abgeschlossene affine Wert darf zurueckgeschrieben
+            // werden; stackalloc haelt den Frame-Hotpath GC-frei.
+            for (var index = 0; index < 9; index++)
+            {
+                outR[oi + index] = resultRotation[index];
+            }
+
+            for (var index = 0; index < 3; index++)
+            {
+                outT[(outBone * 3) + index] = resultTranslation[index];
             }
         }
 
@@ -394,16 +408,29 @@ public static class RepresentativeRig
                     _scratchRotation, _scratchTranslation, bone,
                     _scratchRotation, _scratchTranslation, bone,
                     _jointRotation, ZeroTranslation, 0);
+            }
+
+            // Erst nachdem die vollständige Posenhierarchie aufgebaut ist,
+            // wird Welt(Pose) * BindInverse zur Hautmatrix. Würde ein
+            // Elternknochen schon innerhalb der ersten Schleife in den
+            // Skinraum überschrieben, erbten seine Kinder statt der
+            // Posenweltmatrix eine bereits bindkorrigierte Matrix und
+            // drifteten entlang langer Ketten um viele Meter auseinander.
+            for (var bone = 0; bone < BoneCount; bone++)
+            {
                 Multiply(
                     _scratchRotation, _scratchTranslation, bone,
                     _scratchRotation, _scratchTranslation, bone,
                     _bindInverseRotation, _bindInverseTranslation, bone);
             }
 
-            WriteRow(_scratchRotation, paletteRow);
+            WriteRow(_scratchRotation, _scratchTranslation, paletteRow);
         }
 
-        private static void WriteRow(double[] skinRotation, Span<float> paletteRow)
+        private static void WriteRow(
+            double[] skinRotation,
+            double[] skinTranslation,
+            Span<float> paletteRow)
         {
             for (var bone = 0; bone < BoneCount; bone++)
             {
@@ -415,7 +442,8 @@ public static class RepresentativeRig
                     paletteRow[target + (column * 4) + 0] = (float)skinRotation[source + (0 * 3) + column];
                     paletteRow[target + (column * 4) + 1] = (float)skinRotation[source + (1 * 3) + column];
                     paletteRow[target + (column * 4) + 2] = (float)skinRotation[source + (2 * 3) + column];
-                    paletteRow[target + (column * 4) + 3] = 0f;
+                    paletteRow[target + (column * 4) + 3] =
+                        (float)skinTranslation[(bone * 3) + column];
                 }
             }
         }

@@ -6,12 +6,16 @@ namespace Riftward.App.Command;
 
 /// <summary>
 /// Maschinenpruefbarer Evidenzvertrag des Kommandoschleifen-Reports
-/// (Schemaversion 2, NF-007-Linie; T-033 erhoehht die Schemaversion rein
-/// additiv um den Modussitzungsblock, die Wechselreaktionsgatekopplung und
-/// die Modevertragsbindung). Fail-closed: fehlende Pflichtfelder,
-/// falsche Typen, erfundene Messwerte ohne Methodenkennung, nicht begruendete
-/// unavailable-Kennzeichnungen und unbekannte Felder lassen die Pruefung
-/// fehlschlagen. Die Ausfuehrungsart (headless/interaktiv) waehlt strikte
+/// (Schemaversionen 2 und 3, NF-007-Linie; T-033 erhoehht die Schemaversion
+/// rein additiv um den Modussitzungsblock, die Wechselreaktionsgatekopplung
+/// und die Modevertragsbindung; T-034 erhoehht sie bei Opt-in Aktivierung
+/// rein additiv um den Erkundungssitzungsblock). Fail-closed: fehlende
+/// Pflichtfelder, falsche Typen, erfundene Messwerte ohne Methodenkennung,
+/// nicht begruendete unavailable-Kennzeichnungen und unbekannte Felder
+/// lassen die Pruefung fehlschlagen. Die Schemaversion 3 ist an die Opt-in
+/// Aktivierung gebunden: Ein Bestandsreport (Schemaversion 2) traegt keinen
+/// Erkundungsblock, ein aktivierter Report traegt ihn vollstaendig.
+/// Die Ausfuehrungsart (headless/interaktiv) waehlt strikte
 /// Alternativformen: Headless kann Renderer-/GPU-Werte nicht messen und darf
 /// sie nur als unavailable mit Grund ausweisen; der Interaktivmodus muss sie
 /// messend ausweisen. Gategekoppelte Felder tragen keine Diagnosemarke; alle
@@ -19,7 +23,12 @@ namespace Riftward.App.Command;
 /// </summary>
 public static class CommandReportSchema
 {
-    public const int CurrentVersion = 2;
+    /// <summary>Schemaversion ohne Erkundungsaktivierung (Bestandsstand, T-032/T-033).</summary>
+    public const int VersionWithoutExploration = ExplorationContract.ReportSchemaVersionWithoutExploration;
+
+    /// <summary>Aktuelle Schemaversion (T-034: rein additiv um explorationSession).</summary>
+    public const int CurrentVersion = ExplorationContract.ReportSchemaVersionWithExploration;
+
     public const string ModeCommandLoop = "kommandoschleife";
     public const string ExecutionHeadless = "headless";
     public const string ExecutionInteractive = "interactive";
@@ -30,14 +39,39 @@ public static class CommandReportSchema
     /// <summary>Hex256-Darstellung eines Artefakthashs.</summary>
     internal static readonly Sha256HexNode Sha256 = new();
 
-    internal static RObj HeadlessBody { get; } = BuildBody(ExecutionHeadless);
+    internal static RObj HeadlessBody { get; } = BuildBody(ExecutionHeadless, VersionWithoutExploration);
 
-    internal static RObj InteractiveBody { get; } = BuildBody(ExecutionInteractive);
+    internal static RObj InteractiveBody { get; } = BuildBody(ExecutionInteractive, VersionWithoutExploration);
 
-    private sealed class ModeDispatch : ReportNode
+    internal static RObj HeadlessExplorationBody { get; } = BuildBody(ExecutionHeadless, CurrentVersion);
+
+    internal static RObj InteractiveExplorationBody { get; } = BuildBody(ExecutionInteractive, CurrentVersion);
+
+    /// <summary>
+    /// Versions- und Ausführungsdispatch: Die Schemaversion
+    /// <see cref="VersionWithoutExploration"/> (Bestandsstand) toleriert
+    /// keinen Erkundungsblock, die Schemaversion <see cref="CurrentVersion"/>
+    /// verlangt ihn vollstaendig; beide Versionen waehlen strikt zwischen
+    /// headless und interaktiv (T-034, Erkundungsvertrag Abschnitt 6).
+    /// </summary>
+    private sealed class SchemaVersionDispatch : ReportNode
     {
         public override void Check(string path, JsonElement element, List<string> errors)
         {
+            if (!element.TryGetProperty("schemaVersion", out var version)
+                || version.ValueKind != JsonValueKind.Number
+                || !version.TryGetInt32(out var schemaVersion))
+            {
+                errors.Add("$.schemaVersion: ganzzahlige Schemaversion erwartet.");
+                return;
+            }
+
+            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion))
+            {
+                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration} oder {CurrentVersion} erwartet.");
+                return;
+            }
+
             if (!element.TryGetProperty("executionMode", out var mode)
                 || mode.ValueKind != JsonValueKind.String)
             {
@@ -45,137 +79,562 @@ public static class CommandReportSchema
                 return;
             }
 
-            switch (mode.GetString())
+            ReportNode? body = (schemaVersion, mode.GetString()) switch
             {
-                case ExecutionHeadless:
-                    HeadlessBody.Check(path, element, errors);
-                    break;
+                (VersionWithoutExploration, ExecutionHeadless) => HeadlessBody,
+                (VersionWithoutExploration, ExecutionInteractive) => InteractiveBody,
+                (CurrentVersion, ExecutionHeadless) => HeadlessExplorationBody,
+                (CurrentVersion, ExecutionInteractive) => InteractiveExplorationBody,
+                _ => null,
+            };
 
-                case ExecutionInteractive:
-                    InteractiveBody.Check(path, element, errors);
-                    break;
+            if (body is null)
+            {
+                errors.Add("$.executionMode: unbekannte Ausfuehrungsart.");
+                return;
+            }
 
-                default:
-                    errors.Add("$.executionMode: unbekannte Ausfuehrungsart.");
-                    break;
+            body.Check(path, element, errors);
+
+            // Closed shapes und Wertebereiche genuegen fuer die additiven
+            // T-034-Felder nicht: Der Report muss auch seine relationalen
+            // Aussagen beweisen. Andernfalls koennten einzeln wohlgeformte,
+            // aber untereinander widerspruechliche Protokoll-, Fortschritts-
+            // und Darstellungswerte als Evidenz passieren.
+            ValidatePresentationMeasurementRelations(path, element, errors);
+
+            if (schemaVersion == CurrentVersion)
+            {
+                ValidateExplorationRelations(path, element, errors);
             }
         }
     }
 
     /// <summary>Gesamtschema des von CommandLoopRunner geschriebenen Reports.</summary>
-    internal static ReportNode Root { get; } = new ModeDispatch();
+    internal static ReportNode Root { get; } = new SchemaVersionDispatch();
 
-    private static RObj BuildBody(string executionMode) => new(
-        ("schemaVersion", new RInt(CurrentVersion, CurrentVersion)),
-        ("mode", new RLit(ModeCommandLoop)),
-        ("executionMode", new RLit(executionMode)),
-        ("command", new RStr()),
-        ("scenario", new RObj(
-            ("id", new RLit(SessionContract.ScenarioId)),
-            ("seed", new RInt(0, uint.MaxValue)),
-            ("tickRateHz", new RInt(Riftward.Simulation.SimulationContract.TickRateHz, Riftward.Simulation.SimulationContract.TickRateHz)),
-            ("agentCount", new RInt(Riftward.Simulation.SimulationContract.AgentCount, Riftward.Simulation.SimulationContract.AgentCount)),
-            ("worldId", new RLit(Riftward.Simulation.SimulationContract.WorldId)),
-            ("content", new RLit(SessionContract.ContentId)))),
-        ("commandContract", new RObj(
-            ("document", new RLit(SessionContract.DocumentPath)),
-            ("version", new RLit(SessionContract.ContractVersion)),
-            ("scriptFormat", ScriptFormat()),
-            ("selectionModel", new RLit(SessionContract.SelectionModelId)),
-            ("cameraModel", new RLit(SessionContract.CameraModelId)),
-            ("diagnosticOnlyReplayDisclaimer", new RBool(true)),
-            ("modeContract", new RObj(
-                ("document", new RLit(ModeContract.DocumentPath)),
-                ("version", new RLit(ModeContract.ContractVersion)))))),
-        ("modeSession", ModeSessionBody()),
-        ("simulationContract", new RObj(
-            ("document", new RLit(Riftward.Simulation.SimulationContract.DocumentPath)),
-            ("version", new RLit(Riftward.Simulation.SimulationContract.ContractVersion)),
-            ("numericModel", new RLit(Riftward.Simulation.SimulationContract.NumericModelId)),
-            ("hashAlgorithm", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
-            ("allocationLimitBytesPerWarmTick", new RInt(0)))),
-        ("inputScript", new RObj(
-            ("scriptSha256", Sha256),
-            ("intentPlanHash", Hex),
-            ("horizonTicks", new RInt(1)),
-            ("warmupTicks", new RInt(30)),
-            ("intentsTotal", new RInt(0)),
-            ("appliedTotal", new RInt(0)),
-            ("rejectedTotal", new RInt(0)),
-            ("emptyPointDeselects", new RInt(0)),
-            ("moveWithoutSelectionRejects", new RInt(0)),
-            ("noZoneRejects", new RInt(0)),
-            ("kernelCommandsTotal", new RInt(0)))),
-        ("startedAtUtc", new RStr()),
-        ("finishedAtUtc", new RStr()),
-        ("environment", new RObj(
-            ("os", new RObj(("type", new RStr()), ("kernelRelease", new RStr()))),
-            ("cpu", new RObj(("model", new RStr()))),
-            ("rid", new RLit("linux-x64")),
-            ("commit", new RStr()),
-            ("buildMode", new RStr()),
-            ("display", Display(executionMode)),
-            ("pins", new RArr(new RObj(
-                ("id", new RStr()),
-                ("refType", new RStr()),
-                ("ref", new RStr()),
+    private static RObj BuildBody(string executionMode, int version)
+    {
+        var fields = new List<(string Name, ReportNode Node)>
+        {
+            ("schemaVersion", new RInt(version, version)),
+            ("mode", new RLit(ModeCommandLoop)),
+            ("executionMode", new RLit(executionMode)),
+            ("command", new RStr()),
+            ("scenario", new RObj(
+                ("id", new RLit(SessionContract.ScenarioId)),
+                ("seed", new RInt(0, uint.MaxValue)),
+                ("tickRateHz", new RInt(Riftward.Simulation.SimulationContract.TickRateHz, Riftward.Simulation.SimulationContract.TickRateHz)),
+                ("agentCount", new RInt(Riftward.Simulation.SimulationContract.AgentCount, Riftward.Simulation.SimulationContract.AgentCount)),
+                ("worldId", new RLit(Riftward.Simulation.SimulationContract.WorldId)),
+                ("content", new RLit(SessionContract.ContentId)))),
+            ("commandContract", new RObj(
+                ("document", new RLit(SessionContract.DocumentPath)),
+                ("version", new RLit(SessionContract.ContractVersion)),
+                ("scriptFormat", ScriptFormat()),
+                ("selectionModel", new RLit(SessionContract.SelectionModelId)),
+                ("cameraModel", new RLit(SessionContract.CameraModelId)),
+                ("diagnosticOnlyReplayDisclaimer", new RBool(true)),
+                ("modeContract", new RObj(
+                    ("document", new RLit(ModeContract.DocumentPath)),
+                    ("version", new RLit(ModeContract.ContractVersion)))))),
+            ("modeSession", ModeSessionBody()),
+        };
+
+        // Rein additive Schemaversion 3 (T-034, Erkundungsvertrag
+        // Abschnitt 6): ausschließlich neue Felder, keine Umdeutung,
+        // Umbenennung oder Entfernung bestehender Felder; der Block existiert
+        // ausschließlich in der aktivierten Schemaversion und ist dort
+        // Pflicht.
+        if (version == CurrentVersion)
+        {
+            fields.Add(("explorationSession", ExplorationSessionBody()));
+        }
+
+        fields.AddRange(new List<(string Name, ReportNode Node)>
+        {
+            ("simulationContract", new RObj(
+                ("document", new RLit(Riftward.Simulation.SimulationContract.DocumentPath)),
+                ("version", new RLit(Riftward.Simulation.SimulationContract.ContractVersion)),
+                ("numericModel", new RLit(Riftward.Simulation.SimulationContract.NumericModelId)),
+                ("hashAlgorithm", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
+                ("allocationLimitBytesPerWarmTick", new RInt(0)))),
+            ("inputScript", new RObj(
+                ("scriptSha256", Sha256),
+                ("intentPlanHash", Hex),
+                ("horizonTicks", new RInt(1)),
+                ("warmupTicks", new RInt(30)),
+                ("intentsTotal", new RInt(0)),
+                ("appliedTotal", new RInt(0)),
+                ("rejectedTotal", new RInt(0)),
+                ("emptyPointDeselects", new RInt(0)),
+                ("moveWithoutSelectionRejects", new RInt(0)),
+                ("noZoneRejects", new RInt(0)),
+                ("kernelCommandsTotal", new RInt(0)))),
+            ("startedAtUtc", new RStr()),
+            ("finishedAtUtc", new RStr()),
+            ("environment", new RObj(
+                ("os", new RObj(("type", new RStr()), ("kernelRelease", new RStr()))),
+                ("cpu", new RObj(("model", new RStr()))),
+                ("rid", new RLit("linux-x64")),
                 ("commit", new RStr()),
-                ("sourceSha256", new RStr()),
-                ("licenseSpdx", new RStr())), 4)))),
-        ("measurement", new RObj(
-            ("warmupTicks", new RInt(30)),
-            ("sampleTicks", new RInt(1)),
-            ("ticksExecuted", new RInt(2)),
-            ("hashSampleIntervalTicks", new RInt(1)),
-            ("rssSampleIntervalTicks", new RInt(1)),
-            ("windowCompleted", new RBool()))),
-        ("metrics", Metrics(executionMode)),
-        ("stateHashChain", new RObj(
-            ("unit", new RLit("hex64")),
-            ("method", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
-            ("start", Hex),
-            ("intervalSampleTicks", new RArr(new RInt(0), 1)),
-            ("intervalHashes", new RArr(Hex, 1)),
-            ("end", Hex))),
-        ("gate", new RObj(
-            ("limits", new RObj(
-                ("p99TickTimeHardLimitMs", new RNum(true)),
-                ("p99TickTimeTargetMs", new RNum(true)),
-                ("allocationsPerWarmTickBytesMax", new RInt(0)),
-                ("reactionHardLimitTicks", new RInt(SessionContract.ReactionHardLimitTicks, SessionContract.ReactionHardLimitTicks)),
-                ("reactionTargetTicks", new RInt(SessionContract.ReactionTargetTicks, SessionContract.ReactionTargetTicks)),
-                ("runtimeShaderCompilationAllowed", new RBool(false)),
-                ("switchReactionHardLimitTicks", new RInt(ModeContract.SwitchReactionHardLimitTicks, ModeContract.SwitchReactionHardLimitTicks)),
-                ("switchReactionTargetTicks", new RInt(ModeContract.SwitchReactionTargetTicks, ModeContract.SwitchReactionTargetTicks)))),
-            ("stateChainSelfConsistency", ChainConsistencyAlternative()),
-            ("switchReaction", SwitchReactionAlternative()),
-            ("pass", new RBool()),
-            ("tickTimeTargetMet", new RBool()),
-            ("reactionTargetMet", new RBool()),
-            ("violations", new RArr(new RStr())))),
-        ("openQuestions", new RObj(
-            ("qtec004", new RLit("open")),
-            ("qtec006", new RLit("open")),
-            ("qtec010", new RLit("open")),
-            ("qgam001", new RLit("open")),
-            ("qgam002", new RLit("open")),
-            ("qgam003", new RLit("open")),
-            ("qgam004", new RLit("open")),
-            ("qgam005", new RLit("open")),
-            ("qgam006", new RLit("open")),
-            ("qgam007", new RLit("open")),
-            ("qgam010", new RLit("open")),
-            ("qnar002", new RLit("open")))),
-        ("profiles", new RArr(new RObj(
-            ("id", new RStr()),
-            ("status", new RStr()),
-            ("boundReferenceClass", new RNullableStr()),
-            ("reason", new RStr())), 3)),
-        ("baseline", new RObj(
-            ("classification", new RLit("diagnostic-developer-workstation")),
-            ("protocol", new RLit("qops001-2026-08-24")))),
-        ("frameEvidence", new FrameEvidenceAlternative()),
-        ("exitCode", new RInt(int.MinValue, int.MaxValue)));
+                ("buildMode", new RStr()),
+                ("display", Display(executionMode)),
+                ("pins", new RArr(new RObj(
+                    ("id", new RStr()),
+                    ("refType", new RStr()),
+                    ("ref", new RStr()),
+                    ("commit", new RStr()),
+                    ("sourceSha256", new RStr()),
+                    ("licenseSpdx", new RStr())), 4)))),
+            ("measurement", new RObj(
+                ("warmupTicks", new RInt(30)),
+                ("sampleTicks", new RInt(1)),
+                ("ticksExecuted", new RInt(2)),
+                ("hashSampleIntervalTicks", new RInt(1)),
+                ("rssSampleIntervalTicks", new RInt(1)),
+                ("windowCompleted", new RBool()))),
+            ("metrics", Metrics(executionMode)),
+            ("stateHashChain", new RObj(
+                ("unit", new RLit("hex64")),
+                ("method", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
+                ("start", Hex),
+                ("intervalSampleTicks", new RArr(new RInt(0), 1)),
+                ("intervalHashes", new RArr(Hex, 1)),
+                ("end", Hex))),
+            ("gate", new RObj(
+                ("limits", new RObj(
+                    ("p99TickTimeHardLimitMs", new RNum(true)),
+                    ("p99TickTimeTargetMs", new RNum(true)),
+                    ("allocationsPerWarmTickBytesMax", new RInt(0)),
+                    ("reactionHardLimitTicks", new RInt(SessionContract.ReactionHardLimitTicks, SessionContract.ReactionHardLimitTicks)),
+                    ("reactionTargetTicks", new RInt(SessionContract.ReactionTargetTicks, SessionContract.ReactionTargetTicks)),
+                    ("runtimeShaderCompilationAllowed", new RBool(false)),
+                    ("switchReactionHardLimitTicks", new RInt(ModeContract.SwitchReactionHardLimitTicks, ModeContract.SwitchReactionHardLimitTicks)),
+                    ("switchReactionTargetTicks", new RInt(ModeContract.SwitchReactionTargetTicks, ModeContract.SwitchReactionTargetTicks)))),
+                ("stateChainSelfConsistency", ChainConsistencyAlternative()),
+                ("switchReaction", SwitchReactionAlternative()),
+                ("pass", new RBool()),
+                ("tickTimeTargetMet", new RBool()),
+                ("reactionTargetMet", new RBool()),
+                ("violations", new RArr(new RStr())))),
+            ("openQuestions", new RObj(
+                ("qtec004", new RLit("open")),
+                ("qtec006", new RLit("open")),
+                ("qtec010", new RLit("open")),
+                ("qgam001", new RLit("open")),
+                ("qgam002", new RLit("open")),
+                ("qgam003", new RLit("open")),
+                ("qgam004", new RLit("open")),
+                ("qgam005", new RLit("open")),
+                ("qgam006", new RLit("open")),
+                ("qgam007", new RLit("open")),
+                ("qgam010", new RLit("open")),
+                ("qnar002", new RLit("open")))),
+            ("profiles", new RArr(new RObj(
+                ("id", new RStr()),
+                ("status", new RStr()),
+                ("boundReferenceClass", new RNullableStr()),
+                ("reason", new RStr())), 3)),
+            ("baseline", new RObj(
+                ("classification", new RLit("diagnostic-developer-workstation")),
+                ("protocol", new RLit("qops001-2026-08-24")))),
+            ("frameEvidence", new FrameEvidenceAlternative()),
+            ("exitCode", new RInt(int.MinValue, int.MaxValue)),
+        });
+
+        return new RObj(fields.ToArray());
+    }
+
+    /// <summary>
+    /// Erkundungssitzungsblock (T-034, Erkundungsvertrag Abschnitt 7): bei
+    /// Aktivierung vertraglich gebunden — Kennungen, Landmarkenmenge in
+    /// fester Zonenordnung mit an die Kernelgeometrie gebundenen Ankern,
+    /// Aufsuchprotokoll in kanonischer Registrierungsfolge, Fortschritt/
+    /// Abschluss, die versionierte Nichtpersistenzaussage und die
+    /// fensterpflichtigen Ausweise. Rein diagnostisch
+    /// (gateCoupled=false); kein Feld koppelt an ein Gate oder einen
+    /// Budgetwert, und keine Exitcodebedeutung entsteht.
+    /// </summary>
+    private static RObj ExplorationSessionBody() => new(
+        ("contract", new RObj(
+            ("document", new RLit(ExplorationContract.DocumentPath)),
+            ("version", new RLit(ExplorationContract.ContractVersion)))),
+        ("activationId", new RLit(ExplorationContract.ActivationId)),
+        ("landmarkModel", new RLit(ExplorationContract.LandmarkModelId)),
+        ("visitRule", new RLit(ExplorationContract.VisitRuleId)),
+        ("counterModel", new RLit(ExplorationContract.CounterModelId)),
+        ("landmarks", new LandmarksNode()),
+        ("visitProtocol", new RArr(VisitEvent())),
+        ("progress", new RObj(
+            ("visitedCount", new RInt(0, Riftward.Simulation.NavWorld.ZoneCount)),
+            ("landmarkCount", new RInt(Riftward.Simulation.NavWorld.ZoneCount, Riftward.Simulation.NavWorld.ZoneCount)),
+            ("completed", new RBool()),
+            ("gateCoupled", new RBool(false)))),
+        ("persistence", new RObj(
+            ("statementId", new RLit(ExplorationContract.NotPersistedStatementId)),
+            ("persisted", new RBool(false)),
+            ("saveLoad", new RLit("not-continued")),
+            ("replay", new RLit("not-continued")),
+            ("gateCoupled", new RBool(false)))),
+        ("gateCoupled", new RBool(false)),
+        ("hud", ExplorationHudAlternative()),
+        ("landmarkChannel", ExplorationChannelAlternative()));
+
+    /// <summary>
+    /// Landmarkenbindung (T-034, Vertrag Abschnitte 2 und 7): exakt eine
+    /// Landmarke je Vertragszone in fester Zonenordnung; der Anker liegt in
+    /// der eigenen Zone und ist betretbar (Kernelbindung IsInsideZone/
+    /// IsWalkable). Der Schemator haelt die Landmarkenmenge damit an die
+    /// gebundene Vertragsgeometrie.
+    /// </summary>
+    private sealed class LandmarksNode : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.Array)
+            {
+                errors.Add($"{path}: Landmarken-Array erwartet.");
+                return;
+            }
+
+            var count = 0;
+
+            foreach (var item in element.EnumerateArray())
+            {
+                if (count >= Riftward.Simulation.NavWorld.ZoneCount)
+                {
+                    errors.Add($"{path}: hoechstens {Riftward.Simulation.NavWorld.ZoneCount} Landmarken (je Vertragszone eine) erwartet.");
+                    return;
+                }
+
+                var shape = LandmarkShape();
+                shape.Check($"{path}[{count}]", item, errors);
+
+                if (item.ValueKind == JsonValueKind.Object
+                    && item.TryGetProperty("zoneIndex", out var zoneIndex)
+                    && zoneIndex.TryGetInt32(out var zoneIndexValue)
+                    && zoneIndexValue != count)
+                {
+                    errors.Add($"{path}[{count}].zoneIndex: Landmarken muessen in fester Zonenordnung erscheinen.");
+                }
+
+                if (item.ValueKind == JsonValueKind.Object
+                    && item.TryGetProperty("zoneIndex", out zoneIndex)
+                    && zoneIndex.TryGetInt32(out zoneIndexValue)
+                    && zoneIndexValue >= 0
+                    && zoneIndexValue < Riftward.Simulation.NavWorld.ZoneCount
+                    && item.TryGetProperty("anchorTileX", out var anchorTileX)
+                    && anchorTileX.TryGetInt32(out var anchorTileXValue)
+                    && item.TryGetProperty("anchorTileY", out var anchorTileY)
+                    && anchorTileY.TryGetInt32(out var anchorTileYValue))
+                {
+                    if (!Riftward.Simulation.NavWorld.IsInsideZone(
+                        zoneIndexValue, anchorTileXValue, anchorTileYValue))
+                    {
+                        errors.Add($"{path}[{count}]: Ankerkachel liegt nicht in ihrer Vertragszone.");
+                    }
+
+                    if (!Riftward.Simulation.NavWorld.IsWalkable(anchorTileXValue, anchorTileYValue))
+                    {
+                        errors.Add($"{path}[{count}]: Ankerkachel ist in der gebundenen Vertragswelt nicht betretbar.");
+                    }
+
+                    var expected = ExplorationAnchors.DeriveLandmarks()[zoneIndexValue];
+
+                    if (anchorTileXValue != expected.AnchorTileX
+                        || anchorTileYValue != expected.AnchorTileY)
+                    {
+                        errors.Add($"{path}[{count}]: Ankerkachel widerspricht der kanonischen zeilenmajoritischen Ableitung.");
+                    }
+                }
+
+                count++;
+            }
+
+            if (count != Riftward.Simulation.NavWorld.ZoneCount)
+            {
+                errors.Add($"{path}: genau {Riftward.Simulation.NavWorld.ZoneCount} Landmarken (je Vertragszone eine) in fester Zonenordnung erwartet.");
+            }
+        }
+
+        private static RObj LandmarkShape() => new(
+            ("zoneIndex", new RInt(0, Riftward.Simulation.NavWorld.ZoneCount - 1)),
+            ("anchorTileX", new RInt(0, Riftward.Simulation.NavWorld.TilesX - 1)),
+            ("anchorTileY", new RInt(0, Riftward.Simulation.NavWorld.TilesY - 1)),
+            ("walkable", new RBool(true)));
+    }
+
+    private static RObj VisitEvent() => new(
+        ("evaluationBoundaryTick", new RInt(0)),
+        ("zoneIndex", new RInt(0, Riftward.Simulation.NavWorld.ZoneCount - 1)),
+        ("mode", ModeName()),
+        ("visitOrder", new RInt(1, Riftward.Simulation.NavWorld.ZoneCount)),
+        ("gateCoupled", new RBool(false)));
+
+    /// <summary>
+    /// Relationale T-034-Bindung: eindeutige Zonen, strikt kanonische
+    /// Besuchsreihenfolge und -zeit, ausschliesslich persoenliche
+    /// Registrierung sowie identische Zaehler-/Abschlussaussagen in
+    /// Protokoll, Fortschritt und den gemessenen Darstellungskaenaelen.
+    /// </summary>
+    private static void ValidateExplorationRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("explorationSession", out var exploration)
+            || exploration.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var explorationPath = $"{path}.explorationSession";
+        var protocolCount = -1;
+
+        if (exploration.TryGetProperty("visitProtocol", out var protocol)
+            && protocol.ValueKind == JsonValueKind.Array)
+        {
+            protocolCount = protocol.GetArrayLength();
+
+            if (protocolCount > Riftward.Simulation.NavWorld.ZoneCount)
+            {
+                errors.Add($"{explorationPath}.visitProtocol: hoechstens {Riftward.Simulation.NavWorld.ZoneCount} eindeutige Registrierungen erwartet.");
+            }
+
+            var seenZones = new bool[Riftward.Simulation.NavWorld.ZoneCount];
+            long previousBoundaryTick = -1;
+            var index = 0;
+
+            foreach (var visit in protocol.EnumerateArray())
+            {
+                if (visit.ValueKind == JsonValueKind.Object)
+                {
+                    if (visit.TryGetProperty("visitOrder", out var visitOrder)
+                        && visitOrder.TryGetInt64(out var visitOrderValue)
+                        && visitOrderValue != index + 1L)
+                    {
+                        errors.Add($"{explorationPath}.visitProtocol[{index}].visitOrder: fortlaufender Wert {index + 1} erwartet.");
+                    }
+
+                    if (visit.TryGetProperty("mode", out var mode)
+                        && mode.ValueKind == JsonValueKind.String
+                        && !string.Equals(mode.GetString(), ModeContract.ModePersonalId, StringComparison.Ordinal))
+                    {
+                        errors.Add($"{explorationPath}.visitProtocol[{index}].mode: Registrierung ist ausschliesslich im persoenlichen Modus zulaessig.");
+                    }
+
+                    if (visit.TryGetProperty("zoneIndex", out var zoneIndex)
+                        && zoneIndex.TryGetInt32(out var zoneIndexValue)
+                        && zoneIndexValue >= 0
+                        && zoneIndexValue < seenZones.Length)
+                    {
+                        if (seenZones[zoneIndexValue])
+                        {
+                            errors.Add($"{explorationPath}.visitProtocol[{index}].zoneIndex: Landmarkenzone wurde mehrfach registriert.");
+                        }
+
+                        seenZones[zoneIndexValue] = true;
+                    }
+
+                    if (visit.TryGetProperty("evaluationBoundaryTick", out var boundaryTick)
+                        && boundaryTick.TryGetInt64(out var boundaryTickValue))
+                    {
+                        if (index > 0 && boundaryTickValue <= previousBoundaryTick)
+                        {
+                            errors.Add($"{explorationPath}.visitProtocol[{index}].evaluationBoundaryTick: strikt steigende Registrierungsgrenzen erwartet.");
+                        }
+
+                        previousBoundaryTick = boundaryTickValue;
+                    }
+                }
+
+                index++;
+            }
+        }
+
+        if (!exploration.TryGetProperty("progress", out var progress)
+            || progress.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        int? visitedCount = null;
+        bool? completed = null;
+
+        if (progress.TryGetProperty("visitedCount", out var visited)
+            && visited.TryGetInt32(out var visitedValue))
+        {
+            visitedCount = visitedValue;
+
+            if (protocolCount >= 0 && visitedValue != protocolCount)
+            {
+                errors.Add($"{explorationPath}.progress.visitedCount: Wert muss der Laenge des Aufsuchprotokolls entsprechen.");
+            }
+        }
+
+        if (progress.TryGetProperty("completed", out var completedElement)
+            && completedElement.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            completed = completedElement.GetBoolean();
+
+            if (visitedCount is { } count
+                && completed.Value != (count == Riftward.Simulation.NavWorld.ZoneCount))
+            {
+                errors.Add($"{explorationPath}.progress.completed: muss genau visitedCount == landmarkCount abbilden.");
+            }
+        }
+
+        ValidateMeasuredExplorationFields(
+            explorationPath, exploration, visitedCount, completed, errors);
+    }
+
+    private static void ValidateMeasuredExplorationFields(
+        string path,
+        JsonElement exploration,
+        int? visitedCount,
+        bool? completed,
+        List<string> errors)
+    {
+        if (exploration.TryGetProperty("hud", out var hud)
+            && hud.ValueKind == JsonValueKind.Object
+            && hud.TryGetProperty("measured", out var hudMeasured)
+            && hudMeasured.ValueKind == JsonValueKind.True
+            && hud.TryGetProperty("fields", out var hudFields)
+            && hudFields.ValueKind == JsonValueKind.Object)
+        {
+            if (visitedCount is { } count
+                && hudFields.TryGetProperty("visitedCount", out var hudVisited)
+                && hudVisited.TryGetInt32(out var hudVisitedValue)
+                && hudVisitedValue != count)
+            {
+                errors.Add($"{path}.hud.fields.visitedCount: widerspricht dem gebundenen Fortschritt.");
+            }
+
+            if (completed is { } isCompleted
+                && hudFields.TryGetProperty("completed", out var hudCompleted)
+                && hudCompleted.ValueKind is JsonValueKind.True or JsonValueKind.False
+                && hudCompleted.GetBoolean() != isCompleted)
+            {
+                errors.Add($"{path}.hud.fields.completed: widerspricht dem gebundenen Abschlussstatus.");
+            }
+        }
+
+        if (exploration.TryGetProperty("landmarkChannel", out var channel)
+            && channel.ValueKind == JsonValueKind.Object
+            && channel.TryGetProperty("measured", out var channelMeasured)
+            && channelMeasured.ValueKind == JsonValueKind.True
+            && channel.TryGetProperty("fields", out var channelFields)
+            && channelFields.ValueKind == JsonValueKind.Object
+            && visitedCount is { } registeredCount
+            && channelFields.TryGetProperty("registeredCount", out var registered)
+            && registered.TryGetInt32(out var registeredValue)
+            && registeredValue != registeredCount)
+        {
+            errors.Add($"{path}.landmarkChannel.fields.registeredCount: widerspricht dem gebundenen Fortschritt.");
+        }
+    }
+
+    /// <summary>
+    /// Ein visueller Kanal darf nur dann als gemessen gelten, wenn ein
+    /// interaktives Fenster sein Messfenster tatsaechlich abgeschlossen hat.
+    /// Headless- und Early-Quit-Reports muessen fail-closed unavailable
+    /// ausweisen, statt allein aus executionMode eine Sichtbarkeit abzuleiten.
+    /// </summary>
+    private static void ValidatePresentationMeasurementRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("executionMode", out var executionMode)
+            || executionMode.ValueKind != JsonValueKind.String
+            || !root.TryGetProperty("measurement", out var measurement)
+            || measurement.ValueKind != JsonValueKind.Object
+            || !measurement.TryGetProperty("windowCompleted", out var windowCompleted)
+            || windowCompleted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            return;
+        }
+
+        var shouldBeMeasured = string.Equals(
+                executionMode.GetString(), ExecutionInteractive, StringComparison.Ordinal)
+            && windowCompleted.GetBoolean();
+
+        ValidateMeasuredFlag(
+            path, root, "modeSession", "hud", shouldBeMeasured, errors);
+
+        if (root.TryGetProperty("explorationSession", out _))
+        {
+            ValidateMeasuredFlag(
+                path, root, "explorationSession", "hud", shouldBeMeasured, errors);
+            ValidateMeasuredFlag(
+                path, root, "explorationSession", "landmarkChannel", shouldBeMeasured, errors);
+        }
+    }
+
+    private static void ValidateMeasuredFlag(
+        string path,
+        JsonElement root,
+        string blockName,
+        string channelName,
+        bool expected,
+        List<string> errors)
+    {
+        if (root.TryGetProperty(blockName, out var block)
+            && block.ValueKind == JsonValueKind.Object
+            && block.TryGetProperty(channelName, out var channel)
+            && channel.ValueKind == JsonValueKind.Object
+            && channel.TryGetProperty("measured", out var measured)
+            && measured.ValueKind is JsonValueKind.True or JsonValueKind.False
+            && measured.GetBoolean() != expected)
+        {
+            errors.Add($"{path}.{blockName}.{channelName}.measured: erwarteter Wert {expected.ToString().ToLowerInvariant()} fuer Ausfuehrungsart und Fensterabschluss.");
+        }
+    }
+
+    /// <summary>
+    /// Titel-HUD-Ausweis der Erkundung (Vertrag Abschnitte 5 und 7): im
+    /// Interaktivmodus messend mit Fortschritt und Abschluss; headless und
+    /// in unvollständigen Läufen ausdrücklich nicht gemessen mit
+    /// maschinenlesbarem Grund statt stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative ExplorationHudAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(ExplorationContract.HudModelId)),
+                ("fields", new RObj(
+                    ("visitedCount", new RInt(0, Riftward.Simulation.NavWorld.ZoneCount)),
+                    ("landmarkCount", new RInt(Riftward.Simulation.NavWorld.ZoneCount, Riftward.Simulation.NavWorld.ZoneCount)),
+                    ("completed", new RBool())))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(ExplorationContract.HudModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
+    /// Landmarkenzustandskanal-Bindung (T-034, Vertrag Abschnitt 5): im
+    /// Interaktivmodus messend ausgewiesen; headless ausdrücklich nicht
+    /// gemessen mit maschinenlesbarem Grund statt stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative ExplorationChannelAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(ExplorationContract.LandmarkChannelModelId)),
+                ("fields", new RObj(
+                    ("landmarkCount", new RInt(Riftward.Simulation.NavWorld.ZoneCount, Riftward.Simulation.NavWorld.ZoneCount)),
+                    ("registeredCount", new RInt(0, Riftward.Simulation.NavWorld.ZoneCount))))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(ExplorationContract.LandmarkChannelModelId)),
+                ("reason", new RStr())),
+        ]);
 
     /// <summary>
     /// Anzeigebindung: im Interaktivmodus messend in der tatsächlichen

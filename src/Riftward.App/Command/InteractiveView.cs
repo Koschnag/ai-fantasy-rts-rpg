@@ -20,9 +20,61 @@ internal sealed class InteractiveView : IDisposable
     /// <summary>Lebensdauer eines Befehlspulses in Ticks.</summary>
     public const int CommandPulseTicks = 40;
 
-    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse plus Held-Badge).</summary>
+    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse, Held-Badge plus Landmarkenkanal).</summary>
     public const int MarkerCapacity =
-        SimulationContract.AgentCount + SimulationContract.GroupCount + 1;
+        SimulationContract.AgentCount
+        + SimulationContract.GroupCount
+        + 1
+        + 2
+        + (2 * NavWorld.ZoneCount);
+
+    /// <summary>Ankerhoehe des unbesuchten Landmarkenmarkers in Metern (Vertrag Abschnitt 5).</summary>
+    public const double LandmarkMarkerHeightMeters = 1.6;
+
+    /// <summary>Groesse des ruhenden unbesuchten Landmarkenmarkers.</summary>
+    public const float LandmarkMarkerSize = 1.15f;
+
+    /// <summary>Hoehen der zweistufigen registrierten Markiersaeule.</summary>
+    public const double RegisteredLandmarkLowerHeightMeters = 1.4;
+
+    public const double RegisteredLandmarkUpperHeightMeters = 3.6;
+
+    /// <summary>Groessen der zweistufigen registrierten Markiersaeule.</summary>
+    public const float RegisteredLandmarkLowerSize = 1.25f;
+
+    public const float RegisteredLandmarkUpperSize = 1.05f;
+
+    /// <summary>
+    /// Hoehe des heldennahen Zustands-Echos fuer die aktuelle, noch nicht
+    /// registrierte Zone. Es liegt deutlich ueber Agenten und Modus-Badge.
+    /// </summary>
+    public const double HeroLandmarkCueUnvisitedHeightMeters = 3.6;
+
+    /// <summary>Groesse des heldennahen unbesuchten Echos fuer die nahe persoenliche Kamera.</summary>
+    public const float HeroLandmarkCueUnvisitedSize = 0.70f;
+
+    /// <summary>Hoehen des heldennahen Zweistufen-Echos einer registrierten Zone.</summary>
+    public const double HeroLandmarkCueRegisteredLowerHeightMeters = 3.5;
+
+    public const double HeroLandmarkCueRegisteredUpperHeightMeters = 4.25;
+
+    /// <summary>
+    /// Eigene Groessen des heldennahen Echos. Die festen Ankermarker bleiben
+    /// groesser; vor der nahen persoenlichen Kamera wuerden dieselben Werte
+    /// den Heldenkanal dominieren und die obere Stufe an den Bildrand treiben.
+    /// </summary>
+    public const float HeroLandmarkCueRegisteredLowerSize = 0.65f;
+
+    public const float HeroLandmarkCueRegisteredUpperSize = 0.55f;
+
+    /// <summary>Lesbare Groesse des ruhenden strategischen Helden-Badges.</summary>
+    public const float StrategicHeroBadgeSize = 0.80f;
+
+    /// <summary>Basisgroesse des atmenden persoenlichen Helden-Badges.</summary>
+    public const float PersonalHeroBadgeBaseSize = 0.65f;
+
+    /// <summary>Deterministische Atemamplitude des persoenlichen Helden-Badges.</summary>
+    public const double PersonalHeroBadgeBreath = 0.10;
 
     private const int PaletteRowFloats = RepresentativeScenario.BonesPerNormalUnit * 3 * 4;
 
@@ -45,6 +97,8 @@ internal sealed class InteractiveView : IDisposable
         new (long IssueTick, int Zone)[SimulationContract.GroupCount];
 
     private SelectionModel? _selection;
+
+    private ExplorationSession? _exploration;
 
     public InteractiveView()
     {
@@ -69,6 +123,15 @@ internal sealed class InteractiveView : IDisposable
 
     /// <summary>Bindet das Auswahlmodell fuer die Glyphenentscheidung.</summary>
     public void BindSelection(SelectionModel selection) => _selection = selection;
+
+    /// <summary>
+    /// Bindet die optionale Erkundungssitzung für den Landmarkenzustandskanal
+    /// (T-034, Vertrag Abschnitt 5): ohne Aktivierung null (Bestandsdarstellung
+    /// byteidentisch); die Marker lesen ausschließlich Anker und Aufsuch-
+    /// zustand schreibgeschützt und sind niemals Teil von Simulationszustand
+    /// oder Hash.
+    /// </summary>
+    public void BindExploration(ExplorationSession? exploration) => _exploration = exploration;
 
     /// <summary>Meldet einen abgesetzten Gruppenbefehl fuer die Puls-Rueckmeldung.</summary>
     public void NotifyCommandIssued(long tickIndex, int zone)
@@ -157,8 +220,16 @@ internal sealed class InteractiveView : IDisposable
     {
         var markerCount = 0;
 
-        // Kanal 1: Auswahlglyphe (Form ueber der Einheit, warmton).
-        for (var agent = 0; agent < world.AgentCount && markerCount < MarkerCapacity; agent++)
+        // Kanal 1: Auswahlglyphe (Form ueber der Einheit, warmton). Die
+        // Auswahl bleibt beim Moduswechsel als Sitzungszustand erhalten,
+        // wird im persoenlichen Modus aber nicht dargestellt: Dort ist die
+        // strategische Auswahlsemantik nicht gebunden, und insbesondere eine
+        // grosse Armee darf den Helden-/Landmarkenkanal nicht verdecken.
+        for (var agent = 0;
+            visualMode == SessionMode.Strategic
+            && agent < world.AgentCount
+            && markerCount < MarkerCapacity;
+            agent++)
         {
             if (_selection is null || !_selection.IsSelected(_agentGroups[agent]))
             {
@@ -215,9 +286,9 @@ internal sealed class InteractiveView : IDisposable
         // heldenverankerter Modus-Badge über Agentenindex 0 mit zwei
         // unterscheidbaren visuellen Kanaelen (NF-005, nie reine Farbcodierung):
         // strategisch — ruhender Diamant (feste Orientierung pi/4), cyan
-        // (0.45/0.85/1.0), Hoehe 2.6 m, Groesse 0.60; persoenlich —
+        // (0.45/0.85/1.0), Hoehe 2.6 m, Groesse 0.80; persoenlich —
         // pulsierender Diamant (Groesse atmet deterministisch mit der
-        // Tickzahl), warmes Orange (1.0/0.45/0.20), Basisgroesse 0.42. Die
+        // Tickzahl), warmes Orange (1.0/0.45/0.20), Basisgroesse 0.65. Die
         // pulsende Groesse und beide Farbkanäle trennen den Badge von der
         // Auswahlglyphe (warmes Amber, Groesse 0.42, ruhend) und vom
         // Befehlspuls (wachsend, kaltton, bodenverankert).
@@ -230,14 +301,14 @@ internal sealed class InteractiveView : IDisposable
 
             if (visualMode == SessionMode.Personal)
             {
-                var breath = 0.08 * Math.Sin(tickIndex * 0.35);
-                RepresentativeMesh.WriteParticleInstance(
+                var breath = PersonalHeroBadgeBreath * Math.Sin(tickIndex * 0.35);
+                RepresentativeMesh.WriteDiamondInstance(
                     _markers,
                     markerCount++,
                     heroX,
                     heroGroundY + 2.6,
                     heroZ,
-                    size: (float)(0.42 + breath),
+                    size: (float)(PersonalHeroBadgeBaseSize + breath),
                     rotation: badgeRotation,
                     red: 1.00f,
                     green: 0.45f,
@@ -246,18 +317,148 @@ internal sealed class InteractiveView : IDisposable
             }
             else
             {
-                RepresentativeMesh.WriteParticleInstance(
+                RepresentativeMesh.WriteDiamondInstance(
                     _markers,
                     markerCount++,
                     heroX,
                     heroGroundY + 2.6,
                     heroZ,
-                    size: 0.60f,
+                    size: StrategicHeroBadgeSize,
                     rotation: badgeRotation,
                     red: 0.45f,
                     green: 0.85f,
                     blue: 1.00f,
                     alpha: 0.95f);
+            }
+        }
+
+        // Kanal 4 (T-034, Erkundungsvertrag Abschnitt 5,
+        // landmark-state-channel-v1): darstellseitige Landmarkenmarker am
+        // Anker mit zwei unterscheidbaren visuellen Kanaelen (NF-005, nie
+        // reine Farbcodierung). Unbesucht: ruhender Einzel-Diamant (feste
+        // Orientierung pi/4), kuehles Blaugrau (0.55/0.75/0.95), Groesse 1.15,
+        // Hoehe 1.6 m. Registriert: zweistufige Markiersaeule — unten
+        // ruhend, oben rotierend mit der Tickzahl — kuehles Gruen
+        // (0.40/0.90/0.60). Ohne Aktivierung entsteht kein Marker.
+        if (_exploration is { } exploration)
+        {
+            // Der eigentliche Landmarkenmarker bleibt am vertraglichen Anker.
+            // Da die Registrierung jedoch zonenweit gilt, kann dieser Anker
+            // weit vom Helden und damit ausserhalb eines heldenzentrierten
+            // Abgriffs liegen. Ein rein darstellseitiges Zustands-Echo ueber
+            // dem Helden macht die aktuelle Zonenlandmarke in beiden Modi
+            // ablesbar, ohne Anker, Besuchsregel oder Kernzustand zu aendern.
+            var heroZone = HeroTracker.ZoneIndexOf(world);
+
+            if (heroZone >= 0 && heroZone < exploration.LandmarkCount)
+            {
+                var heroX = RepresentativeLandscape.ToWorldX(world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One);
+                var heroZ = RepresentativeLandscape.ToWorldZ(world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One);
+                var heroGroundY = RepresentativeLandscape.HeightAt(heroX, heroZ);
+                var currentLandmarkRegistered = exploration.IsRegistered(heroZone);
+
+                if (!currentLandmarkRegistered && markerCount < MarkerCapacity)
+                {
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        heroX,
+                        heroGroundY + HeroLandmarkCueUnvisitedHeightMeters,
+                        heroZ,
+                        size: HeroLandmarkCueUnvisitedSize,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.55f,
+                        green: 0.75f,
+                        blue: 0.95f,
+                        alpha: 0.95f);
+                }
+                else if (markerCount + 2 <= MarkerCapacity)
+                {
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        heroX,
+                        heroGroundY + HeroLandmarkCueRegisteredLowerHeightMeters,
+                        heroZ,
+                        size: HeroLandmarkCueRegisteredLowerSize,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        heroX,
+                        heroGroundY + HeroLandmarkCueRegisteredUpperHeightMeters,
+                        heroZ,
+                        size: HeroLandmarkCueRegisteredUpperSize,
+                        rotation: (float)(tickIndex * 0.12),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                }
+            }
+
+            foreach (var landmark in exploration.Landmarks)
+            {
+                if (markerCount + 2 > MarkerCapacity)
+                {
+                    break;
+                }
+
+                var landmarkWorldX = RepresentativeLandscape.ToWorldX(landmark.AnchorTileX + 0.5);
+                var landmarkWorldZ = RepresentativeLandscape.ToWorldZ(landmark.AnchorTileY + 0.5);
+                var landmarkGroundY = RepresentativeLandscape.HeightAt(landmarkWorldX, landmarkWorldZ);
+
+                if (!exploration.IsRegistered(landmark.ZoneIndex))
+                {
+                    // Unbesucht: ruhender Einzel-Diamant, feste Orientierung
+                    // pi/4, kuehles Blaugrau, Groesse 1.15, Hoehe 1.6 m.
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        landmarkWorldX,
+                        landmarkGroundY + LandmarkMarkerHeightMeters,
+                        landmarkWorldZ,
+                        size: LandmarkMarkerSize,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.55f,
+                        green: 0.75f,
+                        blue: 0.95f,
+                        alpha: 0.95f);
+                }
+                else
+                {
+                    // Registriert: zweistufige Markiersaeule (unten ruhend,
+                    // oben rotierend mit der Tickzahl), kuehles Gruen; die
+                    // Gesamtform ist klar zweigeteilt (NF-005).
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        landmarkWorldX,
+                        landmarkGroundY + RegisteredLandmarkLowerHeightMeters,
+                        landmarkWorldZ,
+                        size: RegisteredLandmarkLowerSize,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                    RepresentativeMesh.WriteDiamondInstance(
+                        _markers,
+                        markerCount++,
+                        landmarkWorldX,
+                        landmarkGroundY + RegisteredLandmarkUpperHeightMeters,
+                        landmarkWorldZ,
+                        size: RegisteredLandmarkUpperSize,
+                        rotation: (float)(tickIndex * 0.12),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                }
             }
         }
 
@@ -299,14 +500,140 @@ public static class InteractiveCameraMath
         public static ActiveCamera From(GrayboxCamera camera) =>
             new(camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters, InteractiveCameraMath.PitchRadians);
 
-        /// <summary>Aktiver Stand der Verfolgungskamera (32°, Modevertrag Abschnitt 8).</summary>
-        public static ActiveCamera From(HeroChaseCamera camera) =>
-            new(camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters, HeroChaseCamera.PitchDegrees * Math.PI / 180.0);
+        /// <summary>Aktiver Stand der Verfolgungskamera (55°, Modevertrag Abschnitt 8).</summary>
+        public static ActiveCamera From(HeroChaseCamera camera)
+        {
+            var desired = new ActiveCamera(
+                camera.CenterXMeters,
+                camera.CenterZMeters,
+                camera.DistanceMeters,
+                HeroChaseCamera.PitchDegrees * Math.PI / 180.0);
+            var fitted = FitHorizontalWorld(desired, DefaultViewportAspectRatio, HeroChaseCamera.DistanceMinMeters);
+            return ClampToWorldFootprint(fitted, DefaultViewportAspectRatio);
+        }
     }
 
     public const double PitchRadians = GrayboxCamera.PitchDegrees * Math.PI / 180.0;
 
     public const double FieldOfViewDegrees = BenchRunner.FieldOfViewDegrees;
+
+    public const double DefaultViewportAspectRatio = BenchRunner.DefaultWidth / (double)BenchRunner.DefaultHeight;
+
+    /// <summary>
+    /// Bodenabdruck einer nordgerichteten Kamera relativ zu ihrem Blickpunkt.
+    /// X ist die maximale halbe Breite an den fernen oberen Bodenecken,
+    /// LookPlaneX die halbe Breite auf der Blickpunktebene; NorthZ und SouthZ
+    /// sind die Schnittweiten der oberen beziehungsweise unteren Frustumkante.
+    /// </summary>
+    public readonly record struct GroundFootprintMargins(double X, double LookPlaneX, double NorthZ, double SouthZ);
+
+    /// <summary>
+    /// Berechnet den endlichen Bodenabdruck eines Kamera-Frustums. Eine
+    /// Postur, deren obere Kante den Horizont beruehrt, wird fail-closed
+    /// abgewiesen: Sie kann keinen ehrlich begrenzbaren Weltrandabdruck haben.
+    /// </summary>
+    public static GroundFootprintMargins GroundFootprint(ActiveCamera camera, double aspectRatio)
+    {
+        var verticalHalfFov = FieldOfViewDegrees * Math.PI / 360.0;
+        var upperRay = camera.PitchRadians - verticalHalfFov;
+        var lowerRay = camera.PitchRadians + verticalHalfFov;
+
+        if (!double.IsFinite(aspectRatio)
+            || aspectRatio <= 0.0
+            || !double.IsFinite(camera.DistanceMeters)
+            || camera.DistanceMeters <= 0.0
+            || upperRay <= 0.0
+            || lowerRay >= Math.PI / 2.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(camera), "Kamerapostur hat keinen endlichen Bodenabdruck.");
+        }
+
+        var tangentHalfFov = Math.Tan(verticalHalfFov);
+        var eyeHeight = Math.Sin(camera.PitchRadians) * camera.DistanceMeters;
+        var eyeSouth = Math.Cos(camera.PitchRadians) * camera.DistanceMeters;
+        var upperDown = Math.Sin(camera.PitchRadians) - (tangentHalfFov * Math.Cos(camera.PitchRadians));
+        var distanceToUpperGround = eyeHeight / upperDown;
+        var halfWidth = distanceToUpperGround * tangentHalfFov * aspectRatio;
+        var lookPlaneHalfWidth = camera.DistanceMeters * tangentHalfFov * aspectRatio;
+        var north = (distanceToUpperGround
+                * (Math.Cos(camera.PitchRadians) + (tangentHalfFov * Math.Sin(camera.PitchRadians))))
+            - eyeSouth;
+        var south = eyeSouth - (eyeHeight / Math.Tan(lowerRay));
+
+        if (!double.IsFinite(halfWidth)
+            || !double.IsFinite(lookPlaneHalfWidth)
+            || !double.IsFinite(north)
+            || !double.IsFinite(south)
+            || halfWidth < 0.0
+            || lookPlaneHalfWidth < 0.0
+            || north < 0.0
+            || south < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(camera), "Kamerapostur hat keinen gueltigen Bodenabdruck.");
+        }
+
+        return new GroundFootprintMargins(halfWidth, lookPlaneHalfWidth, north, south);
+    }
+
+    /// <summary>
+    /// Reduziert nur die wirksame Darstellungsdistanz, falls der volle
+    /// horizontale Bodenabdruck und der Fokus am Weltrand sonst unvereinbar
+    /// waeren. Die vorgegebene Mindestdistanz verhindert einen unlesbar
+    /// nahen Evidenzzoom; der Sitzungszoom selbst bleibt unangetastet.
+    /// </summary>
+    public static ActiveCamera FitHorizontalWorld(ActiveCamera camera, double aspectRatio, double minimumDistance)
+    {
+        if (!double.IsFinite(minimumDistance)
+            || minimumDistance <= 0.0
+            || minimumDistance > camera.DistanceMeters)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumDistance));
+        }
+
+        var unit = GroundFootprint(camera with { DistanceMeters = 1.0 }, aspectRatio);
+        var wideningPerMeter = unit.X - unit.LookPlaneX;
+        var edgeDistance = Math.Min(camera.CenterXMeters, NavWorld.TilesX - camera.CenterXMeters);
+        var fittedDistance = camera.DistanceMeters;
+
+        if (wideningPerMeter > 0.0)
+        {
+            fittedDistance = Math.Min(fittedDistance, Math.Max(0.0, edgeDistance) / wideningPerMeter);
+        }
+
+        return camera with { DistanceMeters = Math.Clamp(fittedDistance, minimumDistance, camera.DistanceMeters) };
+    }
+
+    /// <summary>
+    /// Verschiebt nur den darstellseitigen Blickpunkt so weit ins Vertragsfeld,
+    /// wie es der Bodenabdruck erlaubt. Der eigentliche Kamera-/Sitzungszustand
+    /// und die Simulation bleiben unveraendert.
+    /// </summary>
+    public static ActiveCamera ClampToWorldFootprint(ActiveCamera camera, double aspectRatio)
+    {
+        var margins = GroundFootprint(camera, aspectRatio);
+
+        static double ClampAxis(double desired, double minimum, double maximum, double fallback) =>
+            minimum <= maximum ? Math.Clamp(desired, minimum, maximum) : fallback;
+
+        var worldBoundCenterX =
+            ClampAxis(camera.CenterXMeters, margins.X, NavWorld.TilesX - margins.X, NavWorld.TilesX / 2.0);
+        // Der Fokus bleibt in der mittleren Bildschirmhaelfte. An extremen
+        // Raendern ist das der kleinste ehrliche Kompromiss: Die gesamte
+        // ferne Frustumecke und ein zentrierter Fokus sind geometrisch nicht
+        // gleichzeitig moeglich, ohne unter den vertraglichen Mindestzoom zu
+        // fallen.
+        var centralFocusHalfWidth = margins.LookPlaneX * 0.5;
+        var focusVisibleCenterX = Math.Clamp(
+            worldBoundCenterX,
+            camera.CenterXMeters - centralFocusHalfWidth,
+            camera.CenterXMeters + centralFocusHalfWidth);
+
+        return new ActiveCamera(
+            focusVisibleCenterX,
+            ClampAxis(camera.CenterZMeters, margins.NorthZ, NavWorld.TilesY - margins.SouthZ, NavWorld.TilesY / 2.0),
+            camera.DistanceMeters,
+            camera.PitchRadians);
+    }
 
     public const double NearPlane = 0.5;
 
@@ -479,7 +806,11 @@ public static class InteractiveCameraMath
 
         var upX = (-forwardY * rightZ);
         var upY = (forwardZ * rightX) - (forwardX * rightZ);
-        var upZ = forwardY * rightX;
+        // up = cross(forward, right). Das Z-Glied lautet
+        // forwardX*rightY - forwardY*rightX; rightY ist hier null. Das
+        // fehlende Minus spiegelte die Achse bislang in die Bodenebene und
+        // stauchte kreisrunde Billboards bei 55 Grad zu schmalen Strichen.
+        var upZ = -forwardY * rightX;
 
         return [rightX, 0.0, rightZ, upX, upY, upZ];
     }

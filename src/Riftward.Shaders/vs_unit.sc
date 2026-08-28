@@ -29,7 +29,7 @@ mat4 rift_boneMatrix(int boneIndex, int row)
 		vec4(column0.xyz, 0.0),
 		vec4(column1.xyz, 0.0),
 		vec4(column2.xyz, 0.0),
-		vec4(0.0, 0.0, 0.0, 1.0) );
+		vec4(column0.w, column1.w, column2.w, 1.0) );
 }
 
 void main()

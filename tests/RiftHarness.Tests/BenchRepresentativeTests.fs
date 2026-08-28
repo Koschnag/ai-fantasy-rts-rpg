@@ -1,6 +1,7 @@
 module BenchRepresentativeTests
 
 open System
+open System.Buffers.Binary
 open System.Collections.Generic
 open System.IO
 open System.Text.Json
@@ -124,6 +125,66 @@ let compositionTargetsProduceNonDegenerateGeometry () =
     if units.Indices.Length <> units.TriangleCount * 3 * 2 then
         failwith "Indexbuffer des Einheitenmesh ist unvollstaendig."
 
+    let positionOf vertex =
+        let offset = vertex * RepresentativeMesh.UnitVertexStride
+
+        struct (BinaryPrimitives.ReadSingleLittleEndian(units.Vertices.AsSpan(offset + 0, 4)),
+                BinaryPrimitives.ReadSingleLittleEndian(units.Vertices.AsSpan(offset + 4, 4)),
+                BinaryPrimitives.ReadSingleLittleEndian(units.Vertices.AsSpan(offset + 8, 4)))
+
+    let longitudinalEdge lower upper =
+        let struct (lowerX, lowerY, lowerZ) = positionOf lower
+        let struct (upperX, upperY, upperZ) = positionOf upper
+        struct (upperX - lowerX, upperY - lowerY, upperZ - lowerZ)
+
+    // Die vier Mantelquads jedes Segments verbinden korrespondierende
+    // Ringecken. Beide Laengskanten muessen deshalb parallel und gleich
+    // sein. Ein umgekehrter Startring erzeugt zwar gueltige Zaehler, aber
+    // gekreuzte Sternflaechen statt einer lesbaren Figuren-Silhouette.
+    for segment in 0 .. RepresentativeRig.BoneCount - 1 do
+        let segmentBase = segment * 24
+
+        for side in 0..3 do
+            let faceBase = segmentBase + (side * 4)
+            let struct (leftX, leftY, leftZ) = longitudinalEdge faceBase (faceBase + 3)
+            let struct (rightX, rightY, rightZ) = longitudinalEdge (faceBase + 1) (faceBase + 2)
+            let epsilon = 1e-5f
+
+            if
+                abs (leftX - rightX) > epsilon
+                || abs (leftY - rightY) > epsilon
+                || abs (leftZ - rightZ) > epsilon
+            then
+                failwith $"Segment {segment}, Mantelflaeche {side} traegt verdrehte Querschnittsringe."
+
+    // Jedes prozedurale Segment ist starr an genau einen Knochen gebunden.
+    // Die normalisierten u8-Gewichte muessen deshalb exakt 1 ergeben; eine
+    // als Gewicht missbrauchte Graustufe vergroessert sonst die gesamte
+    // affine Matrix und laesst die Figuren visuell explodieren.
+    for vertex in 0 .. units.VertexCount - 1 do
+        let offset = vertex * RepresentativeMesh.UnitVertexStride
+        let segment = vertex / 24
+        let parent = RepresentativeRig.ParentOf(segment)
+        let expectedBone = if parent >= 0 then parent else segment
+
+        if int units.Vertices[offset + 16] <> expectedBone then
+            failwith $"Vertex {vertex} ist an Knochen {units.Vertices[offset + 16]} statt {expectedBone} gebunden."
+
+        if
+            units.Vertices[offset + 17] <> 0uy
+            || units.Vertices[offset + 18] <> 0uy
+            || units.Vertices[offset + 19] <> 0uy
+        then
+            failwith $"Vertex {vertex} traegt ungenutzte Knochenindizes."
+
+        if
+            units.Vertices[offset + 20] <> Byte.MaxValue
+            || units.Vertices[offset + 21] <> 0uy
+            || units.Vertices[offset + 22] <> 0uy
+            || units.Vertices[offset + 23] <> 0uy
+        then
+            failwith $"Vertex {vertex} hat keine exakt normierte starre Knochenbindung."
+
     let highestIndex =
         seq {
             for chunk = 0 to (units.Indices.Length / 2) - 1 do
@@ -144,8 +205,48 @@ let compositionTargetsProduceNonDegenerateGeometry () =
 
     let quad = RepresentativeMesh.BuildParticleQuad()
 
-    if quad.Vertices.Length <> 4 * RepresentativeMesh.ParticleVertexStride then
+    if
+        quad.VertexCount <> 6
+        || quad.TrianglesPerInstance <> 2
+        || quad.Vertices.Length <> 6 * RepresentativeMesh.ParticleVertexStride
+    then
         failwith "Partikelquad-Geometrie degeneriert."
+
+    let readQuadVertex vertex =
+        let offset = vertex * RepresentativeMesh.ParticleVertexStride
+
+        (BitConverter.ToSingle(quad.Vertices, offset),
+         BitConverter.ToSingle(quad.Vertices, offset + 4),
+         BitConverter.ToSingle(quad.Vertices, offset + 8),
+         BitConverter.ToSingle(quad.Vertices, offset + 12))
+
+    let expectedQuadVertices =
+        [| (-0.5f, -0.5f, 0.0f, 0.0f)
+           (0.5f, -0.5f, 1.0f, 0.0f)
+           (0.5f, 0.5f, 1.0f, 1.0f)
+           (-0.5f, -0.5f, 0.0f, 0.0f)
+           (0.5f, 0.5f, 1.0f, 1.0f)
+           (-0.5f, 0.5f, 0.0f, 1.0f) |]
+
+    if Array.init quad.VertexCount readQuadVertex <> expectedQuadVertices then
+        failwith "Partikelquad ist nicht als zwei kanonische Triangle-List-Dreiecke mit voller UV-Abdeckung gebunden."
+
+    for triangle = 0 to 1 do
+        let x0, y0, _, _ = readQuadVertex (triangle * 3)
+        let x1, y1, _, _ = readQuadVertex (triangle * 3 + 1)
+        let x2, y2, _, _ = readQuadVertex (triangle * 3 + 2)
+        let signedDoubleArea = ((x1 - x0) * (y2 - y0)) - ((y1 - y0) * (x2 - x0))
+
+        if signedDoubleArea <= 0.0f then
+            failwith $"Partikelquad-Dreieck {triangle} besitzt kein konsistentes positives Winding."
+
+    let particleInstance =
+        Array.zeroCreate<float32> (RepresentativeMesh.ParticleInstanceStrideBytes / sizeof<float32>)
+
+    RepresentativeMesh.WriteParticleInstance(particleInstance, 0, 1.0, 2.0, 3.0, 0.5f, 0.25f, 0.2f, 0.4f, 0.6f, 0.37f)
+
+    if abs (particleInstance.[11] - 0.37f) > 0.000001f then
+        failwith "Partikel-Deckkraft erreicht den vom Fragmentshader gelesenen Farbkanal nicht."
 
     let mainViewTriangles =
         int64 terrain.TriangleCount
@@ -218,6 +319,61 @@ let rigEvaluatesFortyEightBonePaletteDeterministically () =
 
     if maxAbs > 2.0 then
         failwith $"Palettenwerte verlassen den Graybox-Bereich ({maxAbs})."
+
+    // Jede lineare Hautmatrix muss eine echte Rotation bleiben. Dieser
+    // Nachweis faengt insbesondere nicht alias-sichere In-Place-Produkte ab,
+    // die Spalte 0 beim Berechnen der Folgespalten wiederverwenden.
+    let dot3 ax ay az bx by bz = (ax * bx) + (ay * by) + (az * bz)
+    let mutable sawAffineTranslation = false
+
+    for bone in 0 .. RepresentativeScenario.BonesPerNormalUnit - 1 do
+        let offset = bone * 12
+
+        for slot in 0..11 do
+            if not (Single.IsFinite(first[offset + slot])) then
+                failwith $"Hautmatrix von Knochen {bone} enthaelt einen nichtendlichen Wert."
+
+        let c0x, c0y, c0z =
+            float first[offset], float first[offset + 1], float first[offset + 2]
+
+        let c1x, c1y, c1z =
+            float first[offset + 4], float first[offset + 5], float first[offset + 6]
+
+        let c2x, c2y, c2z =
+            float first[offset + 8], float first[offset + 9], float first[offset + 10]
+
+        let tolerance = 0.0001
+
+        for lengthSquared in
+            [ dot3 c0x c0y c0z c0x c0y c0z
+              dot3 c1x c1y c1z c1x c1y c1z
+              dot3 c2x c2y c2z c2x c2y c2z ] do
+            if Math.Abs(lengthSquared - 1.0) > tolerance then
+                failwith $"Hautrotation von Knochen {bone} ist nicht normiert ({lengthSquared})."
+
+        for crossDot in
+            [ dot3 c0x c0y c0z c1x c1y c1z
+              dot3 c0x c0y c0z c2x c2y c2z
+              dot3 c1x c1y c1z c2x c2y c2z ] do
+            if Math.Abs(crossDot) > tolerance then
+                failwith $"Hautrotation von Knochen {bone} ist nicht orthogonal ({crossDot})."
+
+        let determinant =
+            c0x * ((c1y * c2z) - (c1z * c2y))
+            + c0y * ((c1z * c2x) - (c1x * c2z))
+            + c0z * ((c1x * c2y) - (c1y * c2x))
+
+        if Math.Abs(determinant - 1.0) > tolerance then
+            failwith $"Hautrotation von Knochen {bone} spiegelt oder skaliert ({determinant})."
+
+        sawAffineTranslation <-
+            sawAffineTranslation
+            || Math.Abs(float first[offset + 3]) > 0.000001
+            || Math.Abs(float first[offset + 7]) > 0.000001
+            || Math.Abs(float first[offset + 11]) > 0.000001
+
+    if not sawAffineTranslation then
+        failwith "Die RGBA-Palette hat alle berechneten Gelenktranslationen verworfen."
 
 /// Das Kameraflugskript bleibt deterministisch und hashgebunden (AC-T023-01/03).
 let cameraFlightIsDeterministicAndCanonical () =

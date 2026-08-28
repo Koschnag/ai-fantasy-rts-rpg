@@ -300,9 +300,21 @@ Slices und sind hier nicht behauptet.
 **Verfolgungskamera (`hero-chase-camera-v1`, rein darstellseitig):** Geneigte
 Verfolgungsansicht hinter der Heldenfigur; Blickpunkt ist die Heldenposition
 (Agentenindex 0), Kamera sitzt südlich (feste Nordausrichtung konsistent zur
-§4-Konvention des Kommandovertrags), Nickwinkel 32°, Anzeigedistanz 9 m,
-geclippt auf 5–16 m (Zoom-Schritte), Blickpunkt an Weltränder geclampt
-(160×90-m-Raster). Kamera, Badge und HUD sind niemals Teil von
+§4-Konvention des Kommandovertrags), Nickwinkel 55°, Anzeigedistanz 9 m,
+geclippt auf 5–16 m (Zoom-Schritte). Der wirksame Render-/Pickingblickpunkt
+wird anhand des Bodenabdrucks des 60°-Frustums an den Welträndern des
+160×90-m-Rasters begrenzt; der sitzungslokale Heldenblickpunkt bleibt dabei
+unverändert und in der mittleren horizontalen Bildschirmhälfte. Wo am
+äußersten Rand vollständiger Bodeneckabdruck und diese Fokuslesbarkeit bei
+Mindestzoom geometrisch unvereinbar sind, hat die Fokuslesbarkeit Vorrang
+und nur der unvermeidbare Rest der fernen Ecke darf den Rand überschreiten.
+Die obere Frustumkante behält bei
+Standardzoom 25° Bodenfreiheit; der nördliche Bodenabdruck beträgt rund
+10,65 m, die maximale halbe Breite an den fernen 16:9-Bodenecken rund
+15,51 m. Die verworfene 32°-Hypothese ließ nur 2° Bodenfreiheit und mehr als
+120 m Bodenabdruck zu; auch die Zwischenhypothese 45° ließ die fernen
+horizontalen Ecken noch rund 21,86 m ausgreifen. Beide erzeugten am Weltrand
+dominanten Leeraum. Kamera, Badge und HUD sind niemals Teil von
 Simulationszustand oder Hash. **Alternativen:** frei drehbare Orbit-Kamera
 (Gründe des Kommandovertrags §4 gelten unverändert — abgelehnt); exakt
 First-Person (verlangt Blickrichtungssemantik ohne Kernbefehlsfläche —
@@ -316,13 +328,20 @@ visuelle Kanaele, keine reine Farbcodierung gemäß NF-005):** Ein
 heldenverankerter Badge über Agentenindex 0 markiert den Vertragshelden und
 zeigt zugleich den Modus über zwei unterscheidbare Kanäle je Modus:
 strategisch — ruhender Diamant (feste Orientierung π/4), cyan (0,45/0,85/1,0),
-Höhe 2,6 m; persönlich — pulsierender Diamant (Größe atmet deterministisch mit
-der Tickzahl), warmes Orange (1,0/0,45/0,20), dieselbe Verankerung. Der
-Formkanal (ruhend gegenüber pulsierend, Größe 0,60 gegenüber 0,42 der
+Höhe 2,6 m, Größe 0,80; persönlich — pulsierender Diamant (Größe atmet
+deterministisch mit der Tickzahl um 0,65 ± 0,10), warmes Orange
+(1,0/0,45/0,20), dieselbe Verankerung. Der Formkanal (ruhend gegenüber
+pulsierend, beide deutlich größer als 0,42 der
 Auswahlglyphe) und der Farbkanal (Cyan/Orange gegenüber warmem Amber der
 Auswahlglyphe) trennen Badge, Auswahlglyphe und Befehlspuls. **Rückrollweg:**
 Badge-Parameter sind Hypothesenkonstanten; Änderung ohne Vertragspflicht,
 solange die Zwei-Kanal-Erkennbarkeit erhalten bleibt.
+
+Bestehende strategische Auswahlglyphen bleiben beim Wechsel als
+Sitzungszustand erhalten, werden im persönlichen Modus aber nicht gerendert:
+Auswahlsemantik ist dort nach Abschnitt 5 nicht gebunden, und eine große
+selektierte Formation darf Helden-Badge und Landmarkenkanal nicht verdecken.
+Beim Rückwechsel erscheinen die unverändert erhaltenen Auswahlglyphen wieder.
 
 **Mindest-HUD (`title-hud-mode-herozone-v1`):** Die Fenstertitelzeile trägt
 aktuellen Modus und Heldenzone in der festen Form
@@ -359,6 +378,20 @@ Flag entsteht keine Datei; das Messverhalten ist identisch. Ein
 fehlgeschlagener Abgriff ergibt Code 38 mit `captured=false` und Grund. Die
 Modusumschaltung zwischen beiden Abgriffen ist rein darstellseitig und
 verändert denselben Weltzustand nicht.
+
+Nur für diesen opt-in Evidenzabgriff wird die strategische Kamera mit ihrem
+unveränderten Nickwinkel und höchstens ihrem Sitzungszoom so weit auf den
+Vertragshelden zentriert, wie ihr Bodenabdruck einschließlich der fernen
+16:9-Ecken es innerhalb des Vertragsfelds erlaubt. Am Weltrand wird die
+wirksame Abgriffdistanz bis zum strategischen Minimum von 12 m reduziert;
+reicht selbst das geometrisch nicht, bleibt der Held in der mittleren
+horizontalen Bildschirmhälfte und hat diese Lesbarkeit vor dem verbleibenden
+minimalen Randrest Vorrang. Der Sitzungszoom selbst bleibt unverändert. Der
+Held bleibt im Frustum und der Weltrand wird gerahmt. Damit
+bindet ein autonomer Skriptlauf am Weltrand keinen leeren Kamerastand; die
+laufende Sitzungskamera wird dabei weder verändert noch als Eingabe
+weiterverwendet. Der persönliche Abgriff nutzt dieselbe rein darstellseitige
+Bodenabdruckbegrenzung der vertraglichen Verfolgungskamera.
 
 ## 9. Vorregistriertes Playtestprotokoll
 
