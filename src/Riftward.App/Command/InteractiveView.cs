@@ -54,6 +54,18 @@ internal sealed class InteractiveView : IDisposable
 
     public const float FollowUpMarkerUpperSize = 1.00f;
 
+    /// <summary>
+    /// Farbkanal des Folgezielmarkers (NF-005, zweiter Kanal): warmes
+    /// Violett; trennt den Marker von Auswahlglyphe (warmes Amber),
+    /// Befehlspuls (Cyan), Held-/Modus-Badge (Cyan/Orange) und beiden
+    /// Landmarkenzustaenden (Blaugrau/Gruen).
+    /// </summary>
+    public const float FollowUpMarkerRed = 0.86f;
+
+    public const float FollowUpMarkerGreen = 0.45f;
+
+    public const float FollowUpMarkerBlue = 0.98f;
+
     /// <summary>Hoehen der zweistufigen registrierten Markiersaeule.</summary>
     public const double RegisteredLandmarkLowerHeightMeters = 1.4;
 
@@ -529,9 +541,9 @@ internal sealed class InteractiveView : IDisposable
                     anchorWorldZ,
                     size: FollowUpMarkerLowerSize,
                     rotation: (float)(Math.PI / 4.0),
-                    red: 0.86f,
-                    green: 0.45f,
-                    blue: 0.98f,
+                    red: FollowUpMarkerRed,
+                    green: FollowUpMarkerGreen,
+                    blue: FollowUpMarkerBlue,
                     alpha: 0.95f);
                 RepresentativeMesh.WriteDiamondInstance(
                     _markers,
@@ -541,9 +553,9 @@ internal sealed class InteractiveView : IDisposable
                     anchorWorldZ,
                     size: FollowUpMarkerMiddleSize,
                     rotation: (float)(tickIndex * 0.12),
-                    red: 0.86f,
-                    green: 0.45f,
-                    blue: 0.98f,
+                    red: FollowUpMarkerRed,
+                    green: FollowUpMarkerGreen,
+                    blue: FollowUpMarkerBlue,
                     alpha: 0.95f);
                 RepresentativeMesh.WriteDiamondInstance(
                     _markers,
@@ -553,9 +565,9 @@ internal sealed class InteractiveView : IDisposable
                     anchorWorldZ,
                     size: FollowUpMarkerUpperSize,
                     rotation: (float)(tickIndex * 0.12),
-                    red: 0.86f,
-                    green: 0.45f,
-                    blue: 0.98f,
+                    red: FollowUpMarkerRed,
+                    green: FollowUpMarkerGreen,
+                    blue: FollowUpMarkerBlue,
                     alpha: 0.95f);
             }
         }
