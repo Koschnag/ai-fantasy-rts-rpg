@@ -65,21 +65,13 @@ let private runToleratingTransientGate arguments =
 /// Mobilmachung; mindestens ein vollstaendiger strategisch -> persoenlich ->
 /// strategischer Zyklus je Moduswechsel (Vertrag Abschnitte 3 und 6).
 let private explorationScript (horizon: int) =
-    // Der Vertragsheld (Agentenindex 0, gerade Agenten) wird an exakt derselben
-    // Vorgrenze selektiert, an der der Skriptintent ausgewertet wird. Die
-    // Warmphase bewegt den Kern bereits deterministisch; eine Tick-0-Position
-    // waere am Auswahl-Tick 250 veraltet und liesse die Gruppenbefehle ohne
-    // Auswahl kontrolliert scheitern.
-    let world = SimWorld(20260826u)
-
-    for _ in 1..250 do
-        world.Tick()
-
-    let heroXMm = HeroTracker.PositionXMm(world)
-    let heroYMm = HeroTracker.PositionYMm(world)
-
+    // Die strategische Rahmenwahl mobilisiert alle fünf Vertragsgruppen und
+    // damit ausdrücklich auch die Heldengruppe 0. Das vermeidet eine
+    // künstliche Tick-0-Punktwahl nach der bereits bewegten Warmphase und
+    // räumt den dichten Spawn gemeinsam, statt den Vertragshelden zwischen
+    // 200 stehenbleibenden Agenten festzuhalten.
     let lines =
-        [ 250, $"intent 250 point {heroXMm} {heroYMm}"
+        [ 250, "intent 250 box 0 0 159000 89000"
           260, "intent 260 switch" // persoenlich ab 262: Registrierung Zone 0 (Startzone)
           400, "intent 400 switch" // strategisch ab 402: Mobilmachung
           410, "intent 410 move 4"
