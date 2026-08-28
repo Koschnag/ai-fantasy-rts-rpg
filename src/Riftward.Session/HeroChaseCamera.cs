@@ -6,7 +6,7 @@ namespace Riftward.Session;
 /// Verfolgungsansicht hinter der Heldenfigur; Blickpunkt ist die
 /// Heldenposition (Agentenindex 0), die Kamera sitzt südlich der Figur
 /// (feste Nordausrichtung konsistent zur §4-Konvention des Kommandovertrags),
-/// Nickwinkel 32°, Anzeigedistanz 9 m geclippt auf 5–16 m (Zoom-Schritte),
+/// Nickwinkel 45°, Anzeigedistanz 9 m geclippt auf 5–16 m (Zoom-Schritte),
 /// Blickpunkt an die Weltränder des 160x90-Meter-Vertragsrasters geclampt.
 /// Der Zustand ist rein darstellseitiger Sitzungszustand und niemals Teil von
 /// Simulationszustand oder Hash; die Projektions- und Pickingmathematik bleibt
@@ -16,7 +16,7 @@ namespace Riftward.Session;
 public sealed class HeroChaseCamera
 {
     /// <summary>Nickwinkel in Grad (Modevertrag Abschnitt 8).</summary>
-    public const double PitchDegrees = 32.0;
+    public const double PitchDegrees = 45.0;
 
     /// <summary>Anzeigedistanz-Zoomminimum in Metern (naeher ran).</summary>
     public const double DistanceMinMeters = 5.0;

@@ -395,14 +395,88 @@ public static class InteractiveCameraMath
         public static ActiveCamera From(GrayboxCamera camera) =>
             new(camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters, InteractiveCameraMath.PitchRadians);
 
-        /// <summary>Aktiver Stand der Verfolgungskamera (32°, Modevertrag Abschnitt 8).</summary>
+        /// <summary>Aktiver Stand der Verfolgungskamera (45°, Modevertrag Abschnitt 8).</summary>
         public static ActiveCamera From(HeroChaseCamera camera) =>
-            new(camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters, HeroChaseCamera.PitchDegrees * Math.PI / 180.0);
+            ClampToWorldFootprint(
+                new(
+                    camera.CenterXMeters,
+                    camera.CenterZMeters,
+                    camera.DistanceMeters,
+                    HeroChaseCamera.PitchDegrees * Math.PI / 180.0),
+                DefaultViewportAspectRatio);
     }
 
     public const double PitchRadians = GrayboxCamera.PitchDegrees * Math.PI / 180.0;
 
     public const double FieldOfViewDegrees = BenchRunner.FieldOfViewDegrees;
+
+    public const double DefaultViewportAspectRatio = BenchRunner.DefaultWidth / (double)BenchRunner.DefaultHeight;
+
+    /// <summary>
+    /// Bodenabdruck einer nordgerichteten Kamera relativ zu ihrem Blickpunkt.
+    /// X ist die halbe Breite auf der Blickpunktebene; NorthZ und SouthZ sind
+    /// die Schnittweiten der oberen beziehungsweise unteren Frustumkante.
+    /// </summary>
+    public readonly record struct GroundFootprintMargins(double X, double NorthZ, double SouthZ);
+
+    /// <summary>
+    /// Berechnet den endlichen Bodenabdruck eines Kamera-Frustums. Eine
+    /// Postur, deren obere Kante den Horizont beruehrt, wird fail-closed
+    /// abgewiesen: Sie kann keinen ehrlich begrenzbaren Weltrandabdruck haben.
+    /// </summary>
+    public static GroundFootprintMargins GroundFootprint(ActiveCamera camera, double aspectRatio)
+    {
+        var verticalHalfFov = FieldOfViewDegrees * Math.PI / 360.0;
+        var upperRay = camera.PitchRadians - verticalHalfFov;
+        var lowerRay = camera.PitchRadians + verticalHalfFov;
+
+        if (!double.IsFinite(aspectRatio)
+            || aspectRatio <= 0.0
+            || !double.IsFinite(camera.DistanceMeters)
+            || camera.DistanceMeters <= 0.0
+            || upperRay <= 0.0
+            || lowerRay >= Math.PI / 2.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(camera), "Kamerapostur hat keinen endlichen Bodenabdruck.");
+        }
+
+        var eyeHeight = Math.Sin(camera.PitchRadians) * camera.DistanceMeters;
+        var eyeSouth = Math.Cos(camera.PitchRadians) * camera.DistanceMeters;
+        var halfWidth = camera.DistanceMeters * Math.Tan(verticalHalfFov) * aspectRatio;
+        var north = (eyeHeight / Math.Tan(upperRay)) - eyeSouth;
+        var south = eyeSouth - (eyeHeight / Math.Tan(lowerRay));
+
+        if (!double.IsFinite(halfWidth)
+            || !double.IsFinite(north)
+            || !double.IsFinite(south)
+            || halfWidth < 0.0
+            || north < 0.0
+            || south < 0.0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(camera), "Kamerapostur hat keinen gueltigen Bodenabdruck.");
+        }
+
+        return new GroundFootprintMargins(halfWidth, north, south);
+    }
+
+    /// <summary>
+    /// Verschiebt nur den darstellseitigen Blickpunkt so weit ins Vertragsfeld,
+    /// wie es der Bodenabdruck erlaubt. Der eigentliche Kamera-/Sitzungszustand
+    /// und die Simulation bleiben unveraendert.
+    /// </summary>
+    public static ActiveCamera ClampToWorldFootprint(ActiveCamera camera, double aspectRatio)
+    {
+        var margins = GroundFootprint(camera, aspectRatio);
+
+        static double ClampAxis(double desired, double minimum, double maximum, double fallback) =>
+            minimum <= maximum ? Math.Clamp(desired, minimum, maximum) : fallback;
+
+        return new ActiveCamera(
+            ClampAxis(camera.CenterXMeters, margins.X, NavWorld.TilesX - margins.X, NavWorld.TilesX / 2.0),
+            ClampAxis(camera.CenterZMeters, margins.NorthZ, NavWorld.TilesY - margins.SouthZ, NavWorld.TilesY / 2.0),
+            camera.DistanceMeters,
+            camera.PitchRadians);
+    }
 
     public const double NearPlane = 0.5;
 

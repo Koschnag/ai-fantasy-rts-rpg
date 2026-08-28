@@ -1420,23 +1420,26 @@ internal static class CommandLoopRunner
 
     /// <summary>
     /// Rein lokale Kamera des opt-in Abgriffs: gleicher strategischer Zoom
-    /// und Nickwinkel, aber um den Vertragshelden zentriert. Mutiert weder
-    /// Sitzungskamera noch Welt und ist deshalb kein Eingabe-/Gameplaypfad.
+    /// und Nickwinkel, mit dem Vertragshelden im weltrandbegrenzten Frustum.
+    /// Mutiert weder Sitzungskamera noch Welt und ist deshalb kein
+    /// Eingabe-/Gameplaypfad.
     /// </summary>
     internal static InteractiveCameraMath.ActiveCamera StrategicCaptureCamera(
         GrayboxCamera sessionCamera,
         SimWorld world) =>
-        new(
-            Math.Clamp(
-                world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
-                0.0,
-                NavWorld.TilesX),
-            Math.Clamp(
-                world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
-                0.0,
-                NavWorld.TilesY),
-            sessionCamera.DistanceMeters,
-            InteractiveCameraMath.PitchRadians);
+        InteractiveCameraMath.ClampToWorldFootprint(
+            new(
+                Math.Clamp(
+                    world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
+                    0.0,
+                    NavWorld.TilesX),
+                Math.Clamp(
+                    world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
+                    0.0,
+                    NavWorld.TilesY),
+                sessionCamera.DistanceMeters,
+                InteractiveCameraMath.PitchRadians),
+            InteractiveCameraMath.DefaultViewportAspectRatio);
 
     /// <summary>Rendert und liest einen einzelnen Abgriff des Paars zurück.</summary>
     private static byte[] RenderCaptureFrame(

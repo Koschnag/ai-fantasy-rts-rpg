@@ -820,7 +820,11 @@ let strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera () =
     let world = SimWorld(20260826u)
     let sessionCamera = GrayboxCamera()
     sessionCamera.Pan(-31.0, -17.0)
-    sessionCamera.SetDistance(47.0)
+    sessionCamera.SetDistance(32.0)
+
+    let assertNear label expected actual =
+        if abs (expected - actual) > 1e-9 then
+            failwith $"{label}: erwartet {expected:R}, erhalten {actual:R}."
 
     let before =
         sessionCamera.CenterXMeters, sessionCamera.CenterZMeters, sessionCamera.DistanceMeters
@@ -833,19 +837,85 @@ let strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera () =
     let expectedZ =
         float (world.PositionYOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One
 
+    let margins =
+        InteractiveCameraMath.GroundFootprint(capture, InteractiveCameraMath.DefaultViewportAspectRatio)
+
+    assertNear "Strategischer Westabstand" 32.844815313899 capture.CenterXMeters
+    assertNear "Strategischer Helden-Z-Blickpunkt" expectedZ capture.CenterZMeters
+    assertNear "Strategischer Zoom" sessionCamera.DistanceMeters capture.DistanceMeters
+    assertNear "Strategischer Nickwinkel" InteractiveCameraMath.PitchRadians capture.PitchRadians
+
     if
-        capture.CenterXMeters <> expectedX
-        || capture.CenterZMeters <> expectedZ
-        || capture.DistanceMeters <> sessionCamera.DistanceMeters
-        || capture.PitchRadians <> InteractiveCameraMath.PitchRadians
+        expectedX < capture.CenterXMeters - margins.X
+        || expectedX > capture.CenterXMeters + margins.X
+        || expectedZ < capture.CenterZMeters - margins.NorthZ
+        || expectedZ > capture.CenterZMeters + margins.SouthZ
     then
-        failwith "Strategischer Evidenzabgriff fokussiert den Helden nicht mit unveraenderter Kamerapostur."
+        failwith "Strategischer Evidenzabgriff haelt den Helden nicht im Bodenabdruck."
+
+    let southEast =
+        InteractiveCameraMath.ClampToWorldFootprint(
+            InteractiveCameraMath.ActiveCamera(149.6, 82.0, 32.0, InteractiveCameraMath.PitchRadians),
+            InteractiveCameraMath.DefaultViewportAspectRatio
+        )
+
+    assertNear "Strategischer Suedostabstand X" 127.155184686101 southEast.CenterXMeters
+    assertNear "Strategischer Suedostabstand Z" 73.938882599306 southEast.CenterZMeters
 
     if
         before
         <> (sessionCamera.CenterXMeters, sessionCamera.CenterZMeters, sessionCamera.DistanceMeters)
     then
         failwith "Strategischer Evidenzfokus hat die laufende Sitzungskamera mutiert."
+
+let personalCameraFrustumKeepsGroundReadableAtWorldEdges () =
+    let world = SimWorld(20260826u)
+    let camera = HeroChaseCamera()
+    camera.Follow(world)
+
+    let sessionBefore =
+        camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters
+
+    let effective = InteractiveCameraMath.ActiveCamera.From(camera)
+
+    let margins =
+        InteractiveCameraMath.GroundFootprint(effective, InteractiveCameraMath.DefaultViewportAspectRatio)
+
+    let assertNear label expected actual =
+        if abs (expected - actual) > 1e-9 then
+            failwith $"{label}: erwartet {expected:R}, erhalten {actual:R}."
+
+    let horizonClearance =
+        HeroChaseCamera.PitchDegrees - (InteractiveCameraMath.FieldOfViewDegrees / 2.0)
+
+    if horizonClearance < 15.0 then
+        failwith $"Persoenliche obere Frustumkante hat nur {horizonClearance:R} Grad Bodenfreiheit."
+
+    assertNear "Persoenlicher Nickwinkel" 45.0 HeroChaseCamera.PitchDegrees
+    assertNear "Persoenliche halbe Blickpunktbreite" 9.237604307034 margins.X
+    assertNear "Persoenliche Nordsichtweite" 17.386664873203 margins.NorthZ
+    assertNear "Persoenliche Suedsichtweite" 4.658742811845 margins.SouthZ
+    assertNear "Persoenlicher Westabstand" margins.X effective.CenterXMeters
+
+    let heroX =
+        float (world.PositionXOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One
+
+    let heroZ =
+        float (world.PositionYOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One
+
+    if
+        heroX < effective.CenterXMeters - margins.X
+        || heroX > effective.CenterXMeters + margins.X
+        || heroZ < effective.CenterZMeters - margins.NorthZ
+        || heroZ > effective.CenterZMeters + margins.SouthZ
+    then
+        failwith "Darstellseitiger Weltrandabstand hat den Helden aus dem Frustum geschoben."
+
+    if
+        sessionBefore
+        <> (camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters)
+    then
+        failwith "Darstellseitiger Weltrandabstand hat den Verfolgungskamerazustand mutiert."
 
 // ---------------------------------------------------------------------------
 // Horizontwahrheit des Wechselprotokolls (Modevertrag §4 (4)): ausgewertete,

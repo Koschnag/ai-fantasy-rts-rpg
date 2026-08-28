@@ -2118,6 +2118,8 @@ module Program =
               ModeSwitchTests.personalModeHidesStrategicSelectionGlyphs
               "T-033 strategic capture focuses hero without mutating session camera",
               ModeSwitchTests.strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera
+              "T-033 personal camera frustum keeps ground readable at world edges",
+              ModeSwitchTests.personalCameraFrustumKeepsGroundReadableAtWorldEdges
               "T-033 capture pair validation is fail closed", ModeSwitchTests.capturePairValidationIsFailClosed
               "T-033 hybrid flow twin continuity identical chains and end hash",
               ModeSwitchTests.hybridFlowTwinContinuityIdenticalChainsAndEndHash
