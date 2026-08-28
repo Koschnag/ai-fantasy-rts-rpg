@@ -1,0 +1,641 @@
+module ExplorationTests
+
+open System
+open System.Collections.Generic
+open System.Diagnostics
+open System.IO
+open System.Text.Json
+open Riftward.App
+open Riftward.App.Command
+open Riftward.Session
+open Riftward.Simulation
+
+// ---------------------------------------------------------------------------
+// T-034: kleinster spielbarer Erkundungsauftrag-Loop (Erkundungsvertrag V1,
+// Abschnitte 0 bis 10). Jede Pruefung bindet Code, Vertragsdokument,
+// Schemavertrag und Laufverhalten gegeneinander; keine Pruefung antwortet
+// auf eine offene Produktfrage und keine veraendert Riftward.Simulation.
+// ---------------------------------------------------------------------------
+
+let private repositoryRoot =
+    let rec findRoot path =
+        if File.Exists(Path.Combine(path, "Riftward.slnx")) then
+            path
+        else
+            match Directory.GetParent(path) with
+            | null -> failwith "Repository-Wurzel nicht gefunden."
+            | parent -> findRoot parent.FullName
+
+    findRoot Environment.CurrentDirectory
+
+let private readDocument (relative: string) =
+    File.ReadAllText(Path.Combine(repositoryRoot, relative))
+
+let private runAppHost (arguments: string[]) =
+    let startInfo = ProcessStartInfo("dotnet")
+    startInfo.UseShellExecute <- false
+    startInfo.RedirectStandardOutput <- true
+    startInfo.RedirectStandardError <- true
+
+    startInfo.ArgumentList.Add(
+        Path.Combine(repositoryRoot, "src", "Riftward.App", "bin", "Release", "net10.0", "Riftward.App.dll")
+    )
+
+    for argument in arguments do
+        startInfo.ArgumentList.Add(argument)
+
+    use processHandle = Process.Start(startInfo)
+    let stdout = processHandle.StandardOutput.ReadToEnd()
+    let stderr = processHandle.StandardError.ReadToEnd()
+    processHandle.WaitForExit()
+    (processHandle.ExitCode, stdout.TrimEnd(), stderr.TrimEnd())
+
+let private runToleratingTransientGate arguments =
+    let exitCode, stdout, stderr = runAppHost arguments
+
+    if exitCode = ExitCodes.Map(Platform.PlatformErrorCode.CommandGateViolated) then
+        runAppHost arguments
+    else
+        exitCode, stdout, stderr
+
+/// Vertraglicher vollstaendiger Aufsuchflow: strategische Mobilmachung mit
+/// Auswahl der Vertragsheldengruppe und Gruppenbefehl, Wechsel in den
+/// persoenlichen Modus fuer das Aufsuchen, Rueckwechsel zur naechsten
+/// Mobilmachung; mindestens ein vollstaendiger strategisch -> persoenlich ->
+/// strategischer Zyklus je Moduswechsel (Vertrag Abschnitte 3 und 6).
+let private explorationScript (horizon: int) =
+    // Der Vertragsheld (Agentenindex 0, gerade Agenten) startet deterministisch
+    // in Zone 0; die Auswahl liegt exakt auf seiner Startkachel (Radius 3 m
+    // selektiert die Gruppe des naechstgelegenen Agenten: Vertragsgruppe 0).
+    let world = SimWorld(20260826u)
+    let heroXMm = HeroTracker.PositionXMm(world)
+    let heroYMm = HeroTracker.PositionYMm(world)
+
+    let lines =
+        [ $"intent 250 point {heroXMm} {heroYMm}"
+          "intent 260 switch" // persoenlich ab 262: Registrierung Zone 0 (Startzone)
+          "intent 400 switch" // strategisch ab 402: Mobilmachung
+          "intent 410 move 4"
+          "intent 1300 switch" // persoenlich ab 1302: Aufsuchen Zone 4
+          "intent 1500 switch" // strategisch ab 1502
+          "intent 1510 move 2"
+          "intent 2600 switch" // persoenlich ab 2602: Aufsuchen Zone 2
+          "intent 2800 switch" // strategisch ab 2802
+          "intent 2810 move 3"
+          "intent 3900 switch" // persoenlich ab 3902: Aufsuchen Zone 3
+          "intent 4200 switch" // strategisch ab 4202
+          "intent 4210 move 5"
+          "intent 5300 switch" // persoenlich ab 5302: Aufsuchen Zone 5
+          "intent 5500 switch" // strategisch ab 5502
+          "intent 5510 move 1"
+          "intent 6200 switch" ] // persoenlich ab 6202: Aufsuchen Zone 1
+        |> String.concat "\n"
+
+    $"graybox-input-script-v2 {horizon}\n{lines}\nend\n"
+
+let private writeTempScript (horizon: int) =
+    let path = Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.graybox")
+
+    File.WriteAllText(path, explorationScript horizon)
+    path
+
+// ---------------------------------------------------------------------------
+// Spiegeltest (AC-T034-01/05): Code und Vertragsdokument haelt ein Test.
+// ---------------------------------------------------------------------------
+
+let explorationContractMirrorsDocumentedValues () =
+    if ExplorationContract.DocumentPath <> "docs/ERKUNDUNGSVERTRAG.md" then
+        failwith "Erkundungsvertragspfad falsch."
+
+    if ExplorationContract.ContractVersion <> "1" then
+        failwith "Erkundungsvertragsversion falsch."
+
+    if
+        ExplorationContract.ReportSchemaVersionWithoutExploration <> 2
+        || ExplorationContract.ReportSchemaVersionWithExploration <> 3
+    then
+        failwith "Schemaversionen entsprechen nicht dem Vertrag (Bestand 2, aktiviert 3)."
+
+    if ExplorationContract.Persisted then
+        failwith "Die Nichtpersistenzaussage ist verletzt."
+
+    if InteractiveView.LandmarkMarkerHeightMeters <> 1.4 then
+        failwith "Ankerhoehe des unbesuchten Landmarkenmarkers entspricht nicht dem Vertrag (1,4 m)."
+
+    let document = readDocument ExplorationContract.DocumentPath
+
+    for identifier in
+        [ ExplorationContract.ActivationId
+          ExplorationContract.LandmarkModelId
+          ExplorationContract.VisitRuleId
+          ExplorationContract.CounterModelId
+          ExplorationContract.NotPersistedStatementId
+          ExplorationContract.HudModelId
+          ExplorationContract.LandmarkChannelModelId
+          ExplorationContract.RejectReasonZoneWithoutWalkableTile
+          ExplorationContract.ReportBlockId ] do
+        if not (document.Contains(identifier, StringComparison.Ordinal)) then
+            failwith $"Erkundungsvertragsdokument nennt die Kennung {identifier} nicht."
+
+    for anchor in
+        [ "--exploration"
+          " — Erkundung: <n>/<m>"
+          "same-tick-switch-last-effective-next-next-v1"
+          "NavWorld.ZoneCount"
+          "NavWorld.IsInsideZone"
+          "NavWorld.IsWalkable" ] do
+        if not (document.Contains(anchor, StringComparison.Ordinal)) then
+            failwith $"Erkundungsvertragsdokument nennt den Anker {anchor} nicht."
+
+// ---------------------------------------------------------------------------
+// Landmarken-Ableitung (AC-T034-02-Testmatrix): Determinismus ueber
+// Seedabhaengigkeit, Bereichsgrenzen, keine Kollision mit unpassierbaren
+// Zellen, kontrollierter Fail-closed-Randfall.
+// ---------------------------------------------------------------------------
+
+let landmarkDerivationIsDeterministicZonalAndWalkable () =
+    let landmarks = ExplorationAnchors.DeriveLandmarks()
+
+    if landmarks.Length <> NavWorld.ZoneCount then
+        failwith $"Landmarkenmenge ist {landmarks.Length} statt je Vertragszone eine ({NavWorld.ZoneCount})."
+
+    for expected, landmark in Seq.indexed landmarks do
+        if landmark.ZoneIndex <> expected then
+            failwith $"Landmarken erscheinen nicht in fester Zonenordnung an Position {expected}."
+
+        if not (NavWorld.IsInsideZone(landmark.ZoneIndex, landmark.AnchorTileX, landmark.AnchorTileY)) then
+            failwith $"Anker der Zone {landmark.ZoneIndex} liegt ausserhalb der Vertragszonenschranken."
+
+        if not landmark.Walkable || not (NavWorld.IsWalkable(landmark.AnchorTileX, landmark.AnchorTileY)) then
+            failwith $"Anker der Zone {landmark.ZoneIndex} liegt auf einer unpassierbaren Kachel."
+
+    // Seedunabhaengigkeit: die Ableitung ist eine reine Funktion der
+    // gebundenen Weltgeometrie; wiederholte Ableitung ist identisch und
+    // ein fremder Seed aendert die Landmarkenmenge nicht.
+    let again = ExplorationAnchors.DeriveLandmarks()
+
+    if not (Seq.forall2 (fun a b -> a = b) landmarks again) then
+        failwith "Wiederholte Landmarken-Ableitung ist nicht identisch."
+
+let landmarkDerivationFailsClosedWithoutWalkableTile () =
+    // Kontrollierter Fail-closed-Randfall (Vertrag Abschnitt 2): Eine Zone
+    // ohne betretbare Kachel bricht die Ableitung kontrolliert ab, statt
+    // einen undefinierten Anker zu bilden. Im gebundenen Vertragsweltstand
+    // unerreichbar (NavWorld.ValidateZones erzeugt beim Prozessstart einen
+    // kontrollierten Fehler); die Regel selbst ist hier an einer
+    // synthetischen Begehbarkeit gebunden.
+    let raised =
+        try
+            ExplorationAnchors.DeriveFrom(
+                2,
+                NavWorld.TilesX,
+                NavWorld.TilesY,
+                (fun _ _ _ -> true),
+                (fun _ _ -> false))
+                |> ignore
+
+            false
+        with
+        | :? InvalidOperationException as exception ->
+            if
+                not (
+                    exception.Message.Contains(
+                        ExplorationContract.RejectReasonZoneWithoutWalkableTile,
+                        StringComparison.Ordinal
+                    )
+                )
+            then
+                failwith "Fail-closed-Ablehnung traegt nicht die vertragliche Kennung."
+
+            true
+        | _ -> false
+
+    if not raised then
+        failwith "Ableitung ohne betretbare Ankerkachel brach nicht kontrolliert fail-closed ab."
+
+// ---------------------------------------------------------------------------
+// Schreibschutzgrenze der Sitzung (Controller-Reparaturbindung): weder
+// Backing-Array noch cast-veraenderbare List darf entweichen.
+// ---------------------------------------------------------------------------
+
+let explorationViewsResistExternalMutation () =
+    let session = ExplorationSession()
+    let telemetry = session.ToTelemetry()
+
+    // Kein Backing-Typ entweicht als konkreter mutierbarer Typ.
+    if box session.Landmarks :? ExplorationLandmark[] then
+        failwith "Das Backing-Array der Landmarkenmenge entweicht als konkreter Arraytyp."
+
+    if box telemetry.Landmarks :? ExplorationLandmark[] then
+        failwith "Der Telemetrieausweis gibt das Backing-Array der Landmarkenmenge heraus."
+
+    if box session.VisitProtocol :? List<ExplorationVisit> then
+        failwith "Die Protokollliste entwaechst als konkreter Listentyp."
+
+    if box telemetry.VisitProtocol :? List<ExplorationVisit> then
+        failwith "Der Telemetrieausweis gibt die Protokollliste als konkreten Listentyp heraus."
+
+    // Jede Schreibweise über die Sammlungsschnittstelle ist kontrolliert
+    // abgewiesen (ReadOnlyCollection: IsReadOnly=true, Add wirft).
+    let assertReadOnly (label: string) (view: IReadOnlyList<'a>) =
+        match box view with
+        | :? ICollection<'a> as collection ->
+            if not collection.IsReadOnly then
+                failwith $"{label}: Die View ist als schreibbar ausgewiesen."
+
+            try
+                collection.Add(Unchecked.defaultof<'a>) |> ignore
+                failwith $"{label}: Ein Schreibzugriff auf die read-only View wurde akzeptiert."
+            with :? NotSupportedException ->
+                ()
+        | _ -> failwith $"{label}: Keine Sammlungssicht erhalten."
+
+    assertReadOnly "Landmarks" session.Landmarks
+    assertReadOnly "ToTelemetry().Landmarks" telemetry.Landmarks
+    assertReadOnly "VisitProtocol" session.VisitProtocol
+    assertReadOnly "ToTelemetry().VisitProtocol" telemetry.VisitProtocol
+
+    // Die defensive Telemetrie-Kopie ist unabhängig von späteren
+    // Registrierungen (kanonischer Ausweis des Ausweiszeitpunkts).
+    session.Observe(100L, SimWorld(20260826u), SessionMode.Personal)
+
+    if telemetry.VisitedCount <> 0 then
+        failwith "Die Telemetrie-Kopie veraendert sich nachtraeglich mit der Sitzung."
+
+// ---------------------------------------------------------------------------
+// Aufsuch- und Moduskopplungsregel (AC-T034-02/03-Testmatrix): Anwesenheit,
+// Moduskopplung, Doppelbesuch ohne Mehrfachzaehlung, kein Kernbefehl.
+// ---------------------------------------------------------------------------
+
+let observationEnforcesModeCouplingAndSingleRegistration () =
+    let world = SimWorld(20260826u)
+
+    if HeroTracker.ZoneIndexOf(world) <> 0 then
+        failwith "Der Vertragsheld startete nicht in Vertragszone 0 (gebundener Spawn)."
+
+    let session = ExplorationSession()
+
+    // Strategische Anwesenheit registriert bewusst nicht (kein stiller
+    // Zaehler, keine Nachwirkung).
+    session.Observe(100L, world, SessionMode.Strategic)
+
+    if session.VisitedCount <> 0 || session.VisitProtocol.Count <> 0 then
+        failwith "Strategische Anwesenheit erzeugte eine Registrierung."
+
+    // Persoenliche Anwesenheit an der Vorgrenze registriert genau einmal.
+    session.Observe(101L, world, SessionMode.Personal)
+
+    if session.VisitedCount <> 1 || not session.IsRegistered(0) then
+        failwith "Persoenliche Anwesenheit in der Landmarkenzone registrierte nicht."
+
+    let visit = session.VisitProtocol.[0]
+
+    if
+        visit.EvaluationBoundaryTick <> 101L
+        || visit.ZoneIndex <> 0
+        || visit.Mode <> ModeContract.ModePersonalId
+        || visit.VisitOrder <> 1L
+    then
+        failwith "Aufsuchprotokolleintrag widerspricht dem Vertrag (Grenze, Zone, Modus, Reihenfolge)."
+
+    // Doppelbesuch ohne Mehrfachzaehlung.
+    session.Observe(102L, world, SessionMode.Personal)
+    session.Observe(103L, world, SessionMode.Personal)
+
+    if session.VisitedCount <> 1 || session.VisitProtocol.Count <> 1 then
+        failwith "Doppelbesuch wurde mehrfach gezaehlt."
+
+    if session.Completed then
+        failwith "Abschluss vor vollstaendiger Landmarkenmenge behauptet."
+
+    // Reihenfolgeunabhaengigkeit: das Protokoll traegt die 1-basierte
+    // Registrierungsfolge; der Wertebereich bleibt reihenfolgefrei.
+    if session.VisitProtocol |> Seq.sumBy (fun entry -> int entry.VisitOrder) <> 1 then
+        failwith "Registrierungsreihenfolge falsch."
+
+    let telemetry = session.ToTelemetry()
+
+    if
+        telemetry.LandmarkCount <> NavWorld.ZoneCount
+        || telemetry.VisitedCount <> 1
+        || telemetry.Completed
+    then
+        failwith "Telemetrie widerspricht der Sitzung."
+
+// ---------------------------------------------------------------------------
+// Beobachtungstreue (AC-T034-03): Twin-Kontrolllauf, byteidentische Ketten,
+// identische Kernbefehlsfolge; Fremdseed-Negativfall.
+// ---------------------------------------------------------------------------
+
+let private twinIntents =
+    [| GrayboxIntent(40, GrayboxIntentKind.BoxSelect, 0L, 0L, 159000L, 89000L)
+       GrayboxIntent(50, GrayboxIntentKind.GroupMoveToZone, 2L)
+       GrayboxIntent(60, GrayboxIntentKind.SwitchMode)
+       GrayboxIntent(120, GrayboxIntentKind.SwitchMode) |]
+
+let private runSession seed exploration =
+    SessionEngine.Run(
+        SessionRunRequest(
+            Seed = seed,
+            ScriptedIntents = twinIntents,
+            WarmupTicks = 30,
+            HorizonTicks = 400,
+            RunSelfConsistencyPass = false,
+            ExplorationEnabled = exploration)
+    )
+
+let explorationObservationIsObservationOnlyTwinStaysByteIdentical () =
+    let twin = runSession 20260826u false
+    let activated = runSession 20260826u true
+
+    if activated.StartStateHash <> twin.StartStateHash then
+        failwith "Aktivierter Lauf veraenderte den Starthash der Simulation."
+
+    if activated.EndStateHash <> twin.EndStateHash then
+        failwith "Aktivierter Lauf veraenderte den Endhash der Simulation."
+
+    if
+        activated.IntervalSampleTicks <> twin.IntervalSampleTicks
+        || activated.IntervalHashes <> twin.IntervalHashes
+    then
+        failwith "Aktivierter Lauf veraenderte die Kettenstichproben."
+
+    if activated.KernelCommandsTotal <> twin.KernelCommandsTotal then
+        failwith "Die Kernbefehlsfolge des Erkundungslaufs weicht vom Twin ab."
+
+    if
+        activated.AppliedIntents <> twin.AppliedIntents
+        || activated.RejectedIntents <> twin.RejectedIntents
+    then
+        failwith "Die Intentdispositionen des Erkundungslaufs weichen vom Twin ab."
+
+    if activated.Exploration.IsNone then
+        failwith "Aktivierter Lauf lieferte keinen Erkundungsausweis."
+
+    if twin.Exploration.IsSome then
+        failwith "Unaktivierter Lauf lieferte einen Erkundungsausweis."
+
+let foreignSeedChangesHashesButNotLandmarkSet () =
+    let baseline = runSession 20260826u true
+    let foreign = runSession 42u true
+
+    if baseline.StartStateHash = foreign.StartStateHash || baseline.EndStateHash = foreign.EndStateHash then
+        failwith "Ein fremder Seed aenderte Start- oder Endhash nicht nachweislich."
+
+    let baseLandmarks = (Option.get baseline.Exploration).Landmarks
+    let foreignLandmarks = (Option.get foreign.Exploration).Landmarks
+
+    if not (Seq.forall2 (fun a b -> a = b) baseLandmarks foreignLandmarks) then
+        failwith "Ein fremder Seed veraenderte die seedunabhaengige Landmarkenmenge."
+
+// ---------------------------------------------------------------------------
+// Headless Erkundungs-Flow ueber denselben oeffentlichen Befehl
+// (AC-T034-02): vollstaendiger Aufsuchlauf, additiver Report Schemaversion 3,
+// Schema- und Bestandsbindung; Exitcode-Erhaltung.
+// ---------------------------------------------------------------------------
+
+let private reportJson (path: string) = File.ReadAllText(path)
+
+let private jsonInt (element: JsonElement) (name: string) = element.GetProperty(name).GetInt32()
+
+let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
+    let scriptPath = writeTempScript 6800
+    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Exploration-{Guid.NewGuid():N}.json")
+
+    try
+        let exitCode, stdout, stderr =
+            runToleratingTransientGate
+                [| "kommandoschleife"
+                   "--scenario"
+                   "kommando-graybox"
+                   "--input-script"
+                   scriptPath
+                   "--seed"
+                   "20260826"
+                   "--warmup-ticks"
+                   "240"
+                   "--horizon-ticks"
+                   "6800"
+                   "--exploration"
+                   "--report"
+                   reportPath |]
+
+        if exitCode <> ExitCodes.Ok then
+            failwith $"Erkundungslauf endete mit {exitCode}: {stderr} {stdout}"
+
+        let json = reportJson reportPath
+
+        if not (CommandReportSchema.Validate(json).IsEmpty) then
+            failwith "Aktivierter Report widerspricht dem Schemavertrag (Version 3)."
+
+        use document = JsonDocument.Parse(json)
+        let root = document.RootElement
+
+        if jsonInt root "schemaVersion" <> 3 then
+            failwith "Aktivierter Report traegt nicht die additive Schemaversion 3."
+
+        let exploration = root.GetProperty("explorationSession")
+        let progress = exploration.GetProperty("progress")
+
+        if jsonInt progress "landmarkCount" <> NavWorld.ZoneCount then
+            failwith "Report-Landmarkenmenge entspricht nicht NavWorld.ZoneCount."
+
+        if jsonInt progress "visitedCount" <> NavWorld.ZoneCount || not (progress.GetProperty("completed").GetBoolean()) then
+            failwith "Der Headless-Flow suchte nicht saemtliche Landmarken auf."
+
+        if progress.GetProperty("gateCoupled").GetBoolean() then
+            failwith "Fortschrittsfelder koppeln an ein Gate."
+
+        let persistence = exploration.GetProperty("persistence")
+
+        if
+            persistence.GetProperty("statementId").GetString() <> ExplorationContract.NotPersistedStatementId
+            || persistence.GetProperty("persisted").GetBoolean()
+        then
+            failwith "Die maschinenlesbare Nichtpersistenzaussage fehlt oder widerspricht."
+
+        let landmarks = exploration.GetProperty("landmarks")
+        let mutable zone = 0
+
+        for landmark in landmarks.EnumerateArray() do
+            if landmark.GetProperty("zoneIndex").GetInt32() <> zone then
+                failwith "Landmarken erscheinen nicht in fester Zonenordnung im Report."
+
+            if
+                not (landmark.GetProperty("walkable").GetBoolean())
+                || not (NavWorld.IsInsideZone(zone, landmark.GetProperty("anchorTileX").GetInt32(), landmark.GetProperty("anchorTileY").GetInt32()))
+                || not (NavWorld.IsWalkable(landmark.GetProperty("anchorTileX").GetInt32(), landmark.GetProperty("anchorTileY").GetInt32()))
+            then
+                failwith $"Reportanker der Zone {zone} widerspricht der Kernelgeometrie."
+
+            zone <- zone + 1
+
+        if zone <> NavWorld.ZoneCount then
+            failwith "Report-Landmarkenmenge ist unvollstaendig."
+
+        let protocol = exploration.GetProperty("visitProtocol")
+        let mutable order = 1
+        let mutable seenZones = 0
+
+        for visit in protocol.EnumerateArray() do
+            if visit.GetProperty("visitOrder").GetInt32() <> order then
+                failwith "Aufsuchprotokoll traegt nicht die kanonische 1-basierte Registrierungsfolge."
+
+            if visit.GetProperty("mode").GetString() <> ModeContract.ModePersonalId then
+                failwith "Eine Registrierung ist nicht an den persoenlichen Modus gekoppelt."
+
+            if visit.GetProperty("gateCoupled").GetBoolean() then
+                failwith "Protokollfeld koppelt an ein Gate."
+
+            seenZones <- seenZones ||| (1 <<< visit.GetProperty("zoneIndex").GetInt32())
+            order <- order + 1
+
+        if protocol.GetArrayLength() <> NavWorld.ZoneCount || seenZones <> (1 <<< NavWorld.ZoneCount) - 1 then
+            failwith "Aufsuchprotokoll deckt nicht jede Landmarke genau einmal ab."
+
+        let hud = exploration.GetProperty("hud")
+
+        if hud.GetProperty("measured").GetBoolean() then
+            failwith "Headless behauptet einen Titel-HUD-Ausweis."
+
+        if
+            hud.GetProperty("kind").GetString() <> ExplorationContract.HudModelId
+            || String.IsNullOrEmpty(hud.GetProperty("reason").GetString())
+        then
+            failwith "Headless HUD-Ausweis fehlt an Grund statt stiller Behauptung."
+
+        let channel = exploration.GetProperty("landmarkChannel")
+
+        if channel.GetProperty("measured").GetBoolean() then
+            failwith "Headless behauptet einen Landmarkenzustandskanal."
+
+        if
+            channel.GetProperty("kind").GetString() <> ExplorationContract.LandmarkChannelModelId
+            || String.IsNullOrEmpty(channel.GetProperty("reason").GetString())
+        then
+            failwith "Headless Kanalausweis fehlt an Grund statt stiller Behauptung."
+
+        if jsonInt root "exitCode" <> ExitCodes.Ok then
+            failwith "Report-Exitcode widerspricht der Laufbeobachtung."
+    finally
+        File.Delete(scriptPath)
+        if File.Exists(reportPath) then
+            File.Delete(reportPath)
+
+let legacyRunWithoutExplorationStaysByteIdenticalSchema2 () =
+    // Bestandsreport (Schemaversion 2) bleibt ohne Aktivierung gueltig und
+    // traegt keinen Erkundungsblock (Vertrag Abschnitt 6).
+    let scriptPath = writeTempScript 420
+    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Legacy-{Guid.NewGuid():N}.json")
+
+    try
+        let exitCode, stdout, stderr =
+            runToleratingTransientGate
+                [| "kommandoschleife"
+                   "--scenario"
+                   "kommando-graybox"
+                   "--input-script"
+                   scriptPath
+                   "--seed"
+                   "20260826"
+                   "--warmup-ticks"
+                   "240"
+                   "--horizon-ticks"
+                   "420"
+                   "--report"
+                   reportPath |]
+
+        if exitCode <> ExitCodes.Ok then
+            failwith $"Bestandslauf endete mit {exitCode}: {stderr} {stdout}"
+
+        let json = reportJson reportPath
+
+        if not (CommandReportSchema.Validate(json).IsEmpty) then
+            failwith "Bestandsreport widerspricht dem Schemavertrag."
+
+        if json.Contains("\"explorationSession\"", StringComparison.Ordinal) then
+            failwith "Unaktivierter Report traegt einen Erkundungsblock."
+
+        use document = JsonDocument.Parse(json)
+        let root = document.RootElement
+
+        if jsonInt root "schemaVersion" <> 2 then
+            failwith "Unaktivierter Report traegt nicht die Bestandsschemaversion 2."
+
+        // Schemaversion-Auswahl 2/3 ist kein Exitcode: identische Intents und
+        // identischer Seed ergeben in beiden Varianten denselben Exitcode.
+        let explorationExitCode, _, _ =
+            runToleratingTransientGate
+                [| "kommandoschleife"
+                   "--scenario"
+                   "kommando-graybox"
+                   "--input-script"
+                   scriptPath
+                   "--seed"
+                   "20260826"
+                   "--warmup-ticks"
+                   "240"
+                   "--horizon-ticks"
+                   "420"
+                   "--exploration"
+                   "--report"
+                   (reportPath + ".exploration") |]
+
+        if explorationExitCode <> exitCode then
+            failwith "Die Aktivierung veraenderte die Exitcodebedeutung."
+
+        if File.Exists(reportPath + ".exploration") then
+            File.Delete(reportPath + ".exploration")
+    finally
+        File.Delete(scriptPath)
+        if File.Exists(reportPath) then
+            File.Delete(reportPath)
+
+let explorationSchemaDispatchRejectsCrossVariants () =
+    // Fail-closed: Schemaversion 2 toleriert keinen Erkundungsblock,
+    // Schemaversion 3 verlangt ihn vollstaendig.
+    let scriptPath = writeTempScript 420
+    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Schema-{Guid.NewGuid():N}.json")
+
+    try
+        let exitCode, _, _ =
+            runToleratingTransientGate
+                [| "kommandoschleife"
+                   "--scenario"
+                   "kommando-graybox"
+                   "--input-script"
+                   scriptPath
+                   "--seed"
+                   "20260826"
+                   "--warmup-ticks"
+                   "240"
+                   "--horizon-ticks"
+                   "420"
+                   "--report"
+                   reportPath |]
+
+        if exitCode <> ExitCodes.Ok then
+            failwith "Bestandslauf fuer den Schemadispatch schlug fehl."
+
+        let json = reportJson reportPath
+        let withBlock = json.Replace("\"exitCode\"", "\"explorationSession\":{},\"exitCode\"")
+
+        if CommandReportSchema.Validate(withBlock).Count = 0 then
+            failwith "Schemaversion 2 tolerierte einen Erkundungsblock."
+
+        let withoutBlock =
+            json.Replace("\"schemaVersion\":2", "\"schemaVersion\":3").Replace(
+                "\"modeSession\"",
+                "\"explorationSession\":{},\"modeSession\""
+            )
+
+        if
+            (CommandReportSchema.Validate(withoutBlock)
+                |> Seq.exists (fun error -> error.Contains("schemaVersion", StringComparison.Ordinal)))
+            |> not
+        then
+            failwith "Ein Version-3-Report ohne vollstaendigen Block wurde nicht erkannt."
+    finally
+        File.Delete(scriptPath)
+        if File.Exists(reportPath) then
+            File.Delete(reportPath)

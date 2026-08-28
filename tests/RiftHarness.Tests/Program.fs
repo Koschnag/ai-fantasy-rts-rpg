@@ -2120,7 +2120,27 @@ module Program =
               "T-033 switch reaction gate criterion is fail closed without vacuum pass",
               ModeSwitchTests.commandGateSwitchReactionCriterionIsFailClosedWithoutVacuumPass
               "T-033 CLI contract runs v2 hybrid headless with mode report and twin",
-              ModeSwitchTests.cliContractRunsV2HybridHeadlessWithModeReportAndTwin ]
+              ModeSwitchTests.cliContractRunsV2HybridHeadlessWithModeReportAndTwin
+              "T-034 exploration contract mirrors documented values",
+              ExplorationTests.explorationContractMirrorsDocumentedValues
+              "T-034 landmark derivation is deterministic, zonal and walkable",
+              ExplorationTests.landmarkDerivationIsDeterministicZonalAndWalkable
+              "T-034 landmark derivation fails closed without a walkable tile",
+              ExplorationTests.landmarkDerivationFailsClosedWithoutWalkableTile
+              "T-034 exploration views resist external mutation",
+              ExplorationTests.explorationViewsResistExternalMutation
+              "T-034 observation enforces mode coupling and single registration",
+              ExplorationTests.observationEnforcesModeCouplingAndSingleRegistration
+              "T-034 exploration is observation-only; twin stays byte identical",
+              ExplorationTests.explorationObservationIsObservationOnlyTwinStaysByteIdentical
+              "T-034 foreign seed changes hashes but not the landmark set",
+              ExplorationTests.foreignSeedChangesHashesButNotLandmarkSet
+              "T-034 headless exploration visits all landmarks on schema version 3",
+              ExplorationTests.headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3
+              "T-034 legacy run without exploration stays byte identical on schema version 2",
+              ExplorationTests.legacyRunWithoutExplorationStaysByteIdenticalSchema2
+              "T-034 schema dispatch rejects cross variants fail closed",
+              ExplorationTests.explorationSchemaDispatchRejectsCrossVariants ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die
