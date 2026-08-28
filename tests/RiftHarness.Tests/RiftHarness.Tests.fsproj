@@ -37,6 +37,7 @@
     <Compile Include="CommandLoopTests.fs" Condition="Exists('CommandLoopTests.fs')" />
     <Compile Include="ModeSwitchTests.fs" Condition="Exists('ModeSwitchTests.fs')" />
     <Compile Include="ExplorationTests.fs" Condition="Exists('ExplorationTests.fs')" />
+    <Compile Include="DecisionTests.fs" Condition="Exists('DecisionTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

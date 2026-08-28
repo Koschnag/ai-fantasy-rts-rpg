@@ -403,7 +403,7 @@ let finalBoundaryHudMatchesMeasuredReportBeforeAutoExit () =
 
     let hudUpdate =
         source.IndexOf(
-            "UpdateTitleHud(window, pipeline, world, exploration, ref lastTitleState);",
+            "UpdateTitleHud(window, pipeline, world, exploration, decision, ref lastTitleState);",
             boundary,
             StringComparison.Ordinal
         )
