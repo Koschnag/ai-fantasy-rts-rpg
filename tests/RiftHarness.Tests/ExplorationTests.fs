@@ -443,8 +443,10 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
         if jsonInt progress "landmarkCount" <> NavWorld.ZoneCount then
             failwith "Report-Landmarkenmenge entspricht nicht NavWorld.ZoneCount."
 
-        if jsonInt progress "visitedCount" <> NavWorld.ZoneCount || not (progress.GetProperty("completed").GetBoolean()) then
-            failwith "Der Headless-Flow suchte nicht saemtliche Landmarken auf."
+        let visitedCount = jsonInt progress "visitedCount"
+
+        if visitedCount <> NavWorld.ZoneCount || not (progress.GetProperty("completed").GetBoolean()) then
+            failwith $"Der Headless-Flow suchte nicht saemtliche Landmarken auf ({visitedCount}/{NavWorld.ZoneCount})."
 
         if progress.GetProperty("gateCoupled").GetBoolean() then
             failwith "Fortschrittsfelder koppeln an ein Gate."
@@ -634,7 +636,7 @@ let explorationSchemaDispatchRejectsCrossVariants () =
 
         if
             (CommandReportSchema.Validate(withoutBlock)
-                |> Seq.exists (fun error -> error.Contains("schemaVersion", StringComparison.Ordinal)))
+                |> Seq.exists (fun error -> error.Contains("explorationSession", StringComparison.Ordinal)))
             |> not
         then
             failwith "Ein Version-3-Report ohne vollstaendigen Block wurde nicht erkannt."
