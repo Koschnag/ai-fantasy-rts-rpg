@@ -64,11 +64,11 @@ public static class ExplorationAnchors
     /// </summary>
     public static ExplorationLandmark[] DeriveLandmarks() =>
         DeriveFrom(
-            NavWorld.ZoneCount,
-            NavWorld.TilesX,
-            NavWorld.TilesY,
-            NavWorld.IsInsideZone,
-            NavWorld.IsWalkable);
+            Riftward.Simulation.NavWorld.ZoneCount,
+            Riftward.Simulation.NavWorld.TilesX,
+            Riftward.Simulation.NavWorld.TilesY,
+            Riftward.Simulation.NavWorld.IsInsideZone,
+            Riftward.Simulation.NavWorld.IsWalkable);
 
     /// <summary>
     /// Ableitung über einer Zonenzuordnung und Begehbarkeit (Testbindung):
@@ -147,6 +147,7 @@ public sealed class ExplorationSession
     public ExplorationSession()
     {
         _landmarks = ExplorationAnchors.DeriveLandmarks();
+        _registered = new bool[_landmarks.Length];
     }
 
     /// <summary>Landmarkenmenge in fester Zonenordnung 0 bis ZoneCount-1.</summary>
@@ -178,7 +179,7 @@ public sealed class ExplorationSession
     /// strategische Anwesenheit bleibt bewusst ungezaehlt (kein stiller
     /// Zaehler, keine Nachwirkung).
     /// </summary>
-    public void Observe(long boundaryTick, SimWorld world, SessionMode effectiveMode)
+    public void Observe(long boundaryTick, Riftward.Simulation.SimWorld world, SessionMode effectiveMode)
     {
         ArgumentNullException.ThrowIfNull(world);
 

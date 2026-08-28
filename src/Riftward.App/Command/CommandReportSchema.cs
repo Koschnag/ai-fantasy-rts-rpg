@@ -228,8 +228,8 @@ public static class CommandReportSchema
                 ("classification", new RLit("diagnostic-developer-workstation")),
                 ("protocol", new RLit("qops001-2026-08-24")))),
             ("frameEvidence", new FrameEvidenceAlternative()),
-            ("exitCode", new RInt(int.MinValue, int.MaxValue))),
-        };
+            ("exitCode", new RInt(int.MinValue, int.MaxValue)),
+        });
 
         return new RObj(fields.ToArray());
     }

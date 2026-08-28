@@ -20,9 +20,15 @@ internal sealed class InteractiveView : IDisposable
     /// <summary>Lebensdauer eines Befehlspulses in Ticks.</summary>
     public const int CommandPulseTicks = 40;
 
-    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse plus Held-Badge).</summary>
+    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse, Held-Badge plus Landmarkenkanal).</summary>
     public const int MarkerCapacity =
-        SimulationContract.AgentCount + SimulationContract.GroupCount + 1;
+        SimulationContract.AgentCount
+        + SimulationContract.GroupCount
+        + 1
+        + (2 * NavWorld.ZoneCount);
+
+    /// <summary>Ankerhoehe des unbesuchten Landmarkenmarkers in Metern (Vertrag Abschnitt 5).</summary>
+    public const double LandmarkMarkerHeightMeters = 1.4;
 
     private const int PaletteRowFloats = RepresentativeScenario.BonesPerNormalUnit * 3 * 4;
 
@@ -45,6 +51,8 @@ internal sealed class InteractiveView : IDisposable
         new (long IssueTick, int Zone)[SimulationContract.GroupCount];
 
     private SelectionModel? _selection;
+
+    private ExplorationSession? _exploration;
 
     public InteractiveView()
     {
@@ -69,6 +77,15 @@ internal sealed class InteractiveView : IDisposable
 
     /// <summary>Bindet das Auswahlmodell fuer die Glyphenentscheidung.</summary>
     public void BindSelection(SelectionModel selection) => _selection = selection;
+
+    /// <summary>
+    /// Bindet die optionale Erkundungssitzung für den Landmarkenzustandskanal
+    /// (T-034, Vertrag Abschnitt 5): ohne Aktivierung null (Bestandsdarstellung
+    /// byteidentisch); die Marker lesen ausschließlich Anker und Aufsuch-
+    /// zustand schreibgeschützt und sind niemals Teil von Simulationszustand
+    /// oder Hash.
+    /// </summary>
+    public void BindExploration(ExplorationSession? exploration) => _exploration = exploration;
 
     /// <summary>Meldet einen abgesetzten Gruppenbefehl fuer die Puls-Rueckmeldung.</summary>
     public void NotifyCommandIssued(long tickIndex, int zone)
@@ -258,6 +275,77 @@ internal sealed class InteractiveView : IDisposable
                     green: 0.85f,
                     blue: 1.00f,
                     alpha: 0.95f);
+            }
+        }
+
+        // Kanal 4 (T-034, Erkundungsvertrag Abschnitt 5,
+        // landmark-state-channel-v1): darstellseitige Landmarkenmarker am
+        // Anker mit zwei unterscheidbaren visuellen Kanaelen (NF-005, nie
+        // reine Farbcodierung). Unbesucht: ruhender Einzel-Diamant (feste
+        // Orientierung pi/4), kuehles Blaugrau (0.55/0.75/0.95), Groesse 1.0,
+        // Hoehe 1.4 m. Registriert: zweistufige Markiersaeule — unten
+        // ruhend, oben rotierend mit der Tickzahl — kuehles Gruen
+        // (0.40/0.90/0.60). Ohne Aktivierung entsteht kein Marker.
+        if (_exploration is { } exploration)
+        {
+            foreach (var landmark in exploration.Landmarks)
+            {
+                if (markerCount + 2 > MarkerCapacity)
+                {
+                    break;
+                }
+
+                var landmarkWorldX = RepresentativeLandscape.ToWorldX(landmark.AnchorTileX + 0.5);
+                var landmarkWorldZ = RepresentativeLandscape.ToWorldZ(landmark.AnchorTileY + 0.5);
+                var landmarkGroundY = RepresentativeLandscape.HeightAt(landmarkWorldX, landmarkWorldZ);
+
+                if (!exploration.IsRegistered(landmark.ZoneIndex))
+                {
+                    // Unbesucht: ruhender Einzel-Diamant, feste Orientierung
+                    // pi/4, kuehles Blaugrau, Groesse 1.0, Hoehe 1.4 m.
+                    RepresentativeMesh.WriteParticleInstance(
+                        _markers,
+                        markerCount++,
+                        landmarkWorldX,
+                        landmarkGroundY + LandmarkMarkerHeightMeters,
+                        landmarkWorldZ,
+                        size: 1.0f,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.55f,
+                        green: 0.75f,
+                        blue: 0.95f,
+                        alpha: 0.95f);
+                }
+                else
+                {
+                    // Registriert: zweistufige Markiersaeule (unten ruhend,
+                    // oben rotierend mit der Tickzahl), kuehles Gruen; die
+                    // Gesamtform ist klar zweigeteilt (NF-005).
+                    RepresentativeMesh.WriteParticleInstance(
+                        _markers,
+                        markerCount++,
+                        landmarkWorldX,
+                        landmarkGroundY + 0.5,
+                        landmarkWorldZ,
+                        size: 0.90f,
+                        rotation: (float)(Math.PI / 4.0),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                    RepresentativeMesh.WriteParticleInstance(
+                        _markers,
+                        markerCount++,
+                        landmarkWorldX,
+                        landmarkGroundY + 2.3,
+                        landmarkWorldZ,
+                        size: 0.80f,
+                        rotation: (float)(tickIndex * 0.12),
+                        red: 0.40f,
+                        green: 0.90f,
+                        blue: 0.60f,
+                        alpha: 0.95f);
+                }
             }
         }
 
