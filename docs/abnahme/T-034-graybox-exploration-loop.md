@@ -38,8 +38,9 @@ sie behauptet keinen noch nicht ausgeführten Gate-Erfolg.
   schreibgeschützte Telemetrie. Unbesucht/besucht ist über echte, per Instanz
   gebundene Diamantform plus Farbe unterschieden; runde Befehlspulse behalten
   ihren getrennten Formkanal. Neben dem unveränderten festen Anker schließt
-  ein hohes heldennahes Zustandsecho die Offscreen-Lücke der zonenweiten
-  Registrierung. Headless und vorzeitig beendete Interaktivläufe weisen
+  ein heldennahes, für die persönliche Kamera eigenständig dimensioniertes
+  Zustandsecho die Offscreen-Lücke der zonenweiten Registrierung. Headless
+  und vorzeitig beendete Interaktivläufe weisen
   fensterpflichtige Messungen mit Grund als nicht gemessen aus.
 - Der Report-Schemator prüft nicht nur Typen: kanonische begehbare Anker,
   eindeutige persönliche Besuchsfolge, fortlaufende Reihenfolge und die

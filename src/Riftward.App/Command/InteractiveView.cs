@@ -51,9 +51,18 @@ internal sealed class InteractiveView : IDisposable
     public const double HeroLandmarkCueUnvisitedHeightMeters = 4.2;
 
     /// <summary>Hoehen des heldennahen Zweistufen-Echos einer registrierten Zone.</summary>
-    public const double HeroLandmarkCueRegisteredLowerHeightMeters = 4.0;
+    public const double HeroLandmarkCueRegisteredLowerHeightMeters = 3.7;
 
-    public const double HeroLandmarkCueRegisteredUpperHeightMeters = 5.6;
+    public const double HeroLandmarkCueRegisteredUpperHeightMeters = 4.9;
+
+    /// <summary>
+    /// Eigene Groessen des heldennahen Echos. Die festen Ankermarker bleiben
+    /// groesser; vor der nahen persoenlichen Kamera wuerden dieselben Werte
+    /// den Heldenkanal dominieren und die obere Stufe an den Bildrand treiben.
+    /// </summary>
+    public const float HeroLandmarkCueRegisteredLowerSize = 0.90f;
+
+    public const float HeroLandmarkCueRegisteredUpperSize = 0.75f;
 
     /// <summary>Lesbare Groesse des ruhenden strategischen Helden-Badges.</summary>
     public const float StrategicHeroBadgeSize = 0.80f;
@@ -368,7 +377,7 @@ internal sealed class InteractiveView : IDisposable
                         heroX,
                         heroGroundY + HeroLandmarkCueRegisteredLowerHeightMeters,
                         heroZ,
-                        size: RegisteredLandmarkLowerSize,
+                        size: HeroLandmarkCueRegisteredLowerSize,
                         rotation: (float)(Math.PI / 4.0),
                         red: 0.40f,
                         green: 0.90f,
@@ -380,7 +389,7 @@ internal sealed class InteractiveView : IDisposable
                         heroX,
                         heroGroundY + HeroLandmarkCueRegisteredUpperHeightMeters,
                         heroZ,
-                        size: RegisteredLandmarkUpperSize,
+                        size: HeroLandmarkCueRegisteredUpperSize,
                         rotation: (float)(tickIndex * 0.12),
                         red: 0.40f,
                         green: 0.90f,

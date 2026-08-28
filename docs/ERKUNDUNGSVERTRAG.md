@@ -216,8 +216,10 @@ in beiden Modi ablesbar, beide niemals Teil von Simulationszustand oder Hash:
    Ankernähe gebunden ist, wiederholt derselbe bestehende Partikelkanal den
    Zustand der aktuellen Heldenzone zusätzlich als rein darstellungsseitiges
    Echo direkt über dem Helden: unbesucht als ein blauer Diamant bei 4,2 m,
-   registriert als zwei getrennte grüne Diamanten bei 4,0/5,6 m. Größen und
-   Farben entsprechen dem jeweiligen Ankermarker. Das Echo verschiebt keinen
+   registriert als zwei getrennte grüne Diamanten bei 3,7/4,9 m und den für
+   die nahe persönliche Kamera begrenzten Größen 0,90/0,75. Die Farben
+   entsprechen dem jeweiligen Ankermarker; dessen Größen 1,25/1,05 bleiben
+   unverändert. Das Echo verschiebt keinen
    Anker, ändert weder Aufsuchregel noch Fortschritt und ist nie Simulations-
    oder Hashzustand; es schließt ausschließlich die generische Offscreen-
    Lücke zwischen zonenweiter Registrierung und heldenzentrierter Kamera.

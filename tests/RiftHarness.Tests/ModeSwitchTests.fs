@@ -911,15 +911,15 @@ let diamondMarkersAndHeroLocalLandmarkCueStayReadable () =
 
     let registeredLowerBottom =
         InteractiveView.HeroLandmarkCueRegisteredLowerHeightMeters
-        - (float InteractiveView.RegisteredLandmarkLowerSize / 2.0)
+        - (float InteractiveView.HeroLandmarkCueRegisteredLowerSize / 2.0)
 
     let registeredLowerTop =
         InteractiveView.HeroLandmarkCueRegisteredLowerHeightMeters
-        + (float InteractiveView.RegisteredLandmarkLowerSize / 2.0)
+        + (float InteractiveView.HeroLandmarkCueRegisteredLowerSize / 2.0)
 
     let registeredUpperBottom =
         InteractiveView.HeroLandmarkCueRegisteredUpperHeightMeters
-        - (float InteractiveView.RegisteredLandmarkUpperSize / 2.0)
+        - (float InteractiveView.HeroLandmarkCueRegisteredUpperSize / 2.0)
 
     if
         unvisitedBottom <= badgeTop
@@ -1037,6 +1037,12 @@ let diamondMarkersAndHeroLocalLandmarkCueStayReadable () =
 
         if values.[lower.[0] + 6] <> 1.0f || values.[upper.[0] + 6] <> 1.0f then
             failwith $"{mode}: registriertes Zustands-Echo verwendet nicht die Diamantform."
+
+        if
+            not (nearly InteractiveView.HeroLandmarkCueRegisteredLowerSize values.[lower.[0] + 3])
+            || not (nearly InteractiveView.HeroLandmarkCueRegisteredUpperSize values.[upper.[0] + 3])
+        then
+            failwith $"{mode}: heldennahes Zweistufen-Echo verwendet nicht seine kameralesbaren lokalen Groessen."
 
     copyMarkers view strategicRegisteredCount
     |> assertRegisteredCue "Strategischer Modus" strategicRegisteredCount
