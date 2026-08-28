@@ -57,7 +57,17 @@ eine feste Menge von `NavWorld.ZoneCount` (6) Einträgen mit fester
 Zonenzuordnung 0–5. Der Anker je Landmarke ist die erste betretbare Kachel der
 Zone in festen zeilenmajoritischen Scanreihenfolgen (aufsteigend y, dann
 aufsteigend x) innerhalb der Vertragszonen-Schranken
-(`NavWorld.IsInsideZone`/`NavWorld.IsWalkable`); die Ableitung konsumiert
+(`NavWorld.IsInsideZone`/`NavWorld.IsWalkable`). **Totalität und
+Fail-closed-Randfall:** Im gebundenen Vertragsweltstand besteht jede Zone
+0–5 vollständig aus betretbaren Kacheln; `NavWorld` erzwingt das fail-closed
+bereits pro Prozessstart (`ValidateZones` im statischen Konstruktor,
+`src/Riftward.Simulation/NavWorld.cs`: kontrollierter Fehler bei jeder
+unbetretbaren Zonenkachel). Die Ableitung selbst ist zusätzlich vertraglich
+fail-closed definiert: Besäße eine Zone keine betretbare Kachel, bricht die
+Ableitung kontrolliert mit einem definierten Vertragsfehler ab, statt einen
+undefinierten Anker zu bilden; der Ableitungstest hält beide Aussagen fest
+(Zonendeckung 0–5 mit betretbarem Anker je Zone sowie der kontrollierte
+Ablehnungsfall); die Ableitung konsumiert
 ausschließlich die fixierte Zonen-/Kachelgeometrie der Vertragswelt und
 keine Asset-, Namens-, Text- oder Loreinhalte, keine Ortsemantik und keinen
  externen Beitrag. Die Ableitung ist rein geometrisch und konsumiert den
@@ -92,8 +102,9 @@ Kernelaenderung.
 gelten: (i) der Vertragsheld (Agentenindex 0) befindet sich physisch in der
 Landmarkenzone (Zonenmitgliedschaft der Heldenposition, nicht Ankernähe);
 (ii) die Sitzung befindet sich an dieser Vorgrenze im **persönlichen Modus**
-(der an der Vorgrenze gültige Modus nach Promotionsregel des Modevertrags
-Abschnitt 4); (iii) die Landmarke ist in dieser Sitzung noch nicht registriert.
+(derselbe Modus, der an dieser Vorgrenze nach der kanonischen
+Same-Tick-Regel `same-tick-switch-last-effective-next-next-v1` des
+Modevertrags Abschnitt 4 für die Gültigkeitsprüfung maßgeblich ist); (iii) die Landmarke ist in dieser Sitzung noch nicht registriert.
 Division der Arbeit: Mobilmachung (Hinbewegung zur Landmarkenzone) läuft
 strategisch über die bestehende Auswahl-/Bewegungssemantik; das Aufsuchen
 selbst ist persönliche Anwesenheit. Jede Auswertungsgrenze des Laufs
@@ -175,8 +186,10 @@ Savevertrags-Erweiterung bestehen.
 
 ## 5. Feedback in beiden Modi (`title-hud-expedition-progress-v1`, `landmark-state-channel-v1`)
 
-**Wahl:** Zwei additive, darstellseitige Kanäle über den bestehenden Mustern
-(Kommandovertrag Abschnitt 3, Modevertrag Abschnitt 8), beide ohne Tastendruck
+**Wahl:** Zwei additive, darstellseitige Kanäle über der bestehenden
+Zwei-Kanal-Indikator-Regel NF-005 (ANFORDERUNGEN.md) und den bestehenden
+Amber-Auswahl- und Befehlspuls-Gegenkanälen des Interaktivmodus
+(Modevertrag Abschnitt 8), beide ohne Tastendruck
 in beiden Modi ablesbar, beide niemals Teil von Simulationszustand oder Hash:
 
 1. **Titel-HUD-Erweiterung:** Die bestehende Titelzeile
