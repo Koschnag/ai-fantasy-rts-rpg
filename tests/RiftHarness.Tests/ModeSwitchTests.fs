@@ -840,27 +840,37 @@ let strategicCaptureCameraFocusesHeroWithoutMutatingSessionCamera () =
     let margins =
         InteractiveCameraMath.GroundFootprint(capture, InteractiveCameraMath.DefaultViewportAspectRatio)
 
-    assertNear "Strategischer Westabstand" 32.844815313899 capture.CenterXMeters
+    assertNear "Strategischer Mindestzoom am Westabstand" 12.0 capture.DistanceMeters
+    assertNear "Strategischer Westabstand" 18.816805742712 capture.CenterXMeters
     assertNear "Strategischer Helden-Z-Blickpunkt" expectedZ capture.CenterZMeters
-    assertNear "Strategischer Zoom" sessionCamera.DistanceMeters capture.DistanceMeters
     assertNear "Strategischer Nickwinkel" InteractiveCameraMath.PitchRadians capture.PitchRadians
 
     if
-        expectedX < capture.CenterXMeters - margins.X
-        || expectedX > capture.CenterXMeters + margins.X
+        expectedX < capture.CenterXMeters - margins.LookPlaneX
+        || expectedX > capture.CenterXMeters + margins.LookPlaneX
         || expectedZ < capture.CenterZMeters - margins.NorthZ
         || expectedZ > capture.CenterZMeters + margins.SouthZ
     then
         failwith "Strategischer Evidenzabgriff haelt den Helden nicht im Bodenabdruck."
 
-    let southEast =
-        InteractiveCameraMath.ClampToWorldFootprint(
-            InteractiveCameraMath.ActiveCamera(149.6, 82.0, 32.0, InteractiveCameraMath.PitchRadians),
-            InteractiveCameraMath.DefaultViewportAspectRatio
-        )
+    let southEastDesired =
+        InteractiveCameraMath.ActiveCamera(149.6, 82.0, 32.0, InteractiveCameraMath.PitchRadians)
 
-    assertNear "Strategischer Suedostabstand X" 127.155184686101 southEast.CenterXMeters
-    assertNear "Strategischer Suedostabstand Z" 73.938882599306 southEast.CenterZMeters
+    let southEast =
+        InteractiveCameraMath.FitHorizontalWorld(
+            southEastDesired,
+            InteractiveCameraMath.DefaultViewportAspectRatio,
+            GrayboxCamera.DistanceMinMeters
+        )
+        |> fun fitted ->
+            InteractiveCameraMath.ClampToWorldFootprint(
+                fitted,
+                InteractiveCameraMath.DefaultViewportAspectRatio
+            )
+
+    assertNear "Strategischer Suedostzoom" 14.931500294046 southEast.DistanceMeters
+    assertNear "Strategischer Suedostabstand X" 134.274300952582 southEast.CenterXMeters
+    assertNear "Strategischer Suedostabstand Z" 82.0 southEast.CenterZMeters
 
     if
         before
@@ -888,13 +898,14 @@ let personalCameraFrustumKeepsGroundReadableAtWorldEdges () =
     let horizonClearance =
         HeroChaseCamera.PitchDegrees - (InteractiveCameraMath.FieldOfViewDegrees / 2.0)
 
-    if horizonClearance < 15.0 then
+    if horizonClearance < 25.0 then
         failwith $"Persoenliche obere Frustumkante hat nur {horizonClearance:R} Grad Bodenfreiheit."
 
-    assertNear "Persoenlicher Nickwinkel" 45.0 HeroChaseCamera.PitchDegrees
-    assertNear "Persoenliche halbe Blickpunktbreite" 9.237604307034 margins.X
-    assertNear "Persoenliche Nordsichtweite" 17.386664873203 margins.NorthZ
-    assertNear "Persoenliche Suedsichtweite" 4.658742811845 margins.SouthZ
+    assertNear "Persoenlicher Nickwinkel" 55.0 HeroChaseCamera.PitchDegrees
+    assertNear "Persoenliche ferne halbe Bodenbreite" 15.506230912314 margins.X
+    assertNear "Persoenliche halbe Blickpunktbreite" 9.237604307034 margins.LookPlaneX
+    assertNear "Persoenliche Nordsichtweite" 10.647907124186 margins.NorthZ
+    assertNear "Persoenliche Suedsichtweite" 4.517189268945 margins.SouthZ
     assertNear "Persoenlicher Westabstand" margins.X effective.CenterXMeters
 
     let heroX =
@@ -904,8 +915,8 @@ let personalCameraFrustumKeepsGroundReadableAtWorldEdges () =
         float (world.PositionYOf(ModeContract.HeroAgentIndex)) / float FixedPoint.One
 
     if
-        heroX < effective.CenterXMeters - margins.X
-        || heroX > effective.CenterXMeters + margins.X
+        heroX < effective.CenterXMeters - margins.LookPlaneX
+        || heroX > effective.CenterXMeters + margins.LookPlaneX
         || heroZ < effective.CenterZMeters - margins.NorthZ
         || heroZ > effective.CenterZMeters + margins.SouthZ
     then

@@ -300,15 +300,17 @@ Slices und sind hier nicht behauptet.
 **Verfolgungskamera (`hero-chase-camera-v1`, rein darstellseitig):** Geneigte
 Verfolgungsansicht hinter der Heldenfigur; Blickpunkt ist die Heldenposition
 (Agentenindex 0), Kamera sitzt südlich (feste Nordausrichtung konsistent zur
-§4-Konvention des Kommandovertrags), Nickwinkel 45°, Anzeigedistanz 9 m,
+§4-Konvention des Kommandovertrags), Nickwinkel 55°, Anzeigedistanz 9 m,
 geclippt auf 5–16 m (Zoom-Schritte). Der wirksame Render-/Pickingblickpunkt
 wird um den Bodenabdruck des 60°-Frustums an den Welträndern des
 160×90-m-Rasters geclampt; der sitzungslokale Heldenblickpunkt bleibt dabei
 unverändert und innerhalb des Frustums. Die obere Frustumkante behält bei
-Standardzoom 15° Bodenfreiheit und einen endlichen nördlichen Bodenabdruck
-von rund 17,4 m. Die verworfene 32°-Hypothese ließ nur 2° Bodenfreiheit und
-mehr als 120 m Bodenabdruck zu, wodurch Weltrand und Leeraum die Nahsicht
-dominierten. Kamera, Badge und HUD sind niemals Teil von
+Standardzoom 25° Bodenfreiheit; der nördliche Bodenabdruck beträgt rund
+10,65 m, die maximale halbe Breite an den fernen 16:9-Bodenecken rund
+15,51 m. Die verworfene 32°-Hypothese ließ nur 2° Bodenfreiheit und mehr als
+120 m Bodenabdruck zu; auch die Zwischenhypothese 45° ließ die fernen
+horizontalen Ecken noch rund 21,86 m ausgreifen. Beide erzeugten am Weltrand
+dominanten Leeraum. Kamera, Badge und HUD sind niemals Teil von
 Simulationszustand oder Hash. **Alternativen:** frei drehbare Orbit-Kamera
 (Gründe des Kommandovertrags §4 gelten unverändert — abgelehnt); exakt
 First-Person (verlangt Blickrichtungssemantik ohne Kernbefehlsfläche —
@@ -373,9 +375,13 @@ Modusumschaltung zwischen beiden Abgriffen ist rein darstellseitig und
 verändert denselben Weltzustand nicht.
 
 Nur für diesen opt-in Evidenzabgriff wird die strategische Kamera mit ihrem
-unveränderten Sitzungszoom und Nickwinkel so weit auf den Vertragshelden
-zentriert, wie ihr berechneter Bodenabdruck es innerhalb des Vertragsfelds
-erlaubt. Der Held bleibt im Frustum und der Weltrand wird gerahmt. Damit
+unveränderten Nickwinkel und höchstens ihrem Sitzungszoom so weit auf den
+Vertragshelden zentriert, wie ihr vollständiger Bodenabdruck einschließlich
+der fernen 16:9-Ecken es innerhalb des Vertragsfelds erlaubt. Am Weltrand
+wird die wirksame Abgriffdistanz bis zum strategischen Minimum von 12 m
+reduziert; reicht selbst das geometrisch nicht, hat Helden-Sichtbarkeit vor
+dem verbleibenden minimalen Randrest Vorrang. Der Sitzungszoom selbst bleibt
+unverändert. Der Held bleibt im Frustum und der Weltrand wird gerahmt. Damit
 bindet ein autonomer Skriptlauf am Weltrand keinen leeren Kamerastand; die
 laufende Sitzungskamera wird dabei weder verändert noch als Eingabe
 weiterverwendet. Der persönliche Abgriff nutzt dieselbe rein darstellseitige

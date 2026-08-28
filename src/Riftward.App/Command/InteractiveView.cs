@@ -395,15 +395,17 @@ public static class InteractiveCameraMath
         public static ActiveCamera From(GrayboxCamera camera) =>
             new(camera.CenterXMeters, camera.CenterZMeters, camera.DistanceMeters, InteractiveCameraMath.PitchRadians);
 
-        /// <summary>Aktiver Stand der Verfolgungskamera (45°, Modevertrag Abschnitt 8).</summary>
-        public static ActiveCamera From(HeroChaseCamera camera) =>
-            ClampToWorldFootprint(
-                new(
-                    camera.CenterXMeters,
-                    camera.CenterZMeters,
-                    camera.DistanceMeters,
-                    HeroChaseCamera.PitchDegrees * Math.PI / 180.0),
-                DefaultViewportAspectRatio);
+        /// <summary>Aktiver Stand der Verfolgungskamera (55°, Modevertrag Abschnitt 8).</summary>
+        public static ActiveCamera From(HeroChaseCamera camera)
+        {
+            var desired = new ActiveCamera(
+                camera.CenterXMeters,
+                camera.CenterZMeters,
+                camera.DistanceMeters,
+                HeroChaseCamera.PitchDegrees * Math.PI / 180.0);
+            var fitted = FitHorizontalWorld(desired, DefaultViewportAspectRatio, HeroChaseCamera.DistanceMinMeters);
+            return ClampToWorldFootprint(fitted, DefaultViewportAspectRatio);
+        }
     }
 
     public const double PitchRadians = GrayboxCamera.PitchDegrees * Math.PI / 180.0;
@@ -414,10 +416,11 @@ public static class InteractiveCameraMath
 
     /// <summary>
     /// Bodenabdruck einer nordgerichteten Kamera relativ zu ihrem Blickpunkt.
-    /// X ist die halbe Breite auf der Blickpunktebene; NorthZ und SouthZ sind
-    /// die Schnittweiten der oberen beziehungsweise unteren Frustumkante.
+    /// X ist die maximale halbe Breite an den fernen oberen Bodenecken,
+    /// LookPlaneX die halbe Breite auf der Blickpunktebene; NorthZ und SouthZ
+    /// sind die Schnittweiten der oberen beziehungsweise unteren Frustumkante.
     /// </summary>
-    public readonly record struct GroundFootprintMargins(double X, double NorthZ, double SouthZ);
+    public readonly record struct GroundFootprintMargins(double X, double LookPlaneX, double NorthZ, double SouthZ);
 
     /// <summary>
     /// Berechnet den endlichen Bodenabdruck eines Kamera-Frustums. Eine
@@ -440,23 +443,59 @@ public static class InteractiveCameraMath
             throw new ArgumentOutOfRangeException(nameof(camera), "Kamerapostur hat keinen endlichen Bodenabdruck.");
         }
 
+        var tangentHalfFov = Math.Tan(verticalHalfFov);
         var eyeHeight = Math.Sin(camera.PitchRadians) * camera.DistanceMeters;
         var eyeSouth = Math.Cos(camera.PitchRadians) * camera.DistanceMeters;
-        var halfWidth = camera.DistanceMeters * Math.Tan(verticalHalfFov) * aspectRatio;
-        var north = (eyeHeight / Math.Tan(upperRay)) - eyeSouth;
+        var upperDown = Math.Sin(camera.PitchRadians) - (tangentHalfFov * Math.Cos(camera.PitchRadians));
+        var distanceToUpperGround = eyeHeight / upperDown;
+        var halfWidth = distanceToUpperGround * tangentHalfFov * aspectRatio;
+        var lookPlaneHalfWidth = camera.DistanceMeters * tangentHalfFov * aspectRatio;
+        var north = (distanceToUpperGround
+                * (Math.Cos(camera.PitchRadians) + (tangentHalfFov * Math.Sin(camera.PitchRadians))))
+            - eyeSouth;
         var south = eyeSouth - (eyeHeight / Math.Tan(lowerRay));
 
         if (!double.IsFinite(halfWidth)
+            || !double.IsFinite(lookPlaneHalfWidth)
             || !double.IsFinite(north)
             || !double.IsFinite(south)
             || halfWidth < 0.0
+            || lookPlaneHalfWidth < 0.0
             || north < 0.0
             || south < 0.0)
         {
             throw new ArgumentOutOfRangeException(nameof(camera), "Kamerapostur hat keinen gueltigen Bodenabdruck.");
         }
 
-        return new GroundFootprintMargins(halfWidth, north, south);
+        return new GroundFootprintMargins(halfWidth, lookPlaneHalfWidth, north, south);
+    }
+
+    /// <summary>
+    /// Reduziert nur die wirksame Darstellungsdistanz, falls der volle
+    /// horizontale Bodenabdruck und der Fokus am Weltrand sonst unvereinbar
+    /// waeren. Die vorgegebene Mindestdistanz verhindert einen unlesbar
+    /// nahen Evidenzzoom; der Sitzungszoom selbst bleibt unangetastet.
+    /// </summary>
+    public static ActiveCamera FitHorizontalWorld(ActiveCamera camera, double aspectRatio, double minimumDistance)
+    {
+        if (!double.IsFinite(minimumDistance)
+            || minimumDistance <= 0.0
+            || minimumDistance > camera.DistanceMeters)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumDistance));
+        }
+
+        var unit = GroundFootprint(camera with { DistanceMeters = 1.0 }, aspectRatio);
+        var wideningPerMeter = unit.X - unit.LookPlaneX;
+        var edgeDistance = Math.Min(camera.CenterXMeters, NavWorld.TilesX - camera.CenterXMeters);
+        var fittedDistance = camera.DistanceMeters;
+
+        if (wideningPerMeter > 0.0)
+        {
+            fittedDistance = Math.Min(fittedDistance, Math.Max(0.0, edgeDistance) / wideningPerMeter);
+        }
+
+        return camera with { DistanceMeters = Math.Clamp(fittedDistance, minimumDistance, camera.DistanceMeters) };
     }
 
     /// <summary>
@@ -471,8 +510,15 @@ public static class InteractiveCameraMath
         static double ClampAxis(double desired, double minimum, double maximum, double fallback) =>
             minimum <= maximum ? Math.Clamp(desired, minimum, maximum) : fallback;
 
+        var worldBoundCenterX =
+            ClampAxis(camera.CenterXMeters, margins.X, NavWorld.TilesX - margins.X, NavWorld.TilesX / 2.0);
+        var focusVisibleCenterX = Math.Clamp(
+            worldBoundCenterX,
+            camera.CenterXMeters - margins.LookPlaneX,
+            camera.CenterXMeters + margins.LookPlaneX);
+
         return new ActiveCamera(
-            ClampAxis(camera.CenterXMeters, margins.X, NavWorld.TilesX - margins.X, NavWorld.TilesX / 2.0),
+            focusVisibleCenterX,
             ClampAxis(camera.CenterZMeters, margins.NorthZ, NavWorld.TilesY - margins.SouthZ, NavWorld.TilesY / 2.0),
             camera.DistanceMeters,
             camera.PitchRadians);

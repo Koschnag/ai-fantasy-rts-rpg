@@ -27,7 +27,7 @@ bewusst nicht angehängt.
   unterscheidbaren Dispositionen, Dedupe-Regel der persönlichen Lenkung,
   Heldenansicht (`HeroTracker`), exakte Ganzzahl-Lenkauflösung
   (`HeroDirectionSteering`, Int128-Kreuzmultiplikation, Tie-Break niedrigste
-  Zonennummer), Verfolgungskamerazustand (`HeroChaseCamera`, 45°/9 m,
+  Zonennummer), Verfolgungskamerazustand (`HeroChaseCamera`, 55°/9 m,
   Clamps 5–16 m, Weltrand), Versionierung `ModeContract`. Riftward.Simulation
   ist byteidentisch (Diff leer).
 - **Befehl `kommandoschleife`** (Report Schemaversion 2): Headless v1/v2 über

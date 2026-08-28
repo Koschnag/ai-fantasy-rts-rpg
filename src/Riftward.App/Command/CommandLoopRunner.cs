@@ -1419,26 +1419,29 @@ internal static class CommandLoopRunner
     }
 
     /// <summary>
-    /// Rein lokale Kamera des opt-in Abgriffs: gleicher strategischer Zoom
-    /// und Nickwinkel, mit dem Vertragshelden im weltrandbegrenzten Frustum.
-    /// Mutiert weder Sitzungskamera noch Welt und ist deshalb kein
-    /// Eingabe-/Gameplaypfad.
+    /// Rein lokale Kamera des opt-in Abgriffs: gleicher strategischer
+    /// Nickwinkel und hoechstens der Sitzungszoom, mit dem Vertragshelden im
+    /// weltrandbegrenzten Frustum. Mutiert weder Sitzungskamera noch Welt und
+    /// ist deshalb kein Eingabe-/Gameplaypfad.
     /// </summary>
     internal static InteractiveCameraMath.ActiveCamera StrategicCaptureCamera(
         GrayboxCamera sessionCamera,
         SimWorld world) =>
         InteractiveCameraMath.ClampToWorldFootprint(
-            new(
-                Math.Clamp(
-                    world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
-                    0.0,
-                    NavWorld.TilesX),
-                Math.Clamp(
-                    world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
-                    0.0,
-                    NavWorld.TilesY),
-                sessionCamera.DistanceMeters,
-                InteractiveCameraMath.PitchRadians),
+            InteractiveCameraMath.FitHorizontalWorld(
+                new(
+                    Math.Clamp(
+                        world.PositionXOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
+                        0.0,
+                        NavWorld.TilesX),
+                    Math.Clamp(
+                        world.PositionYOf(ModeContract.HeroAgentIndex) / (double)FixedPoint.One,
+                        0.0,
+                        NavWorld.TilesY),
+                    sessionCamera.DistanceMeters,
+                    InteractiveCameraMath.PitchRadians),
+                InteractiveCameraMath.DefaultViewportAspectRatio,
+                GrayboxCamera.DistanceMinMeters),
             InteractiveCameraMath.DefaultViewportAspectRatio);
 
     /// <summary>Rendert und liest einen einzelnen Abgriff des Paars zurück.</summary>
