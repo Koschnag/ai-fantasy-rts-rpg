@@ -485,6 +485,9 @@ public static class RepresentativeMesh
         target[offset + 8] = red;
         target[offset + 9] = green;
         target[offset + 10] = blue;
-        target[offset + 11] = 1f;
+        // Der Fragmentshader liest die Farbe einschliesslich Deckkraft aus
+        // i_data2. Nur i_data1.y zu fuellen liess Befehlspulse trotz ihrer
+        // vertraglichen Ausblendkurve bis zum harten Ablauf voll sichtbar.
+        target[offset + 11] = alpha;
     }
 }

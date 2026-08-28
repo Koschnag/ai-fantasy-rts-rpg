@@ -30,6 +30,15 @@ internal sealed class InteractiveView : IDisposable
     /// <summary>Ankerhoehe des unbesuchten Landmarkenmarkers in Metern (Vertrag Abschnitt 5).</summary>
     public const double LandmarkMarkerHeightMeters = 1.4;
 
+    /// <summary>Lesbare Groesse des ruhenden strategischen Helden-Badges.</summary>
+    public const float StrategicHeroBadgeSize = 0.80f;
+
+    /// <summary>Basisgroesse des atmenden persoenlichen Helden-Badges.</summary>
+    public const float PersonalHeroBadgeBaseSize = 0.65f;
+
+    /// <summary>Deterministische Atemamplitude des persoenlichen Helden-Badges.</summary>
+    public const double PersonalHeroBadgeBreath = 0.10;
+
     private const int PaletteRowFloats = RepresentativeScenario.BonesPerNormalUnit * 3 * 4;
 
     private readonly float[] _units =
@@ -240,9 +249,9 @@ internal sealed class InteractiveView : IDisposable
         // heldenverankerter Modus-Badge über Agentenindex 0 mit zwei
         // unterscheidbaren visuellen Kanaelen (NF-005, nie reine Farbcodierung):
         // strategisch — ruhender Diamant (feste Orientierung pi/4), cyan
-        // (0.45/0.85/1.0), Hoehe 2.6 m, Groesse 0.60; persoenlich —
+        // (0.45/0.85/1.0), Hoehe 2.6 m, Groesse 0.80; persoenlich —
         // pulsierender Diamant (Groesse atmet deterministisch mit der
-        // Tickzahl), warmes Orange (1.0/0.45/0.20), Basisgroesse 0.42. Die
+        // Tickzahl), warmes Orange (1.0/0.45/0.20), Basisgroesse 0.65. Die
         // pulsende Groesse und beide Farbkanäle trennen den Badge von der
         // Auswahlglyphe (warmes Amber, Groesse 0.42, ruhend) und vom
         // Befehlspuls (wachsend, kaltton, bodenverankert).
@@ -255,14 +264,14 @@ internal sealed class InteractiveView : IDisposable
 
             if (visualMode == SessionMode.Personal)
             {
-                var breath = 0.08 * Math.Sin(tickIndex * 0.35);
+                var breath = PersonalHeroBadgeBreath * Math.Sin(tickIndex * 0.35);
                 RepresentativeMesh.WriteParticleInstance(
                     _markers,
                     markerCount++,
                     heroX,
                     heroGroundY + 2.6,
                     heroZ,
-                    size: (float)(0.42 + breath),
+                    size: (float)(PersonalHeroBadgeBaseSize + breath),
                     rotation: badgeRotation,
                     red: 1.00f,
                     green: 0.45f,
@@ -277,7 +286,7 @@ internal sealed class InteractiveView : IDisposable
                     heroX,
                     heroGroundY + 2.6,
                     heroZ,
-                    size: 0.60f,
+                    size: StrategicHeroBadgeSize,
                     rotation: badgeRotation,
                     red: 0.45f,
                     green: 0.85f,

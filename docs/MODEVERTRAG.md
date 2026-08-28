@@ -328,9 +328,10 @@ visuelle Kanaele, keine reine Farbcodierung gemäß NF-005):** Ein
 heldenverankerter Badge über Agentenindex 0 markiert den Vertragshelden und
 zeigt zugleich den Modus über zwei unterscheidbare Kanäle je Modus:
 strategisch — ruhender Diamant (feste Orientierung π/4), cyan (0,45/0,85/1,0),
-Höhe 2,6 m; persönlich — pulsierender Diamant (Größe atmet deterministisch mit
-der Tickzahl), warmes Orange (1,0/0,45/0,20), dieselbe Verankerung. Der
-Formkanal (ruhend gegenüber pulsierend, Größe 0,60 gegenüber 0,42 der
+Höhe 2,6 m, Größe 0,80; persönlich — pulsierender Diamant (Größe atmet
+deterministisch mit der Tickzahl um 0,65 ± 0,10), warmes Orange
+(1,0/0,45/0,20), dieselbe Verankerung. Der Formkanal (ruhend gegenüber
+pulsierend, beide deutlich größer als 0,42 der
 Auswahlglyphe) und der Farbkanal (Cyan/Orange gegenüber warmem Amber der
 Auswahlglyphe) trennen Badge, Auswahlglyphe und Befehlspuls. **Rückrollweg:**
 Badge-Parameter sind Hypothesenkonstanten; Änderung ohne Vertragspflicht,

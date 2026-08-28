@@ -208,6 +208,14 @@ let compositionTargetsProduceNonDegenerateGeometry () =
     if quad.Vertices.Length <> 4 * RepresentativeMesh.ParticleVertexStride then
         failwith "Partikelquad-Geometrie degeneriert."
 
+    let particleInstance =
+        Array.zeroCreate<float32> (RepresentativeMesh.ParticleInstanceStrideBytes / sizeof<float32>)
+
+    RepresentativeMesh.WriteParticleInstance(particleInstance, 0, 1.0, 2.0, 3.0, 0.5f, 0.25f, 0.2f, 0.4f, 0.6f, 0.37f)
+
+    if abs (particleInstance.[11] - 0.37f) > 0.000001f then
+        failwith "Partikel-Deckkraft erreicht den vom Fragmentshader gelesenen Farbkanal nicht."
+
     let mainViewTriangles =
         int64 terrain.TriangleCount
         + ((int64) RepresentativeMesh.TrianglesPerUnit

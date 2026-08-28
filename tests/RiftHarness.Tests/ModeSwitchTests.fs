@@ -946,9 +946,10 @@ let billboardBasisStaysCameraFacingAndIsotropic () =
 
         let eye = InteractiveCameraMath.EyePosition(camera)
         let center = InteractiveCameraMath.CenterPosition(camera)
+        let struct (eyeX, eyeY, eyeZ) = eye
+        let struct (centerX, centerY, centerZ) = center
 
-        let forward =
-            normalize (center.Item1 - eye.Item1, center.Item2 - eye.Item2, center.Item3 - eye.Item3)
+        let forward = normalize (centerX - eyeX, centerY - eyeY, centerZ - eyeZ)
 
         let basis = InteractiveCameraMath.BillboardBasis(camera)
         let right = basis.[0], basis.[1], basis.[2]
