@@ -4,25 +4,204 @@ using Riftward.Session;
 
 namespace Riftward.App.Command;
 
-/// <summary>
-/// Maschinenpruefbarer Evidenzvertrag des Kommandoschleifen-Reports
-/// (Schemaversion 2, NF-007-Linie; T-033 erhoehht die Schemaversion rein
-/// additiv um den Modussitzungsblock, die Wechselreaktionsgatekopplung und
-/// die Modevertragsbindung). Fail-closed: fehlende Pflichtfelder,
-/// falsche Typen, erfundene Messwerte ohne Methodenkennung, nicht begruendete
-/// unavailable-Kennzeichnungen und unbekannte Felder lassen die Pruefung
-/// fehlschlagen. Die Ausfuehrungsart (headless/interaktiv) waehlt strikte
-/// Alternativformen: Headless kann Renderer-/GPU-Werte nicht messen und darf
-/// sie nur als unavailable mit Grund ausweisen; der Interaktivmodus muss sie
-/// messend ausweisen. Gategekoppelte Felder tragen keine Diagnosemarke; alle
-/// uebrigen Messfelder sind verpflichtend gateCoupled=false.
-/// </summary>
-public static class CommandReportSchema
-{
-    public const int CurrentVersion = 2;
-    public const string ModeCommandLoop = "kommandoschleife";
-    public const string ExecutionHeadless = "headless";
-    public const string ExecutionInteractive = "interactive";
+    /// <summary>Hex64-Darstellung eines 64-Bit-Zustands-Hashs.</summary>
+    internal static readonly HexNode Hex = new();
+
+    /// <summary>Hex256-Darstellung eines Artefakthashs.</summary>
+    internal static readonly Sha256HexNode Sha256 = new();
+
+    internal static RObj HeadlessBody { get; } = BuildBody(ExecutionHeadless, VersionWithoutExploration);
+
+    internal static RObj InteractiveBody { get; } = BuildBody(ExecutionInteractive, VersionWithoutExploration);
+
+    internal static RObj HeadlessExplorationBody { get; } = BuildBody(ExecutionHeadless, CurrentVersion);
+
+    internal static RObj InteractiveExplorationBody { get; } = BuildBody(ExecutionInteractive, CurrentVersion);
+
+    /// <summary>
+    /// Versions- und Ausführungsdispatch: Die Schemaversion 2 (Bestandsstand)
+    /// toleriert keinen Erkundungsblock, die Schemaversion 3 verlangt ihn
+    /// vollstaendig; beide Versionen waehlen strikt zwischen headless und
+    /// interaktiv (T-034, Erkundungsvertrag Abschnitt 6).
+    /// </summary>
+    private sealed class SchemaVersionDispatch : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (!element.TryGetProperty("schemaVersion", out var version)
+                || version.ValueKind != JsonValueKind.Number
+                || !version.TryGetInt32(out var schemaVersion))
+            {
+                errors.Add("$.schemaVersion: ganzzahlige Schemaversion erwartet.");
+                return;
+            }
+
+            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion))
+            {
+                errors.Add($"$.schemaVersion: Schemaversion {VersionWithoutExploration} oder {CurrentVersion} erwartet.");
+                return;
+            }
+
+            if (!element.TryGetProperty("executionMode", out var mode)
+                || mode.ValueKind != JsonValueKind.String)
+            {
+                errors.Add("$.executionMode: Ausfuehrungsart erwartet.");
+                return;
+            }
+
+            ReportNode? body = (schemaVersion, mode.GetString()) switch
+            {
+                (VersionWithoutExploration, ExecutionHeadless) => HeadlessBody,
+                (VersionWithoutExploration, ExecutionInteractive) => InteractiveBody,
+                (CurrentVersion, ExecutionHeadless) => HeadlessExplorationBody,
+                (CurrentVersion, ExecutionInteractive) => InteractiveExplorationBody,
+                _ => null,
+            };
+
+            if (body is null)
+            {
+                errors.Add("$.executionMode: unbekannte Ausfuehrungsart.");
+                return;
+            }
+
+            body.Check(path, element, errors);
+        }
+    }
+
+    /// <summary>Gesamtschema des von CommandLoopRunner geschriebenen Reports.</summary>
+    internal static ReportNode Root { get; } = new SchemaVersionDispatch();
+
+    private static RObj BuildBody(string executionMode, int version)
+    {
+        var fields = new List<(string Name, ReportNode Node)>
+        {
+            ("schemaVersion", new RInt(version, version)),
+            ("mode", new RLit(ModeCommandLoop)),
+            ("executionMode", new RLit(executionMode)),
+            ("command", new RStr()),
+            ("scenario", new RObj(
+                ("id", new RLit(SessionContract.ScenarioId)),
+                ("seed", new RInt(0, uint.MaxValue)),
+                ("tickRateHz", new RInt(Riftward.Simulation.SimulationContract.TickRateHz, Riftward.Simulation.SimulationContract.TickRateHz)),
+                ("agentCount", new RInt(Riftward.Simulation.SimulationContract.AgentCount, Riftward.Simulation.SimulationContract.AgentCount)),
+                ("worldId", new RLit(Riftward.Simulation.SimulationContract.WorldId)),
+                ("content", new RLit(SessionContract.ContentId)))),
+            ("commandContract", new RObj(
+                ("document", new RLit(SessionContract.DocumentPath)),
+                ("version", new RLit(SessionContract.ContractVersion)),
+                ("scriptFormat", ScriptFormat()),
+                ("selectionModel", new RLit(SessionContract.SelectionModelId)),
+                ("cameraModel", new RLit(SessionContract.CameraModelId)),
+                ("diagnosticOnlyReplayDisclaimer", new RBool(true)),
+                ("modeContract", new RObj(
+                    ("document", new RLit(ModeContract.DocumentPath)),
+                    ("version", new RLit(ModeContract.ContractVersion)))))),
+            ("modeSession", ModeSessionBody()),
+            ("simulationContract", new RObj(
+                ("document", new RLit(Riftward.Simulation.SimulationContract.DocumentPath)),
+                ("version", new RLit(Riftward.Simulation.SimulationContract.ContractVersion)),
+                ("numericModel", new RLit(Riftward.Simulation.SimulationContract.NumericModelId)),
+                ("hashAlgorithm", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
+                ("allocationLimitBytesPerWarmTick", new RInt(0)))),
+            ("inputScript", new RObj(
+                ("scriptSha256", Sha256),
+                ("intentPlanHash", Hex),
+                ("horizonTicks", new RInt(1)),
+                ("warmupTicks", new RInt(30)),
+                ("intentsTotal", new RInt(0)),
+                ("appliedTotal", new RInt(0)),
+                ("rejectedTotal", new RInt(0)),
+                ("emptyPointDeselects", new RInt(0)),
+                ("moveWithoutSelectionRejects", new RInt(0)),
+                ("noZoneRejects", new RInt(0)),
+                ("kernelCommandsTotal", new RInt(0)))),
+            ("startedAtUtc", new RStr()),
+            ("finishedAtUtc", new RStr()),
+            ("environment", new RObj(
+                ("os", new RObj(("type", new RStr()), ("kernelRelease", new RStr()))),
+                ("cpu", new RObj(("model", new RStr()))),
+                ("rid", new RLit("linux-x64")),
+                ("commit", new RStr()),
+                ("buildMode", new RStr()),
+                ("display", Display(executionMode)),
+                ("pins", new RArr(new RObj(
+                    ("id", new RStr()),
+                    ("refType", new RStr()),
+                    ("ref", new RStr()),
+                    ("commit", new RStr()),
+                    ("sourceSha256", new RStr()),
+                    ("licenseSpdx", new RStr())), 4)))),
+            ("measurement", new RObj(
+                ("warmupTicks", new RInt(30)),
+                ("sampleTicks", new RInt(1)),
+                ("ticksExecuted", new RInt(2)),
+                ("hashSampleIntervalTicks", new RInt(1)),
+                ("rssSampleIntervalTicks", new RInt(1)),
+                ("windowCompleted", new RBool()))),
+            ("metrics", Metrics(executionMode)),
+            ("stateHashChain", new RObj(
+                ("unit", new RLit("hex64")),
+                ("method", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
+                ("start", Hex),
+                ("intervalSampleTicks", new RArr(new RInt(0), 1)),
+                ("intervalHashes", new RArr(Hex, 1)),
+                ("end", Hex))),
+            ("gate", new RObj(
+                ("limits", new RObj(
+                    ("p99TickTimeHardLimitMs", new RNum(true)),
+                    ("p99TickTimeTargetMs", new RNum(true)),
+                    ("allocationsPerWarmTickBytesMax", new RInt(0)),
+                    ("reactionHardLimitTicks", new RInt(SessionContract.ReactionHardLimitTicks, SessionContract.ReactionHardLimitTicks)),
+                    ("reactionTargetTicks", new RInt(SessionContract.ReactionTargetTicks, SessionContract.ReactionTargetTicks)),
+                    ("runtimeShaderCompilationAllowed", new RBool(false)),
+                    ("switchReactionHardLimitTicks", new RInt(ModeContract.SwitchReactionHardLimitTicks, ModeContract.SwitchReactionHardLimitTicks)),
+                    ("switchReactionTargetTicks", new RInt(ModeContract.SwitchReactionTargetTicks, ModeContract.SwitchReactionTargetTicks)))),
+                ("stateChainSelfConsistency", ChainConsistencyAlternative()),
+                ("switchReaction", SwitchReactionAlternative()),
+                ("pass", new RBool()),
+                ("tickTimeTargetMet", new RBool()),
+                ("reactionTargetMet", new RBool()),
+                ("violations", new RArr(new RStr())))),
+            ("openQuestions", new RObj(
+                ("qtec004", new RLit("open")),
+                ("qtec006", new RLit("open")),
+                ("qtec010", new RLit("open")),
+                ("qgam001", new RLit("open")),
+                ("qgam002", new RLit("open")),
+                ("qgam003", new RLit("open")),
+                ("qgam004", new RLit("open")),
+                ("qgam005", new RLit("open")),
+                ("qgam006", new RLit("open")),
+                ("qgam007", new RLit("open")),
+                ("qgam010", new RLit("open")),
+                ("qnar002", new RLit("open")))),
+            ("profiles", new RArr(new RObj(
+                ("id", new RStr()),
+                ("status", new RStr()),
+                ("boundReferenceClass", new RNullableStr()),
+                ("reason", new RStr())), 3)),
+            ("baseline", new RObj(
+                ("classification", new RLit("diagnostic-developer-workstation")),
+                ("protocol", new RLit("qops001-2026-08-24")))),
+            ("frameEvidence", new FrameEvidenceAlternative()),
+            ("exitCode", new RInt(int.MinValue, int.MaxValue)),
+        };
+
+        var fields = new List<(string Name, ReportNode Node)>(fieldsBuild(executionMode))
+        {
+            ("schemaVersion", new RInt(version, version)),
+            ("mode", new RLit(ModeCommandLoop)),
+            ("executionMode", new RLit(executionMode)),
+        };
+
+        if (withExploration)
+        {
+            fields.Add(("explorationSession", ExplorationSessionBody()));
+        }
+
+        return new RObj(fields.ToArray());
+    }
+
 
     /// <summary>Hex64-Darstellung eines 64-Bit-Zustands-Hashs.</summary>
     internal static readonly HexNode Hex = new();
