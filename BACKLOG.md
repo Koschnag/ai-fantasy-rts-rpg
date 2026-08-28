@@ -1227,7 +1227,10 @@ T-033 (`.ai/tasks/T-033-mode-switch-prototype.json`, seit dem unabhängigen
 Review-/Vollendungslauf 2026-08-28 `DONE`; Abnahmedoku
 `docs/abnahme/T-033-mode-switch-prototype.md` inklusive echtem Wayland-Repass
 der Hauptinstanz mit hashgebundenem Abgriffpaar und Media-Lab-Eintrag
-EVD-T033-MODE-PAIR-001) ist der kleinste
+EVD-T033-MODE-PAIR-001; der hierfür in der T-032-Linie verschobene Posten
+`allocationStrictnessRegression` wurde in diesem Slice als
+Fresh-Process-Probe ohne Assertionabschwächung geschlossen, nur die übrigen
+drei verschobenen Posten bleiben offen) ist der kleinste
 prüfbare Hybrid-Mode-Switch-Prototyp über dem unveränderten Simulationskern:
 Der Vertragsheld ist die im Modevertrag versionierte neue Sitzungsbezeichnung
 für den stabilen Agentenindex 0 in der bestehenden Vertragsgruppe 0 (deren
