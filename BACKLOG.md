@@ -43,7 +43,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-032 | E-004 | interaktive Graybox-Kommandoschleife: Auswahl, Gruppenbewegung und Kamera über dem unveränderten Simulationskern | Z-001, F-001, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-033 | E-004 | kleinster Hybrid-Mode-Switch-Prototyp: persönlicher Third-Person-Heldenmodus und strategischer RTS-Modus über dem unveränderten Simulationskern mit Hashketten-Kontinuitätsnachweis | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-034 | E-004 | kleinster spielbarer Erkundungsauftrag-Loop: modusgebundenes Aufsuchen deterministischer Graybox-Landmarken mit strategischer Mobilmachung über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
-| T-035 | E-004 | kleinster spielbarer Entscheidungsschritt: Zwei-Optionen-Aufgabenentscheidung mit sichtbarer, sitzungslokaler Folge in beiden Modi über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
+| T-035 | E-004 | kleinster spielbarer Entscheidungsschritt: Zwei-Optionen-Aufgabenentscheidung mit sichtbarer, sitzungslokaler Folge in beiden Modi über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -1341,3 +1341,17 @@ Hypothesen im gatenden Abschnitt 0 des versionierten Entscheidungsvertrags
 Freigabelauf hat keinen Produktcode implementiert und keinen Commit erstellt;
 die formale Schema-Validierung mit dem gepinnten JsonSchema.Net bleibt gemäß
 T-022-/T-031-Präzedenz Pflichtteil des Spec-Reviewlaufs.
+
+Der Implementierungs- und Vollendungslauf vom 2026-08-28 setzte den durch
+Receipt 148 (`PROCESS_ERROR` nach Providerfehlern) unterbrochenen, exakt
+fingerprint-gebundenen Teilstand fort und vollendete den Slice: vertraglicher
+Entscheidungsvertrag V1, sitzungsseitige Entscheidungsschicht ohne
+Kernberührung, Skriptgrammatik v3, relational fail-closed Schemaversion 4,
+Folgezielmarker-Kanal und Testbestand 295/295. A/B-Wahlpaar und Vollfluss sind
+mit builderidentischen Ketten gebunden; alle lokalen Gates und Bestands-
+Regressionen sind grün. Interaktivsmoke und Playtestausführung bleiben wegen
+der displaylosen Umgebung ausgewiesene Restpunkte (kontrollierter Code-19-
+Abbruch ohne Report). T-035 bleibt `REVIEW`: Die Statuspromotion auf
+`DONE`/`accepted` bleibt der unabhängigen Reviewphase und dem formalen
+Promotionspfad vorbehalten; Details stehen in
+`docs/abnahme/T-035-graybox-decision-step.md`.
