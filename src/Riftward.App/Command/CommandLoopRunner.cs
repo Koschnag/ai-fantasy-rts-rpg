@@ -49,6 +49,21 @@ internal static class CommandLoopRunner
         // reiner Schalter ohne Wert; ohne Flag bleibt Verhalten und Report
         // byteidentisch zum Bestandsstand.
         var explorationEnabled = arguments.HasFlag("--exploration");
+
+        // Opt-in Aktivierung der Entscheidungsschicht (T-035,
+        // Entscheidungsvertrag Abschnitt 7): reiner Schalter ohne Wert,
+        // vertraglich an --exploration gekoppelt; --decision ohne
+        // --exploration ist eine Usage-Fehlanwendung (bestehender Exitcode,
+        // keine neue Bedeutung).
+        var decisionEnabled = arguments.HasFlag("--decision");
+
+        if (decisionEnabled && !explorationEnabled)
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --decision ist vertraglich an --exploration gekoppelt und erfordert dessen Aktivierung.");
+            return ExitCodes.Usage;
+        }
+
         var autoExitAtHorizon = arguments.HasFlag("--auto-exit-at-horizon");
 
         if (autoExitAtHorizon && !interactive)
@@ -118,8 +133,8 @@ internal static class CommandLoopRunner
         return interactive
             ? RunInteractive(
                 arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks,
-                explorationEnabled, autoExitAtHorizon)
-            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled);
+                explorationEnabled, decisionEnabled, autoExitAtHorizon)
+            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled, decisionEnabled);
     }
 
     /* ------------------------------------------------------------- Headless */
@@ -131,7 +146,8 @@ internal static class CommandLoopRunner
         ParsedInputScript parsed,
         int warmupTicks,
         int horizonTicks,
-        bool explorationEnabled)
+        bool explorationEnabled,
+        bool decisionEnabled)
     {
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -149,6 +165,7 @@ internal static class CommandLoopRunner
             return ExitCodes.Map(PlatformErrorCode.ArtifactManifestInvalid);
         }
 
+        DecisionTelemetry? decisionTelemetry = null;
         SessionRunResult result;
 
         try
@@ -159,14 +176,16 @@ internal static class CommandLoopRunner
                 WarmupTicks: warmupTicks,
                 HorizonTicks: horizonTicks,
                 RunSelfConsistencyPass: true,
-                ExplorationEnabled: explorationEnabled));
+                ExplorationEnabled: explorationEnabled,
+                DecisionEnabled: decisionEnabled));
+            decisionTelemetry = result.Decision;
         }
         catch (Exception exception)
         {
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionHeadless, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment, explorationEnabled, exploration: null);
+                commit, buildMode, environment, explorationEnabled, decisionEnabled, exploration: null, decision: decisionTelemetry);
         }
 
         var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
@@ -209,7 +228,8 @@ internal static class CommandLoopRunner
             WorkingSet: WorkingSetFrom(result),
             ExitCode: gateExitCode,
             Telemetry: result.Telemetry,
-            Exploration: result.Exploration)), BenchRunner.ReportJsonOptions) + "\n";
+            Exploration: result.Exploration,
+            Decision: result.Decision)), BenchRunner.ReportJsonOptions) + "\n";
 
         return FinishReport(reportPath, reportJson, gateExitCode);
     }
@@ -340,6 +360,7 @@ internal static class CommandLoopRunner
         int warmupTicks,
         int horizonTicks,
         bool explorationEnabled,
+        bool decisionEnabled,
         bool autoExitAtHorizon)
     {
         var environment = SystemInfo.Capture();
@@ -363,6 +384,7 @@ internal static class CommandLoopRunner
         InteractiveSceneResources? resources = null;
         InteractiveView? view = null;
         ExplorationSession? exploration = null;
+        DecisionSession? decision = null;
         string glVersion;
         string glRenderer;
         uint gpuIds;
@@ -394,11 +416,16 @@ internal static class CommandLoopRunner
             // niemals einen Kernbefehl; ohne Aktivierung bleibt der Pfad
             // byteidentisch zum Bestandsstand.
             exploration = explorationEnabled ? new ExplorationSession() : null;
-            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration);
+            // Opt-in Entscheidungsschicht (T-035): rein sitzungsseitig,
+            // vertraglich an die Erkundungsaktivierung gekoppelt; ohne
+            // Aktivierung null (Bestandsverhalten byteidentisch).
+            decision = decisionEnabled ? new DecisionSession() : null;
+            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration, decision);
             view = new InteractiveView();
             view.BindAgentGroups(selectionGroups);
             view.BindSelection(selection);
             view.BindExploration(exploration);
+            view.BindDecision(decision);
 
             var projection = InteractiveCameraMath.Projection(BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
             var camera = new GrayboxCamera();
@@ -409,7 +436,7 @@ internal static class CommandLoopRunner
             var measurement = RunInteractiveLoop(
                 context.Device, resources, view, world, pipeline, camera, heroCamera, input,
                 context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks,
-                exploration, autoExitAtHorizon);
+                exploration, decision, autoExitAtHorizon);
 
             // Laufende ausgewertete, aber nicht mehr wirksame Wechsel sind
             // ausdrücklich im Protokoll gebunden statt still zu verschwinden.
@@ -541,7 +568,8 @@ internal static class CommandLoopRunner
                     TrianglesMax: measurement.TrianglesMax,
                     PeakMarkers: measurement.PeakMarkers),
                 Telemetry: modeTelemetry,
-                Exploration: exploration?.ToTelemetry())), BenchRunner.ReportJsonOptions) + "\n";
+                Exploration: exploration?.ToTelemetry(),
+                Decision: decision?.ToTelemetry())), BenchRunner.ReportJsonOptions) + "\n";
 
             return FinishReport(reportPath, reportJson, exitCode);
         }
@@ -557,7 +585,8 @@ internal static class CommandLoopRunner
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionInteractive, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment, explorationEnabled, exploration?.ToTelemetry());
+                commit, buildMode, environment, explorationEnabled, decisionEnabled,
+                exploration?.ToTelemetry(), decision?.ToTelemetry());
         }
         finally
         {
@@ -603,6 +632,7 @@ internal static class CommandLoopRunner
         int warmupTicks,
         int horizonTicks,
         ExplorationSession? exploration,
+        DecisionSession? decision,
         bool autoExitAtHorizon)
     {
         var windowTicks = horizonTicks - warmupTicks;

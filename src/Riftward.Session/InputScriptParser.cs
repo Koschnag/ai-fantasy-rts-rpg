@@ -85,6 +85,7 @@ public static class InputScriptParser
 {
     private const string HeaderPrefixV1 = "graybox-input-script-v1 ";
     private const string HeaderPrefixV2 = "graybox-input-script-v2 ";
+    private const string HeaderPrefixV3 = "graybox-input-script-v3 ";
     private const string EndLine = "end";
 
     public static ParsedInputScript Parse(byte[] rawBytes, ScriptWindowRules rules)
@@ -127,6 +128,8 @@ public static class InputScriptParser
 
         string headerPrefix;
         string formatId;
+        var allowsModeActions = false;
+        var allowsDecisionActions = false;
 
         if (lines.Length > 0 && lines[0].StartsWith(HeaderPrefixV1, StringComparison.Ordinal))
         {
@@ -139,6 +142,18 @@ public static class InputScriptParser
             // unverändert (keine stille Formatdrift innerhalb einer Version).
             headerPrefix = HeaderPrefixV2;
             formatId = ModeContract.ScriptFormatIdV2;
+            allowsModeActions = true;
+        }
+        else if (lines.Length > 0 && lines[0].StartsWith(HeaderPrefixV3, StringComparison.Ordinal))
+        {
+            // T-035: Entscheidungs-Obermengengrammatik; die v1-/v2-Grammatiken
+            // bleiben byteidentisch (keine stille Formatdrift innerhalb einer
+            // Version; choose-Aktionen unter einem v1-/v2-Kopf sind
+            // UnknownAction).
+            headerPrefix = HeaderPrefixV3;
+            formatId = DecisionContract.ScriptFormatIdV3;
+            allowsModeActions = true;
+            allowsDecisionActions = true;
         }
         else
         {
@@ -151,7 +166,6 @@ public static class InputScriptParser
         }
 
         ValidateHorizon(horizonTicks, rules);
-        var allowsModeActions = formatId == ModeContract.ScriptFormatIdV2;
         var intents = new List<GrayboxIntent>(capacity: 64);
         var ended = false;
 
@@ -185,7 +199,7 @@ public static class InputScriptParser
                 throw new InputScriptException(InputScriptRejectReason.LineMalformed, lineNumber, "Leerzeile im Skriptkoerper.");
             }
 
-            intents.Add(ParseIntentLine(line, lineNumber, rules, allowsModeActions));
+            intents.Add(ParseIntentLine(line, lineNumber, rules, allowsModeActions, allowsDecisionActions));
         }
 
         if (!ended)
@@ -279,7 +293,12 @@ public static class InputScriptParser
         }
     }
 
-    private static GrayboxIntent ParseIntentLine(string line, int lineNumber, ScriptWindowRules rules, bool allowsModeActions)
+    private static GrayboxIntent ParseIntentLine(
+        string line,
+        int lineNumber,
+        ScriptWindowRules rules,
+        bool allowsModeActions,
+        bool allowsDecisionActions)
     {
         var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -314,11 +333,24 @@ public static class InputScriptParser
             "move" => BuildMove(tokens, lineNumber, tick),
             "steer" when allowsModeActions => BuildSteer(tokens, lineNumber, tick),
             "switch" when allowsModeActions => BuildSwitch(tokens, lineNumber, tick),
+            "choose-a" when allowsDecisionActions => BuildChoose(tokens, lineNumber, tick, GrayboxIntentKind.ChooseA),
+            "choose-b" when allowsDecisionActions => BuildChoose(tokens, lineNumber, tick, GrayboxIntentKind.ChooseB),
             _ => throw new InputScriptException(
                 InputScriptRejectReason.UnknownAction,
                 lineNumber,
                 $"Aktion '{action}' gehoert nicht zur Vertragsverbmenge dieses Formats."),
         };
+    }
+
+    /// <summary>
+    /// Sitzungsseitige Entscheidungsaktion ohne Parameter (T-035,
+    /// Entscheidungsvertrag Abschnitt 4); kontextfrei grammatisch gueltig,
+    /// Angebot, Modus und Entscheidungsstand entscheidet erst die Pipeline.
+    /// </summary>
+    private static GrayboxIntent BuildChoose(string[] tokens, int lineNumber, int tick, GrayboxIntentKind kind)
+    {
+        RequireTokenCount(tokens, 3, lineNumber);
+        return new GrayboxIntent(tick, kind);
     }
 
     /// <summary>

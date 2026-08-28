@@ -22,6 +22,18 @@ public enum IntentDisposition : byte
 
     /// <summary>Persoenliche Lenkung im strategischen Modus abgewiesen (T-033, Modevertrag Abschnitt 5).</summary>
     RejectedSteerIntentInStrategyMode = 5,
+
+    /// <summary>Entscheidung vor der Angebotsöffnung abgewiesen (T-035, Auswertungsordnung Stufe 2).</summary>
+    RejectedDecisionBeforeOffer = 6,
+
+    /// <summary>Entscheidung im strategischen Modus abgewiesen (T-035, Auswertungsordnung Stufe 3).</summary>
+    RejectedDecisionInStrategicMode = 7,
+
+    /// <summary>Entscheidung nach gefallener Wahl abgewiesen (T-035, Auswertungsordnung Stufe 4).</summary>
+    RejectedDecisionAfterDecision = 8,
+
+    /// <summary>Entscheidung ohne aktivierte Entscheidungsschicht abgewiesen (T-035, Auswertungsordnung Stufe 1).</summary>
+    RejectedDecisionNotActivated = 9,
 }
 
 /// <summary>Ergebnis einer Vorgrenzenverarbeitung (Befehlstick).</summary>
@@ -47,6 +59,18 @@ public readonly struct BoundaryOutcome
 
     /// <summary>An dieser Vorgrenze ausgewertete Moduswechsel (T-033, diagnostisch).</summary>
     public int SwitchIntentsEvaluated { get; init; }
+
+    /// <summary>An dieser Vorgrenze abgewiesene Entscheidungen vor der Angebotsöffnung (T-035).</summary>
+    public int RejectedDecisionBeforeOffer { get; init; }
+
+    /// <summary>An dieser Vorgrenze abgewiesene Entscheidungen im strategischen Modus (T-035).</summary>
+    public int RejectedDecisionInStrategicMode { get; init; }
+
+    /// <summary>An dieser Vorgrenze abgewiesene Entscheidungen nach gefallener Wahl (T-035).</summary>
+    public int RejectedDecisionAfterDecision { get; init; }
+
+    /// <summary>An dieser Vorgrenze ohne Aktivierung abgewiesene Entscheidungen (T-035).</summary>
+    public int RejectedDecisionNotActivated { get; init; }
 }
 
 /// <summary>Aggregierte Kennzahlen eines Sitzungslaufs.</summary>
@@ -79,7 +103,8 @@ public sealed record SessionRunResult(
     int KernelCommandsTotal,
     int TotalTicksExecuted,
     ModeTelemetry Telemetry,
-    ExplorationTelemetry? Exploration = null);
+    ExplorationTelemetry? Exploration = null,
+    DecisionTelemetry? Decision = null);
 
 /// <summary>Deterministische Percentil- und Zeitberechnung (Verfahren wie T-010/T-020/T-021).</summary>
 public static class SessionMath
@@ -140,6 +165,7 @@ public sealed class SessionPipeline
     private readonly List<ModeSwitchEvent> _switchProtocol = new();
     private readonly List<ModeSwitchEvent> _pendingSwitches = new();
     private readonly ExplorationSession? _exploration;
+    private readonly DecisionSession? _decision;
     private int _scriptCursor;
     private SessionMode _effectiveMode = SessionMode.Strategic;
 
@@ -158,12 +184,14 @@ public sealed class SessionPipeline
         Riftward.Simulation.SimWorld world,
         SelectionModel selection,
         GrayboxIntent[] scriptedIntents,
-        ExplorationSession? exploration = null)
+        ExplorationSession? exploration = null,
+        DecisionSession? decision = null)
     {
         World = world;
         Selection = selection;
         _scriptedIntents = scriptedIntents;
         _exploration = exploration;
+        _decision = decision;
 
         for (var index = 1; index < scriptedIntents.Length; index++)
         {
@@ -185,6 +213,18 @@ public sealed class SessionPipeline
     /// Sitzungsmodus schreibgeschützt und erzeugt niemals einen Kernbefehl.
     /// </summary>
     public ExplorationSession? Exploration => _exploration;
+
+    /// <summary>
+    /// Optionale Entscheidungssitzung (T-035): rein sitzungsseitige
+    /// Beobachtung und Semantik an jeder Auswertungsgrenze; ohne Aktivierung
+    /// null (Bestandsverhalten byteidentisch). Die Schicht liest
+    /// ausschließlich Heldenzone und Sitzungsmodus schreibgeschützt und
+    /// erzeugt niemals einen Kernbefehl. Vertraglich an die
+    /// Erkundungsaktivierung gekoppelt: eine Entscheidungsschicht ohne
+    /// Erkundungssitzung ist ein Vertragswiderspruch und wird fail-closed
+    /// abgewiesen.
+    /// </summary>
+    public DecisionSession? Decision => _decision;
 
     /// <summary>Stellt einen validierten Live-Intent fuer die naechste Vorgrenze bereit.</summary>
     public void EnqueueLiveIntent(GrayboxIntent intent) => _liveQueue.Add(intent);
@@ -265,6 +305,10 @@ public sealed class SessionPipeline
         var commandTotal = 0;
         var rejectedStrategyInPersonal = 0;
         var rejectedSteerInStrategy = 0;
+        var rejectedDecisionBeforeOffer = 0;
+        var rejectedDecisionInStrategicMode = 0;
+        var rejectedDecisionAfterDecision = 0;
+        var rejectedDecisionNotActivated = 0;
         var switchIntentsEvaluated = 0;
         Span<Riftward.Simulation.SimCommand> commands = stackalloc Riftward.Simulation.SimCommand[
             Riftward.Simulation.SimulationContract.GroupCount];
@@ -302,6 +346,15 @@ public sealed class SessionPipeline
                         continue;
                     }
 
+                    break;
+
+                case GrayboxIntentKind.ChooseA:
+                case GrayboxIntentKind.ChooseB:
+                    // Entscheidungsaktionen sind in beiden Kontexten
+                    // grammatisch gueltig; Angebot, Modus und
+                    // Entscheidungsstand entscheidet die vertragliche
+                    // Auswertungsordnung in EvaluateDecisionChoice
+                    // (Entscheidungsvertrag Abschnitt 4).
                     break;
 
                 case GrayboxIntentKind.SwitchMode:
@@ -385,6 +438,45 @@ public sealed class SessionPipeline
                     applied += ApplySteering(intent, tick, ref commandTotal);
                     break;
 
+                case GrayboxIntentKind.ChooseA:
+                case GrayboxIntentKind.ChooseB:
+                    {
+                        var option = intent.Kind == GrayboxIntentKind.ChooseA
+                            ? DecisionChoiceOption.A
+                            : DecisionChoiceOption.B;
+                        var (decisionApplied, decisionDisposition) = EvaluateDecisionChoice(intent, tick, option);
+
+                        switch (decisionDisposition)
+                        {
+                            case IntentDisposition.RejectedDecisionBeforeOffer:
+                                rejectedDecisionBeforeOffer++;
+                                break;
+
+                            case IntentDisposition.RejectedDecisionInStrategicMode:
+                                rejectedDecisionInStrategicMode++;
+                                break;
+
+                            case IntentDisposition.RejectedDecisionAfterDecision:
+                                rejectedDecisionAfterDecision++;
+                                break;
+
+                            case IntentDisposition.RejectedDecisionNotActivated:
+                                rejectedDecisionNotActivated++;
+                                break;
+                        }
+
+                        if (decisionApplied)
+                        {
+                            applied++;
+                        }
+                        else
+                        {
+                            rejected++;
+                        }
+                    }
+
+                    break;
+
                 case GrayboxIntentKind.SwitchMode:
                     EvaluateModeSwitch(tick);
                     switchIntentsEvaluated++;
@@ -404,6 +496,17 @@ public sealed class SessionPipeline
         // stabil. Ohne Aktivierung null — Bestandsverhalten unverändert.
         _exploration?.Observe(tick, World, _effectiveMode);
 
+        // Rein sitzungsseitige Entscheidungsbeobachtung an derselben
+        // Vorgrenze (T-035, Entscheidungsvertrag Abschnitt 2), in der
+        // vertraglichen Ordnung nach der Erkundungsbeobachtung: öffnet das
+        // Angebot an der ersten Abschlussgrenze und beobachtet die
+        // persönliche Ankunft in der Folgenzone. Ohne Aktivierung null —
+        // Bestandsverhalten unverändert.
+        if (_decision is { } decision && _exploration is not null)
+        {
+            decision.Observe(tick, World, _effectiveMode, _exploration);
+        }
+
         return new BoundaryOutcome
         {
             AppliedCount = applied,
@@ -414,7 +517,51 @@ public sealed class SessionPipeline
             RejectedStrategyInPersonal = rejectedStrategyInPersonal,
             RejectedSteerInStrategy = rejectedSteerInStrategy,
             SwitchIntentsEvaluated = switchIntentsEvaluated,
+            RejectedDecisionBeforeOffer = rejectedDecisionBeforeOffer,
+            RejectedDecisionInStrategicMode = rejectedDecisionInStrategicMode,
+            RejectedDecisionAfterDecision = rejectedDecisionAfterDecision,
+            RejectedDecisionNotActivated = rejectedDecisionNotActivated,
         };
+    }
+
+    /// <summary>
+    /// Auswertung einer Entscheidungsaktion an ihrer Vorgrenze (T-035,
+    /// Entscheidungsvertrag Abschnitt 4, Auswertungsordnung
+    /// decision-choice-evaluation-order-v1): rein sitzungsseitig, ohne
+    /// Kernbefehl, ohne Zustandsaenderung am Kern; jede Verletzung wird mit
+    /// unterscheidbarer Disposition abgewiesen und gezaehlt. Rueckgabe ist
+    /// das Paar (wirksam, Disposition).
+    /// </summary>
+    private (bool Applied, IntentDisposition Disposition) EvaluateDecisionChoice(
+        GrayboxIntent intent,
+        long tick,
+        DecisionChoiceOption option)
+    {
+        if (_decision is not { } decision)
+        {
+            ChooseIntentsRejectedWithoutActivationTotal++;
+            return (false, Journal(intent, IntentDisposition.RejectedDecisionNotActivated));
+        }
+
+        if (decision.TryChoose(option, tick, _effectiveMode))
+        {
+            return (true, Journal(intent, IntentDisposition.Applied));
+        }
+
+        if (decision.OfferBoundaryTick == DecisionTelemetry.UnsetBoundaryTick)
+        {
+            ChooseIntentsRejectedBeforeOfferTotal++;
+            return (false, Journal(intent, IntentDisposition.RejectedDecisionBeforeOffer));
+        }
+
+        if (_effectiveMode != SessionMode.Personal)
+        {
+            ChooseIntentsRejectedInStrategicModeTotal++;
+            return (false, Journal(intent, IntentDisposition.RejectedDecisionInStrategicMode));
+        }
+
+        ChooseIntentsRejectedAfterDecisionTotal++;
+        return (false, Journal(intent, IntentDisposition.RejectedDecisionAfterDecision));
     }
 
     /// <summary>
@@ -542,7 +689,19 @@ public sealed class SessionPipeline
     /// <summary>Gesamtzahl an den Kern uebergebener Befehle.</summary>
     public long AppliedCommandsTotal { get; private set; }
 
-    private void Journal(GrayboxIntent intent, IntentDisposition disposition)
+    /// <summary>Gesamtzaehler Entscheidungen ohne aktivierte Schicht (T-035, Auswertungsordnung Stufe 1).</summary>
+    public long ChooseIntentsRejectedWithoutActivationTotal { get; private set; }
+
+    /// <summary>Gesamtzaehler Entscheidungen vor der Angebotsöffnung (T-035, Stufe 2).</summary>
+    public long ChooseIntentsRejectedBeforeOfferTotal { get; private set; }
+
+    /// <summary>Gesamtzaehler Entscheidungen im strategischen Modus (T-035, Stufe 3).</summary>
+    public long ChooseIntentsRejectedInStrategicModeTotal { get; private set; }
+
+    /// <summary>Gesamtzaehler Entscheidungen nach gefallener Wahl (T-035, Stufe 4).</summary>
+    public long ChooseIntentsRejectedAfterDecisionTotal { get; private set; }
+
+    private IntentDisposition Journal(GrayboxIntent intent, IntentDisposition disposition)
     {
         if (disposition == IntentDisposition.Applied)
         {
@@ -552,6 +711,8 @@ public sealed class SessionPipeline
         {
             RejectedIntentsTotal++;
         }
+
+        return disposition;
     }
 }
 
@@ -562,7 +723,8 @@ public sealed record SessionRunRequest(
     int WarmupTicks,
     int HorizonTicks,
     bool RunSelfConsistencyPass = true,
-    bool ExplorationEnabled = false);
+    bool ExplorationEnabled = false,
+    bool DecisionEnabled = false);
 
 /// <summary>
 /// Headless Sitzungslauf (Kommandovertrag Abschnitt 7): fester 20-Hz-Tick
@@ -588,7 +750,23 @@ public static class SessionEngine
         // mit Aktivierung eine Beobachtung, die niemals einen Kernbefehl
         // erzeugt und niemals Simulationszustand oder Hash berührt.
         var exploration = request.ExplorationEnabled ? new ExplorationSession() : null;
-        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration);
+
+        if (request.DecisionEnabled && exploration is null)
+        {
+            // Vertragskopplung (Entscheidungsvertrag Abschnitt 7): die
+            // Entscheidungsaktivierung ist an --exploration gekoppelt; ein
+            // Entscheidungszustand ohne seinen vertraglichen Ausloesertraeger
+            // ist ein Vertragswiderspruch und wird fail-closed abgewiesen.
+            throw new ArgumentException(
+                "Die Entscheidungsaktivierung ist vertraglich an die Erkundungsaktivierung gekoppelt.",
+                nameof(request));
+        }
+
+        // Entscheidung ist rein sitzungsseitig (T-035): ohne Aktivierung
+        // null; die Schicht erzeugt niemals einen Kernbefehl und ist nie
+        // Simulationszustand oder Hash.
+        var decision = request.DecisionEnabled ? new DecisionSession() : null;
+        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration, decision);
 
         var windowTicks = request.HorizonTicks - request.WarmupTicks;
         var tickTimes = new double[windowTicks];
@@ -705,7 +883,8 @@ public static class SessionEngine
             KernelCommandsTotal: (int)pipeline.AppliedCommandsTotal,
             TotalTicksExecuted: request.HorizonTicks,
             Telemetry: BuildModeTelemetry(pipeline),
-            Exploration: exploration?.ToTelemetry());
+            Exploration: exploration?.ToTelemetry(),
+            Decision: decision?.ToTelemetry());
     }
 
     /// <summary>

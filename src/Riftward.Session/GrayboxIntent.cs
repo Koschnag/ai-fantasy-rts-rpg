@@ -2,15 +2,17 @@ namespace Riftward.Session;
 
 /// <summary>
 /// Intentarten der Graybox-Kommandoschleife (Kommandovertrag Abschnitt 2,
-/// erweitert um die T-033-Obermenge gemäß Modevertrag Abschnitt 6). Die
+/// erweitert um die T-033-Obermenge gemäß Modevertrag Abschnitt 6 und um die
+/// T-035-Entscheidungsobermenge gemäß Entscheidungsvertrag Abschnitt 4). Die
 /// numerische Reihenfolge ist vertraglich: Innerhalb eines Ticks werden
 /// Intents in aufsteigender Kindreihenfolge ausgefuehrt, bei Gleichstand nach
 /// den Parametern als numerisches Tupel. <see cref="GroupMoveToZone"/> und
 /// <see cref="SteerGroupToZone"/> erzeugen Kernbefehle
 /// (SimCommandKind.GroupMoveToZone); <see cref="SwitchMode"/> wird kanonisch
-/// zuletzt ausgewertet, ist nie Kontextbildner seines eigenen Ticks und
-/// erzeugt niemals einen Kernbefehl; alle uebrigen Arten sind rein
-/// darstellseitig.
+/// nach allen fachlichen Intents ausgewertet und <see cref="ChooseA"/> und
+/// <see cref="ChooseB"/> kanonisch nach dem Wechsel; keines dieser drei
+/// Intentvehikel ist Kontextbildner seines eigenen Ticks und keines erzeugt
+/// einen Kernbefehl; alle uebrigen Arten sind rein darstellseitig.
 /// </summary>
 public enum GrayboxIntentKind : byte
 {
@@ -31,6 +33,12 @@ public enum GrayboxIntentKind : byte
 
     /// <summary>Moduswechsel an der Tickgrenze: kein Kernbefehl, kein Simulationszustand (T-033).</summary>
     SwitchMode = 5,
+
+    /// <summary>Entscheidung fuer Option A: rein sitzungsseitig, kein Kernbefehl, kein Simulationszustand (T-035).</summary>
+    ChooseA = 6,
+
+    /// <summary>Entscheidung fuer Option B: rein sitzungsseitig, kein Kernbefehl, kein Simulationszustand (T-035).</summary>
+    ChooseB = 7,
 }
 
 /// <summary>
@@ -184,6 +192,8 @@ public static class IntentCodec
 
             case GrayboxIntentKind.Clear:
             case GrayboxIntentKind.SwitchMode:
+            case GrayboxIntentKind.ChooseA:
+            case GrayboxIntentKind.ChooseB:
                 break;
 
             default:
