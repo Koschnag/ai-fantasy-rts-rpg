@@ -2156,7 +2156,35 @@ module Program =
               "T-034 schema dispatch rejects cross variants fail closed",
               ExplorationTests.explorationSchemaDispatchRejectsCrossVariants
               "T-034 schema relations reject fabricated evidence fail closed",
-              ExplorationTests.explorationSchemaRelationsRejectFabrication ]
+              ExplorationTests.explorationSchemaRelationsRejectFabrication
+              "T-035 decision contract mirrors documented values",
+              DecisionTests.decisionContractMirrorsDocumentedValues
+              "T-035 options derivation is pure, seed independent and fails closed",
+              DecisionTests.optionsDerivationIsPureSeedIndependentAndFailsClosed
+              "T-035 decision offer, choice and follow-up bind contractually",
+              DecisionTests.decisionOfferChoosesAndFollowUpBindContractually
+              "T-035 follow-up requires personal arrival including mode coupling",
+              DecisionTests.decisionFollowUpRequiresPersonalArrival
+              "T-035 decision is observation only; twin stays byte identical",
+              DecisionTests.decisionIsObservationOnlyTwinStaysByteIdentical
+              "T-035 not-activated rejection is distinguished without kernel effect",
+              DecisionTests.decisionNotActivatedRejectionIsDistinguishedWithoutKernelEffect
+              "T-035 title HUD binds decision states without changing legacy form",
+              DecisionTests.titleHudBindsDecisionStatesWithoutChangingLegacyForm
+              "T-035 CLI decision flow runs headless on schema version 4",
+              DecisionTests.cliDecisionFlowRunsHeadlessOnSchemaVersion4
+              "T-035 CLI A/B choice pair differs only in the decision report",
+              DecisionTests.cliAbChoicePairDiffersOnlyInDecisionReport
+              "T-035 CLI choose without activation and usage coupling stay contractual",
+              DecisionTests.cliChooseWithoutActivationAndUsageCouplingStayContractual
+              "T-035 CLI choose tokens under legacy headers are unknown actions",
+              DecisionTests.cliChooseTokensUnderLegacyHeadersAreUnknownActions
+              "T-035 schema dispatch rejects cross variants fail closed",
+              DecisionTests.decisionSchemaDispatchRejectsCrossVariants
+              "T-035 schema relations reject fabricated evidence fail closed",
+              DecisionTests.decisionSchemaRelationsRejectFabrication
+              "T-035 builder honesty binds decision presentation flags",
+              DecisionTests.decisionBuilderEhrlichkeitBindetDarstellungsausweise ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die

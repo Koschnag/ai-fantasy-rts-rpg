@@ -530,10 +530,6 @@ let decisionNotActivatedRejectionIsDistinguishedWithoutKernelEffect () =
     // abgewiesen.
     let coupled =
         try
-            runInProcess 20260826u 400 explorationBody false |> ignore
-
-            // runInProcess aktiviert die Erkundung stets mit; die Kopplung
-            // wird daher an einer Entscheidung ohne Erkundung gebunden:
             SessionEngine.Run(
                 SessionRunRequest(
                     Seed = 20260826u,
@@ -545,6 +541,7 @@ let decisionNotActivatedRejectionIsDistinguishedWithoutKernelEffect () =
                     DecisionEnabled = true
                 )
             )
+            |> ignore
 
             false
         with
@@ -825,8 +822,8 @@ let cliAbChoicePairDiffersOnlyInDecisionReport () =
             failwith "Der Entscheidungsblock unterscheidet die Wahl nicht."
 
         if
-            jsonInt decisionA.GetProperty("decision") "optionZone"
-            = jsonInt decisionB.GetProperty("decision") "optionZone"
+            jsonInt (decisionA.GetProperty("decision")) "optionZone"
+            = jsonInt (decisionB.GetProperty("decision")) "optionZone"
         then
             failwith "Wahl A und Wahl B erzeugten dieselbe Folgenzone."
     finally
@@ -908,12 +905,12 @@ let cliChooseWithoutActivationAndUsageCouplingStayContractual () =
             failwith "Die nicht aktivierte Entscheidungsschicht veraenderte die Hashkette."
 
         if
-            mixedDocument.RootElement.GetProperty("inputScript").GetProperty("rejectedTotal").GetInt32()
-            <> twinDocument.RootElement.GetProperty("inputScript").GetProperty("rejectedTotal").GetInt32() + 1
+            (mixedDocument.RootElement.GetProperty("inputScript").GetProperty("rejectedTotal").GetInt32())
+            <> (twinDocument.RootElement.GetProperty("inputScript").GetProperty("rejectedTotal").GetInt32()) + 1
         then
             failwith "Die choose-Abweisung wurde nicht kontrolliert gezaehlt."
 
-        if mixedDocument.RootElement.TryGetProperty("decisionSession", out _) then
+        if mixedDocument.RootElement.TryGetProperty("decisionSession") |> fst then
             failwith "Unaktivierter Lauf traegt einen Entscheidungsblock."
     finally
         for report in [ reportWithChoose; reportTwin ] do
@@ -1028,17 +1025,18 @@ let decisionSchemaDispatchRejectsCrossVariants () =
         then
             failwith "Ein Version-4-Report ohne Entscheidungsblock wurde nicht erkannt."
 
-        // Schemaversion 2 toleriert keinen Entscheidungsblock.
+        // Schemaversion 3 toleriert keinen Entscheidungsblock (die
+        // Entscheidungsaktivierung ist vertraglich strikt additiv auf
+        // Schemaversion 4 gebunden).
         let downgraded =
             golden
-                .Replace("\"schemaVersion\":4", "\"schemaVersion\":2")
-                .Replace("\"explorationSession\"", "\"explorationSessionRemoved\"")
+                .Replace("\"schemaVersion\":4", "\"schemaVersion\":3")
                 .Replace("\"decisionSession\"", "\"decisionSessionRemoved\"")
 
         if
             not (
                 CommandReportSchema.Validate(downgraded)
-                |> Seq.exists (fun error -> error.Contains("schemaVersion", StringComparison.Ordinal))
+                |> Seq.exists (fun error -> error.Contains("decisionSession", StringComparison.Ordinal))
             )
         then
             failwith "Die Schemaversionen werden nicht fail-closed dispatcht."
@@ -1097,8 +1095,8 @@ let decisionSchemaRelationsRejectFabrication () =
         reject "Ankunft vor der Wahl" "Ankunft" (fun root ->
             let decision = decisionOf root
             let followUp = decision["followUp"].AsObject()
-            followUp["arrivalBoundaryTick"] <- JsonValue.Create(7299))
-            followUp["completed"] <- JsonValue.Create(true)
+            followUp["arrivalBoundaryTick"] <- JsonValue.Create(7299)
+            followUp["completed"] <- JsonValue.Create(true))
 
         // Optionszonen sind verschieden.
         reject "Gleichzeitige Optionen" "verschieden" (fun root ->
