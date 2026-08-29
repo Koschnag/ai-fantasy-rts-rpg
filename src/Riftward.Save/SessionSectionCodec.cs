@@ -82,8 +82,8 @@ public static class SessionSectionCodec
         + (1 + sizeof(long) + sizeof(uint))
         + (sizeof(long) + 1 + sizeof(int) + sizeof(long) + 1);
 
-    /// <summary>Feste Stranglaenge einer Fensterinstanz in Bytes.</summary>
-    public const int WindowStrideBytes = (4 * sizeof(long)) + 3;
+    /// <summary>Feste Stranglaenge einer Fensterinstanz in Bytes (5×i64 + 3 Kennungen).</summary>
+    public const int WindowStrideBytes = (5 * sizeof(long)) + 3;
 
     /// <summary>Feste Stranglaenge einer Aufsuchregistrierung in Bytes.</summary>
     public const int VisitStrideBytes = sizeof(long) + sizeof(int) + 1;

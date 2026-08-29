@@ -571,6 +571,8 @@ Aktivierer neben der vollständigen Dokumentvalidierung die Passung an den
 Laufkontext mit unterscheidbaren, maschinenlesbaren Ablehnungskennungen:
 `foreign-world-id` (Weltkennung des Slots widerspricht der Vertragswelt),
 `foreign-seed` (Seed des Slots widerspricht dem angeforderten Laufseed),
+`layer-activation-mismatch` (die Schichtaktivierung des Fortsetzungslaufs
+widerspricht der Sitzungssektion des Slots),
 `later-schema-version`/`unsupported-schema-version` (aus der Klasse
 `SCHEMA_VERSION_UNSUPPORTED`), Sektionsklassen gemäß Abschnitt 13.5. Eine
 abgewiesene Ladung ändert Welt, Kette, Kern oder letzten gültigen Stand nie.

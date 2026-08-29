@@ -217,11 +217,10 @@ public static class CanonicalSaveCodec
             offset += SaveContract.HashLength;
             WriteUnsigned(header, ref offset, (ulong)sessionSection.Length);
             SHA256.HashData(sessionSection).CopyTo(header.Slice(offset));
+            offset += SaveContract.HashLength;
         }
 
-        // V1: offset steht am Anfang des payloadHash-Felds (32 Bytes folgen);
-        // V2: die Sektionsfelder sind geschrieben, offset steht am Kopfende.
-        if (offset + (sessionSection is null ? SaveContract.HashLength : 0) != headerLength)
+        if (offset != headerLength)
         {
             throw new InvalidOperationException("Kopfmaß und Kodierung weichen ab.");
         }
