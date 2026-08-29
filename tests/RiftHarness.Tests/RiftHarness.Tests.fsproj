@@ -39,6 +39,7 @@
     <Compile Include="ExplorationTests.fs" Condition="Exists('ExplorationTests.fs')" />
     <Compile Include="DecisionTests.fs" Condition="Exists('DecisionTests.fs')" />
     <Compile Include="PressureTests.fs" Condition="Exists('PressureTests.fs')" />
+    <Compile Include="ContinuationTests.fs" Condition="Exists('ContinuationTests.fs')" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>
