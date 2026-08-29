@@ -4,7 +4,7 @@
 Abschnitt 0 (versionierte Savevertrags-Erweiterung V2 samt autorisierter
 additiver Persistenz-Präzisierung der vier Sitzungsverträge), der headless
 prüfbare Fortsetzungspfad über die Prozessgrenze, die interaktive
-Slot-Fähigkeit, die Beobachtungstreue, die Testmatrix (317/317) und alle
+Slot-Fähigkeit, die Beobachtungstreue, die Testmatrix (318/318) und alle
 lokalen Gates sind grün. Interaktivsmoke und Playtestausführung bleiben wegen
 der displaylosen Umgebung ausgewiesene Restpunkte mit kontrolliertem
 Code-19-Nachweis (Präzedenz T-023/T-032/T-033/T-034/T-035/T-036). Diese Datei
@@ -18,7 +18,26 @@ verschaerft, dass eine offene Instanz stets die letzte im Protokoll ist
 (validierungsstaerke nach Abschnitt 13.1; Vertragswerte unverändert), und die
 Korruptionsmatrix um genau diese drei Fälle erweitert; Encoding, Ketten- und
 Endhashs sind durch die Reparatur unverändert (Evidenzläufe unten auf dem
-reparierten Kandidaten).
+reparierten Kandidaten). Die zweite unabhängige Review-Sitzung (2026-08-30)
+hat die headless Speichererfassung repariert: schwebende Moduswechsel wurden
+zuvor vom vertraglichen Laufabschluss-Flush erfasst, bevor die
+Sektionserfassung sie las — ein Wechsel-Intent bis zwei Vorgrenzen vor
+`--save-at-tick` ging in der Sektion verloren und konnte die
+fortgesetzte Moduswahrheit stumm von der unterbrochenen Referenz abweichen
+lassen; die Erfassung liest die schwebenden Wechsel jetzt vor dem Flush, ein
+Regressionstest bindet den Fall über eine `steer`-Diskriminanz, und die
+Kettenwahrheit der Sektion ist unverändert hashneutral. Derselbe Lauf hat die
+Keymap-Standardbelegung auf die dokumentierte Hypothesenwahrheit F5/F9
+korrigiert (SDL 3.4.14: F5 = Scancode 62, F9 = 66; die vorher gebundenen
+Scancodes 58/62 waren F1/F5, kein Test hing an den Werten), den
+Erkundungsvertrags-Kopfverweis auf seinen eigenen Präzisierungsabschnitt 10
+richtiggestellt, `Q-GAM-010` in der Architektur konsistent geschrieben, den
+Schemaabsatz 13.8 auf die tatsächliche Reportwahrheit präzisiert (nur der
+sitzungslose Bestandslauf bleibt byteidentisch; die Schichtläufe ändern ihre
+persistence-Blockwerte mit Fixture-Regeneration) und Schreibfehler in den
+neuen Vertragsabschnitten bereinigt. Encoding, Ketten- und Endhashs sind auch
+durch diese Reparaturen unverändert; alle Evidenzläufe unten stammen vom
+reparierten Kandidaten.
 
 ## Ausgangslage und Abschnitt 0
 
@@ -102,22 +121,23 @@ Der gatende Vertragsspike wurde vor der Implementierung abgeschlossen:
   Bindung, ehrlicher Kettenneustart im Messausweis) und sichtbarer
   Ablehnung ohne Welt-/Kettenänderung, Report-Schemaversion 6 mit dem
   Pflichtblock `continuation`.
-- `src/Riftward.App/Command/Keymap.cs`: `save-slot` (F5, 58) und
-  `load-slot` (F9, 62) in der bestehenden Familie mit unveränderten
+- `src/Riftward.App/Command/Keymap.cs`: `save-slot` (F5, 62) und
+  `load-slot` (F9, 66) in der bestehenden Familie mit unveränderten
   Validierungsregeln.
 - `src/Riftward.App/Command/CommandReportSchema.cs`: Version-6-Dispatch,
   `ContinuationBody` mit strikten runKind-Alternativformen,
   `ValidateContinuationRelations`, optionale Sitzungsblöcke der Schichten,
   Persistenzwahrheit V2/V3 in den drei Schichtblöcken.
-- Tests: `tests/RiftHarness.Tests/ContinuationTests.fs` (10 Einheiten:
+- Tests: `tests/RiftHarness.Tests/ContinuationTests.fs` (11 Einheiten:
   Sektions-Codec-Roundtrip und Ablehnungsmatrix inklusive der beiden
   Rahmenniveau-Truncationsfälle der Review-Reparatur, V2-Umschlag mit
   V1-Leere und Versionsmonotonie, Aktivierungsgrenzen, Kettenfortsetzung
-  über die Vorgrenze, Fremdseed, CLI-Fresh-Prozesspaare builderidentisch,
-  CLI-Ablehnungsmatrix mit stabilen Exitcodes, Vertragsankerbindung),
-  Fortschreibung der Spiegel- und Persistenzbindungen in Save-/Mode-/-
-  Exploration-/Decision-/Pressure-Tests und der Bestandsschemamatrix
-  (Golden-Mutation 6→7 gemäß T-035/T-036-Präzedenz).
+  über die Vorgrenze, schwebender Wechsel an der Speichergrenze
+  (Regression der zweiten Review-Reparatur), Fremdseed, CLI-Fresh-Prozesspaare
+  builderidentisch, CLI-Ablehnungsmatrix mit stabilen Exitcodes,
+  Vertragsankerbindung), Fortschreibung der Spiegel- und Persistenzbindungen
+  in Save-/Mode-/Exploration-/Decision-/Pressure-Tests und der
+  Bestandsschemamatrix (Golden-Mutation 6→7 gemäß T-035/T-036-Präzedenz).
 
 ## Vertragskern: Fortsetzung über die Prozessgrenze
 
@@ -138,36 +158,38 @@ Fixture).
 
 ## Evidenz
 
-- Testbestand 317/317 (307 Bestand + 10 neue Fortsetzungseinträge),
-  Release-Build mit 0 Warnungen, fmt/lint 0 Befunde, security PASS,
-  rag-build, `verify` valid (runsChecked=68).
+- Testbestand 318/318 (307 Bestand + 11 T-037-Einheiten inklusive der
+  Regression „schwebender Wechsel an der Speichergrenze“), Release-Build mit
+  0 Warnungen, fmt/lint 0 Befunde, security PASS, rag-build, `verify` valid
+  (runsChecked=68).
 - Regressionsläufe der Bestandsbefehle auf dem reparierten Kandidaten:
-  `bench-sim` gate.pass=true (p99 0,491 ms, 0 Bytes je warmem Tick; der
-  erste Lauf desselben unveränderten Kandidaten verfehlte die 0-Byte-Grenze
-  mit 0,84 B/Tick als Sub-Kilobyte-Runtime-Ausreißer außerhalb des
-  Tick-Pfads und wurde transparent wiederholt), `savecheck` gate.pass=true
-  mit 19/19 Prüfklassen (Verhalten unverändert, Vertragsversionsbindung
-  fortgeschrieben auf V2), Soak-Kurzlauf 3000 Ticks diagnostisch
-  (`--diagnostic-accelerated --horizon-ticks 3000`, evidenceUnit=false)
-  gate.pass=true.
-- Autoritative CLI-Läufe (artifacts/t037/continuation-evidenz/): Speicherlauf
-  Schemaversion 6, gate.pass=true, Speichervorgrenze 8100, Slot geschrieben,
-  Endhash `e660daf4a5eb10c4`; Fortsetzungslauf Schemaversion 6, gate.pass=true,
-  Kettenfortsetzung verifiziert (48 Stichproben), restaurierte Kettenwahrheit
-  (Modus `personal`, Entscheidung gewählt, Zyklus 1) und vollständiger
-  Fehlschlag-Neustart-Erfolgspfad in der Fortsetzung; zwei unabhängige
+  `bench-sim` gate.pass=true (p99 0,485 ms, 0 Bytes je warmem Tick),
+  `savecheck` gate.pass=true mit 19/19 Prüfklassen (Verhalten unverändert,
+  Vertragsversionsbindung fortgeschrieben auf V2), Soak-Kurzlauf 3000 Ticks
+  diagnostisch (`--diagnostic-accelerated --horizon-ticks 3000`,
+  evidenceUnit=false) gate.pass=true.
+- Autoritative CLI-Läufe (artifacts/t037/continuation-evidenz-review/):
+  Speicherlauf Schemaversion 6, gate.pass=true, Speichervorgrenze 8100, Slot
+  geschrieben, Endhash `e660daf4a5eb10c4`; Fortsetzungslauf Schemaversion 6,
+  gate.pass=true, Kettenfortsetzung verifiziert (48 Stichproben),
+  restaurierte Kettenwahrheit (Modus `personal`, Entscheidung gewählt,
+  Zyklus 1) und vollständiger Fehlschlag-Neustart-Erfolgspfad in der
+  Fortsetzung (`cycleCount` = 2, Endstatus `success`); zwei unabhängige
   Fresh-Prozesspaare sind builderidentisch (Ketten- und
   Fortsetzungsidentität im Test gebunden).
 - Fremdseed 424242 am CLI: kontrollierte Ablehnung `foreign-seed` mit Code 36
   ohne Aktivierung; fehlender Slot: kontrollierte Ablehnung `slot-unreadable`
   mit Code 36; kein Teilreport gilt als Evidenz.
 - In-process-Nachweise (Testmatrix): Kettenfortsetzung byteidentisch,
-  Fremdseed ändert Start-/Endhash nachweislich bei gültiger Fortsetzung,
-  V1-Dokument lädt mit ehrlicher Sitzungsleere und unveraenderter Kette,
-  Versionen 0/3 ohne Migrationserfindung abgewiesen, Fault-Injection-Matrix
-  der Sektion (Version, Abschneidung, fremde Zone, Doppelregistrierung,
-  strategische Registrierung, beide Rahmenniveau-Truncationsfälle,
-  offene Fensterinstanz vor geschlossenen), Aktivierungsgrenzen am Slot.
+  schwebender Wechsel an der Speichervorgrenze wird in der Sektion
+  fortgesetzt und im Fortsetzungslauf an derselben Wirksamkeitsgrenze mit
+  unveränderter Reaktionswahrheit wirksam, Fremdseed ändert Start-/Endhash
+  nachweislich bei gültiger Fortsetzung, V1-Dokument lädt mit ehrlicher
+  Sitzungsleere und unveränderter Kette, Versionen 0/3 ohne
+  Migrationserfindung abgewiesen, Fault-Injection-Matrix der Sektion
+  (Version, Abschneidung, fremde Zone, Doppelregistrierung, strategische
+  Registrierung, beide Rahmenniveau-Truncationsfälle, offene Fensterinstanz
+  vor geschlossenen), Aktivierungsgrenzen am Slot.
 - Blobvergleich: alle Quelldateien von `Riftward.Simulation` sind gegen den
   Vorblob (HEAD 66051d7) byteidentisch (`git hash-object` je Datei gegen
   `git rev-parse HEAD:<Pfad>`, 9/9 Dateien, keine Abweichung).
@@ -198,7 +220,7 @@ Fixture).
   byteidentisch zur unterbrochenen Referenz (Bestandskriterium 5 fail-closed),
   zwei builderidentische Fresh-Prozesspaare, Fremdseed ändert Hashes nie die
   restaurierte Wahrheit, V1-Slots mit ehrlicher Leere, Skriptgrammatik
-  unveraendert, keine neuen Exitcodebedeutungen.
+  unverändert, keine neuen Exitcodebedeutungen.
 - **AC-T037-03** (Vertrauensgrenzen und Beobachtungstreue): Blobvergleich
   Riftward.Simulation byteidentisch; ohne Aktivierung byteidentischer
   Bestandsstand (Legacyskripte v1/v2/v3 und Schichtfixtures mit identischen
