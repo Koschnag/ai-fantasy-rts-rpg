@@ -5,6 +5,7 @@ using System.Text.Json;
 using Riftward.App.Bench;
 using Riftward.Platform;
 using Riftward.Platform.Interop;
+using Riftward.Save;
 using Riftward.Session;
 using Riftward.Simulation;
 
@@ -86,6 +87,54 @@ internal static class CommandLoopRunner
             return ExitCodes.Usage;
         }
 
+        // Opt-in Save-/Ladeaktivierung (T-037, Savevertrag V2 Abschnitte
+        // 13.2 und 13.3): headless Speicher-/Fortsetzungslauf über
+        // --save-at-tick/--load-slot mit Slotverzeichnis und Slotnamen;
+        // interaktiv die Slot-Fähigkeit der Keymap-Aktionen über --slot-dir.
+        var slotDirectory = arguments.Option("--slot-dir");
+        var slotName = arguments.Option("--slot") ?? SaveContract.InteractiveSlotName;
+        var saveAtTickRaw = arguments.Option("--save-at-tick");
+        var loadSlotRequested = arguments.HasFlag("--load-slot");
+
+        if (saveAtTickRaw is not null && loadSlotRequested)
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --save-at-tick und --load-slot schließen sich aus.");
+            return ExitCodes.Usage;
+        }
+
+        if ((saveAtTickRaw is not null || loadSlotRequested) && interactive)
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --save-at-tick und --load-slot sind headless Befehle; der Interaktivmodus speichert und lädt über die Keymap-Aktionen.");
+            return ExitCodes.Usage;
+        }
+
+        if ((saveAtTickRaw is not null || loadSlotRequested || arguments.Option("--slot") is not null)
+            && string.IsNullOrWhiteSpace(slotDirectory))
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --slot-dir VERZ ist für Save-/Ladeaktivierung erforderlich.");
+            return ExitCodes.Usage;
+        }
+
+        if (saveAtTickRaw is not null
+            && (!long.TryParse(saveAtTickRaw, out var saveAtTick) || saveAtTick < 0))
+        {
+            Console.Error.WriteLine("kommandoschleife: --save-at-tick erwartet eine nichtnegative Ganzzahl.");
+            return ExitCodes.Usage;
+        }
+
+        if (!interactive
+            && saveAtTickRaw is null
+            && !loadSlotRequested
+            && slotDirectory is not null)
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --slot-dir ohne --save-at-tick, --load-slot oder --interactive aktiviert keine Save-/Ladefähigkeit.");
+            return ExitCodes.Usage;
+        }
+
         // Szenario- und Skriptpruefung vor jedem teuren Schritt: unbekanntes
         // Szenario oder unlesbares/malformiertes Skript bricht ohne Report ab
         // (Code 37), statt einen Scheinbericht zu erzeugen.
@@ -143,10 +192,27 @@ internal static class CommandLoopRunner
             return ExitCodes.Map(PlatformErrorCode.CommandScenarioUnavailable);
         }
 
+        if (saveAtTickRaw is not null)
+        {
+            return RunHeadlessSave(
+                arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks,
+                explorationEnabled, decisionEnabled, pressureEnabled,
+                saveAtTick, slotDirectory!, slotName);
+        }
+
+        if (loadSlotRequested)
+        {
+            return RunHeadlessLoad(
+                arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks,
+                explorationEnabled, decisionEnabled, pressureEnabled,
+                slotDirectory!, slotName);
+        }
+
         return interactive
             ? RunInteractive(
                 arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks,
-                explorationEnabled, decisionEnabled, pressureEnabled, autoExitAtHorizon)
+                explorationEnabled, decisionEnabled, pressureEnabled, autoExitAtHorizon,
+                slotDirectory)
             : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled, decisionEnabled, pressureEnabled);
     }
 
@@ -297,6 +363,522 @@ internal static class CommandLoopRunner
         // Der Grund ist Bestandteil des vertraglichen Reportinhalts und wird
         // durch einen Suiteeintrag gegen die Kennung gebunden (T-032).
         return new WorkingSetSamples(false, null, null, null, "headless-session-does-not-sample-rss");
+    }
+
+    /* ------------------------------------------------ Fortsetzung (T-037) */
+
+    /// <summary>Gemeinsame Befehlsfahrkarte des headless Save-/Ladelaufs.</summary>
+    private sealed record ContinuationFrame(
+        SystemInfo.Environment Environment,
+        DateTime ProcessStart,
+        string Commit,
+        string BuildMode,
+        IReadOnlyList<ToolchainPin> Pins);
+
+    private static ContinuationFrame CaptureFrame(CommandLineArgs arguments)
+    {
+        var environment = SystemInfo.Capture();
+        var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+        var commit = BenchEnvironment.CommitId();
+        var buildMode = BenchEnvironment.BuildMode();
+        IReadOnlyList<ToolchainPin> pins;
+
+        try
+        {
+            pins = ToolchainLockReader.ReadNativeComponents(arguments.Option("--lock") ?? "toolchain.lock.json");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException($"Toolchain-Lock nicht lesbar: {exception.Message}");
+        }
+
+        return new ContinuationFrame(environment, processStart, commit, buildMode, pins);
+    }
+
+    /// <summary>
+    /// Headless Speicherlauf (Savevertrag V2, Abschnitt 13.2): spielt die
+    /// Kette bis zur Speichervorgrenze, schreibt Simulation plus
+    /// Sitzungsschicht atomar in den Slot und endet. Der Report bindet
+    /// Speichergrenze, Slotgebnis und Sektion maschinenlesbar rein additiv
+    /// (Schemaversion 6); der Gatevertrag bleibt unverändert über das
+    /// Speicherfenster.
+    /// </summary>
+    private static int RunHeadlessSave(
+        CommandLineArgs arguments,
+        string reportPath,
+        uint seed,
+        ParsedInputScript parsed,
+        int warmupTicks,
+        int horizonTicks,
+        bool explorationEnabled,
+        bool decisionEnabled,
+        bool pressureEnabled,
+        long saveAtTick,
+        string slotDirectory,
+        string slotName)
+    {
+        ContinuationFrame frame;
+
+        try
+        {
+            frame = CaptureFrame(arguments);
+        }
+        catch (InvalidOperationException exception)
+        {
+            Console.Error.WriteLine($"kommandoschleife: {exception.Message}");
+            return ExitCodes.Map(PlatformErrorCode.ArtifactManifestInvalid);
+        }
+
+        SessionRunResult result;
+        SessionSaveCapture capture;
+        var intentPlanHash = ulong.Parse(parsed.IntentPlanHashHex, System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+
+        try
+        {
+            (result, capture) = SessionEngine.RunWithSaveBoundary(new SessionRunRequest(
+                Seed: seed,
+                ScriptedIntents: parsed.Intents,
+                WarmupTicks: warmupTicks,
+                HorizonTicks: horizonTicks,
+                RunSelfConsistencyPass: true,
+                ExplorationEnabled: explorationEnabled,
+                DecisionEnabled: decisionEnabled,
+                PressureEnabled: pressureEnabled), saveAtTick);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
+            return WriteIncompleteContinuationReport(
+                reportPath, seed, parsed, warmupTicks, horizonTicks, frame,
+                explorationEnabled, decisionEnabled, pressureEnabled,
+                SaveContract.HeadlessSaveActivationId, "save",
+                slotName, rejection: new ContinuationRunner.SlotRejection("run-incomplete-before-save", exception.Message),
+                saveBoundaryTick: saveAtTick);
+        }
+
+        var writeResult = ContinuationRunner.WriteSlot(slotDirectory, slotName, capture, intentPlanHash, frame.Commit);
+        var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
+            P99TickTimeMs: result.Metrics.P99TickTimeMs,
+            ManagedAllocationsPerWarmTickBytes: result.Metrics.AllocationsPerWarmTickBytes,
+            MaxReactionTicks: result.Metrics.MaxReactionTicks,
+            ReactionSampleCount: result.Metrics.ReactionSampleCount,
+            RuntimeShaderCompilationObserved: false,
+            StateChainSelfConsistent: result.StateChainSelfConsistent,
+            MaxSwitchReactionTicks: result.Telemetry.MaxSwitchReactionTicks,
+            SwitchReactionSampleCount: result.Telemetry.SwitchReactionSampleCount));
+        var gateExitCode = verdict.Pass ? ExitCodes.Ok : ExitCodes.Map(PlatformErrorCode.CommandGateViolated);
+
+        // Ein fehlgeschlagener Slot-Schreibvorgang ist ein unvollständiger
+        // Lauf (Code 36, Savevertrag V2 Abschnitt 13.8) und dominiert das
+        // Gateverdict; der letzte gültige Stand bleibt unangetastet.
+        var exitCode = writeResult.Success
+            ? gateExitCode
+            : ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete);
+
+        var continuation = new Dictionary<string, object?>
+        {
+            ["runKind"] = "save",
+            ["saveBoundaryTick"] = capture.BoundaryTick,
+            ["slot"] = slotName,
+            ["slotWritten"] = writeResult.Success,
+            ["slotWritePhase"] = writeResult.Phase,
+            ["slotWriteError"] = writeResult.Error,
+            ["sessionSection"] = new Dictionary<string, object>
+            {
+                ["present"] = true,
+                ["sectionVersion"] = (long)SessionSectionCodec.SectionVersion,
+                ["codecId"] = SessionSectionCodec.CodecId,
+            },
+            ["scriptIntentsBeforeBoundary"] = parsed.Intents.Count(intent => intent.Tick < capture.BoundaryTick),
+            ["replay"] = "not-continued",
+            ["gateCoupled"] = false,
+        };
+
+        var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
+            ExecutionMode: CommandReportSchema.ExecutionHeadless,
+            Seed: seed,
+            Parsed: parsed,
+            WarmupTicks: warmupTicks,
+            HorizonTicks: horizonTicks,
+            TicksExecutedOverride: capture.BoundaryTick,
+            SampleTicksOverride: capture.BoundaryTick - warmupTicks,
+            ProcessStart: frame.ProcessStart,
+            Commit: frame.Commit,
+            BuildMode: frame.BuildMode,
+            Environment: frame.Environment,
+            Pins: frame.Pins,
+            Metrics: result.Metrics,
+            StartHash: result.StartStateHash,
+            EndHash: result.EndStateHash,
+            IntervalSampleTicks: result.IntervalSampleTicks,
+            IntervalHashes: result.IntervalHashes,
+            AppliedIntents: result.AppliedIntents,
+            RejectedIntents: result.RejectedIntents,
+            EmptyPointDeselects: result.EmptyPointDeselects,
+            MoveWithoutSelectionRejects: result.MoveWithoutSelectionRejects,
+            NoZoneRejects: 0,
+            KernelCommandsTotal: result.KernelCommandsTotal,
+            Verdict: verdict,
+            WindowCompleted: true,
+            Capture: NotRequestedCapture(),
+            Display: null,
+            WorkingSet: WorkingSetFrom(result),
+            ExitCode: exitCode,
+            Telemetry: result.Telemetry,
+            Exploration: result.Exploration,
+            Decision: result.Decision,
+            Pressure: result.Pressure,
+            Continuation: continuation)), BenchRunner.ReportJsonOptions) + "\n";
+
+        if (!writeResult.Success)
+        {
+            Console.Error.WriteLine(
+                $"kommandoschleife: Slot konnte nicht geschrieben werden (Phase {writeResult.Phase}): {writeResult.Error}");
+        }
+
+        return FinishReport(reportPath, reportJson, exitCode);
+    }
+
+    /// <summary>
+    /// Headless Fortsetzungslauf (Savevertrag V2, Abschnitt 13.2): frischer
+    /// Prozess, vollständig validierter Slot, restaurierte Welt und
+    /// Sitzungsschicht, Fortsetzung ab der Ladegrenze. Die Kettenfortsetzung
+    /// bindet das Bestandskriterium 5 fail-closed gegen die unterbrochene
+    /// In-Prozess-Referenz; die restaurierte Kettenwahrheit und die
+    /// Fortsetzungsidentität sind rein additive, nicht gategekoppelte
+    /// Reportfelder.
+    /// </summary>
+    private static int RunHeadlessLoad(
+        CommandLineArgs arguments,
+        string reportPath,
+        uint seed,
+        ParsedInputScript parsed,
+        int warmupTicks,
+        int horizonTicks,
+        bool explorationEnabled,
+        bool decisionEnabled,
+        bool pressureEnabled,
+        string slotDirectory,
+        string slotName)
+    {
+        ContinuationFrame frame;
+
+        try
+        {
+            frame = CaptureFrame(arguments);
+        }
+        catch (InvalidOperationException exception)
+        {
+            Console.Error.WriteLine($"kommandoschleife: {exception.Message}");
+            return ExitCodes.Map(PlatformErrorCode.ArtifactManifestInvalid);
+        }
+
+        var (loadedCapture, slotRejection) = ContinuationRunner.LoadSlot(slotDirectory, slotName, seed);
+
+        if (slotRejection is not null)
+        {
+            Console.Error.WriteLine(
+                $"kommandoschleife: Slot abgewiesen - {slotRejection.Reason}: {slotRejection.Detail}");
+            return WriteIncompleteContinuationReport(
+                reportPath, seed, parsed, warmupTicks, horizonTicks, frame,
+                explorationEnabled, decisionEnabled, pressureEnabled,
+                SaveContract.HeadlessLoadActivationId, "load",
+                slotName, slotRejection, saveBoundaryTick: null);
+        }
+
+        // Aktivierungskonsistenz (Savevertrag V2 Abschnitt 13.2): die
+        // Schichtflags des Fortsetzungslaufs müssen mit der Sektion
+        // übereinstimmen; ein Widerspruch ist ein kontrollierter Abbruch
+        // ohne Aktivierung.
+        if (loadedCapture!.Session.ExplorationActive != (byte)(explorationEnabled ? 1 : 0)
+            || loadedCapture.Session.DecisionActive != (byte)(decisionEnabled ? 1 : 0)
+            || loadedCapture.Session.PressureActive != (byte)(pressureEnabled ? 1 : 0))
+        {
+            var mismatch = new ContinuationRunner.SlotRejection(
+                "layer-activation-mismatch",
+                "Die Schichtaktivierung des Fortsetzungslaufs widerspricht der Sitzungssektion des Slots.");
+            Console.Error.WriteLine($"kommandoschleife: Slot abgewiesen - {mismatch.Reason}: {mismatch.Detail}");
+            return WriteIncompleteContinuationReport(
+                reportPath, seed, parsed, warmupTicks, horizonTicks, frame,
+                explorationEnabled, decisionEnabled, pressureEnabled,
+                SaveContract.HeadlessLoadActivationId, "load",
+                slotName, mismatch, saveBoundaryTick: null);
+        }
+
+        SessionContinuationResult continuation;
+
+        try
+        {
+            continuation = SessionEngine.RunFromSessionSave(new SessionRunRequest(
+                Seed: seed,
+                ScriptedIntents: parsed.Intents,
+                WarmupTicks: warmupTicks,
+                HorizonTicks: horizonTicks,
+                RunSelfConsistencyPass: true,
+                ExplorationEnabled: explorationEnabled,
+                DecisionEnabled: decisionEnabled,
+                PressureEnabled: pressureEnabled), loadedCapture);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
+            return WriteIncompleteContinuationReport(
+                reportPath, seed, parsed, warmupTicks, horizonTicks, frame,
+                explorationEnabled, decisionEnabled, pressureEnabled,
+                SaveContract.HeadlessLoadActivationId, "load",
+                slotName, new ContinuationRunner.SlotRejection("run-incomplete-after-load", exception.Message),
+                saveBoundaryTick: null);
+        }
+
+        var result = continuation.Result;
+        var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
+            P99TickTimeMs: result.Metrics.P99TickTimeMs,
+            ManagedAllocationsPerWarmTickBytes: result.Metrics.AllocationsPerWarmTickBytes,
+            MaxReactionTicks: result.Metrics.MaxReactionTicks,
+            ReactionSampleCount: result.Metrics.ReactionSampleCount,
+            RuntimeShaderCompilationObserved: false,
+            StateChainSelfConsistent: continuation.ChainContinuityVerified,
+            MaxSwitchReactionTicks: result.Telemetry.MaxSwitchReactionTicks,
+            SwitchReactionSampleCount: result.Telemetry.SwitchReactionSampleCount));
+        var gateExitCode = verdict.Pass ? ExitCodes.Ok : ExitCodes.Map(PlatformErrorCode.CommandGateViolated);
+
+        var continuationBlock = BuildLoadContinuationBlock(
+            loadedCapture, continuation, slotName, parsed);
+
+        var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
+            ExecutionMode: CommandReportSchema.ExecutionHeadless,
+            Seed: seed,
+            Parsed: parsed,
+            WarmupTicks: warmupTicks,
+            HorizonTicks: horizonTicks,
+            ProcessStart: frame.ProcessStart,
+            Commit: frame.Commit,
+            BuildMode: frame.BuildMode,
+            Environment: frame.Environment,
+            Pins: frame.Pins,
+            Metrics: result.Metrics,
+            StartHash: result.StartStateHash,
+            EndHash: result.EndStateHash,
+            IntervalSampleTicks: result.IntervalSampleTicks,
+            IntervalHashes: result.IntervalHashes,
+            AppliedIntents: result.AppliedIntents,
+            RejectedIntents: result.RejectedIntents,
+            EmptyPointDeselects: result.EmptyPointDeselects,
+            MoveWithoutSelectionRejects: result.MoveWithoutSelectionRejects,
+            NoZoneRejects: 0,
+            KernelCommandsTotal: result.KernelCommandsTotal,
+            Verdict: verdict,
+            WindowCompleted: true,
+            Capture: NotRequestedCapture(),
+            Display: null,
+            WorkingSet: WorkingSetFrom(result),
+            ExitCode: gateExitCode,
+            Telemetry: result.Telemetry,
+            Exploration: result.Exploration,
+            Decision: result.Decision,
+            Pressure: result.Pressure,
+            Continuation: continuationBlock)), BenchRunner.ReportJsonOptions) + "\n";
+
+        return FinishReport(reportPath, reportJson, gateExitCode);
+    }
+
+    /// <summary>
+    /// Ladeseitiger Fortsetzungsblock (Savevertrag V2, Abschnitt 13.8):
+    /// restaurierte Kettenwahrheit (Modus, Erkundung, Entscheidung,
+    /// Druck/Zyklus), Fortsetzungsidentität und die ehrliche V1-Leere —
+    /// sämtliche Felder rein additiv und nicht gategekoppelt; die
+    /// Kettenfortsetzung bindet ausschließlich der Bestandskriterium-5-
+    /// Ausweis des Gates.
+    /// </summary>
+    private static Dictionary<string, object?> BuildLoadContinuationBlock(
+        SessionSaveCapture capture,
+        SessionContinuationResult continuation,
+        string slotName,
+        ParsedInputScript parsed)
+    {
+        var section = capture.Session;
+        var restored = new Dictionary<string, object?>
+        {
+            ["boundaryTick"] = capture.BoundaryTick,
+            ["mode"] = section.ActiveMode == 1 ? ModeContract.ModePersonalId : ModeContract.ModeStrategicId,
+            ["exploration"] = section.ExplorationActive != 0
+                ? new Dictionary<string, object?>
+                {
+                    ["active"] = true,
+                    ["visitedCount"] = section.ExplorationVisits.Count,
+                    ["landmarkCount"] = NavWorld.ZoneCount,
+                    ["completed"] = section.ExplorationVisits.Count == NavWorld.ZoneCount,
+                }
+                : new Dictionary<string, object?> { ["active"] = false },
+            ["decision"] = section.DecisionActive != 0
+                ? new Dictionary<string, object?>
+                {
+                    ["active"] = true,
+                    ["offerOpened"] = section.DecisionOfferOpened != 0,
+                    ["decided"] = section.DecisionDecided != 0,
+                    ["followUpZoneIndex"] = section.DecisionFollowUpZoneIndex,
+                    ["followUpCompleted"] = section.DecisionFollowUpCompleted != 0,
+                }
+                : new Dictionary<string, object?> { ["active"] = false },
+            ["pressure"] = section.PressureActive != 0
+                ? new Dictionary<string, object?>
+                {
+                    ["active"] = true,
+                    ["cycleCount"] = section.PressureCycleCount,
+                    ["lastFailureCause"] = section.PressureHasLastFailure != 0
+                        ? PressureContract.FailureCauseWindowExpired
+                        : null,
+                    ["endStatus"] = ResolveRestoredPressureEndStatus(section),
+                }
+                : new Dictionary<string, object?> { ["active"] = false },
+        };
+
+        return new Dictionary<string, object?>
+        {
+            ["runKind"] = "load",
+            ["loadBoundaryTick"] = capture.BoundaryTick,
+            ["slot"] = slotName,
+            ["loadAccepted"] = true,
+            ["rejection"] = null,
+            ["fromLegacyV1Document"] = false,
+            ["sessionSection"] = new Dictionary<string, object>
+            {
+                ["present"] = true,
+                ["sectionVersion"] = (long)SessionSectionCodec.SectionVersion,
+                ["codecId"] = SessionSectionCodec.CodecId,
+            },
+            ["restored"] = restored,
+            ["chainContinuity"] = new Dictionary<string, object?>
+            {
+                ["verified"] = continuation.ChainContinuityVerified,
+                ["reasons"] = continuation.ContinuityReasons,
+                ["comparedSamples"] = continuation.ComparedSampleCount,
+                ["referenceEndHash"] = FormatHash(continuation.ReferenceEndHash),
+                ["continuationEndHash"] = FormatHash(continuation.Result.EndStateHash),
+            },
+            ["scriptIntentsBeforeBoundary"] = parsed.Intents.Count(intent => intent.Tick < capture.BoundaryTick),
+            ["replay"] = "not-continued",
+            ["gateCoupled"] = false,
+        };
+    }
+
+    /// <summary>Ehrlicher Druck-Endstatus des restaurierten Sektionsstand.</summary>
+    internal static string ResolveRestoredPressureEndStatus(SessionSectionState section)
+    {
+        if (section.PressureCycleCount == 0)
+        {
+            return PressureContract.EndStatusNotStarted;
+        }
+
+        if (section.PressureWindows.Count > 0
+            && section.PressureWindows[^1].EndBoundaryTick == PressureWindowEvent.UnsetBoundaryTick)
+        {
+            return PressureContract.EndStatusWindowOpen;
+        }
+
+        return section.PressureWindows.Count > 0
+            && section.PressureWindows[^1].EndReasonKind == SessionSectionCodec.EndReasonExpired
+            ? PressureContract.EndStatusRestartPending
+            : PressureContract.EndStatusSuccess;
+    }
+
+    /// <summary>
+    /// Teilreport eines unvollständigen Save-/Ladelaufs (Code 36): die
+    /// Save-/Ladeaktivierung bleibt mit ihrer Ablehnung maschinenlesbar
+    /// gebunden; der Teilreport gilt ausdrücklich nicht als Evidenz.
+    /// </summary>
+    private static int WriteIncompleteContinuationReport(
+        string reportPath,
+        uint seed,
+        ParsedInputScript parsed,
+        int warmupTicks,
+        int horizonTicks,
+        ContinuationFrame frame,
+        bool explorationEnabled,
+        bool decisionEnabled,
+        bool pressureEnabled,
+        string activationId,
+        string runKind,
+        string slotName,
+        ContinuationRunner.SlotRejection? rejection,
+        long? saveBoundaryTick)
+    {
+        var verdict = new CommandGateVerdict(
+            Pass: false,
+            TickTimeTargetMet: false,
+            ReactionTargetMet: false,
+            Violations: ["run-incomplete-no-evidence"]);
+
+        var zeroMetrics = new SessionMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        var continuation = new Dictionary<string, object?>
+        {
+            ["runKind"] = runKind,
+            ["saveBoundaryTick"] = saveBoundaryTick,
+            ["loadBoundaryTick"] = null,
+            ["slot"] = slotName,
+            ["slotWritten"] = false,
+            ["slotWritePhase"] = null,
+            ["slotWriteError"] = runKind == "save" && rejection is not null ? rejection.Detail : null,
+            ["loadAccepted"] = false,
+            ["rejection"] = rejection is null
+                ? null
+                : new Dictionary<string, object?> { ["reason"] = rejection.Reason, ["detail"] = rejection.Detail },
+            ["fromLegacyV1Document"] = false,
+            ["sessionSection"] = new Dictionary<string, object?>
+            {
+                ["present"] = false,
+                ["sectionVersion"] = null,
+                ["codecId"] = SessionSectionCodec.CodecId,
+            },
+            ["restored"] = null,
+            ["chainContinuity"] = null,
+            ["scriptIntentsBeforeBoundary"] = null,
+            ["replay"] = "not-continued",
+            ["gateCoupled"] = false,
+        };
+
+        var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
+            ExecutionMode: CommandReportSchema.ExecutionHeadless,
+            Seed: seed,
+            Parsed: parsed,
+            WarmupTicks: warmupTicks,
+            HorizonTicks: horizonTicks,
+            ProcessStart: frame.ProcessStart,
+            Commit: frame.Commit,
+            BuildMode: frame.BuildMode,
+            Environment: frame.Environment,
+            Pins: Array.Empty<ToolchainPin>(),
+            Metrics: zeroMetrics,
+            StartHash: 0,
+            EndHash: 0,
+            IntervalSampleTicks: [0],
+            IntervalHashes: [0],
+            AppliedIntents: 0,
+            RejectedIntents: 0,
+            EmptyPointDeselects: 0,
+            MoveWithoutSelectionRejects: 0,
+            NoZoneRejects: 0,
+            KernelCommandsTotal: 0,
+            Verdict: verdict,
+            WindowCompleted: false,
+            Capture: NotRequestedCapture(),
+            Display: null,
+            WorkingSet: new WorkingSetSamples(false, null, null, null, "run-incomplete"),
+            ExitCode: ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete),
+            Hud: new
+            {
+                measured = false,
+                kind = ModeContract.HudModelId,
+                reason = "run-incomplete-hud-not-asserted",
+            },
+            Exploration: ResolveIncompleteExploration(explorationEnabled, null),
+            Decision: ResolveIncompleteDecision(decisionEnabled, null),
+            Pressure: ResolveIncompletePressure(pressureEnabled, decisionEnabled, null, null),
+            Continuation: continuation,
+            ContinuationActivationId: activationId)), BenchRunner.ReportJsonOptions) + "\n";
+
+        Console.Error.WriteLine("kommandoschleife: Teilreport gilt ausdruecklich nicht als Evidenz.");
+        return FinishReport(reportPath, reportJson, ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete));
     }
 
     /* ----------------------------------------------------------- Interaktiv */
@@ -1861,7 +2443,30 @@ internal static class CommandLoopRunner
         object? Hud = null,
         ExplorationTelemetry? Exploration = null,
         DecisionTelemetry? Decision = null,
-        PressureTelemetry? Pressure = null);
+        PressureTelemetry? Pressure = null,
+        IReadOnlyDictionary<string, object?>? Continuation = null,
+        string? ContinuationActivationId = null,
+        int? TicksExecutedOverride = null,
+        int? SampleTicksOverride = null,
+        InteractiveSlotState? SlotState = null);
+
+    /// <summary>
+    /// Interaktiver Slotzustand eines fensterpflichtigen Laufs mit
+    /// --slot-dir (Savevertrag V2 Abschnitt 13.3): Zähler und das ehrliche
+    /// Ergebnis der letzten Aktion, rein diagnostisch.
+    /// </summary>
+    internal sealed record InteractiveSlotState(
+        long Saves,
+        long Loads,
+        bool SlotDirectoryConfigured,
+        InteractiveSlotOutcome? LastSave = null,
+        InteractiveSlotOutcome? LastLoad = null);
+
+    internal sealed record InteractiveSlotOutcome(
+        bool Accepted,
+        string? Reason,
+        string? RestoredMode,
+        long? RestoredBoundaryTick);
 
     /// <summary>
     /// Baut den Report: ohne Opt-in Aktivierung exakt den Bestandsreport
@@ -1875,13 +2480,15 @@ internal static class CommandLoopRunner
     {
         var report = new Dictionary<string, object>
         {
-            ["schemaVersion"] = ctx.Pressure is not null
-                ? PressureContract.ReportSchemaVersionWithPressure
-                : ctx.Decision is not null
-                    ? DecisionContract.ReportSchemaVersionWithDecision
-                    : ctx.Exploration is null
-                        ? CommandReportSchema.VersionWithoutExploration
-                        : CommandReportSchema.VersionWithExploration,
+            ["schemaVersion"] = ctx.Continuation is not null
+                ? SaveContract.ReportSchemaVersionWithContinuation
+                : ctx.Pressure is not null
+                    ? PressureContract.ReportSchemaVersionWithPressure
+                    : ctx.Decision is not null
+                        ? DecisionContract.ReportSchemaVersionWithDecision
+                        : ctx.Exploration is null
+                            ? CommandReportSchema.VersionWithoutExploration
+                            : CommandReportSchema.VersionWithExploration,
             ["mode"] = CommandReportSchema.ModeCommandLoop,
             ["executionMode"] = ctx.ExecutionMode,
             ["command"] = $"{CommandName} --scenario {SessionContract.ScenarioId} --input-script <PFAD> --seed N --report <PFAD>",
@@ -1929,6 +2536,11 @@ internal static class CommandLoopRunner
                 ctx.ExecutionMode, ctx.WindowCompleted, pressure);
         }
 
+        if (ctx.Continuation is { } continuation)
+        {
+            report["continuation"] = BuildContinuation(continuation, ctx.ContinuationActivationId);
+        }
+
         report["simulationContract"] = new
         {
             document = SimulationContract.DocumentPath,
@@ -1957,8 +2569,8 @@ internal static class CommandLoopRunner
         report["measurement"] = new
         {
             warmupTicks = (long)ctx.WarmupTicks,
-            sampleTicks = (long)(ctx.HorizonTicks - ctx.WarmupTicks),
-            ticksExecuted = (long)ctx.HorizonTicks,
+            sampleTicks = (long)(ctx.SampleTicksOverride ?? (ctx.HorizonTicks - ctx.WarmupTicks)),
+            ticksExecuted = (long)(ctx.TicksExecutedOverride ?? ctx.HorizonTicks),
             hashSampleIntervalTicks = (long)SessionContract.HashSampleIntervalTicks,
             rssSampleIntervalTicks = (long)SessionContract.RssSampleIntervalTicks,
             windowCompleted = ctx.WindowCompleted,
@@ -2085,10 +2697,10 @@ internal static class CommandLoopRunner
             },
             ["persistence"] = new Dictionary<string, object>
             {
-                ["statementId"] = ExplorationContract.NotPersistedStatementId,
+                ["statementId"] = ExplorationContract.SaveLoadPersistenceStatementId,
                 ["persisted"] = ExplorationContract.Persisted,
-                ["saveLoad"] = "not-continued",
-                ["replay"] = "not-continued",
+                ["saveLoad"] = ExplorationContract.SaveLoadContinuation,
+                ["replay"] = ExplorationContract.ReplayNotContinued,
                 ["gateCoupled"] = false,
             },
             ["gateCoupled"] = false,
@@ -2213,10 +2825,10 @@ internal static class CommandLoopRunner
             },
             ["persistence"] = new Dictionary<string, object>
             {
-                ["statementId"] = DecisionContract.NotPersistedStatementId,
+                ["statementId"] = DecisionContract.SaveLoadPersistenceStatementId,
                 ["persisted"] = DecisionContract.Persisted,
-                ["saveLoad"] = "not-continued",
-                ["replay"] = "not-continued",
+                ["saveLoad"] = DecisionContract.SaveLoadContinuation,
+                ["replay"] = DecisionContract.ReplayNotContinued,
                 ["gateCoupled"] = false,
             },
             ["gateCoupled"] = false,
@@ -2331,10 +2943,10 @@ internal static class CommandLoopRunner
             },
             ["persistence"] = new Dictionary<string, object>
             {
-                ["statementId"] = PressureContract.NotPersistedStatementId,
+                ["statementId"] = PressureContract.SaveLoadPersistenceStatementId,
                 ["persisted"] = PressureContract.Persisted,
-                ["saveLoad"] = "not-continued",
-                ["replay"] = "not-continued",
+                ["saveLoad"] = PressureContract.SaveLoadContinuation,
+                ["replay"] = PressureContract.ReplayNotContinued,
                 ["gateCoupled"] = false,
             },
             ["gateCoupled"] = false,
@@ -2374,6 +2986,47 @@ internal static class CommandLoopRunner
                     ["reason"] = unavailableReason,
                 },
         };
+    }
+
+    /// <summary>
+    /// Fortsetzungsblock des Reports (T-037, Savevertrag V2 Abschnitt 13.8):
+    /// Vertrags- und Modellbindungen, Aktivierungsform, Slotgebnis, die
+    /// wiederhergestellte Kettenwahrheit und die Fortsetzungsidentität —
+    /// rein additiv, sämtliche Felder gateCoupled=false; die Kettenfort-
+    /// setzung bindet ausschließlich der Bestandskriterium-5-Ausweis des
+    /// Gates. Im Interaktivmodus bindet der Block die Slot-Fähigkeit der
+    /// Keymap-Aktionen mit ihren Zählern und dem ehrlichen letzten Ergebnis.
+    /// </summary>
+    private static Dictionary<string, object> BuildContinuation(
+        IReadOnlyDictionary<string, object?> continuation,
+        string? activationId)
+    {
+        var block = new Dictionary<string, object>
+        {
+            ["contract"] = new Dictionary<string, object>
+            {
+                ["document"] = SaveContract.DocumentPath,
+                ["version"] = SaveContract.ContractVersion,
+            },
+            ["activationId"] = activationId
+                ?? (continuation.TryGetValue("runKind", out var kind) && Equals(kind, "interactive")
+                    ? SaveContract.InteractiveSlotActivationId
+                    : throw new InvalidOperationException("Fortsetzungsblock ohne Aktivierungskennung.")),
+            ["activationModel"] = Equals(continuation.GetValueOrDefault("runKind"), "interactive")
+                ? SaveContract.InteractiveActivationModelId
+                : SaveContract.HeadlessActivationModelId,
+            ["sectionModel"] = SaveContract.SessionSectionModelId,
+            ["codecBoundary"] = SaveContract.CodecBoundaryModelId,
+            ["legacyEmptiness"] = SaveContract.LegacyEmptinessModelId,
+            ["activationGuards"] = SaveContract.ActivationGuardModelId,
+        };
+
+        foreach (var pair in continuation)
+        {
+            block[pair.Key] = pair.Value!;
+        }
+
+        return block;
     }
 
     private static Dictionary<string, object> BuildEnvironment(ReportContext ctx)
