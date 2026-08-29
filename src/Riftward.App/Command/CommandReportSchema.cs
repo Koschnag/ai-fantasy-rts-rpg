@@ -1204,7 +1204,7 @@ public static class CommandReportSchema
                 errors.Add($"{pressurePath}.windows: ohne wirksame Entscheidung gibt es keine Fensterinstanz.");
             }
         }
-        else if ((failureCause is null) != (failureBoundary is { } boundFailure && boundFailure >= 0))
+        else if ((failureCause is not null) != (failureBoundary is { } boundFailure && boundFailure >= 0))
         {
             errors.Add($"{pressurePath}.lastFailure: Grenze und Ursache tragen dieselbe Aussage.");
         }
