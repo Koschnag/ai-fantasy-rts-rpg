@@ -1,6 +1,8 @@
 # Druckvertrag (T-036, Abschnitt 0)
 
-**Vertragsversion:** 1
+**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
+Persistenz-Präzisierung gemäß Savevertrag V2/T-037, Abschnitt 14; alle
+übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-036-graybox-pressure-restart.json` vor der Implementierung
 festgelegt; die maschinenlesbaren Kennungen sind in
@@ -415,16 +417,45 @@ Definitionsformat), Q-TEC-010 (tolerierte Benchmarkstreuung), Q-OPS-001
 (Referenzhardware; Pflichtprofile bleiben `NOT-MEASURED`). Es gibt keinen
 Fog of War, keine Minimap, keine Aufklärungs- oder Sichtbarkeitssemantik
 (GS-007 bleibt unberührt), keine Audio- oder Shipping-Assetaussage
-(Q-TEC-007, Q-AST-001/Q-AST-002), keine Persistenz in jeder Form, keinen
+(Q-TEC-007, Q-AST-001/Q-AST-002), außer durch die autorisierte V2-
+Persistenz-Präzisierung (Abschnitt 14) keine weitere Persistenz, keinen
 Out-of-Session-Neustart (Hauptmenü, Neues Spiel, Prozessneustart,
 Weltneuaufbau — der Neustart dieses Vertrags ist ausschließlich der
 sitzungslokale Auftragszyklus), keinen Windows-/macOS-Scope (T-011,
 Q-OPS-002/Q-OPS-003) und keine Budgetänderung jeder Art. GAME_DESIGN.md und
 ANFORDERUNGEN.md bleiben durch die Implementierung unberührt;
 `docs/MODEVERTRAG.md`, `docs/KOMMANDOVERTRAG.md` und
-`docs/ERKUNDUNGSVERTRAG.md` bleiben byteidentisch;
+`docs/ERKUNDUNGSVERTRAG.md` bleiben durch diese Druckschicht byteidentisch;
 `docs/ENTSCHEIDUNGSVERTRAG.md` ändert sich ausschließlich durch die
 autorisierte additive Zyklus-Präzisierung (V2, Abschnitt 13);
 `docs/ARCHITEKTUR.md` hält die sitzungslokale Druck-, Fehlschlags- und
 Neustartsemantik in den Laufzeitverträgen fest; `docs/AUTOMATION.md` bildet
 die Aktivierung und die Reportfelder ab.
+
+## 14. Autorisierte additive Persistenz-Präzisierung (V2, T-037)
+
+**Änderungsumfang (ausschließlich diese eine Wahrheitsänderung):** Die
+versionierte Nichtpersistenzaussage `pressure-session-local-not-persisted-v1`
+(Abschnitt 8) wird durch die Savevertrags-Erweiterung V2 (T-037, SAVEVERTRAG
+Abschnitt 13.6) zu einer versionierten Save/Load-Persistenzaussage präzisiert:
+Fensterinstanzen, Fehlschlags-/Neustart- und Zykluszustand sind ab dieser
+Vertragsversion über die additive Sitzungssektion in Save/Load fortsetzbar
+(`persisted=true`, `saveLoad=continued`). Die **ausdrückliche
+Replay-Ausnahme** bleibt bestehen: Replay und Soak setzen den Druckzustand
+nicht fort (`replay=not-continued`). Die Schicht ist weiterhin rein
+sitzungsseitig, erzeugt niemals einen Kernbefehl und ist nie Teil des
+Simulationszustands oder Hashes; kein Sektionsbyte berührt die Hashkette.
+
+**Unverändert bleiben:** Auslöseregel, Zeitbasis, Fehlschlags- und
+Neustartregel, Erfolgsregel, Feedback, Aktivierungsform und alle Exitcodes
+(Abschnitte 2 bis 7 und 9 bis 13). **Grund und Begrenzung:** Die Präzisierung
+ist die vom Auftrag `.ai/tasks/T-037-graybox-continuation-restart.json`
+autorisierte additive Voraussetzung des Fortsetzungsschritts und antwortet
+auf keine offene Produktfrage. **Rückrollweg:** Umkehr auf V1
+(Nichtpersistenz) durch Vertragsversionswechsel mit Neubau und Fixture-
+Regeneration; die Sektion trägt dann ehrliche Sitzungsleere für die
+Druckschicht. **Fixture-Regeneration:** Tests, die
+`pressure-session-local-not-persisted-v1` und `persisted=false` gebunden
+haben, wurden im selben Kandidaten auf die V2-Präzisierung fortgeschrieben;
+Fenster-, Ketten- und Endhashbindungen der T-036-Flüsse bleiben unverändert
+gültig.

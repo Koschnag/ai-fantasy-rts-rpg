@@ -1,6 +1,8 @@
 # Savevertrag (T-031, Abschnitt 0)
 
-**Vertragsversion:** 1
+**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
+Sitzungssektions-Erweiterung gemäß `.ai/tasks/T-037-graybox-continuation-restart.json`,
+Abschnitt 13; alle übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-031-atomic-save-load.json` festgelegt, bevor die
 Saveimplementierung (Kodierung, Validierung, Slotprotokoll, `savecheck`-Lauf)
@@ -348,3 +350,314 @@ Hashklasse K3: nicht behauptet), keine Signatur-/Anti-Cheat-Zusagen und keine
 fachlichen Spielregeln. F-005 bleibt anteilig offen, solange die
 vollständige WorldState-/MissionState-Payload des Vertical Slice nicht
 existiert (T-030/T-051).
+
+## 13. Versionierte Erweiterung V2 (T-037): additive Sitzungssektion
+
+**Status:** Durch den gatenden Abschnitt-0-Spike des Auftrags
+`.ai/tasks/T-037-graybox-continuation-restart.json` vor der Implementierung
+festgelegt. Diese Erweiterung macht den letzten benannten Muss-Element-Block
+des Alpha-Loops des Release-Modus („Save/Load überlebt einen
+Prozessneustart“, UF-001 Schritt 9 und UF-002) über der abgenommenen
+T-032-/T-033-Laufzeitlinie prüfbar. Sie antwortet auf keine offene
+Produktfrage: Q-GAM-001 bis Q-GAM-007, Q-GAM-010 (Produkt-Persistenzwahrheit
+des Modusflags in Save/Replay bleibt als Detail der finalen Wechsel-Detailregel
+OFFEN — hier wird ausschließlich die dokumentierte Graybox-Kettenwahrheit
+persistiert), Q-NAR-002, Q-NAR-004 und Q-TEC-006 bleiben `OFFEN`. Kein
+Budgetwert wird geändert; Pflichtprofile bleiben `NOT-MEASURED`
+(Q-OPS-001). Die Version 1 dieses Vertrags bleibt als historischer
+Bestandsvertrag unverändert; die Abschnitte 1 bis 12 gelten zeichentreu
+weiter, soweit Abschnitt 13 nichts Additives ergänzt.
+
+### 13.1 Sektionsaufbau (`session-section-full-state-v1`)
+
+**Wahl:** Der vollständige Sitzungszustand an einer Vorgrenze wird als **eine
+versionierte, eigen-hashgebundene additive Sektion** im bestehenden atomaren
+Umschlag gespeichert. Inhalt: aktiver Sitzungsmodus samt schwebender
+Moduswechsel (Pending-Switches des Modevertrags), Aufsuchprotokoll samt
+Erkundungsfortschritt/-abschluss (T-034), Entscheidungsangebot/Wahl/Folgen-
+zustand samt Zykluszurücksetzungsstand und Sitzungsabweisungszählern (T-035,
+V2), Druckfensterinstanzen samt Zykluszustand, letztem Fehlschlag,
+Wiederauffrischungsgrenze und Offenzustand (T-036). Die Sektion trägt eine
+eigene Sektionsversion (`u16`, `sessionSectionVersion = 1`, unabhängig von
+`saveSchemaVersion`), wird von einem eigenen SHA-256-Anker
+(`sessionSectionHash`) über exakt die Sektionsbytes gedeckt und lebt im
+Dokument V2 nach dem Payload. Die strikte Einpassvalidierung der Sektion
+erfolgt vollständig vor Aktivierung innerhalb des unveränderten
+Atomarprotokolls (Abschnitt 5): Framing und Größenlimits → metaHash →
+payloadHash → kanonische Payload-Dekodierung mit Re-Encoding-Gleichheit →
+Grenzwerte → Referenzen → Sektionsframing mit exakter Gesamtlänge →
+`sessionSectionHash` → kanonische Sektionsdekodierung mit exaktem
+Byteverbrauch und Re-Encoding-Gleichheit → Sektionsgrenzwerte →
+Sektionsreferenzen. Jede Verletzung erhält eine unterscheidbare Klasse
+(Abschnitt 13.5).
+
+**Alternativen:**
+
+| Alternative | Bewertung |
+|---|---|
+| **A: vollständiger Sitzungszustand als eine versionierte, eigen-hashgebundene additive Sektion (Empfehlung)** | Eine Sektion, ein Anker, eine Versionierung: Die Kettenwahrheit ist ohne Wiederaufbau vollständig, die T-031-Prüfklassen gelten uneingeschränkt für die Sektion, und V1-Dokumente bleiben ohne Feldberührung lesbar. Nachteil: der Umschlag V2 trägt zwei Sektionslängen (Payload und Sitzung) — Framingfläche, die vollständig getestet wird. |
+| B: nur Minimal-/Teilzustand (etwa nur Modus und Zähler) | Kleinerer Sektionskopf, aber die Kette wäre nach dem Laden nicht wahrheitsgetreu fortsetzbar: Aufsuchprotokoll, Angebots-/Wahl-/Folgenzustand und Fensterinstanzen wären verloren — der Auftrag verlangt genau die vollständige Kettenwahrheit. |
+| C: Ereignisprotokoll-Wiederaufbau (Intents seit Sitzungsbeginn erneut ausführen) | Wäre ein Präfix-Replay und umginge die Persistenzbehauptung (T-031-Präzedenz Abschnitt 9: „Bewiese nichts über die Persistenzvollständigkeit“); über der Prozessgrenze zudem kein deterministischer Wiederaufbau der Beobachtungsgrenzen. |
+
+**Ausdrücklich verworfen:** jede Umdeutung bestehender Felder (stille
+Formatdrift — nur Vertragsversion); jede Aufnahme der darstellseitigen
+Auswahl in die Sektion (Auswahl bleibt rein darstellseitiger Zustand gemäß
+Kommandovertrag Abschnitt 3; die Fortsetzungsskripte reichen ihre Auswahl
+nach der Ladegrenze selbst wieder auf, was die Kettenfortsetzung nicht
+berührt, weil der Simulationszahlpfad ausschließlich von Kernbefehlen abhängt);
+jede Aufnahme von Pipeline-Diagnosezählern (kein Kettenzustand).
+
+**Playtestkriterium:** Ein gespeicherter und ladbarer Zustand ist binnen
+2 Sekunden erkennbar; nach dem Laden stimmen Modus, Erkundungs-,
+Entscheidungs- und Druckwahrheit in beiden Modi mit dem Zustand vor dem
+Prozessende überein. **Rückrollweg:** Rückkehr zum Vertragsstand V1 durch
+Weglassen der Sektionserzeugung (Bestandsverhalten byteidentisch); eine
+Sektionsänderung erfordert eine neue Sektionsversion mit
+Fixture-Regeneration.
+
+### 13.2 Headless Aktivierungsform (`opt-in-continuation-flags-v2`)
+
+**Wahl:** Befehlsflags am bestehenden öffentlichen Befehl `kommandoschleife`
+im savecheck-Präzedenzmuster:
+
+```bash
+./scripts/rift.sh kommandoschleife --scenario kommando-graybox \
+  --input-script PFAD --seed N --report PFAD \
+  --slot-dir VERZ --slot NAME --save-at-tick N      # Speicherlauf
+./scripts/rift.sh kommandoschleife --scenario kommando-graybox \
+  --input-script PFAD --seed N --report PFAD \
+  --slot-dir VERZ --slot NAME --load-slot           # Fortsetzungslauf
+```
+
+Der Speicherlauf spielt die unveränderte Skriptgrammatik
+(`graybox-input-script-v1/v2/v3` byteidentisch) bis zur dokumentierten
+Speichervorgrenze `--save-at-tick` (Vorgrenze `T`: Zustand nach Abschluss
+des Ticks `T − 1`, `TickIndex == T`), schreibt Simulation plus Sitzungsschicht
+in den Slot und endet. Der Fortsetzungslauf ist ein frischer Prozess: Er lädt
+den Slot, validiert ihn vollständig vor Aktivierung (Prüfreihenfolge
+Abschnitt 13.1), stellt Welt und Sitzungsschicht wieder her und setzt
+dieselbe Skriptausführung ab der Vorgrenze `T` fort; Skriptintents vor `T`
+sind im Speicherlauf verbraucht und werden im Fortsetzungslauf übersprungen
+(keine erneute Anwendung). Fortsetzungshorizont ist der bestehende
+`--horizon-ticks`. Die Aktivierungsform folgt dem savecheck-Präzedenzmuster
+(Slotpfad über `--slot-dir VERZ --slot NAME`), Speichergrenze über
+`--save-at-tick N` innerhalb des Messfensters
+(`[warmupTicks + 1, horizonTicks)`), Fortsetzungshorizont über den
+bestehenden Flag.
+
+**Alternativen:**
+
+| Alternative | Bewertung |
+|---|---|
+| **A: Befehlsflags am bestehenden kommandoschleife-Befehl (Empfehlung)** | Derselbe öffentliche Befehl und derselbe Pipelinepfad bleiben vertraglich (T-034-/T-035-/T-036-Präzedenz); keine neue Befehlsfläche. |
+| B: Skriptgrammatik-Erweiterung (`graybox-input-script-v4` mit Save/Lade-Aktionen) | Verbreitert die Diagnosegrammatik um Persistenzverben, die kein Sitzungsintent sind, und erzwingt eine vierte Grammatikstufe mit vollständiger Fixturefläche — abgelehnt als dokumentierte Alternative. |
+| Verworfen: separates Untercommand | Widerspricht dem Auftrag: derselbe öffentliche Befehl und derselbe Pipelinepfad (T-034- bis T-036-Präzedenz). |
+
+**Playtestkriterium:** Zwei unabhängige Fresh-Prozesspaare (Speicherlauf +
+Fortsetzungslauf) sind builderidentisch; die Fortsetzungskette ist ab der
+Ladegrenze byteidentisch zur unterbrochenen Referenz. **Rückrollweg:** Flags
+und Reportblock entfernen; ohne Flags bleibt der Bestandsstand byteidentisch.
+
+### 13.3 Interaktive Aktivierungsform (`opt-in-interactive-slot-actions-v2`)
+
+**Wahl:** Genau zwei frei belegbare Keymap-Aktionen `save-slot` und
+`load-slot` in der bestehenden Familie gemäß Kommandovertrag Abschnitt 9 und
+NF-005. Standardbelegung: `save-slot` = F5 (Scancode 62), `load-slot` = F9
+(Scancode 66) — beide im Bestandsstand unbesetzt. Die Validierungsregeln des
+Abschnitts 9 (mindestens eine Bindung je Aktion, keine Doppelbindungen, keine
+unbekannten Namen) gelten unverändert; die Maussemantik bleibt unverändert
+umbelegbar-nie. Die Aktionen sind nur nutzbar, wenn der Lauf über
+`--slot-dir VERZ` ein Erlaubnisverzeichnis besitzt; ohne konfiguriertes
+Verzeichnis erhält der Impuls eine kontrollierte, unterscheidbare Ablehnung
+(`slot-directory-not-configured`) ohne Welt-, Ketten- oder Kernänderung. Das
+Speichern erfasst den Zustand an der laufenden Vorgrenze (`TickIndex` nach
+dem letzten abgeschlossenen Tick) und schreibt atomar in den Slot
+`slot-interactive.rwsaved`; das Laden validiert vollständig vor Aktivierung
+und ersetzt Welt, Sitzungsschicht und Pipeline kontrolliert — ein Laden mit
+unpassendem, inkompatiblem oder korruptem Slot ergibt eine kontrollierte,
+unterscheidbare Ablehnung mit maschinenlesbarer Kennung (UF-001-Fehlerzeile)
+ohne Welt-, Ketten- oder Kernänderung. Nach dem Laden weist der Titel-HUD-
+Ausweis die wiederhergestellte Kettenwahrheit in beiden Modi ohne Tastendruck
+aus (bestehendes Titel-HUD-Muster, NF-005, nie reine Farbcodierung).
+
+**Alternativen:**
+
+| Alternative | Bewertung |
+|---|---|
+| **A: genau zwei frei belegbare Keymap-Aktionen in der bestehenden Familie (Empfehlung)** | Konsistent mit `mode-switch` und `choose-a`/`choose-b`; der Spieler behält die Kontrolle über den Zeitpunkt; keine neue Renderfläche. |
+| B: ein kontextgebundener Einzelbefehl mit folgender Zielfrage | Spart eine Belegung, aber die Nachfrage bräuchte eine zweite Eingabephase mit eigenem Zustandsautomaten und unverzüglicher Sichtbarkeit — für diesen Slice unangemessene Komplexität. |
+| Verworfen: Text-, Menü- oder Dialogfläche als neue Renderfläche | Späterer Slice nach Modevertrag-Abschnitt-8-Präzedenz; keine Schrift-/UI-Renderfläche in diesem Auftrag. |
+
+**Playtestkriterien:** gespeicherter und ladbarer Zustand sind binnen
+2 Sekunden erkennbar; die restaurierte Kettenwahrheit stimmt in beiden Modi
+mit dem Zustand vor dem Speichern überein; eine abgelehnte Ladung verändert
+sichtbar nichts (Missverständnisrate < 10 %). **Rückrollweg:** Belegung und
+Aktionen sind Hypothesenkonstanten; Austausch ohne Kernänderung, solange die
+Zweikanal-Erkennbarkeit erhalten bleibt.
+
+### 13.4 Modulgrenze des Sektionscodecs (`session-section-codec-boundary-v2`)
+
+**Wahl:** Additive Codecfläche neben der bestehenden Saveverträglichkeit,
+gespeist aus einer kanonischen Sitzungsserialisierung der Sitzungsschicht:
+Die kanonische Sektionsstruktur (`SessionSectionState`, feste Feldordnung,
+Little-Endian-Festbreiten, Sentinel-Regeln wie der Savekern, kein
+Fließkommaanteil, BCL-only, keine Reflection) lebt im Saveprojekt neben
+`CanonicalSaveCodec`; die Sitzungsschicht (`Riftward.Session`) liefert die
+Erfassung aus ihren vier Schichten und die Wiederherstellung in sie und
+referenziert dafür das Saveprojekt (Laufrichtung Gameplay → Save-System
+gemäß `docs/ARCHITEKTUR.md`). Der Loader in `Riftward.Save` validiert die
+Sektion vollständig (Hash, exakter Byteverbrauch, Re-Encoding-Gleichheit,
+Grenzwerte, Referenzen), bevor irgendein Aufrufer sie sehen kann — die
+T-031-Prüfklassen gelten uneingeschränkt für die neue Sektion. Die
+Sitzungsschicht bleibt frei von SDL3-, bgfx- und Betriebssystemtypen;
+Runtime-Hotpaths liegen in C#; F# und Python sind vom Laufzeitpfad
+ferngehalten.
+
+**Alternative:** opake versionierte Bytesektion mit eigener Prüfsumme
+(Dekodierung erst beim Aktivierer) — abgelehnt, weil die T-031-Prüfklassen
+(kanonische Dekodierung, Re-Encoding-Gleichheit, Grenzwerte, Referenzen)
+vertraglich uneingeschränkt für die Sektion gelten müssen und ein opaker
+Pfad die vollständige Validierung vor Aktivierung nicht im Loader bündelt.
+
+**Rückrollweg:** Die Sektion ist eine additive Fläche; ein Rückbau entfernt
+Sektionscodec, Aktivierungsflags und Reportblock, ohne den Simulationskern,
+die Bestandsverträge oder die T-031-Garantien zu berühren.
+
+### 13.5 Umschlag V2, V1-Kompatibilität und Verletzungsklassen
+
+**Umschlag V2 (`save-schema-version-2`):** `saveSchemaVersion` wird 2; das
+Produktformat kennt genau die Versionen 1 und 2. Das Dokument V2 erweitert
+den Kopf rein additiv um `sessionSectionLength` (`u64`) und
+`sessionSectionHash` (SHA-256 über exakt die Sektionsbytes) am Kopfende;
+`metaHash` deckt den gesamten erweiterten Kopf einschließlich beider neuen
+Felder nach derselben Regel wie V1 (SHA-256 über Magic, Schemaversion,
+Kopflänge und alle Kopfbytes). Die Rahmenstruktur ist
+`Vorspann | Kopf | metaHash | Payload | Sitzungssektion`; die Gesamtlänge
+ist vollständig aus dem Kopf ableitbar, Überhangbytes sind vertragswidrig.
+Die Sektion besitzt ein absolutes Vorab-Limit
+(`MaxSessionSectionBytes = 1 MiB`) als DoS-Grenze vor Zuweisung.
+
+**V1-Kompatibilität (`legacy-v1-session-emptiness-v2`):** Slots der Version 1
+laden unverändert mit ehrlicher, maschinenlesbarer Sitzungsleere und
+unveränderter Kette
+(`legacy-v1-slot-loads-with-honest-machine-readable-session-emptiness-and-unchanged-chain`)
+— ohne Migrationserfindung, ohne Feldumdeutung. Der
+Loader kennzeichnet den Ursprung (`FromLegacyV1Document`); der Report weist
+die ehrliche Leere maschinenlesbar aus. Streng monoton: Version 0 und alle
+Versionen ab 3 bleiben kontrolliert mit definierter Klasse abgewiesen. Der
+Migrationsvertrag Abschnitt 8 gilt fort: Es wird kein Migrationsschritt
+erfunden; die unterstützte Legacy-Version 1 ist eine identische No-op-
+Erreichbarkeit (byteidentisch, null Schritte), frühere und zukünftige
+Versionen werden abgewiesen. Das Bestandskorruptions-Fixture
+`unknown-schema-version` zielt weiter auf die erste nicht unterstützte
+zukünftige Version (nun 3); seine Erwartungsklasse ist unverändert.
+
+**Neue unterscheidbare Verletzungsklassen der Sektion:**
+
+| Klasse | Auslöser |
+|---|---|
+| `SESSION_SECTION_INTEGRITY_VIOLATION` | Sektionsbytes passen nicht zum `sessionSectionHash`-Anker (umfasst Bitfehler in der Sektion) |
+| `SESSION_SECTION_INVALID` | Verletzte feste Ordnung/Framing/Grenzen/Referenzen der Sektion: abgeschnittene Sektion jenseits der Rahmenprüfung, Überhang, fehlsitzender Abschnitt, Re-Encoding-Ungleichheit, unbekannte Sektionsversion, unbekannte Aufzählungswerte, verletzte Zonenzuordnung, verletzte Relationswahrheiten (Besuchszonen eindeutig und ausschließlich persönlich, Entscheidungs-/Folgen-/Ankunftskonsistenz, Fenster-/Zykluskonsistenz, Fehlschlag-/Wiederauffrischungsrelation) |
+
+Rahmenniveau-Fehler (Datei kürzer/länger als die deklarierte Gesamtlänge)
+behalten die Bestandsklassen `TRUNCATED_FILE`/`CANONICAL_VIOLATION`;
+Größenüberschreitung der Sektion ist `SIZE_LIMIT_EXCEEDED`. Die
+Prüfreihenfolge von Abschnitt 2 gilt unverändert und ordnet jede Datei
+höchstens einer Klasse zu.
+
+**Aktivierungsgrenzen (`untrusted-slot-activation-guards-v2`):** Slotdateien
+gelten uneingeschränkt als untrusted. Vor der Aktivierung prüft der
+Aktivierer neben der vollständigen Dokumentvalidierung die Passung an den
+Laufkontext mit unterscheidbaren, maschinenlesbaren Ablehnungskennungen:
+`foreign-world-id` (Weltkennung des Slots widerspricht der Vertragswelt),
+`foreign-seed` (Seed des Slots widerspricht dem angeforderten Laufseed),
+`layer-activation-mismatch` (die Schichtaktivierung des Fortsetzungslaufs
+widerspricht der Sitzungssektion des Slots),
+`later-schema-version`/`unsupported-schema-version` (aus der Klasse
+`SCHEMA_VERSION_UNSUPPORTED`), Sektionsklassen gemäß Abschnitt 13.5. Eine
+abgewiesene Ladung ändert Welt, Kette, Kern oder letzten gültigen Stand nie.
+
+### 13.6 Persistenz-Präzisierungen der vier Sitzungsverträge und Replay-Ausnahme
+
+Die versionierten Nichtpersistenzaussagen der vier Sitzungsverträge
+(`session-local-not-persisted-v1` des Erkundungsvertrags,
+`decision-session-local-not-persisted-v1` des Entscheidungsvertrags,
+`pressure-session-local-not-persisted-v1` des Druckvertrags sowie die
+Persistenzvorbehaltszeile des Modevertrags Abschnitt 1) werden durch diese
+autorisierte additive Erweiterung zu versionierten Save/Load-Persistenz-
+aussagen präzisiert
+(`session-section-persisted-in-save-load-with-explicit-replay-exception-t037`): Der Sitzungszustand der vier Schichten ist ab dieser
+Vertragsversion über die additive Sektion in Save/Load fortsetzbar
+(`persisted=true`, `saveLoad=continued`); die **ausdrückliche
+Replay-Ausnahme** bleibt bestehen: Replay und Soak setzen den Sitzungszustand
+nicht fort (`replay=not-continued`), und der Replayanteil von ADR 008
+Kernaussage 4 bleibt Produktendzustand hinter Q-GAM-010 und Q-TEC-006. Jede
+der vier Präzisierungen ist als versionierter Zusatzabschnitt des jeweiligen
+Vertrags dokumentiert (Modevertrag V2, Erkundungsvertrag V2,
+Entscheidungsvertrag V3, Druckvertrag V2); die Tests, die die v1-
+Nichtpersistenz gebunden haben, wurden im selben Kandidaten auf die
+Präzisierung fortgeschrieben (Fixture-Regeneration nach T-035-V2-Präzedenz).
+Die Kettenwahrheit von Simulation und Hash bleibt unverändert: kein
+Sektionsbyte berührt Simulationszustand oder Hash, und ein Zwilling ohne
+Aktivierung bleibt byteidentisch.
+
+### 13.7 Vorregistriertes Playtestprotokoll (T-037)
+
+Vollständiges Protokoll einer Displaysession (Entwickler-PC, gegebenenfalls
+virtuelles Wayland nach T-023-Präzedenz), vor der Implementierung
+registriert:
+
+1. **Speichererkennbarkeit:** Speicheraktion (Taste F5 bzw. belegte
+   Aktion); gespeicherter und ladbarer Zustand sind binnen 2 Sekunden
+   erkennbar (kontrollierte Bestätigung am Live-Pfad, kein Menü).
+2. **Fortsetzungswahrheit:** Nach Laden (Taste F9) stimmen Modus,
+   Erkundungs-, Entscheidungs- und Druckwahrheit in beiden Modi mit dem
+   Zustand vor dem Prozessende überein; der Titel-HUD-Ausweis zeigt sie
+   ohne Tastendruck.
+3. **Ablehnung:** Ein Laden mit unpassendem, inkompatiblem oder korruptem
+   Slot erhält eine kontrollierte, unterscheidbare Ablehnung mit
+   maschinenlesbarer Kennung; Welt, Kette und Kern bleiben unverändert.
+4. **Beobachtungstreue:** Strategische und persönliche Bedienung bleiben
+   unverändert; kein Befehlspuls und keine Weltänderung geht aus dem reinen
+   Speichern/Laden hervor.
+
+Ausführung: dokumentiert im Abnahmelauf; ist kein Display verfügbar, bleiben
+Interaktivsmoke und Playtestausführung ausgewiesene Restpunkte mit
+kontrolliertem Code-19-Nachweis ohne Simulation (Präzedenz
+T-023/T-032/T-033/T-034/T-035/T-036).
+
+### 13.8 Exitcodes und Reportlinie
+
+Es entstehen **keine neuen Exitcodebedeutungen**. Bestehende Bedeutungen
+(insbesondere 19, 27, 28, 33–38 und 2/4) bleiben unverändert: Ein
+Speicherlauf, dessen Slot-Schreibvorgang fehlschlägt, ist ein unvollständiger
+Lauf (Code 36, Teilreport ist keine Evidenz); ein Fortsetzungslauf mit
+abgewiesener Ladung endet kontrolliert unvollständig (Code 36) mit
+maschinenlesbarer Ablehnungskennung im Teilreport; Gateverletzungen bleiben
+Code 35. Die Reportlinie wird rein additiv auf **Schemaversion 6** erhöht
+(Pflichtblock `continuation`; die Sitzungsblöcke der Schichten erscheinen
+genau dann, wenn ihre Aktivierung vertraglich besteht — Schemaversion 6
+erzwingt keine Schichtaktivierung und keine Schichtblockpflicht); alle neuen
+Felder tragen `gateCoupled=false`, und die Kettenfortsetzungswahrheit bindet
+der Bestandskriterium-5-Ausweis (`gate.stateChainSelfConsistency`) im
+Fortsetzungslauf fail-closed gegen die unterbrochene In-Prozess-Referenz
+(neue Felder selbst ohne Gatekopplung). Läufe ohne Sitzungsaktivierung
+bleiben bei der Bestandsschemaversion 2 byteidentisch; die
+Persistenzpräzisierung der vier Sitzungsverträge (Abschnitt 13.6) ändert
+ausschließlich die Werte der bestehenden persistence-Blöcke der
+Schichtläufe (Schemaversionen 3/4/5) mit Fixture-Regeneration, nicht ihre
+Struktur und nicht die Schemaversionen.
+
+## 14. Geltungsbereich V2
+
+Die Erweiterung dieses Abschnitts gilt ausschließlich für die additive
+Sitzungssektion, ihre Aktivierungsformen und die Persistenzpräzisierung der
+vier Sitzungsverträge. Sie begründet kein Cooked-Paket-, Definitions- oder
+Replaydateiformat (Q-TEC-006 bleibt `OFFEN`; Cross-Plattform-Hashzusagen
+bleiben unbehauptet, K3), keine UI-/Menüflächen, keine Out-of-Session-
+Neustartsemantik (Hauptmenü, Neues Spiel, Weltneuaufbau), keine
+Änderung an `Riftward.Simulation`, seinem Vertrag oder seiner
+Byteidentität, und keine Antwort auf eine offene Produktfrage. `DATENMODELL.md`
+bleibt byteidentisch, weil Umschlag und Atomarprotokoll unverändert bleiben
+und die Sektion im vertraglich versionierten Payloadumfang als additive
+Sektion lebt.

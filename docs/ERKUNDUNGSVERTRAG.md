@@ -1,6 +1,8 @@
 # Erkundungsvertrag (T-034, Abschnitt 0)
 
-**Vertragsversion:** 1
+**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
+Persistenz-Präzisierung gemäß Savevertrag V2/T-037, Abschnitt 10; alle
+übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-034-graybox-exploration-loop.json` vor der Implementierung
 festgelegt; die maschinenlesbaren Kennungen sind in
@@ -326,7 +328,37 @@ Bestandsstand; die aktivierte Beobachtung ist reguläre fachliche Diagnostik
 das Gateverdict nicht. Der stabile Exitcode-Mapping-Test wird ohne neue
 Bedeutung erweitert (Schemaversion-Auswahl 2/3 ist kein Exitcode).
 
-## 10. Offenheiten und Grenzen
+## 10. Autorisierte additive Persistenz-Präzisierung (V2, T-037)
+
+**Änderungsumfang (ausschließlich diese eine Wahrheitsänderung):** Die
+versionierte Nichtpersistenzaussage `session-local-not-persisted-v1`
+(Abschnitt 4) wird durch die Savevertrags-Erweiterung V2 (T-037, SAVEVERTRAG
+Abschnitt 13.6) zu einer versionierten Save/Load-Persistenzaussage präzisiert:
+Aufsuchprotokoll, Fortschritt und Abschluss der Erkundungsschicht sind ab
+dieser Vertragsversion über die additive Sitzungssektion in Save/Load
+fortsetzbar (`persisted=true`, `saveLoad=continued`). Die **ausdrückliche
+Replay-Ausnahme** bleibt bestehen: Replay und Soak setzen den
+Erkundungszustand nicht fort (`replay=not-continued`). Die Beobachtung ist
+weiterhin rein sitzungsseitig, erzeugt niemals einen Kernbefehl und ist nie
+Teil des Simulationszustands oder Hashes; kein Sektionsbyte berührt die
+Hashkette.
+
+**Unverändert bleiben:** Landmarkenmenge, Aufsuch- und Moduskopplungsregel,
+Fortschritt und Abschluss, Feedback, Aktivierungsform und alle Exitcodes
+(Abschnitte 2 bis 6 und 8). **Grund und Begrenzung:** Die Präzisierung ist
+die vom Auftrag `.ai/tasks/T-037-graybox-continuation-restart.json`
+autorisierte additive Voraussetzung des Fortsetzungsschritts (die
+Entscheidungsoptionen des T-035-Flusses folgen erst nach dem Laden aus dem
+wiederhergestellten Protokoll) und antwortet auf keine offene Produktfrage.
+**Rückrollweg:** Umkehr auf V1 (Nichtpersistenz) durch
+Vertragsversionswechsel mit Neubau und Fixture-Regeneration; die Sektion
+trägt dann ehrliche Sitzungsleere für die Erkundungsschicht. **Fixture-
+Regeneration:** Tests, die `session-local-not-persisted-v1` und
+`persisted=false` gebunden haben, wurden im selben Kandidaten auf die V2-
+Präzisierung fortgeschrieben; Landmarken-, Ketten- und Endhashbindungen
+bleiben unverändert gültig.
+
+## 11. Offenheiten und Grenzen
 
 Dieser Vertrag antwortet auf keine offene Produktfrage. Ausdrücklich offen
 bleiben: Q-GAM-001 bis Q-GAM-007 (Kreativentscheidungen), Q-GAM-010 (finale
@@ -336,8 +368,9 @@ Folgen) sowie Q-TEC-004 (Simulationsvertrag-Ratifizierung), Q-TEC-006
 (tolerierte Benchmarkstreuung), Q-OPS-001 (Referenzhardware; Pflichtprofile
 bleiben `NOT-MEASURED`). Es gibt keinen Fog of War, keine Minimap, keine
 Aufklärungs- oder Sichtbarkeitssemantik (GS-007 bleibt unberührt), keine
-Audio- oder Shipping-Assetaussage (Q-TEC-007, Q-AST-001/Q-AST-002), keine
-Persistenz in jeder Form, keinen Windows-/macOS-Scope (T-011,
+Audio- oder Shipping-Assetaussage (Q-TEC-007, Q-AST-001/Q-AST-002), außer
+durch die autorisierte V2-Persistenz-Präzisierung (Abschnitt 10) keine
+weitere Persistenz, keinen Windows-/macOS-Scope (T-011,
 Q-OPS-002/Q-OPS-003) und keine Budgetänderung jeder Art. GAME_DESIGN.md und
 ANFORDERUNGEN.md bleiben durch die Implementierung unberührt;
 `docs/KOMMANDOVERTRAG.md` bleibt byteidentisch. `docs/MODEVERTRAG.md` erhält

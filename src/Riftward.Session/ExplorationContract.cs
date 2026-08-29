@@ -16,8 +16,8 @@ public static class ExplorationContract
     /// <summary>Pfad des versionierenden Vertragsdokuments.</summary>
     public const string DocumentPath = "docs/ERKUNDUNGSVERTRAG.md";
 
-    /// <summary>Vertragsversion des Dokuments.</summary>
-    public const string ContractVersion = "1";
+    /// <summary>Vertragsversion des Dokuments (V2: additive Persistenz-Präzisierung, T-037).</summary>
+    public const string ContractVersion = "2";
 
     /// <summary>Kennung der Opt-in Aktivierung (Vertrag Abschnitt 6).</summary>
     public const string ActivationId = "opt-in-exploration-activation-v1";
@@ -32,15 +32,32 @@ public static class ExplorationContract
     public const string CounterModelId = "session-local-visit-counter-v1";
 
     /// <summary>
-    /// Versionierte maschinenlesbare Nichtpersistenzaussage (Vertrag
-    /// Abschnitt 4): Der Auftragsfortschritt ist sitzungslokal, wird weder
-    /// in Save/Load noch in Replay fortgesetzt und bleibt einer spaeteren
-    /// Savevertrags-Erweiterung vorbehalten (ADR 008).
+    /// Versionierte historische Nichtpersistenzaussage (Vertrag V1,
+    /// Abschnitt 4): bleibt als dokumentierte Vorgeschichte der V2-
+    /// Präzisierung im Vertrag enthalten und wird im Report nicht mehr
+    /// als aktuelle Wahrheit ausgegeben.
     /// </summary>
     public const string NotPersistedStatementId = "session-local-not-persisted-v1";
 
-    /// <summary>Vertragliche Nichtpersistenzaussage im Report (maschinenlesbar).</summary>
-    public const bool Persisted = false;
+    /// <summary>
+    /// Versionierte Save/Load-Persistenzaussage (Vertrag V2, Abschnitt 10;
+    /// Savevertrag V2 Abschnitt 13.6): Aufsuchprotokoll, Fortschritt und
+    /// Abschluss sind über die additive Sitzungssektion in Save/Load
+    /// fortsetzbar.
+    /// </summary>
+    public const string SaveLoadPersistenceStatementId = "session-local-save-load-persisted-v2";
+
+    /// <summary>Vertragliche Persistenzwahrheit im Report (maschinenlesbar, V2).</summary>
+    public const bool Persisted = true;
+
+    /// <summary>Ausdrückliche Replay-Ausnahme der Persistenz (V2; Replay setzt nicht fort).</summary>
+    public const bool ReplayContinued = false;
+
+    /// <summary>Vertraglicher saveLoad-Ausweis der Persistenz (V2).</summary>
+    public const string SaveLoadContinuation = "continued";
+
+    /// <summary>Vertraglicher replay-Ausweis der Replay-Ausnahme (V2).</summary>
+    public const string ReplayNotContinued = "not-continued";
 
     /// <summary>Kennung der Titel-HUD-Erweiterung (Vertrag Abschnitt 5).</summary>
     public const string HudModelId = "title-hud-expedition-progress-v1";

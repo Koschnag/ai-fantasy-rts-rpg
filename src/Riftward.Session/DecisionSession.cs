@@ -289,6 +289,40 @@ public sealed class DecisionSession
     }
 
     /// <summary>
+    /// Wiederherstellung aus der Sitzungssektion (Savevertrag V2, Abschnitt
+    /// 13; Entscheidungsvertrag V3 Abschnitt 14): rekonstruiert Angebot,
+    /// Entscheidung, Folge und die Sitzungsabweisungszaehler exakt. Struktur
+    /// und Relationswahrheiten der Sektion sind bereits durch den Loader
+    /// geprüft.
+    /// </summary>
+    public static DecisionSession Restore(Riftward.Save.SessionSectionState section)
+    {
+        ArgumentNullException.ThrowIfNull(section);
+
+        return new DecisionSession
+        {
+            _offerOpened = section.DecisionOfferOpened != 0,
+            _offerBoundaryTick = section.DecisionOfferBoundaryTick,
+            _optionZoneA = section.DecisionOptionZoneA,
+            _optionZoneB = section.DecisionOptionZoneB,
+            _decided = section.DecisionDecided != 0,
+            _decisionBoundaryTick = section.DecisionBoundaryTick,
+            _choice = section.DecisionDecided != 0
+                ? (section.DecisionChoiceKind == Riftward.Save.SessionSectionCodec.ChoiceKindA
+                    ? DecisionContract.ChoiceOptionAId
+                    : DecisionContract.ChoiceOptionBId)
+                : null,
+            _decisionMode = section.DecisionDecided != 0 ? ModeContract.ModePersonalId : null,
+            _followUpZoneIndex = section.DecisionFollowUpZoneIndex,
+            _followUpCompleted = section.DecisionFollowUpCompleted != 0,
+            _arrivalBoundaryTick = section.DecisionArrivalBoundaryTick,
+            _chooseRejectionsBeforeOffer = section.DecisionRejectionsBeforeOffer,
+            _chooseRejectionsInStrategicMode = section.DecisionRejectionsInStrategicMode,
+            _chooseRejectionsAfterDecision = section.DecisionRejectionsAfterDecision,
+        };
+    }
+
+    /// <summary>
     /// Schreibgeschützter Ausweis des Laufs für den Report (Vertrag
     /// Abschnitt 8): Momentaufnahme des Entscheidungszustands.
     /// </summary>

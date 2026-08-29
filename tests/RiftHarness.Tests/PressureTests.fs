@@ -129,17 +129,18 @@ let pressureContractMirrorsDocumentedValues () =
     if PressureContract.DocumentPath <> "docs/DRUCKVERTRAG.md" then
         failwith "Druckvertragspfad falsch."
 
-    if PressureContract.ContractVersion <> "1" then
+    if PressureContract.ContractVersion <> "2" then
         failwith "Druckvertragsversion falsch."
 
-    // Autorisierte additive Zyklus-Praezisierung: der Entscheidungsvertrag
-    // traegt Version 2 mit unverändertem Pfad (Druckvertrag Voraussetzungs-
-    // satz; Entscheidungsvertrag Abschnitt 13).
+    // Autorisierte additive Zyklus-Praezisierung und Persistenz-
+    // Praezisierung: der Entscheidungsvertrag traegt Version 3 (V2 =
+    // Zyklus-Praezisierung T-036, V3 = Persistenz-Praezisierung T-037) mit
+    // unverändertem Pfad.
     if
         DecisionContract.DocumentPath <> "docs/ENTSCHEIDUNGSVERTRAG.md"
-        || DecisionContract.ContractVersion <> "2"
+        || DecisionContract.ContractVersion <> "3"
     then
-        failwith "Der Entscheidungsvertrag traegt nicht die autorisierte Zyklus-Praezisierung V2."
+        failwith "Der Entscheidungsvertrag traegt nicht die autorisierten Praezisierungen V2/V3."
 
     if
         CommandReportSchema.VersionWithoutExploration <> 2
@@ -153,8 +154,21 @@ let pressureContractMirrorsDocumentedValues () =
     if PressureContract.WindowLengthTicks <> 600 then
         failwith "Die fixierte Fensterlaenge entspricht nicht der vorregistrierten Hypothese (600 Vorgrenzen)."
 
-    if PressureContract.Persisted then
-        failwith "Die Nichtpersistenzaussage ist verletzt."
+    // Persistenzwahrheit nach der autorisierten V2-Praezisierung (T-037):
+    // Save/Load setzt fort, die ausdrueckliche Replay-Ausnahme bleibt.
+    if not PressureContract.Persisted then
+        failwith "Die V2-Persistenzaussage (Save/Load fortsetzbar) ist verletzt."
+
+    if PressureContract.ReplayContinued then
+        failwith "Die ausdrueckliche Replay-Ausnahme ist verletzt."
+
+    if
+        PressureContract.SaveLoadContinuation <> "continued"
+        || PressureContract.ReplayNotContinued <> "not-continued"
+        || PressureContract.SaveLoadPersistenceStatementId
+           <> "pressure-session-local-save-load-persisted-v2"
+    then
+        failwith "Die versionierte Save/Load-Persistenzaussage widerspricht dem Druckvertrag V2."
 
     if
         InteractiveView.RestartIndicatorLowerHeightMeters <> 1.5
@@ -652,10 +666,14 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
 
         if
             persistence.GetProperty("statementId").GetString()
-            <> PressureContract.NotPersistedStatementId
-            || persistence.GetProperty("persisted").GetBoolean()
+            <> PressureContract.SaveLoadPersistenceStatementId
+            || not (persistence.GetProperty("persisted").GetBoolean())
+            || persistence.GetProperty("saveLoad").GetString()
+               <> PressureContract.SaveLoadContinuation
+            || persistence.GetProperty("replay").GetString()
+               <> PressureContract.ReplayNotContinued
         then
-            failwith "Die maschinenlesbare Nichtpersistenzaussage des Drucks fehlt oder widerspricht."
+            failwith "Die maschinenlesbare V2-Persistenzaussage des Drucks fehlt oder widerspricht."
 
         let hud = pressure.GetProperty("hud")
         let indicator = pressure.GetProperty("restartIndicator")

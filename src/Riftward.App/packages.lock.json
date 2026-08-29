@@ -14,6 +14,7 @@
       "riftward.session": {
         "type": "Project",
         "dependencies": {
+          "Riftward.Save": "[1.0.0, )",
           "Riftward.Simulation": "[1.0.0, )"
         }
       },

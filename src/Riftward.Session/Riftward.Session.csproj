@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Riftward.Simulation/Riftward.Simulation.csproj" />
+    <ProjectReference Include="../Riftward.Save/Riftward.Save.csproj" />
   </ItemGroup>
 
   <ItemGroup>
