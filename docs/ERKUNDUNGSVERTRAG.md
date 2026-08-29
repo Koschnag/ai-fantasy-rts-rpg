@@ -1,7 +1,7 @@
 # Erkundungsvertrag (T-034, Abschnitt 0)
 
 **Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
-Persistenz-Präzisierung gemäß Savevertrag V2/T-037, Abschnitt 11; alle
+Persistenz-Präzisierung gemäß Savevertrag V2/T-037, Abschnitt 10; alle
 übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-034-graybox-exploration-loop.json` vor der Implementierung

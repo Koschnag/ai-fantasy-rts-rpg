@@ -22,12 +22,12 @@ public static class Keymap
 
     /// <summary>
     /// Semantischer Aktionsname des Speicherns (T-037, Savevertrag V2
-    /// Abschnitt 13.3): frei belegbar; Standardbelegung ist F5 (Scancode 58),
+    /// Abschnitt 13.3): frei belegbar; Standardbelegung ist F5 (Scancode 62),
     /// das im Bestandsstand unbesetzt war.
     /// </summary>
     public const string SaveSlotActionName = "save-slot";
 
-    /// <summary>Semantischer Aktionsname des Ladens (T-037, Savevertrag V2 Abschnitt 13.3); Standard F9 (62).</summary>
+    /// <summary>Semantischer Aktionsname des Ladens (T-037, Savevertrag V2 Abschnitt 13.3); Standard F9 (66).</summary>
     public const string LoadSlotActionName = "load-slot";
 
     /// <summary>
@@ -68,8 +68,8 @@ public static class Keymap
         ["mode-switch"] = [43], // Tab (T-033 Modevertrag Abschnitt 4)
         [ChooseAActionName] = [30], // Zifferntaste 1 (T-035 Entscheidungsvertrag Abschnitt 4)
         [ChooseBActionName] = [31], // Zifferntaste 2 (T-035 Entscheidungsvertrag Abschnitt 4)
-        [SaveSlotActionName] = [58], // F5 (T-037 Savevertrag V2 Abschnitt 13.3)
-        [LoadSlotActionName] = [62], // F9 (T-037 Savevertrag V2 Abschnitt 13.3)
+        [SaveSlotActionName] = [62], // F5 (T-037 Savevertrag V2 Abschnitt 13.3)
+        [LoadSlotActionName] = [66], // F9 (T-037 Savevertrag V2 Abschnitt 13.3)
     };
 
     /// <summary>

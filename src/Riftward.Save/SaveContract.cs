@@ -160,9 +160,9 @@ public static class SaveContract
     public const string SaveSlotActionName = "save-slot";
     public const string LoadSlotActionName = "load-slot";
 
-    /// <summary>Vertragliche Standardbelegung: F5 (58) speichert, F9 (62) lädt.</summary>
-    public const int SaveSlotDefaultScancode = 58;
-    public const int LoadSlotDefaultScancode = 62;
+    /// <summary>Vertragliche Standardbelegung: F5 (62) speichert, F9 (66) lädt.</summary>
+    public const int SaveSlotDefaultScancode = 62;
+    public const int LoadSlotDefaultScancode = 66;
 
     /// <summary>Report-Schemaversion mit Save-/Ladeaktivierung (rein additiv).</summary>
     public const int ReportSchemaVersionWithContinuation = 6;

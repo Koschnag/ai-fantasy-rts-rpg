@@ -102,7 +102,7 @@ internal static class ContinuationRunner
         if (document.FromLegacyV1Document)
         {
             // V1-Kompatibilität (Savevertrag V2 Abschnitt 13.5): das Dokument
-            // lädt unveraendert mit ehrlicher Sitzungsleere; die Kette bleibt
+            // lädt unverändert mit ehrlicher Sitzungsleere; die Kette bleibt
             // unverändert. Fortsetzbarkeit der Kette und Session-Leere sind
             // maschinenlesbar.
             return (

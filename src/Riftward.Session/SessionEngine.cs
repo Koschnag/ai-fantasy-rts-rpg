@@ -931,7 +931,7 @@ public static class SessionEngine
 
         var result = RunMeasuredWindow(
             request, world, pipeline, capture.BoundaryTick, request.HorizonTicks,
-            restored: true);
+            restored: true, out _);
 
         // Unterbrochener Referenzlauf im selben Prozess (K2-Anker-Präzedenz):
         // identische Stichprobenregel, voller Horizont, ohne Sitzungsschicht.
@@ -1094,7 +1094,8 @@ public static class SessionEngine
         }
 
         var result = RunMeasuredWindow(
-            request, world, pipeline, request.WarmupTicks, windowEndExclusive, restored: false);
+            request, world, pipeline, request.WarmupTicks, windowEndExclusive, restored: false,
+            out var pendingSwitchesAtWindowEnd);
 
         SessionSaveCapture? capture = null;
 
@@ -1104,7 +1105,8 @@ public static class SessionEngine
                 BoundaryTick: world.TickIndex,
                 BoundaryStateHash: world.ComputeStateHash(),
                 Simulation: Riftward.Save.SimulationSaveAdapter.Capture(world),
-                Session: SessionStateCapture.Capture(pipeline, exploration, decision, pressure));
+                Session: SessionStateCapture.Capture(
+                    pipeline, exploration, decision, pressure, pendingSwitchesAtWindowEnd));
         }
 
         return (result, capture);
@@ -1116,7 +1118,11 @@ public static class SessionEngine
     /// T-021-Methode, Hashkettenstichproben, Reaktionsverteilung und der
     /// Ehrlichkeitsnachweis — beim frischen Lauf als Selbstkonsistenzpass,
     /// beim Fortsetzungslauf als Kettenfortsetzungsvergleich durch den
-    /// Aufrufer.
+    /// Aufrufer. <paramref name="pendingSwitchesAtWindowEnd"/> liefert die
+    /// Momentaufnahme der schwebenden Wechsel vor ihrem vertraglichen
+    /// Flush (Savevertrag V2 Abschnitt 13.1: die Sektion erfasst sie an
+    /// der Vorgrenze, bevor der Laufabschluss sie ins Wechselprotokoll
+    /// übernimmt).
     /// </summary>
     private static SessionRunResult RunMeasuredWindow(
         SessionRunRequest request,
@@ -1124,7 +1130,8 @@ public static class SessionEngine
         SessionPipeline pipeline,
         long firstBoundaryTick,
         long windowEndExclusive,
-        bool restored)
+        bool restored,
+        out IReadOnlyList<ModeSwitchEvent> pendingSwitchesAtWindowEnd)
     {
         var windowTicks = checked((int)(windowEndExclusive - firstBoundaryTick));
         var tickTimes = new double[windowTicks];
@@ -1189,6 +1196,7 @@ public static class SessionEngine
         }
 
         var endStateHash = world.ComputeStateHash();
+        pendingSwitchesAtWindowEnd = pipeline.PendingSwitches;
         pipeline.FlushPendingSwitches();
         var gcPauseSumMs = (GC.GetTotalPauseDuration() - pauseSumBefore).TotalMilliseconds;
         var gcPauseCount = GcCollectionTotal() - collectionCountBefore;

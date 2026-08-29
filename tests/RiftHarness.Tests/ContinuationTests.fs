@@ -790,6 +790,82 @@ let headlessContinuationChainIsByteIdenticalOverBoundary () =
     if pressure.EndStatus <> PressureContract.EndStatusSuccess then
         failwith $"Der Fortsetzungspfad endete nicht im Erfolg ({pressure.EndStatus})."
 
+let pendingModeSwitchSurvivesTheSaveBoundary () =
+    // Minimales Skript: Wechsel-Intent an 3000 (wirksam an 3002), Speicher-
+    // vorgrenze 3001 — der Wechsel ist an der Vorgrenze schwebend (Savevertrag
+    // V2 Abschnitt 13.1). Der Steer-Intent an 3100 ist nur im persoenlichen
+    // Modus wirksam; ein an der Speichergrenze verlorener schwebender Wechsel
+    // wuerde ihn abweisen und damit als Kettenabweichung zur unterbrochenen
+    // Referenz sichtbar machen.
+    let script =
+        "graybox-input-script-v3 4000\nintent 3000 switch\nintent 3100 steer 2\n"
+
+    let parsed =
+        InputScriptParser.Parse(Encoding.ASCII.GetBytes script, ScriptWindowRules(240, 4000))
+
+    let struct (saveResult, capture) =
+        SessionEngine.RunWithSaveBoundary(
+            SessionRunRequest(
+                Seed = 20260826u,
+                ScriptedIntents = parsed.Intents,
+                WarmupTicks = 240,
+                HorizonTicks = 4000,
+                RunSelfConsistencyPass = true
+            ),
+            3001L
+        )
+
+    if saveResult.StateChainSelfConsistent <> Nullable true then
+        failwith "Der Speicherlauf verletzte seine eigene Kettenkonsistenz."
+
+    if capture.Session.ActiveMode <> byte SessionMode.Strategic then
+        failwith "Die Sektion traeg an der Vorgrenze nicht den noch wirksamen alten Modus."
+
+    if capture.Session.PendingSwitches.Count <> 1 then
+        failwith $"Der schwebende Wechsel fehlt in der Sektion ({capture.Session.PendingSwitches.Count})."
+
+    let pending = capture.Session.PendingSwitches.[0]
+
+    if
+        pending.IntentTick <> 3000L
+        || pending.EffectiveBoundaryTick <> 3002L
+        || pending.PreviousMode <> byte SessionMode.Strategic
+        || pending.NewMode <> byte SessionMode.Personal
+    then
+        failwith "Der schwebende Wechsel widerspricht der Same-Tick-Wahrheit."
+
+    let continuation =
+        SessionEngine.RunFromSessionSave(
+            SessionRunRequest(
+                Seed = 20260826u,
+                ScriptedIntents = parsed.Intents,
+                WarmupTicks = 240,
+                HorizonTicks = 4000,
+                RunSelfConsistencyPass = true
+            ),
+            capture
+        )
+
+    if not continuation.ChainContinuityVerified then
+        failwith $"Fortsetzungskette wich ab (schwebender Wechsel verloren?): {continuation.ContinuityReasons}"
+
+    let telemetry = continuation.Result.Telemetry
+
+    if telemetry.FinalMode <> SessionMode.Personal then
+        failwith "Der restaurierte schwebende Wechsel wurde im Fortsetzungslauf nicht wirksam."
+
+    if telemetry.SwitchProtocol.Count <> 1 then
+        failwith $"Das Wechselprotokoll der Fortsetzung ist unvollständig ({telemetry.SwitchProtocol.Count})."
+
+    let switchEvent = telemetry.SwitchProtocol.[0]
+
+    if
+        not switchEvent.EffectiveInRun
+        || switchEvent.SwitchReactionTicks <> 2L
+        || switchEvent.EffectiveBoundaryTick <> 3002L
+    then
+        failwith "Der restaurierte Wechsel widerspricht der Wirksamkeitswahrheit der Referenz."
+
 let foreignSeedChangesHashesButContinuityHolds () =
     let struct (baselineSave, _) = freshCapture 20260826u 8100L
     let struct (foreignSave, foreignCapture) = freshCapture 424242u 8100L

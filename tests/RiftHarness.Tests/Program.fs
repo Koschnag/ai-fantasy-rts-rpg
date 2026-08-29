@@ -2217,6 +2217,8 @@ module Program =
               ContinuationTests.untrustedSlotActivationGuardsRejectMismatch
               "T-037 headless continuation chain is byte identical over boundary",
               ContinuationTests.headlessContinuationChainIsByteIdenticalOverBoundary
+              "T-037 pending mode switch survives the save boundary",
+              ContinuationTests.pendingModeSwitchSurvivesTheSaveBoundary
               "T-037 foreign seed changes hashes but continuity holds",
               ContinuationTests.foreignSeedChangesHashesButContinuityHolds
               "T-037 CLI continuation flow runs save and load on schema version 6",

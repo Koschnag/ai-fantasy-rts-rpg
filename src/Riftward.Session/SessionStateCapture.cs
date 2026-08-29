@@ -18,12 +18,17 @@ public static class SessionStateCapture
     /// Modusflags und seiner schwebenden Wechsel aus der laufenden Pipeline.
     /// Die Schichten werden genau dann erfasst, wenn sie aktiviert sind; ohne
     /// Aktivierung trägt die Sektion die ehrliche Schichtleere.
+    /// <paramref name="pendingSwitches"/> ist die Momentaufnahme der
+    /// schwebenden Wechsel an der Vorgrenze (Savevertrag V2 Abschnitt 13.1);
+    /// ohne sie liest die Erfassung die noch nicht geflushten Wechsel direkt
+    /// aus der Pipeline.
     /// </summary>
     public static SessionSectionState Capture(
         SessionPipeline pipeline,
         ExplorationSession? exploration,
         DecisionSession? decision,
-        PressureSession? pressure)
+        PressureSession? pressure,
+        IReadOnlyList<ModeSwitchEvent>? pendingSwitches = null)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
 
@@ -32,7 +37,7 @@ public static class SessionStateCapture
             ActiveMode = pipeline.CurrentEffectiveMode == SessionMode.Personal
                 ? SessionSectionCodec.ModePersonal
                 : SessionSectionCodec.ModeStrategic,
-            PendingSwitches = pipeline.PendingSwitches
+            PendingSwitches = (pendingSwitches ?? pipeline.PendingSwitches)
                 .Select(pending => new SessionSectionPendingSwitch(
                     IntentTick: pending.IntentTick,
                     EffectiveBoundaryTick: pending.EffectiveBoundaryTick,

@@ -462,8 +462,8 @@ und Reportblock entfernen; ohne Flags bleibt der Bestandsstand byteidentisch.
 
 **Wahl:** Genau zwei frei belegbare Keymap-Aktionen `save-slot` und
 `load-slot` in der bestehenden Familie gemäß Kommandovertrag Abschnitt 9 und
-NF-005. Standardbelegung: `save-slot` = F5 (Scancode 58), `load-slot` = F9
-(Scancode 62) — beide im Bestandsstand unbesetzt. Die Validierungsregeln des
+NF-005. Standardbelegung: `save-slot` = F5 (Scancode 62), `load-slot` = F9
+(Scancode 66) — beide im Bestandsstand unbesetzt. Die Validierungsregeln des
 Abschnitts 9 (mindestens eine Bindung je Aktion, keine Doppelbindungen, keine
 unbekannten Namen) gelten unverändert; die Maussemantik bleibt unverändert
 umbelegbar-nie. Die Aktionen sind nur nutzbar, wenn der Lauf über
@@ -538,8 +538,8 @@ Die Sektion besitzt ein absolutes Vorab-Limit
 (`MaxSessionSectionBytes = 1 MiB`) als DoS-Grenze vor Zuweisung.
 
 **V1-Kompatibilität (`legacy-v1-session-emptiness-v2`):** Slots der Version 1
-laden unveraendert mit ehrlicher, maschinenlesbarer Sitzungsleere und
-unveraenderter Kette
+laden unverändert mit ehrlicher, maschinenlesbarer Sitzungsleere und
+unveränderter Kette
 (`legacy-v1-slot-loads-with-honest-machine-readable-session-emptiness-and-unchanged-chain`)
 — ohne Migrationserfindung, ohne Feldumdeutung. Der
 Loader kennzeichnet den Ursprung (`FromLegacyV1Document`); der Report weist
@@ -616,7 +616,7 @@ registriert:
    ohne Tastendruck.
 3. **Ablehnung:** Ein Laden mit unpassendem, inkompatiblem oder korruptem
    Slot erhält eine kontrollierte, unterscheidbare Ablehnung mit
-   maschinenlesbarer Kennung; Welt, Kette und Kern bleiben unveraendert.
+   maschinenlesbarer Kennung; Welt, Kette und Kern bleiben unverändert.
 4. **Beobachtungstreue:** Strategische und persönliche Bedienung bleiben
    unverändert; kein Befehlspuls und keine Weltänderung geht aus dem reinen
    Speichern/Laden hervor.
@@ -630,7 +630,7 @@ T-023/T-032/T-033/T-034/T-035/T-036).
 
 Es entstehen **keine neuen Exitcodebedeutungen**. Bestehende Bedeutungen
 (insbesondere 19, 27, 28, 33–38 und 2/4) bleiben unverändert: Ein
-Speicherlauf, dessen Slot schreibvorgang fehlschlägt, ist ein unvollständiger
+Speicherlauf, dessen Slot-Schreibvorgang fehlschlägt, ist ein unvollständiger
 Lauf (Code 36, Teilreport ist keine Evidenz); ein Fortsetzungslauf mit
 abgewiesener Ladung endet kontrolliert unvollständig (Code 36) mit
 maschinenlesbarer Ablehnungskennung im Teilreport; Gateverletzungen bleiben
@@ -641,12 +641,12 @@ erzwingt keine Schichtaktivierung und keine Schichtblockpflicht); alle neuen
 Felder tragen `gateCoupled=false`, und die Kettenfortsetzungswahrheit bindet
 der Bestandskriterium-5-Ausweis (`gate.stateChainSelfConsistency`) im
 Fortsetzungslauf fail-closed gegen die unterbrochene In-Prozess-Referenz
-(neue Felder selbst ohne Gatekopplung). Läufe ohne Save-/Ladeaktivierung
-bleiben bei den Bestandsschemaversionen 2/3/4/5 byteidentisch; die
+(neue Felder selbst ohne Gatekopplung). Läufe ohne Sitzungsaktivierung
+bleiben bei der Bestandsschemaversion 2 byteidentisch; die
 Persistenzpräzisierung der vier Sitzungsverträge (Abschnitt 13.6) ändert
-ausschließlich die Werte der bestehenden persistence-Blöcke aktivierter
-Läufe mit Fixture-Regeneration, nicht ihre Struktur und nicht die
-Schemaversionen.
+ausschließlich die Werte der bestehenden persistence-Blöcke der
+Schichtläufe (Schemaversionen 3/4/5) mit Fixture-Regeneration, nicht ihre
+Struktur und nicht die Schemaversionen.
 
 ## 14. Geltungsbereich V2
 
@@ -656,8 +656,8 @@ vier Sitzungsverträge. Sie begründet kein Cooked-Paket-, Definitions- oder
 Replaydateiformat (Q-TEC-006 bleibt `OFFEN`; Cross-Plattform-Hashzusagen
 bleiben unbehauptet, K3), keine UI-/Menüflächen, keine Out-of-Session-
 Neustartsemantik (Hauptmenü, Neues Spiel, Weltneuaufbau), keine
-Aenderung an `Riftward.Simulation`, seinem Vertrag oder seiner
+Änderung an `Riftward.Simulation`, seinem Vertrag oder seiner
 Byteidentität, und keine Antwort auf eine offene Produktfrage. `DATENMODELL.md`
-bleibt byteidentisch, weil Umschlag und Atomarprotokoll unveraendert bleiben
+bleibt byteidentisch, weil Umschlag und Atomarprotokoll unverändert bleiben
 und die Sektion im vertraglich versionierten Payloadumfang als additive
 Sektion lebt.
