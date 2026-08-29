@@ -66,6 +66,15 @@ let private jsonBool (element: JsonElement) (name: string) = element.GetProperty
 
 let private jsonString (element: JsonElement) (name: string) = element.GetProperty(name).GetString()
 
+/// Wrapper der C#-Valuetupel-Rueckgabe als F#-Optionen (lesbare Pruefung).
+let private decodeSection (bytes: byte[]) : SessionSectionRejection option * SessionSectionState option =
+    let struct (rejection, state) = SessionSectionCodec.Decode(bytes)
+    (Option.ofObj rejection, Option.ofObj state)
+
+let private validateDocument (bytes: byte[]) : SaveRejection option * LoadedSaveDocument option =
+    let struct (rejection, document) = SaveDocumentValidator.Validate(bytes)
+    (Option.ofObj rejection, Option.ofObj document)
+
 // ---------------------------------------------------------------------------
 // Vollstaendig aktivierte Fortsetzungskette (Vertragsfixture): die gebundene
 // T-034/T-035/T-036-Kette mit Fehlschlag, Wiederauffrischung und Erfolg; der
@@ -182,7 +191,7 @@ let private populatedSection () : SessionSectionState =
 let sessionSectionCodecRoundtripIsByteIdenticalPerLayer () =
     let section = populatedSection()
     let encoded = SessionSectionCodec.Encode(section)
-    let (rejection, decoded) = SessionSectionCodec.Decode(encoded)
+    let (rejection, decoded) = decodeSection encoded
 
     if rejection.IsSome || decoded.IsNone then
         failwith $"Kanonische Sektion wurde abgewiesen: {rejection}"
@@ -194,7 +203,7 @@ let sessionSectionCodecRoundtripIsByteIdenticalPerLayer () =
 
     // Ehrliche Leere ist ein vollstaendiger, rueckkodierbarer Zustand.
     let emptyEncoded = SessionSectionCodec.Encode(SessionSectionState.Empty)
-    let (emptyRejection, emptyDecoded) = SessionSectionCodec.Decode(emptyEncoded)
+    let (emptyRejection, emptyDecoded) = decodeSection emptyEncoded
 
     if emptyRejection.IsSome || emptyDecoded.IsNone then
         failwith "Ehrliche Sitzungsleere wurde abgewiesen."
@@ -245,7 +254,7 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
     futureVersion.[0] <- 0x09uy
     futureVersion.[1] <- 0x00uy
 
-    let (futureRejection, _) = SessionSectionCodec.Decode(futureVersion)
+    let (futureRejection, _) = decodeSection futureVersion
 
     if
         futureRejection.IsNone
@@ -255,7 +264,7 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
 
     // Abgeschnittene Sektion: kontrollierte Klasse statt Absturz.
     let truncated = encoded.[0 .. encoded.Length - 9]
-    let (truncatedRejection, _) = SessionSectionCodec.Decode(truncated)
+    let (truncatedRejection, _) = decodeSection truncated
 
     if truncatedRejection.IsNone then
         failwith "Abgeschnittene Sektion wurde nicht kontrolliert abgewiesen."
@@ -294,7 +303,7 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
             )
         )
 
-    let (foreignRejection, _) = SessionSectionCodec.Decode(foreignZone)
+    let (foreignRejection, _) = decodeSection foreignZone
 
     if foreignRejection.IsNone then
         failwith "Fremde Besuchzone wurde nicht kontrolliert abgewiesen."
@@ -335,7 +344,7 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
             )
         )
 
-    let (duplicateRejection, _) = SessionSectionCodec.Decode(duplicateZone)
+    let (duplicateRejection, _) = decodeSection duplicateZone
 
     if duplicateRejection.IsNone then
         failwith "Doppelregistrierung derselben Zone wurde nicht abgewiesen."
@@ -374,7 +383,7 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
             )
         )
 
-    let (strategicRejection, _) = SessionSectionCodec.Decode(strategicVisit)
+    let (strategicRejection, _) = decodeSection strategicVisit
 
     if strategicRejection.IsNone then
         failwith "Strategische Registrierung wurde nicht kontrolliert abgewiesen."
@@ -403,14 +412,14 @@ let private buildSimState (seed: uint32) (ticks: int) =
     (SimulationSaveAdapter.Capture(world), world.ComputeStateHash())
 
 let v2EnvelopeRoundtripAndLegacyV1Emptiness () =
-    let (state, stateHash) = buildSimState(20260824u, 900)
+    let (state, stateHash) = buildSimState 20260824u 900
     let metadata = SaveEnvelopeMetadata.CreateFresh(DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
     let section = SessionSectionCodec.Encode(populatedSection())
 
     let v2Document =
         CanonicalSaveCodec.WriteDocumentV2(state, stateHash, 42UL, "test", metadata, section)
 
-    let (v2Rejection, v2Loaded) = SaveDocumentValidator.Validate(v2Document)
+    let (v2Rejection, v2Loaded) = validateDocument v2Document
 
     if v2Rejection.IsSome || v2Loaded.IsNone then
         failwith $"V2-Dokument wurde abgewiesen: {v2Rejection}"
@@ -429,7 +438,7 @@ let v2EnvelopeRoundtripAndLegacyV1Emptiness () =
     let v1Document =
         CanonicalSaveCodec.WriteDocumentV1(state, stateHash, 42UL, "test", metadata)
 
-    let (v1Rejection, v1Loaded) = SaveDocumentValidator.Validate(v1Document)
+    let (v1Rejection, v1Loaded) = validateDocument v1Document
 
     if v1Rejection.IsSome || v1Loaded.IsNone then
         failwith $"V1-Dokument wurde nach der V2-Erweiterung abgewiesen: {v1Rejection}"
@@ -454,7 +463,7 @@ let v2EnvelopeRoundtripAndLegacyV1Emptiness () =
         copy
 
     for version in [ 0; 3 ] do
-        let (rejection, _) = SaveDocumentValidator.Validate(mutated version)
+        let (rejection, _) = validateDocument (mutated version)
 
         if
             rejection.IsNone
@@ -477,13 +486,13 @@ let v2EnvelopeRoundtripAndLegacyV1Emptiness () =
 
     if
         futureOutcome.Success
-        || futureOutcome.Rejection.IsNone
-        || futureOutcome.Rejection.Value.Class <> SaveRejectionClass.SchemaVersionUnsupported
+        || isNull futureOutcome.Rejection
+        || futureOutcome.Rejection.Class <> SaveRejectionClass.SchemaVersionUnsupported
     then
         failwith "Zukuenftige Version wurde vom Migrator nicht ohne Erfindung abgewiesen."
 
 let untrustedSlotActivationGuardsRejectMismatch () =
-    let (state, stateHash) = buildSimState(20260824u, 600)
+    let (state, stateHash) = buildSimState 20260824u 600
     let section = SessionSectionCodec.Encode(SessionSectionState.Empty)
     let metadata = SaveEnvelopeMetadata.CreateFresh(DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
 
@@ -501,30 +510,30 @@ let untrustedSlotActivationGuardsRejectMismatch () =
             failwith $"Atomarer Slot-Schreibvorgang scheiterte: {write.Error}"
 
         // V2-Slot wird bei passendem Seed akzeptiert.
-        let (accepted, acceptanceRejection) =
+        let struct (accepted, acceptanceRejection) =
             ContinuationRunner.LoadSlot(slotDir, "slot-guards.rwsaved", 20260824u)
 
-        if acceptanceRejection.IsSome || accepted.IsNone then
+        if not (isNull acceptanceRejection) || isNull accepted then
             failwith $"Passender Slot wurde abgewiesen: {acceptanceRejection}"
 
         // Fremder Seed: unterscheidbare Ablehnung ohne Aktivierung.
-        let (foreignSeedCapture, foreignSeedRejection) =
+        let struct (foreignSeedCapture, foreignSeedRejection) =
             ContinuationRunner.LoadSlot(slotDir, "slot-guards.rwsaved", 777u)
 
-        if foreignSeedCapture.IsSome then
+        if not (isNull foreignSeedCapture) then
             failwith "Fremdseed-Slot wurde aktiviert."
 
         if
-            foreignSeedRejection.IsNone
-            || foreignSeedRejection.Value.Reason <> SaveContract.RejectionForeignSeed
+            isNull foreignSeedRejection
+            || foreignSeedRejection.Reason <> SaveContract.RejectionForeignSeed
         then
             failwith "Fremdseed-Ablehnung traegt nicht die vertragliche Kennung."
 
         // Fehlender Slot: unterscheidbare Ablehnung.
-        let (missingCapture, missingRejection) =
+        let struct (missingCapture, missingRejection) =
             ContinuationRunner.LoadSlot(slotDir, "slot-fehlt.rwsaved", 20260824u)
 
-        if missingCapture.IsSome || missingRejection.IsNone then
+        if not (isNull missingCapture) || isNull missingRejection then
             failwith "Fehlender Slot wurde nicht kontrolliert abgewiesen."
     finally
         try
@@ -544,27 +553,24 @@ let private continuationIntents () =
     )
 
 let private freshCapture (seed: uint32) (boundary: int64) =
-    let (result, capture) =
-        SessionEngine.RunWithSaveBoundary(
-            SessionRunRequest(
-                Seed = seed,
-                ScriptedIntents = (continuationIntents ()).Intents,
-                WarmupTicks = 240,
-                HorizonTicks = 11000,
-                RunSelfConsistencyPass = true,
-                ExplorationEnabled = true,
-                DecisionEnabled = true,
-                PressureEnabled = true
-            ),
-            boundary
-        )
-
-    (result, capture)
+    SessionEngine.RunWithSaveBoundary(
+        SessionRunRequest(
+            Seed = seed,
+            ScriptedIntents = (continuationIntents ()).Intents,
+            WarmupTicks = 240,
+            HorizonTicks = 11000,
+            RunSelfConsistencyPass = true,
+            ExplorationEnabled = true,
+            DecisionEnabled = true,
+            PressureEnabled = true
+        ),
+        boundary
+    )
 
 let headlessContinuationChainIsByteIdenticalOverBoundary () =
-    let (saveResult, capture) = freshCapture 20260826u 8100L
+    let struct (saveResult, capture) = freshCapture 20260826u 8100L
 
-    if saveResult.StateChainSelfConsistent <> (Some true) then
+    if saveResult.StateChainSelfConsistent <> Nullable true then
         failwith "Der Speicherlauf verletzte seine eigene Kettenkonsistenz."
 
     if capture.BoundaryTick <> 8100L then
@@ -607,18 +613,20 @@ let headlessContinuationChainIsByteIdenticalOverBoundary () =
     // Druck fortsetzt den Fehlschlag-Neustart-Erfolgspfad im geladenen
     // Prozess: genau drei Fensterinstanzen (erste Wahl, Fehlschlag,
     // zweite Wahl mit Erfolg).
-    match continuation.Result.Pressure with
-    | None -> failwith "Fortsetzungslauf lieferte keinen Druckausweis."
-    | Some pressure ->
-        if pressure.CycleCount <> 2L then
-            failwith $"Der Fortsetzungslauf fuehrte nicht zu Zyklus 2 ({pressure.CycleCount})."
+    if isNull continuation.Result.Pressure then
+        failwith "Fortsetzungslauf lieferte keinen Druckausweis."
 
-        if pressure.EndStatus <> PressureContract.EndStatusSuccess then
-            failwith $"Der Fortsetzungspfad endete nicht im Erfolg ({pressure.EndStatus})."
+    let pressure = continuation.Result.Pressure
+
+    if pressure.CycleCount <> 2L then
+        failwith $"Der Fortsetzungslauf fuehrte nicht zu Zyklus 2 ({pressure.CycleCount})."
+
+    if pressure.EndStatus <> PressureContract.EndStatusSuccess then
+        failwith $"Der Fortsetzungspfad endete nicht im Erfolg ({pressure.EndStatus})."
 
 let foreignSeedChangesHashesButContinuityHolds () =
-    let (baselineSave, _) = freshCapture 20260826u 8100L
-    let (foreignSave, foreignCapture) = freshCapture 424242u 8100L
+    let struct (baselineSave, _) = freshCapture 20260826u 8100L
+    let struct (foreignSave, foreignCapture) = freshCapture 424242u 8100L
 
     if baselineSave.StartStateHash = foreignSave.StartStateHash then
         failwith "Fremdseed liess den Starthash unveraendert."
@@ -815,8 +823,7 @@ let cliContinuationRejectionsStayControlledAndExitCodesStable () =
 
     try
         // Fehlender Slot: Fortsetzungslauf endet kontrolliert mit Code 36.
-        let missingExit, _, _ =
-            runAppHost (loadArguments slotDir loadReport |> Array.ofList)
+        let missingExit, _, _ = runAppHost (loadArguments slotDir loadReport)
 
         if missingExit <> ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete) then
             failwith $"Fehlender Slot ergab {missingExit} statt kontrolliertem Code 36."
