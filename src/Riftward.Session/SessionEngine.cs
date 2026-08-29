@@ -912,10 +912,10 @@ public static class SessionEngine
                 IntentTick: pending.IntentTick,
                 EvaluatedBoundaryTick: pending.IntentTick,
                 EffectiveBoundaryTick: pending.EffectiveBoundaryTick,
-                PreviousMode: pending.PreviousMode == SessionMode.Personal
+                PreviousMode: pending.PreviousMode == Riftward.Save.SessionSectionCodec.ModePersonal
                     ? SessionMode.Personal
                     : SessionMode.Strategic,
-                NewMode: pending.NewMode == SessionMode.Personal
+                NewMode: pending.NewMode == Riftward.Save.SessionSectionCodec.ModePersonal
                     ? SessionMode.Personal
                     : SessionMode.Strategic,
                 EffectiveInRun: false,
@@ -1232,7 +1232,7 @@ public static class SessionEngine
             EmptyPointDeselects: (int)pipeline.EmptyPointDeselectTotal,
             MoveWithoutSelectionRejects: (int)pipeline.MoveWithoutSelectionTotal,
             KernelCommandsTotal: (int)pipeline.AppliedCommandsTotal,
-            TotalTicksExecuted: windowEndExclusive,
+            TotalTicksExecuted: checked((int)windowEndExclusive),
             Telemetry: BuildModeTelemetry(pipeline),
             Exploration: explorationTelemetryOrNull(pipeline),
             Decision: decisionTelemetryOrNull(pipeline),

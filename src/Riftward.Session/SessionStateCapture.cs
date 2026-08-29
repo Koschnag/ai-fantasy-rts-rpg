@@ -64,7 +64,7 @@ public static class SessionStateCapture
                     ? SessionSectionCodec.ChoiceKindA
                     : SessionSectionCodec.ChoiceKindB)
                 : SessionSectionCodec.ChoiceKindUnset,
-            DecisionModeKind = decision is { Decided: true } ? SessionSectionCodec.ModePersonal : 0,
+            DecisionModeKind = decision is { Decided: true } ? SessionSectionCodec.ModePersonal : (byte)0,
             DecisionFollowUpZoneIndex = decision?.FollowUpZoneIndex ?? -1,
             DecisionFollowUpCompleted = decision is { FollowUpCompleted: true } ? (byte)1 : (byte)0,
             DecisionArrivalBoundaryTick = decision?.ArrivalBoundaryTick ?? -1,
@@ -93,8 +93,8 @@ public static class SessionStateCapture
                         ArrivalModeKind: window.ArrivalMode switch
                         {
                             null => SessionSectionCodec.ArrivalModeNone,
-                            ModeContract.ModePersonalId => SessionSectionCodec.ModePersonal,
-                            ModeContract.ModeStrategicId => SessionSectionCodec.ModeStrategic,
+                            ModeContract.ModePersonalId => SessionSectionCodec.ArrivalModePersonal,
+                            ModeContract.ModeStrategicId => SessionSectionCodec.ArrivalModeStrategic,
                             _ => throw new InvalidOperationException(
                                 "Unbekannter Ankunftsmodus erreicht die Sektionserfassung."),
                         },

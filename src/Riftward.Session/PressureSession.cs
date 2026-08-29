@@ -272,8 +272,8 @@ public sealed class PressureSession
                 ArrivalMode: window.ArrivalModeKind switch
                 {
                     Riftward.Save.SessionSectionCodec.ArrivalModeNone => null,
-                    Riftward.Save.SessionSectionCodec.ModePersonal => ModeContract.ModePersonalId,
-                    Riftward.Save.SessionSectionCodec.ModeStrategic => ModeContract.ModeStrategicId,
+                    Riftward.Save.SessionSectionCodec.ArrivalModePersonal => ModeContract.ModePersonalId,
+                    Riftward.Save.SessionSectionCodec.ArrivalModeStrategic => ModeContract.ModeStrategicId,
                     _ => throw new InvalidOperationException(
                         "Unbekannter Ankunftsmodus erreicht die Wiederherstellung."),
                 },

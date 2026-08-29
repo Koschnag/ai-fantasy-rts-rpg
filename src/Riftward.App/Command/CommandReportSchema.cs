@@ -229,28 +229,52 @@ public static class CommandReportSchema
             fields.Add((PressureContract.ReportBlockId, PressureSessionBody()));
         }
 
-        fields.AddRange(new List<(string Name, ReportNode Node)>
+        // Rein additive Schemaversion 6 (T-037, Savevertrag V2 Abschnitt
+        // 13.8): ausschließlich neue Felder; der Pflichtblock `continuation`
+        // traegt die Save-/Ladewahrheit, die Sitzungsblöcke der Schichten
+        // erscheinen genau dann, wenn ihre Aktivierung vertraglich besteht.
+        if (version == VersionWithContinuation)
         {
-            ("simulationContract", new RObj(
-                ("document", new RLit(Riftward.Simulation.SimulationContract.DocumentPath)),
-                ("version", new RLit(Riftward.Simulation.SimulationContract.ContractVersion)),
-                ("numericModel", new RLit(Riftward.Simulation.SimulationContract.NumericModelId)),
-                ("hashAlgorithm", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
-                ("allocationLimitBytesPerWarmTick", new RInt(0)))),
-            ("inputScript", new RObj(
-                ("scriptSha256", Sha256),
-                ("intentPlanHash", Hex),
-                ("horizonTicks", new RInt(1)),
-                ("warmupTicks", new RInt(30)),
-                ("intentsTotal", new RInt(0)),
-                ("appliedTotal", new RInt(0)),
-                ("rejectedTotal", new RInt(0)),
-                ("emptyPointDeselects", new RInt(0)),
-                ("moveWithoutSelectionRejects", new RInt(0)),
-                ("noZoneRejects", new RInt(0)),
-                ("kernelCommandsTotal", new RInt(0)))),
-            ("startedAtUtc", new RStr()),
-            ("finishedAtUtc", new RStr()),
+            return new RObj(fields
+                .Concat(new (string, ReportNode)[]
+                {
+                    (ExplorationContract.ReportBlockId, new OptionalFieldNode(ExplorationContract.ReportBlockId, ExplorationSessionBody())),
+                    (DecisionContract.ReportBlockId, new OptionalFieldNode(DecisionContract.ReportBlockId, DecisionSessionBody())),
+                    (PressureContract.ReportBlockId, new OptionalFieldNode(PressureContract.ReportBlockId, PressureSessionBody())),
+                    ("continuation", ContinuationBody()),
+                })
+                .Concat(CommonTailFields(executionMode))
+                .ToArray());
+        }
+
+        fields.AddRange(CommonTailFields(executionMode));
+
+        return new RObj(fields.ToArray());
+    }
+
+    /// <summary>Gemeinsame Felder hinter den optionalen Schemaversion-Blöcken (unverändert seit T-032).</summary>
+    private static List<(string Name, ReportNode Node)> CommonTailFields(string executionMode) => new()
+    {
+        ("simulationContract", new RObj(
+            ("document", new RLit(Riftward.Simulation.SimulationContract.DocumentPath)),
+            ("version", new RLit(Riftward.Simulation.SimulationContract.ContractVersion)),
+            ("numericModel", new RLit(Riftward.Simulation.SimulationContract.NumericModelId)),
+            ("hashAlgorithm", new RLit(Riftward.Simulation.SimulationContract.HashAlgorithmId)),
+            ("allocationLimitBytesPerWarmTick", new RInt(0)))),
+        ("inputScript", new RObj(
+            ("scriptSha256", Sha256),
+            ("intentPlanHash", Hex),
+            ("horizonTicks", new RInt(1)),
+            ("warmupTicks", new RInt(30)),
+            ("intentsTotal", new RInt(0)),
+            ("appliedTotal", new RInt(0)),
+            ("rejectedTotal", new RInt(0)),
+            ("emptyPointDeselects", new RInt(0)),
+            ("moveWithoutSelectionRejects", new RInt(0)),
+            ("noZoneRejects", new RInt(0)),
+            ("kernelCommandsTotal", new RInt(0)))),
+        ("startedAtUtc", new RStr()),
+        ("finishedAtUtc", new RStr()),
             ("environment", new RObj(
                 ("os", new RObj(("type", new RStr()), ("kernelRelease", new RStr()))),
                 ("cpu", new RObj(("model", new RStr()))),
@@ -319,9 +343,7 @@ public static class CommandReportSchema
                 ("protocol", new RLit("qops001-2026-08-24")))),
             ("frameEvidence", new FrameEvidenceAlternative()),
             ("exitCode", new RInt(int.MinValue, int.MaxValue)),
-        });
-
-        return new RObj(fields.ToArray());
+        };
     }
 
     /// <summary>
@@ -350,10 +372,10 @@ public static class CommandReportSchema
             ("completed", new RBool()),
             ("gateCoupled", new RBool(false)))),
         ("persistence", new RObj(
-            ("statementId", new RLit(ExplorationContract.NotPersistedStatementId)),
-            ("persisted", new RBool(false)),
-            ("saveLoad", new RLit("not-continued")),
-            ("replay", new RLit("not-continued")),
+            ("statementId", new RLit(ExplorationContract.SaveLoadPersistenceStatementId)),
+            ("persisted", new RBool(ExplorationContract.Persisted)),
+            ("saveLoad", new RLit(ExplorationContract.SaveLoadContinuation)),
+            ("replay", new RLit(ExplorationContract.ReplayNotContinued)),
             ("gateCoupled", new RBool(false)))),
         ("gateCoupled", new RBool(false)),
         ("hud", ExplorationHudAlternative()),
@@ -675,14 +697,255 @@ public static class CommandReportSchema
             ("afterDecision", new RInt(0)),
             ("gateCoupled", new RBool(false)))),
         ("persistence", new RObj(
-            ("statementId", new RLit(DecisionContract.NotPersistedStatementId)),
-            ("persisted", new RBool(false)),
-            ("saveLoad", new RLit("not-continued")),
-            ("replay", new RLit("not-continued")),
+            ("statementId", new RLit(DecisionContract.SaveLoadPersistenceStatementId)),
+            ("persisted", new RBool(DecisionContract.Persisted)),
+            ("saveLoad", new RLit(DecisionContract.SaveLoadContinuation)),
+            ("replay", new RLit(DecisionContract.ReplayNotContinued)),
             ("gateCoupled", new RBool(false)))),
         ("gateCoupled", new RBool(false)),
         ("hud", DecisionHudAlternative()),
         ("followUpChannel", DecisionChannelAlternative()));
+
+    /// <summary>
+    /// Fortsetzungsblock (T-037, Savevertrag V2 Abschnitt 13.8): Pflichtblock
+    /// der Schemaversion 6 mit strikten Alternativformen je runKind
+    /// (save/load/interactive) und der vertraglichen Vertrags-, Aktivierungs-
+    /// und Modellbindungen. Sämtliche Mess- und Protokollfelder tragen
+    /// gateCoupled=false; die Kettenfortsetzung bindet ausschließlich der
+    /// Bestandskriterium-5-Ausweis des Gates.
+    /// </summary>
+    private static RObj ContinuationBody() => new(
+        ("contract", new RObj(
+            ("document", new RLit(SaveContract.DocumentPath)),
+            ("version", new RLit(SaveContract.ContractVersion)))),
+        ("activationId", new LiteralAlternative(
+            [SaveContract.HeadlessSaveActivationId, SaveContract.HeadlessLoadActivationId, SaveContract.InteractiveSlotActivationId])),
+        ("activationModel", new LiteralAlternative(
+            [SaveContract.HeadlessActivationModelId, SaveContract.InteractiveActivationModelId])),
+        ("sectionModel", new RLit(SaveContract.SessionSectionModelId)),
+        ("codecBoundary", new RLit(SaveContract.CodecBoundaryModelId)),
+        ("legacyEmptiness", new RLit(SaveContract.LegacyEmptinessModelId)),
+        ("activationGuards", new RLit(SaveContract.ActivationGuardModelId)),
+        ("runKind", new LiteralAlternative(["save", "load", "interactive"])),
+        ("saveBoundaryTick", new RNullableIntNode()),
+        ("loadBoundaryTick", new RNullableIntNode()),
+        ("slot", new RStr()),
+        ("slotDirectoryConfigured", new RBool()),
+        ("slotWritten", new RBool()),
+        ("slotWritePhase", new RNullableStr()),
+        ("slotWriteError", new RNullableStr()),
+        ("loadAccepted", new RBool()),
+        ("rejection", new RNullableObject(new RObj(
+            ("reason", new RStr()),
+            ("detail", new RStr())))),
+        ("fromLegacyV1Document", new RBool()),
+        ("sessionSection", new RObj(
+            ("present", new RBool()),
+            ("sectionVersion", new RNullableIntNode()),
+            ("codecId", new RLit(SessionSectionCodec.CodecId)))),
+        ("saves", new RInt(0)),
+        ("loads", new RInt(0)),
+        ("lastSave", new RNullableObject(new RObj(
+            ("accepted", new RBool()),
+            ("reason", new RNullableStr()),
+            ("boundaryTick", new RNullableIntNode())))),
+        ("lastLoad", new RNullableObject(new RObj(
+            ("accepted", new RBool()),
+            ("reason", new RNullableStr()),
+            ("restoredMode", new RNullableStr()),
+            ("restoredBoundaryTick", new RNullableIntNode())))),
+        ("restored", new RNullableObject(new RObj(
+            ("boundaryTick", new RInt(0)),
+            ("mode", ModeName()),
+            ("exploration", new RObj(
+                ("active", new RBool()),
+                ("visitedCount", new RInt(0, NavWorld.ZoneCount)),
+                ("landmarkCount", new RInt(NavWorld.ZoneCount, NavWorld.ZoneCount)),
+                ("completed", new RBool()))),
+            ("decision", new RObj(
+                ("active", new RBool()),
+                ("offerOpened", new RBool()),
+                ("decided", new RBool()),
+                ("followUpZoneIndex", ZoneIndexNode()),
+                ("followUpCompleted", new RBool()))),
+            ("pressure", new RObj(
+                ("active", new RBool()),
+                ("cycleCount", new RInt(0)),
+                ("lastFailureCause", new NullableLiteralNode([PressureContract.FailureCauseWindowExpired])),
+                ("endStatus", new LiteralAlternative(
+                    [
+                        PressureContract.EndStatusNotStarted,
+                        PressureContract.EndStatusWindowOpen,
+                        PressureContract.EndStatusRestartPending,
+                        PressureContract.EndStatusSuccess,
+                    ])))))),
+        ("chainContinuity", new RNullableObject(new RObj(
+            ("verified", new RBool()),
+            ("reasons", new RArr(new RStr())),
+            ("comparedSamples", new RInt(0)),
+            ("referenceEndHash", Hex),
+            ("continuationEndHash", Hex)))),
+        ("scriptIntentsBeforeBoundary", new RNullableIntNode()),
+        ("replay", new RLit("not-continued")),
+        ("gateCoupled", new RBool(false)));
+
+    /// <summary>Ganzzahlknoten, der null oder eine nichtnegative Ganzzahl akzeptiert.</summary>
+    private sealed class RNullableIntNode : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind == JsonValueKind.Null)
+            {
+                return;
+            }
+
+            if (element.ValueKind != JsonValueKind.Number || !element.TryGetInt64(out var value) || value < 0)
+            {
+                errors.Add($"{path}: nichtnegative Ganzzahl oder null erwartet.");
+            }
+        }
+    }
+
+    /// <summary>Objektknoten, der null oder die gebundene Form akzeptiert.</summary>
+    private sealed class RNullableObject(RObj shape) : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind == JsonValueKind.Null)
+            {
+                return;
+            }
+
+            shape.Check(path, element, errors);
+        }
+    }
+
+    /// <summary>
+    /// Optionales Blockfeld der Schemaversion 6: Der Block erscheint genau
+    /// dann, wenn seine Aktivierung vertraglich besteht; ist er vorhanden,
+    /// gilt seine vollständige gebundene Form.
+    /// </summary>
+    private sealed class OptionalFieldNode(string name, ReportNode shape) : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+
+            if (element.TryGetProperty(name, out var value))
+            {
+                shape.Check($"{path}.{name}", value, errors);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Relationale T-037-Bindung (Savevertrag V2 Abschnitt 13.8, fail-closed):
+    /// der Fortsetzungsblock trägt genau eine runKind-Form; ein
+    /// Fortsetzungslauf mit loadAccepted=true trägt die restaurierte
+    /// Kettenwahrheit und den Kettenfortsetzungsausweis, ein abgewiesener
+    /// Lauf trägt seine unterscheidbare Ablehnung; die Replay-Ausnahme
+    /// erscheint in jeder Form; ein interaktiver Lauf trägt seine Slot-
+    /// Fähigkeit; der Sektionsausweis ist an die Legacy-Wahrheit gebunden.
+    /// </summary>
+    private static void ValidateContinuationRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("continuation", out var continuation)
+            || continuation.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var continuationPath = $"{path}.continuation";
+        var runKind = continuation.TryGetProperty("runKind", out var kindElement)
+            && kindElement.ValueKind == JsonValueKind.String
+            ? kindElement.GetString()
+            : null;
+
+        var loadAccepted = ReadBool(continuation, "loadAccepted");
+        var fromLegacy = ReadBool(continuation, "fromLegacyV1Document");
+        var hasRejection = continuation.TryGetProperty("rejection", out var rejection)
+            && rejection.ValueKind == JsonValueKind.Object;
+
+        if (continuation.TryGetProperty("replay", out var replay)
+            && (replay.ValueKind != JsonValueKind.String
+                || !string.Equals(replay.GetString(), "not-continued", StringComparison.Ordinal)))
+        {
+            errors.Add($"{continuationPath}.replay: die ausdrückliche Replay-Ausnahme gilt in jeder Form.");
+        }
+
+        if (runKind == "load")
+        {
+            var loadBoundary = ReadInt(continuation, "loadBoundaryTick");
+
+            if (loadAccepted == true)
+            {
+                if (loadBoundary is not { } boundary || boundary < 0)
+                {
+                    errors.Add($"{continuationPath}.loadBoundaryTick: ein akzeptierter Lauf trägt seine Ladegrenze.");
+                }
+
+                if (!continuation.TryGetProperty("restored", out var restored)
+                    || restored.ValueKind != JsonValueKind.Object)
+                {
+                    errors.Add($"{continuationPath}.restored: ein akzeptierter Lauf trägt die wiederhergestellte Kettenwahrheit.");
+                }
+
+                if (!continuation.TryGetProperty("chainContinuity", out var chain)
+                    || chain.ValueKind != JsonValueKind.Object)
+                {
+                    errors.Add($"{continuationPath}.chainContinuity: ein akzeptierter Lauf trägt den Fortsetzungsausweis.");
+                }
+                else if (ReadBool(chain, "verified") == false
+                    && chain.TryGetProperty("reasons", out var reasons)
+                    && reasons.ValueKind == JsonValueKind.Array
+                    && reasons.GetArrayLength() == 0)
+                {
+                    errors.Add($"{continuationPath}.chainContinuity: eine verletzte Fortsetzung trägt ihre Gründe.");
+                }
+            }
+            else
+            {
+                if (!hasRejection)
+                {
+                    errors.Add($"{continuationPath}.rejection: ein abgewiesener Lauf trägt seine unterscheidbare Ablehnung.");
+                }
+
+                if (continuation.TryGetProperty("restored", out var orphanRestored)
+                    && orphanRestored.ValueKind == JsonValueKind.Object)
+                {
+                    errors.Add($"{continuationPath}.restored: eine abgewiesene Ladung trägt keine restaurierte Wahrheit.");
+                }
+            }
+
+            if (fromLegacy == true && loadAccepted == true)
+            {
+                // V1-Kompatibilität (Abschnitt 13.5): die ehrliche Leere ist
+                // maschinenlesbar gebunden.
+                if (continuation.TryGetProperty("sessionSection", out var section)
+                    && section.ValueKind == JsonValueKind.Object
+                    && ReadBool(section, "present") == true)
+                {
+                    errors.Add($"{continuationPath}.sessionSection: ein Legacy-V1-Slot trägt die ehrliche Sitzungsleere.");
+                }
+            }
+        }
+        else if (runKind == "save")
+        {
+            var saveBoundary = ReadInt(continuation, "saveBoundaryTick");
+
+            if (saveBoundary is not { } boundary || boundary < 0)
+            {
+                errors.Add($"{continuationPath}.saveBoundaryTick: ein Speicherlauf trägt seine Speichervorgrenze.");
+            }
+        }
+    }
 
     /// <summary>Zonenknoten inklusive vertraglichem Sentinel.</summary>
     private static RInt ZoneIndexNode() =>
@@ -730,10 +993,10 @@ public static class CommandReportSchema
             ("reason", new RNullableStr()),
             ("gateCoupled", new RBool(false)))),
         ("persistence", new RObj(
-            ("statementId", new RLit(PressureContract.NotPersistedStatementId)),
-            ("persisted", new RBool(false)),
-            ("saveLoad", new RLit("not-continued")),
-            ("replay", new RLit("not-continued")),
+            ("statementId", new RLit(PressureContract.SaveLoadPersistenceStatementId)),
+            ("persisted", new RBool(PressureContract.Persisted)),
+            ("saveLoad", new RLit(PressureContract.SaveLoadContinuation)),
+            ("replay", new RLit(PressureContract.ReplayNotContinued)),
             ("gateCoupled", new RBool(false)))),
         ("gateCoupled", new RBool(false)),
         ("hud", PressureHudAlternative()),

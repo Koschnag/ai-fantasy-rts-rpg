@@ -53,6 +53,8 @@ public static class SessionSectionCodec
     public const byte EndReasonSuccess = 1;
     public const byte EndReasonExpired = 2;
     public const byte ArrivalModeNone = 0;
+    public const byte ArrivalModePersonal = 1;
+    public const byte ArrivalModeStrategic = 2;
     public const byte CauseKindNone = 0;
     public const byte CauseKindWindowExpired = 1;
 
@@ -438,7 +440,7 @@ public static class SessionSectionCodec
                     return Invalid("Die Endgrenze eines Erfolgs liegt vor der Startgrenze.");
                 }
 
-                if (arrival < start || arrival > end || arrivalMode != ModePersonal || cause != CauseKindNone)
+                if (arrival < start || arrival > end || arrivalMode != ArrivalModePersonal || cause != CauseKindNone)
                 {
                     return Invalid("Ein Erfolg traegt seine persoenliche Ankunft innerhalb der Instanzgrenzen.");
                 }
