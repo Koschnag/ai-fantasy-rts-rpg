@@ -111,10 +111,15 @@ public sealed record SessionSectionState
     };
 }
 
-/// <summary>Schwebender Moduswechsel an der Vorgrenze (kein Kettenzustand).</summary>
+/// <summary>
+/// Schwebender Moduswechsel an der Vorgrenze (kein Kettenzustand): die
+/// vollständige Wechselwahrheit mit vorherigem und neuem Modus, damit die
+/// Wiederherstellung ohne Ableitung auskommt.
+/// </summary>
 public sealed record SessionSectionPendingSwitch(
     long IntentTick,
     long EffectiveBoundaryTick,
+    byte PreviousMode,
     byte NewMode);
 
 /// <summary>Aufsuchprotokolleintrag der Sektion (Besuchsrang ist die Listenposition).</summary>

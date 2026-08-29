@@ -36,6 +36,9 @@ public static class SessionStateCapture
                 .Select(pending => new SessionSectionPendingSwitch(
                     IntentTick: pending.IntentTick,
                     EffectiveBoundaryTick: pending.EffectiveBoundaryTick,
+                    PreviousMode: pending.PreviousMode == SessionMode.Personal
+                        ? SessionSectionCodec.ModePersonal
+                        : SessionSectionCodec.ModeStrategic,
                     NewMode: pending.NewMode == SessionMode.Personal
                         ? SessionSectionCodec.ModePersonal
                         : SessionSectionCodec.ModeStrategic))

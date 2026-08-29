@@ -80,7 +80,7 @@ public static class SessionSectionCodec
     public const int VisitStrideBytes = sizeof(long) + sizeof(int) + 1;
 
     /// <summary>Feste Stranglaenge eines schwebenden Moduswechsels in Bytes.</summary>
-    public const int PendingSwitchStrideBytes = (2 * sizeof(long)) + 1;
+    public const int PendingSwitchStrideBytes = (2 * sizeof(long)) + 2;
 
     /// <summary>Kodiert den vollstaendigen Sitzungszustand kanonisch.</summary>
     public static byte[] Encode(SessionSectionState state)
@@ -112,6 +112,7 @@ public static class SessionSectionCodec
         {
             WriteI64(section, ref offset, pending.IntentTick);
             WriteI64(section, ref offset, pending.EffectiveBoundaryTick);
+            WriteU8(section, ref offset, pending.PreviousMode);
             WriteU8(section, ref offset, pending.NewMode);
         }
 
@@ -223,11 +224,17 @@ public static class SessionSectionCodec
         {
             var intentTick = ReadI64(section, ref offset);
             var effectiveTick = ReadI64(section, ref offset);
+            var previousMode = ReadU8(section, ref offset);
             var newMode = ReadU8(section, ref offset);
 
-            if (newMode > ModePersonal)
+            if (previousMode > ModePersonal || newMode > ModePersonal)
             {
-                return Invalid("Zielmodus eines schwebenden Wechsels ist unbekannt.");
+                return Invalid("Modus eines schwebenden Wechsels ist unbekannt.");
+            }
+
+            if (previousMode == newMode)
+            {
+                return Invalid("Ein Moduswechsel kehrt seinen Modus nie in denselben.");
             }
 
             if (effectiveTick <= intentTick)
@@ -235,7 +242,7 @@ public static class SessionSectionCodec
                 return Invalid("Wirksamkeitsgrenze eines schwebenden Wechsels liegt nicht nach seinem Intent.");
             }
 
-            pending[index] = new SessionSectionPendingSwitch(intentTick, effectiveTick, newMode);
+            pending[index] = new SessionSectionPendingSwitch(intentTick, effectiveTick, previousMode, newMode);
         }
 
         var explorationActive = ReadU8(section, ref offset);

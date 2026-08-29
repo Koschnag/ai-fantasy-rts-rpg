@@ -788,6 +788,28 @@ public sealed record SessionRunRequest(
     bool PressureEnabled = false);
 
 /// <summary>
+/// In-Prozess-Träger eines Speichers an einer Vorgrenze (Savevertrag V2,
+/// Abschnitt 13.2): Simulationszustand und Sitzungszustand an derselben
+/// Vorgrenze samt Zustandsanker. Der App-Layer verpackt diese Erfassung in
+/// ein V2-Dokument; der Fortsetzungslauf stellt aus ihr Welt und Sitzungs-
+/// schicht wieder her. Kein Feld dieser Erfassung ist Teil des Simulations-
+/// zustands oder Hashes außer dem vom Kern selbst gehashten Simulationszustand.
+/// </summary>
+public sealed record SessionSaveCapture(
+    long BoundaryTick,
+    ulong BoundaryStateHash,
+    Riftward.Save.SimSaveState Simulation,
+    Riftward.Save.SessionSectionState Session);
+
+/// <summary>Ergebnis eines Fortsetzungslaufs ab der Ladegrenze.</summary>
+public sealed record SessionContinuationResult(
+    SessionRunResult Result,
+    bool ChainContinuityVerified,
+    IReadOnlyList<string> ContinuityReasons,
+    ulong ReferenceEndHash,
+    int ComparedSampleCount);
+
+/// <summary>
 /// Headless Sitzungslauf (Kommandovertrag Abschnitt 7): fester 20-Hz-Tick
 /// des unveränderten Kerns, Messfenster nach T-021-Methode (Stoppuhr-Delta
 /// je Tick ausschliesslich um world.Tick(); praezises GC-Allokationsdelta je
@@ -797,7 +819,226 @@ public sealed record SessionRunRequest(
 /// </summary>
 public static class SessionEngine
 {
-    public static SessionRunResult Run(SessionRunRequest request)
+    public static SessionRunResult Run(SessionRunRequest request) =>
+        RunCore(request, request.HorizonTicks, saveCapture: false).Result;
+
+    /// <summary>
+    /// Speicherlauf (Savevertrag V2, Abschnitt 13.2): fährt die Kette bis zur
+    /// Vorgrenze <paramref name="saveBoundaryTick"/> (Zustand nach Abschluss
+    /// des Ticks <c>saveBoundaryTick − 1</c>), misst das Fenster
+    /// <c>[warmupTicks, saveBoundaryTick)</c> vertragsgleich und erfasst dort
+    /// Simulation plus Sitzungsschicht. Der gespeicherte Prozess endet mit
+    /// dieser Erfassung.
+    /// </summary>
+    public static (SessionRunResult Result, SessionSaveCapture Capture) RunWithSaveBoundary(
+        SessionRunRequest request,
+        long saveBoundaryTick)
+    {
+        if (saveBoundaryTick <= request.WarmupTicks || saveBoundaryTick >= request.HorizonTicks)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(saveBoundaryTick),
+                "Die Speichervorgrenze muss innerhalb des Messfensters liegen ([warmupTicks+1, horizonTicks-1]).");
+        }
+
+        var (result, capture) = RunCore(request, saveBoundaryTick, saveCapture: true);
+        return (result, capture!);
+    }
+
+    /// <summary>
+    /// Fortsetzungslauf (Savevertrag V2, Abschnitt 13.2): frischer
+    /// Weltzustand aus der Speichererfassung, vollständig restaurierte
+    /// Sitzungsschicht und Modus, Fortsetzung der Skriptausführung ab der
+    /// Ladegrenze bis zum Horizont. Die Fortsetzungskette wird gegen einen
+    /// unterbrochenen Referenzlauf im selben Prozess verglichen (alle
+    /// Stichproben nach der Ladegrenze sowie das Kettenende, T-031-
+    /// Fortsetzungsketten-Präzedenz); die Session-Schicht der Referenz ist
+    /// bewusst leer, weil kein Sitzungszustand je die Kette berührt.
+    /// </summary>
+    public static SessionContinuationResult RunFromSessionSave(
+        SessionRunRequest request,
+        SessionSaveCapture capture)
+    {
+        ArgumentNullException.ThrowIfNull(capture);
+
+        if (capture.BoundaryTick <= request.WarmupTicks || capture.BoundaryTick >= request.HorizonTicks)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(capture),
+                "Die Ladegrenze muss innerhalb des Messfensters liegen.");
+        }
+
+        if (!Riftward.Save.SimulationSaveAdapter.TryRestore(
+                capture.Simulation, capture.BoundaryStateHash, out var world, out var restoreFailure)
+            || world is null)
+        {
+            throw new InvalidOperationException($"Wiederherstellung wurde kontrolliert abgewiesen: {restoreFailure}");
+        }
+
+        var exploration = capture.Session.ExplorationActive != 0
+            ? ExplorationSession.Restore(capture.Session.ExplorationVisits)
+            : null;
+
+        if (request.DecisionEnabled && exploration is null)
+        {
+            throw new ArgumentException(
+                "Die Entscheidungsaktivierung ist vertraglich an die Erkundungsaktivierung gekoppelt.",
+                nameof(request));
+        }
+
+        if (request.PressureEnabled && !request.DecisionEnabled)
+        {
+            throw new ArgumentException(
+                "Die Druckaktivierung ist vertraglich an die Entscheidungsaktivierung gekoppelt.",
+                nameof(request));
+        }
+
+        var decision = request.DecisionEnabled && capture.Session.DecisionActive != 0
+            ? DecisionSession.Restore(capture.Session)
+            : null;
+        var pressure = request.PressureEnabled && capture.Session.PressureActive != 0
+            ? PressureSession.Restore(capture.Session)
+            : null;
+
+        // Skriptintents vor der Ladegrenze sind im Speicherlauf verbraucht;
+        // die Fortsetzung setzt ab der Ladegrenze fort (kanonische Reihen-
+        // folge bleibt erhalten, da das Array vorsortiert ist).
+        var continuationIntents = request.ScriptedIntents
+            .Where(intent => intent.Tick >= capture.BoundaryTick)
+            .ToArray();
+        var selection = new SelectionModel(ReadAgentGroups(world));
+        var pendingSwitches = capture.Session.PendingSwitches
+            .Select(pending => new ModeSwitchEvent(
+                IntentTick: pending.IntentTick,
+                EvaluatedBoundaryTick: pending.IntentTick,
+                EffectiveBoundaryTick: pending.EffectiveBoundaryTick,
+                PreviousMode: pending.PreviousMode == SessionMode.Personal
+                    ? SessionMode.Personal
+                    : SessionMode.Strategic,
+                NewMode: pending.NewMode == SessionMode.Personal
+                    ? SessionMode.Personal
+                    : SessionMode.Strategic,
+                EffectiveInRun: false,
+                SwitchReactionTicks: 0,
+                HeroPositionXMm: 0,
+                HeroPositionYMm: 0,
+                HeroZoneIndex: -1,
+                HeroPathState: 0))
+            .ToArray();
+        var restoredMode = capture.Session.ActiveMode == 1 ? SessionMode.Personal : SessionMode.Strategic;
+        var pipeline = new SessionPipeline(
+            world, selection, continuationIntents, restoredMode, pendingSwitches, exploration, decision, pressure);
+
+        var result = RunMeasuredWindow(
+            request, world, pipeline, capture.BoundaryTick, request.HorizonTicks,
+            restored: true);
+
+        // Unterbrochener Referenzlauf im selben Prozess (K2-Anker-Präzedenz):
+        // identische Stichprobenregel, voller Horizont, ohne Sitzungsschicht.
+        var reference = RunUninterruptedReference(request);
+        var reasons = CompareContinuation(reference, capture, result);
+        var continuity = reasons.Count == 0;
+
+        return new SessionContinuationResult(
+            Result: result,
+            ChainContinuityVerified: continuity,
+            ContinuityReasons: reasons,
+            ReferenceEndHash: reference.EndHash,
+            ComparedSampleCount: reference.Samples.Count(sample => sample.Tick > capture.BoundaryTick));
+    }
+
+    /// <summary>
+    /// Vergleich der Fortsetzungskette mit der unterbrochenen Referenz
+    /// (T-031-Präzedenz): sämtliche Stichproben nach der Ladegrenze, der
+    /// aligned Anker an der Ladegrenze (falls die Referenz ihn trägt) und das
+    /// Kettenende sind byteidentisch; Abweichungen werden als Gründe benannt
+    /// statt still geglättet.
+    /// </summary>
+    private static List<string> CompareContinuation(
+        ReferenceRun reference,
+        SessionSaveCapture capture,
+        SessionRunResult continuation)
+    {
+        var reasons = new List<string>();
+
+        var expected = reference.Samples.Where(sample => sample.Tick > capture.BoundaryTick).ToList();
+        var actual = continuation.IntervalSampleTicks
+            .Zip(continuation.IntervalHashes, (tick, hash) => (Tick: tick, Hash: hash))
+            .Where(sample => sample.Tick > capture.BoundaryTick)
+            .ToList();
+
+        if (actual.Count != expected.Count)
+        {
+            reasons.Add("continuation-sample-count-mismatch");
+        }
+
+        for (var index = 0; index < Math.Min(actual.Count, expected.Count); index++)
+        {
+            if (actual[index].Tick != expected[index].Tick
+                || actual[index].Hash != expected[index].Hash)
+            {
+                reasons.Add($"continuation-chain-mismatch-at-{actual[index].Tick}");
+                break;
+            }
+        }
+
+        var alignedAnchor = reference.Samples.FirstOrDefault(sample => sample.Tick == capture.BoundaryTick);
+
+        if (alignedAnchor.Tick == capture.BoundaryTick && alignedAnchor.Hash != capture.BoundaryStateHash)
+        {
+            reasons.Add("boundary-anchor-mismatch");
+        }
+
+        if (continuation.EndStateHash != reference.EndHash)
+        {
+            reasons.Add("continuation-end-hash-mismatch");
+        }
+
+        return reasons;
+    }
+
+    private sealed record ReferenceRun(
+        IReadOnlyList<(long Tick, ulong Hash)> Samples,
+        ulong EndHash);
+
+    /// <summary>Unterbrochener Referenzlauf über den vollen Horizont ohne Sitzungsschicht.</summary>
+    private static ReferenceRun RunUninterruptedReference(SessionRunRequest request)
+    {
+        var world = new Riftward.Simulation.SimWorld(request.Seed);
+        var selection = new SelectionModel(ReadAgentGroups(world));
+        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents);
+
+        for (var tick = 0L; tick < request.WarmupTicks; tick++)
+        {
+            pipeline.ProcessBoundary(tick);
+            world.Tick();
+        }
+
+        var samples = new List<(long Tick, ulong Hash)> { (world.TickIndex, world.ComputeStateHash()) };
+
+        for (var tick = request.WarmupTicks; tick < request.HorizonTicks; tick++)
+        {
+            pipeline.ProcessBoundary(tick);
+            world.Tick();
+
+            if (world.TickIndex % SessionContract.HashSampleIntervalTicks == 0)
+            {
+                samples.Add((world.TickIndex, world.ComputeStateHash()));
+            }
+        }
+
+        return new ReferenceRun(samples, world.ComputeStateHash());
+    }
+
+    /// <summary>
+    /// Gemeinsamer Laufkern: frischer Lauf über [Warmup, windowEndExclusive)
+    /// mit optionalem Speicher an der Vorgrenze; der Bestandslauf ist der
+    /// Sonderfall windowEndExclusive == HorizonTicks ohne Speicher.
+    /// </summary>
+    private static (SessionRunResult Result, SessionSaveCapture? Capture) RunCore(
+        SessionRunRequest request,
+        long windowEndExclusive,
+        bool saveCapture)
     {
         if (request.WarmupTicks < 30 || request.WarmupTicks >= request.HorizonTicks)
         {
@@ -845,15 +1086,48 @@ public static class SessionEngine
         var pressure = request.PressureEnabled && decision is not null ? new PressureSession() : null;
         var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration, decision, pressure);
 
-        var windowTicks = request.HorizonTicks - request.WarmupTicks;
-        var tickTimes = new double[windowTicks];
-
         // Warmphase ohne Messung; es gibt keine Intents vor dem Fenster.
         for (var tick = 0L; tick < request.WarmupTicks; tick++)
         {
             pipeline.ProcessBoundary(tick);
             world.Tick();
         }
+
+        var result = RunMeasuredWindow(
+            request, world, pipeline, request.WarmupTicks, windowEndExclusive, restored: false);
+
+        SessionSaveCapture? capture = null;
+
+        if (saveCapture)
+        {
+            capture = new SessionSaveCapture(
+                BoundaryTick: world.TickIndex,
+                BoundaryStateHash: world.ComputeStateHash(),
+                Simulation: Riftward.Save.SimulationSaveAdapter.Capture(world),
+                Session: SessionStateCapture.Capture(pipeline, exploration, decision, pressure));
+        }
+
+        return (result, capture);
+    }
+
+    /// <summary>
+    /// Gemessenes Fenster [firstBoundaryTick, windowEndExclusive) über einer
+    /// bereitgestellten Pipeline (frisch oder restauriert): Messfenster nach
+    /// T-021-Methode, Hashkettenstichproben, Reaktionsverteilung und der
+    /// Ehrlichkeitsnachweis — beim frischen Lauf als Selbstkonsistenzpass,
+    /// beim Fortsetzungslauf als Kettenfortsetzungsvergleich durch den
+    /// Aufrufer.
+    /// </summary>
+    private static SessionRunResult RunMeasuredWindow(
+        SessionRunRequest request,
+        Riftward.Simulation.SimWorld world,
+        SessionPipeline pipeline,
+        long firstBoundaryTick,
+        long windowEndExclusive,
+        bool restored)
+    {
+        var windowTicks = checked((int)(windowEndExclusive - firstBoundaryTick));
+        var tickTimes = new double[windowTicks];
 
         GC.Collect();
         GC.WaitForPendingFinalizers();
@@ -875,7 +1149,7 @@ public static class SessionEngine
         long maxReactionTicks = 0;
         var appliedWithReaction = new List<long>(request.ScriptedIntents.Length);
 
-        for (var tick = request.WarmupTicks; tick < request.HorizonTicks; tick++)
+        for (var tick = firstBoundaryTick; tick < windowEndExclusive; tick++)
         {
             var outcome = pipeline.ProcessBoundary(tick);
             var consumedCommands = outcome.AppliedCount > 0;
@@ -886,7 +1160,7 @@ public static class SessionEngine
             var endTimestamp = Stopwatch.GetTimestamp();
             var allocationAfter = GC.GetTotalAllocatedBytes(precise: true);
 
-            tickTimes[tick - request.WarmupTicks] =
+            tickTimes[tick - firstBoundaryTick] =
                 SessionMath.TimestampDeltaToMilliseconds(startTimestamp, endTimestamp);
             allocationSumBytes += allocationAfter - allocationBefore;
 
@@ -922,7 +1196,7 @@ public static class SessionEngine
         bool? selfConsistent = null;
         var inconsistencyReasons = Array.Empty<string>();
 
-        if (request.RunSelfConsistencyPass)
+        if (request.RunSelfConsistencyPass && !restored)
         {
             selfConsistent = RunSelfConsistencyPass(
                 request,
@@ -958,12 +1232,23 @@ public static class SessionEngine
             EmptyPointDeselects: (int)pipeline.EmptyPointDeselectTotal,
             MoveWithoutSelectionRejects: (int)pipeline.MoveWithoutSelectionTotal,
             KernelCommandsTotal: (int)pipeline.AppliedCommandsTotal,
-            TotalTicksExecuted: request.HorizonTicks,
+            TotalTicksExecuted: windowEndExclusive,
             Telemetry: BuildModeTelemetry(pipeline),
-            Exploration: exploration?.ToTelemetry(),
-            Decision: decision?.ToTelemetry(),
-            Pressure: pressure?.ToTelemetry(decision!));
+            Exploration: explorationTelemetryOrNull(pipeline),
+            Decision: decisionTelemetryOrNull(pipeline),
+            Pressure: pressureTelemetryOrNull(pipeline));
     }
+
+    private static ExplorationTelemetry? explorationTelemetryOrNull(SessionPipeline pipeline) =>
+        pipeline.Exploration?.ToTelemetry();
+
+    private static DecisionTelemetry? decisionTelemetryOrNull(SessionPipeline pipeline) =>
+        pipeline.Decision?.ToTelemetry();
+
+    private static PressureTelemetry? pressureTelemetryOrNull(SessionPipeline pipeline) =>
+        pipeline.Pressure is { } pressure && pipeline.Decision is { } decision
+            ? pressure.ToTelemetry(decision)
+            : null;
 
     /// <summary>
     /// Aggregiert die Modus-Telemetrie der Pipeline (T-033): Wechselprotokoll,

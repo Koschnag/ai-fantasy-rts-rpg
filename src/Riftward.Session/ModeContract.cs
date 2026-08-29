@@ -15,8 +15,8 @@ public static class ModeContract
     /// <summary>Pfad des versionierenden Vertragsdokuments.</summary>
     public const string DocumentPath = "docs/MODEVERTRAG.md";
 
-    /// <summary>Vertragsversion des Dokuments.</summary>
-    public const string ContractVersion = "1";
+    /// <summary>Vertragsversion des Dokuments (V2: additive Persistenz-Präzisierung, T-037).</summary>
+    public const string ContractVersion = "2";
 
     /// <summary>
     /// Versionierte Sitzungsbezeichnung des Vertragshelden: stabiler
