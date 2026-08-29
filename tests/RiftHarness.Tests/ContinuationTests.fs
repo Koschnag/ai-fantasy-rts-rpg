@@ -798,7 +798,7 @@ let pendingModeSwitchSurvivesTheSaveBoundary () =
     // wuerde ihn abweisen und damit als Kettenabweichung zur unterbrochenen
     // Referenz sichtbar machen.
     let script =
-        "graybox-input-script-v3 4000\nintent 3000 switch\nintent 3100 steer 2\n"
+        "graybox-input-script-v3 4000\nintent 3000 switch\nintent 3100 steer 2\nend\n"
 
     let parsed =
         InputScriptParser.Parse(Encoding.ASCII.GetBytes script, ScriptWindowRules(240, 4000))
