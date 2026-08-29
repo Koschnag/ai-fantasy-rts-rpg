@@ -366,6 +366,46 @@ let timeBasisExpiryExactnessAndArrivalOrdering () =
     if decision.TryChoose(DecisionChoiceOption.B, 611L, SessionMode.Personal) then
         failwith "Nach erfolgreichem Abschluss war eine zweite Wahl wirksam."
 
+    // Anzeigezeitraum der Neustartanzeige (Druckvertrag Abschnitt 6): Der
+    // ehrliche Neustarendzustand besteht nach dem definierten Fehlschlag und
+    // kippt mit dem Erfolg eines Folgazyklus — niemals über eine veraltete
+    // Fehlschlagsursache allein hinaus in den Erfolg hinein.
+    let failureWorld = SimWorld(20260826u)
+    let failureExploration = ExplorationSession()
+    let failureDecision = DecisionSession()
+    let failurePressure = PressureSession()
+    let failureHeroZone = HeroTracker.ZoneIndexOf(failureWorld)
+    let failureOtherZone = (failureHeroZone + 1) % NavWorld.ZoneCount
+
+    failureDecision.OpenOfferForContractTest(0L, failureHeroZone, failureOtherZone)
+
+    failureDecision.TryChoose(DecisionChoiceOption.A, 0L, SessionMode.Personal)
+    |> ignore
+
+    for boundary in 0L .. 600L do
+        failurePressure.Observe(boundary, failureWorld, SessionMode.Personal, failureDecision)
+
+    if not failurePressure.RestartPending then
+        failwith "Nach dem definierten Fehlschlag bestand der ehrliche Neustartzustand nicht."
+
+    // Zyklus 2: Wiederauffrischung, erneute Wahl und persönliche Ankunft an
+    // derselben Vorgrenze — der Erfolg beendet den Neustartzustand.
+    failureDecision.OpenOfferForContractTest(601L, failureHeroZone, failureOtherZone)
+
+    failureDecision.TryChoose(DecisionChoiceOption.A, 601L, SessionMode.Personal)
+    |> ignore
+
+    failureDecision.Observe(601L, failureWorld, SessionMode.Personal, failureExploration)
+    failurePressure.Observe(601L, failureWorld, SessionMode.Personal, failureDecision)
+
+    if failurePressure.RestartPending then
+        failwith "Nach dem Erfolg des Folgazyklus bestand der Neustartzustand zu Unrecht fort."
+
+    let struct (recoveredStatus, _) = failurePressure.ResolveEndStatus(failureDecision)
+
+    if recoveredStatus <> PressureContract.EndStatusSuccess then
+        failwith $"Der Folgazyklus nach Fehlschlag schloss nicht als Erfolg ab ({recoveredStatus})."
+
     ()
 
 // ---------------------------------------------------------------------------

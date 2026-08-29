@@ -79,7 +79,10 @@ Der gatende Vertragsspike wurde vor der Implementierung abgeschlossen:
   Landmarkenanker der Folgenzone des fehlgeschlagenen Zyklus — zweistufige,
   klein-unten/groß-oben markierte Säule (1,5/3,0 m; 0,90/1,05) in warmem Rot
   (0,90/0,28/0,22), aktiv ab der Fehlschlagsgrenze bis zur nächsten wirksamen
-  Wahl; MarkerCapacity +2.
+  Wahl; MarkerCapacity +2. Die Anzeigezeitraum-Bindung liegt auf dem ehrlichen
+  Neustarendzustand (`PressureSession.RestartPending`), sodass ein Erfolg
+  eines Folgazyklus niemals eine rote Neustartanzeige erzeugt (Reparatur der
+  unabhängigen Review vom 2026-08-29; Regression im Zeitbasistest gebunden).
 - Tests: `tests/RiftHarness.Tests/PressureTests.fs` (12 Einheiten), Fixture
   `tests/fixtures/command/t036-pressure-restart.graybox` (deterministisch,
   versioniert), Fortschreibung der Bestandsschemamatrix (Golden-Mutation

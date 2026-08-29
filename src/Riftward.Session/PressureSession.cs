@@ -100,6 +100,22 @@ public sealed class PressureSession
     /// <summary>Vorgrenze der letzten Angebots-Wiederauffrischung; Sentinel ohne Neustart.</summary>
     public long LastReopenBoundaryTick => _lastReopenBoundaryTick;
 
+    /// <summary>
+    /// Ehrlicher Fehlschlags-/Neustartzustand (Druckvertrag Abschnitt 6,
+    /// Anzeigezeitraum der Neustartanzeige): mindestens ein Zyklus begonnen,
+    /// kein Fenster offen und die letzte Instanz mit Ablauf geendet — also
+    /// ab der Fehlschlagsgrenze bis zur naechsten wirksamen Wahl, nicht mehr
+    /// nach einem Erfolg eines Folgazyklus. Die darstellseitige Neustart-
+    /// anzeige bindet genau diesen Zustand statt der historischen
+    /// Fehlschlagsursache allein, damit ein spaeterer Erfolg niemals eine
+    /// rote Neustartanzeige erzeugt.
+    /// </summary>
+    public bool RestartPending =>
+        _cycleCount > 0
+        && OpenWindow is null
+        && _windows.Count > 0
+        && _windows[^1].EndReason == PressureContract.WindowEndReasonExpired;
+
     /// <summary>Offene Fensterinstanz (null, solange kein Fenster offen ist).</summary>
     public PressureWindowEvent? OpenWindow { get; private set; }
 
@@ -242,11 +258,9 @@ public sealed class PressureSession
             return (PressureContract.EndStatusWindowOpen, null);
         }
 
-        var lastWindow = _windows[^1];
-
-        return lastWindow.EndReason == PressureContract.WindowEndReasonSuccess
-            ? (PressureContract.EndStatusSuccess, null)
-            : (PressureContract.EndStatusRestartPending, null);
+        return RestartPending
+            ? (PressureContract.EndStatusRestartPending, null)
+            : (PressureContract.EndStatusSuccess, null);
     }
 
     /// <summary>

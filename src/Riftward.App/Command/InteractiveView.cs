@@ -622,7 +622,11 @@ internal sealed class InteractiveView : IDisposable
         // pressure-restart-indicator-channel-v1): genau eine
         // unterscheidbare Neustartanzeige am bestehenden Landmarkenanker der
         // Folgenzone des fehlgeschlagenen Zyklus, aktiv ab der
-        // Fehlschlagsgrenze bis zur naechsten wirksamen Wahl. Zwei
+        // Fehlschlagsgrenze bis zur naechsten wirksamen Wahl. Die Bindung
+        // liegt auf dem ehrlichen Neustarendzustand (RestartPending), damit
+        // der Anzeigezeitraum mit der naechsten wirksamen Wahl endet und ein
+        // Erfolg eines Folgazyklus niemals eine rote Neustartanzeige
+        // erzeugt. Zwei
         // unterscheidbare visuelle Kanaele (NF-005, nie reine Farbcodierung):
         // zweistufige, klein-unten/gross-oben markierte Saeule (zwei
         // Diamantebenen bei 1,5/3,0 m; untere Ebene ruhend pi/4 in Groesse
@@ -636,13 +640,12 @@ internal sealed class InteractiveView : IDisposable
         // die Fehlschlags-, Wiederauffrischungs- und Erfolgsregeln und der
         // Kernzustand bleiben unberuehrt.
         if (_pressure is { } boundPressure
-            && boundPressure.LastFailureCause is not null
-            && boundPressure.OpenWindow is null
+            && boundPressure.RestartPending
             && markerCount + 2 <= MarkerCapacity)
         {
-            // Der Fehlschlags-/Neustartzeitraum reicht bis zur naechsten
-            // wirksamen Wahl: solange kein Fenster offen ist und der letzte
-            // abgeschlossene Zyklus mit Ablauf endete. Der Folgenanker des
+            // Der Fehlschlags-/Neustartzeitraum ist der ehrliche
+            // Neustarendzustand der Druckschicht (Fehlschlagsgrenze bis zur
+            // naechsten wirksamen Wahl). Der Folgenanker des
             // fehlgeschlagenen Zyklus ist die Ankerbindung der
             // Druckschicht (der Zykluszuruecksetzen loescht die Folgenzone
             // der Entscheidungsschicht, die Anzeige bleibt erhalten).
