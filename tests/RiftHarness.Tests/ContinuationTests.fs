@@ -177,7 +177,7 @@ let private populatedSection () : SessionSectionState =
         DecisionRejectionsInStrategicMode = 1L,
         DecisionRejectionsAfterDecision = 0L,
         PressureActive = 1uy,
-        PressureCycleCount = 1L,
+        PressureCycleCount = 2L,
         PressureWindows =
             [ SessionSectionWindow(1L, 1L, 2800L, 3400L, SessionSectionCodec.EndReasonExpired, -1L, SessionSectionCodec.ArrivalModeNone, SessionSectionCodec.CauseKindWindowExpired)
               SessionSectionWindow(2L, 2L, 3401L, -1L, SessionSectionCodec.EndReasonOpen, -1L, SessionSectionCodec.ArrivalModeNone, SessionSectionCodec.CauseKindNone) ],

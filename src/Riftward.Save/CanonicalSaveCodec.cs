@@ -211,10 +211,10 @@ public static class CanonicalSaveCodec
         WriteUnsigned(header, ref offset, snapshotStateHash);
         WriteUnsigned(header, ref offset, (ulong)payload.Length);
         payloadHash.CopyTo(header.Slice(offset));
+        offset += SaveContract.HashLength;
 
         if (sessionSection is not null)
         {
-            offset += SaveContract.HashLength;
             WriteUnsigned(header, ref offset, (ulong)sessionSection.Length);
             SHA256.HashData(sessionSection).CopyTo(header.Slice(offset));
             offset += SaveContract.HashLength;

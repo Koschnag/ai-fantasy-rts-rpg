@@ -1200,6 +1200,7 @@ public static class SessionEngine
         {
             selfConsistent = RunSelfConsistencyPass(
                 request,
+                windowEndExclusive,
                 intervalSampleTicks.AsSpan(0, hashCursor).ToArray(),
                 intervalHashes.AsSpan(0, hashCursor).ToArray(),
                 endStateHash,
@@ -1296,10 +1297,13 @@ public static class SessionEngine
     /// Zweiter frischer Durchlauf im selben Prozess (K2-Anker des Kommando-
     /// vertrags): identische Kette an denselben Stichprobenticks und
     /// identischer Endhash sind Pflicht; Abweichungen werden als Gründe
-    /// zurueckgegeben statt still geglättet.
+    /// zurueckgegeben statt still geglättet. Der Pass endet an derselben
+    /// Fensterende-Vorgrenze wie der gemessene Lauf (Speicherläufe vergleichen
+    /// bis zur Speichervorgrenze, Bestandsläufe bis zum Horizont).
     /// </summary>
     private static bool RunSelfConsistencyPass(
         SessionRunRequest request,
+        long windowEndExclusive,
         long[] expectedSampleTicks,
         ulong[] expectedSampleHashes,
         ulong expectedEndHash,
@@ -1325,7 +1329,7 @@ public static class SessionEngine
 
         var cursor = 1;
 
-        for (var tick = request.WarmupTicks; tick < request.HorizonTicks; tick++)
+        for (var tick = request.WarmupTicks; tick < windowEndExclusive; tick++)
         {
             pipeline.ProcessBoundary(tick);
             world.Tick();

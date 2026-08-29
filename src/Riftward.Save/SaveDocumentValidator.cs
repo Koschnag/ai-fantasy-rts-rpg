@@ -217,8 +217,9 @@ public static class SaveDocumentValidator
             return Reject(SaveRejectionClass.CanonicalViolation, "Datei besitzt Überhangbytes jenseits der deklarierten Struktur.");
         }
 
-        // 7) payloadHash über die Payloadbytes.
-        var payloadStart = (int)(expectedTotal - payloadLength);
+        // 7) payloadHash über die Payloadbytes; die Sektion (nur V2) folgt
+        // hinter dem Payload mit eigenem Anker (Abschnitt 13.5).
+        var payloadStart = preamblePlusHeader + MetaHashBytes;
         var payload = file.Slice(payloadStart, (int)payloadLength);
         var computedPayloadHash = SHA256.HashData(payload);
 
@@ -273,7 +274,7 @@ public static class SaveDocumentValidator
 
         if (isSectionSchema)
         {
-            var sectionBytes = file.Slice((int)(expectedTotal - sessionSectionLength), (int)sessionSectionLength);
+            var sectionBytes = file.Slice(payloadStart + (int)payloadLength, (int)sessionSectionLength);
             var expectedSectionHash = SHA256.HashData(sectionBytes);
             var declaredSectionHash = ReadHeaderSessionSectionHash(header);
 

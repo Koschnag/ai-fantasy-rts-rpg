@@ -540,7 +540,8 @@ internal static class CommandLoopRunner
             Exploration: result.Exploration,
             Decision: result.Decision,
             Pressure: result.Pressure,
-            Continuation: continuation)), BenchRunner.ReportJsonOptions) + "\n";
+            Continuation: continuation,
+            ContinuationActivationId: SaveContract.HeadlessSaveActivationId)), BenchRunner.ReportJsonOptions) + "\n";
 
         if (!writeResult.Success)
         {
@@ -691,7 +692,8 @@ internal static class CommandLoopRunner
             Exploration: result.Exploration,
             Decision: result.Decision,
             Pressure: result.Pressure,
-            Continuation: continuationBlock)), BenchRunner.ReportJsonOptions) + "\n";
+            Continuation: continuationBlock,
+            ContinuationActivationId: SaveContract.HeadlessLoadActivationId)), BenchRunner.ReportJsonOptions) + "\n";
 
         return FinishReport(reportPath, reportJson, gateExitCode);
     }
