@@ -1378,3 +1378,32 @@ T-035 voraus. Dieser Freigabelauf hat keinen Produktcode implementiert und
 keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
 JsonSchema.Net bleibt gemäß T-022-/T-031-Präzedenz Pflichtteil des
 Spec-Reviewlaufs.
+
+Der Implementierungslauf vom 2026-08-29 hat den Slice vollendet: Der gatende
+Abschnitt 0 (`docs/DRUCKVERTRAG.md` V1) und die autorisierte additive
+Zyklus-Präzisierung des Entscheidungsvertrags (V2, Abschnitt 13) liegen vor;
+die sitzungslokale Druckschicht (`PressureContract`, `PressureSession`) erzeugt
+das deterministische Zeitfenster an der Entscheidungsgrenze, den definierten
+Fehlschlag mit Ursache an der Ablaufgrenze (Start + 600 Vorgrenzen exakt), die
+deterministische Angebots-Wiederauffrischung an der nächsten Vorgrenze und den
+sitzungslokalen Auftragszyklus-Neustart — ohne Kernbefehl, ohne
+Simulationszustand oder Hash (Blobvergleich byteidentisch), rein additive
+Report-Schemaversion 5 mit `pressureSession`-Pflichtblock, Titel-HUD-Druck-
+Segmenten und zweistufiger roter Neustartanzeige (NF-005). Der headless
+Fehlschlags-Neustart-Erfolgspfad (Fenster 1 läuft an 8600 ab, Wiederauffrischung
+8601, Zyklus 2 schließt an 9200 als Erfolg ab) ist mit 12 neuen Tests und der
+Fixture `t036-pressure-restart.graybox` gebunden; Testbestand 307/307; alle
+lokalen Gates und Bestandsregressionen (bench-sim, savecheck, Soak-Kurzlauft)
+sind grün; Fresh-Prozesspaar builderidentisch (Endhash `8b4767bf5a75abb8`),
+Fremdseed ändert Start- und Endhash nachweislich. Interaktivsmoke und
+Playtestausführung bleiben wegen der displaylosen Umgebung ausgewiesene
+Restpunkte (kontrollierter Code-19-Abbruch ohne Report). Die unabhängige
+Review vom 2026-08-29 hat den Slice mit genau einer kleinen In-Scope-Reparatur
+vollendet (Anzeigezeitraum der Neustartanzeige ist an den ehrlichen
+Neustarendstatus `RestartPending` gebunden, sodass ein Folgazyklus-Erfolg
+niemals eine rote Neustartanzeige erzeugt; Regression im Zeitbasistest) und
+alle schnellen Gates, Bestandsregressionen und den Fresh-Checkout-Vertrag
+erneut grün bewiesen; Details stehen in
+`docs/abnahme/T-036-graybox-pressure-restart.md`. T-036 trägt den
+Manifeststatus `review`; die Promotion bleibt der separaten
+Promotion-Autorität vorbehalten.

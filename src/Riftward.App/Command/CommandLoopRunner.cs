@@ -64,6 +64,19 @@ internal static class CommandLoopRunner
             return ExitCodes.Usage;
         }
 
+        // Opt-in Aktivierung der Druckschicht (T-036, Druckvertrag
+        // Abschnitt 7): reiner Schalter ohne Wert, vertraglich an
+        // --decision gekoppelt; --pressure ohne --decision ist eine
+        // Usage-Fehlanwendung (bestehender Exitcode, keine neue Bedeutung).
+        var pressureEnabled = arguments.HasFlag("--pressure");
+
+        if (pressureEnabled && !decisionEnabled)
+        {
+            Console.Error.WriteLine(
+                "kommandoschleife: --pressure ist vertraglich an --decision gekoppelt und erfordert dessen Aktivierung.");
+            return ExitCodes.Usage;
+        }
+
         var autoExitAtHorizon = arguments.HasFlag("--auto-exit-at-horizon");
 
         if (autoExitAtHorizon && !interactive)
@@ -133,8 +146,8 @@ internal static class CommandLoopRunner
         return interactive
             ? RunInteractive(
                 arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks,
-                explorationEnabled, decisionEnabled, autoExitAtHorizon)
-            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled, decisionEnabled);
+                explorationEnabled, decisionEnabled, pressureEnabled, autoExitAtHorizon)
+            : RunHeadless(arguments, reportPath!, seed, parsed, warmupTicks, horizonTicks, explorationEnabled, decisionEnabled, pressureEnabled);
     }
 
     /* ------------------------------------------------------------- Headless */
@@ -147,7 +160,8 @@ internal static class CommandLoopRunner
         int warmupTicks,
         int horizonTicks,
         bool explorationEnabled,
-        bool decisionEnabled)
+        bool decisionEnabled,
+        bool pressureEnabled)
     {
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -166,6 +180,7 @@ internal static class CommandLoopRunner
         }
 
         DecisionTelemetry? decisionTelemetry = null;
+        PressureTelemetry? pressureTelemetry = null;
         SessionRunResult result;
 
         try
@@ -177,15 +192,18 @@ internal static class CommandLoopRunner
                 HorizonTicks: horizonTicks,
                 RunSelfConsistencyPass: true,
                 ExplorationEnabled: explorationEnabled,
-                DecisionEnabled: decisionEnabled));
+                DecisionEnabled: decisionEnabled,
+                PressureEnabled: pressureEnabled));
             decisionTelemetry = result.Decision;
+            pressureTelemetry = result.Pressure;
         }
         catch (Exception exception)
         {
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionHeadless, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment, explorationEnabled, decisionEnabled, exploration: null, decision: decisionTelemetry);
+                commit, buildMode, environment, explorationEnabled, decisionEnabled, pressureEnabled,
+                exploration: null, decision: decisionTelemetry, pressure: pressureTelemetry);
         }
 
         var verdict = CommandGate.Evaluate(CommandGateLimits.Documented, new CommandGateInputs(
@@ -229,7 +247,8 @@ internal static class CommandLoopRunner
             ExitCode: gateExitCode,
             Telemetry: result.Telemetry,
             Exploration: result.Exploration,
-            Decision: result.Decision)), BenchRunner.ReportJsonOptions) + "\n";
+            Decision: result.Decision,
+            Pressure: result.Pressure)), BenchRunner.ReportJsonOptions) + "\n";
 
         return FinishReport(reportPath, reportJson, gateExitCode);
     }
@@ -354,7 +373,10 @@ internal static class CommandLoopRunner
         int DecisionStateKind,
         int OptionZoneA,
         int OptionZoneB,
-        int FollowUpZoneIndex);
+        int FollowUpZoneIndex,
+        int PressureStateKind,
+        long PressureCycle,
+        long PressureRemainingTicks);
 
     private static int RunInteractive(
         CommandLineArgs arguments,
@@ -365,6 +387,7 @@ internal static class CommandLoopRunner
         int horizonTicks,
         bool explorationEnabled,
         bool decisionEnabled,
+        bool pressureEnabled,
         bool autoExitAtHorizon)
     {
         var environment = SystemInfo.Capture();
@@ -389,6 +412,7 @@ internal static class CommandLoopRunner
         InteractiveView? view = null;
         ExplorationSession? exploration = null;
         DecisionSession? decision = null;
+        PressureSession? pressure = null;
         string glVersion;
         string glRenderer;
         uint gpuIds;
@@ -424,12 +448,17 @@ internal static class CommandLoopRunner
             // vertraglich an die Erkundungsaktivierung gekoppelt; ohne
             // Aktivierung null (Bestandsverhalten byteidentisch).
             decision = decisionEnabled ? new DecisionSession() : null;
-            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration, decision);
+            // Opt-in Druckschicht (T-036): rein sitzungsseitig, vertraglich
+            // an die Entscheidungsaktivierung gekoppelt; ohne Aktivierung
+            // null (Bestandsverhalten byteidentisch).
+            pressure = pressureEnabled && decision is not null ? new PressureSession() : null;
+            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration, decision, pressure);
             view = new InteractiveView();
             view.BindAgentGroups(selectionGroups);
             view.BindSelection(selection);
             view.BindExploration(exploration);
             view.BindDecision(decision);
+            view.BindPressure(pressure);
 
             var projection = InteractiveCameraMath.Projection(BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
             var camera = new GrayboxCamera();
@@ -440,7 +469,7 @@ internal static class CommandLoopRunner
             var measurement = RunInteractiveLoop(
                 context.Device, resources, view, world, pipeline, camera, heroCamera, input,
                 context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks,
-                exploration, decision, autoExitAtHorizon);
+                exploration, decision, pressure, autoExitAtHorizon);
 
             // Laufende ausgewertete, aber nicht mehr wirksame Wechsel sind
             // ausdrücklich im Protokoll gebunden statt still zu verschwinden.
@@ -573,7 +602,8 @@ internal static class CommandLoopRunner
                     PeakMarkers: measurement.PeakMarkers),
                 Telemetry: modeTelemetry,
                 Exploration: exploration?.ToTelemetry(),
-                Decision: decision?.ToTelemetry())), BenchRunner.ReportJsonOptions) + "\n";
+                Decision: decision?.ToTelemetry(),
+                Pressure: pressure?.ToTelemetry(decision!))), BenchRunner.ReportJsonOptions) + "\n";
 
             return FinishReport(reportPath, reportJson, exitCode);
         }
@@ -589,8 +619,8 @@ internal static class CommandLoopRunner
             Console.Error.WriteLine($"kommandoschleife: Lauf vorzeitig beendet: {exception.Message}");
             return WriteIncompleteReport(
                 reportPath, CommandReportSchema.ExecutionInteractive, seed, parsed, warmupTicks, horizonTicks,
-                commit, buildMode, environment, explorationEnabled, decisionEnabled,
-                exploration?.ToTelemetry(), decision?.ToTelemetry());
+                commit, buildMode, environment, explorationEnabled, decisionEnabled, pressureEnabled,
+                exploration?.ToTelemetry(), decision?.ToTelemetry(), pressure?.ToTelemetry(decision!));
         }
         finally
         {
@@ -637,6 +667,7 @@ internal static class CommandLoopRunner
         int horizonTicks,
         ExplorationSession? exploration,
         DecisionSession? decision,
+        PressureSession? pressure,
         bool autoExitAtHorizon)
     {
         var windowTicks = horizonTicks - warmupTicks;
@@ -810,7 +841,7 @@ internal static class CommandLoopRunner
             // Auto-Exit-Horizont zwingend: eine dort registrierte Landmarke
             // erhaelt keinen weiteren Schleifendurchlauf fuer ein spaeteres
             // HUD-Update.
-            UpdateTitleHud(window, pipeline, world, exploration, decision, ref lastTitleState);
+            UpdateTitleHud(window, pipeline, world, exploration, decision, pressure, ref lastTitleState);
 
             var activeCamera = pipeline.CurrentEffectiveMode == SessionMode.Personal
                 ? InteractiveCameraMath.ActiveCamera.From(heroCamera)
@@ -1193,12 +1224,15 @@ internal static class CommandLoopRunner
     /// title-hud-mode-herozone-v1): aktueller Modus und Heldenzone in der
     /// festen Form `Riftward Graybox — Modus: Strategisch|Persönlich —
     /// Heldenzone: <Zone|–>`; bei Opt-in Aktivierung (T-034) ausschließlich
-    /// der additive, unterscheidbare Segment ` — Erkundung: <n>/<m>`, und
-    /// bei Entscheidungsaktivierung (T-035) ausschließlich der additive,
+    /// der additive, unterscheidbare Segment ` — Erkundung: <n>/<m>`, bei
+    /// Entscheidungsaktivierung (T-035) ausschließlich der additive,
     /// unterscheidbare Entscheidungs-/Folgeziel-Segment in der festen Form
     /// des Entscheidungsvertrags Abschnitt 6 (title-hud-decision-objective-
-    /// v1); ohne Aktivierung bleibt die Titelzeile byteidentisch zum
-    /// Bestandsstand; rein darstellseitig, nur bei Änderung gesetzt.
+    /// v1) und bei Druckaktivierung (T-036) ausschließlich der additive,
+    /// unterscheidbare Druck-Segment in der festen Form des Druckvertrags
+    /// Abschnitt 6 (title-hud-pressure-window-v1); ohne Aktivierung bleibt
+    /// die Titelzeile byteidentisch zum Bestandsstand; rein darstellseitig,
+    /// nur bei Änderung gesetzt.
     /// </summary>
     private static void UpdateTitleHud(
         Window window,
@@ -1206,10 +1240,12 @@ internal static class CommandLoopRunner
         SimWorld world,
         ExplorationSession? exploration,
         DecisionSession? decision,
+        PressureSession? pressure,
         ref TitleHudState? lastState)
     {
         var heroZone = HeroTracker.ZoneIndexOf(world);
-        var state = BuildTitleHudState(pipeline.CurrentEffectiveMode, heroZone, exploration, decision);
+        var state = BuildTitleHudState(
+            pipeline.CurrentEffectiveMode, heroZone, exploration, decision, pressure, world.TickIndex);
 
         if (lastState == state)
         {
@@ -1220,12 +1256,46 @@ internal static class CommandLoopRunner
         lastState = state;
     }
 
+    /// <summary>
+    /// Reiner Titelzustand (Vertragsanker): Negative Erkundungszaehler sind
+    /// ausschließlich der interne Nichtaktivierungs-Sentinel; die Restzeit
+    /// ist die vertragliche Tickdifferenz bis zur Ablaufgrenze
+    /// einschließlich und nie negativ (Ablaufgrenze als letzte Gelegenheit).
+    /// </summary>
     private static TitleHudState BuildTitleHudState(
         SessionMode mode,
         int heroZone,
         ExplorationSession? exploration,
-        DecisionSession? decision) =>
-        new(
+        DecisionSession? decision,
+        PressureSession? pressure,
+        long currentTick)
+    {
+        var pressureStateKind = 0;
+        long pressureCycle = 0;
+        long pressureRemaining = 0;
+
+        if (pressure is { } boundPressure && decision is not null)
+        {
+            var (endStatus, _) = boundPressure.ResolveEndStatus(decision);
+
+            pressureStateKind = endStatus switch
+            {
+                PressureContract.EndStatusWindowOpen => 1,
+                PressureContract.EndStatusRestartPending => 2,
+                PressureContract.EndStatusSuccess => 3,
+                _ => 0,
+            };
+
+            if (boundPressure.OpenWindow is { } openWindow)
+            {
+                pressureCycle = openWindow.Cycle;
+                pressureRemaining = Math.Max(
+                    0,
+                    PressureContract.WindowLengthTicks - (currentTick - openWindow.StartBoundaryTick));
+            }
+        }
+
+        return new(
             mode,
             heroZone,
             exploration?.VisitedCount ?? -1,
@@ -1240,7 +1310,11 @@ internal static class CommandLoopRunner
             },
             decision?.OptionZoneA ?? -1,
             decision?.OptionZoneB ?? -1,
-            decision?.FollowUpZoneIndex ?? -1);
+            decision?.FollowUpZoneIndex ?? -1,
+            pressureStateKind,
+            pressureCycle,
+            pressureRemaining);
+    }
 
     /// <summary>
     /// Reiner Test-/Vertragsanker fuer denselben Titeltext wie im echten
@@ -1251,11 +1325,14 @@ internal static class CommandLoopRunner
         SessionMode mode,
         SimWorld world,
         ExplorationSession? exploration,
-        DecisionSession? decision = null) => FormatTitleHud(BuildTitleHudState(
+        DecisionSession? decision = null,
+        PressureSession? pressure = null) => FormatTitleHud(BuildTitleHudState(
             mode,
             HeroTracker.ZoneIndexOf(world),
             exploration,
-            decision));
+            decision,
+            pressure,
+            world.TickIndex));
 
     private static string FormatTitleHud(TitleHudState state)
     {
@@ -1271,7 +1348,14 @@ internal static class CommandLoopRunner
             3 => $" — Folgeziel: Z{state.FollowUpZoneIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)} abgeschlossen",
             _ => string.Empty,
         };
-        return $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(state.HeroZone < 0 ? "–" : state.HeroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}{explorationProgress}{decisionSegment}";
+        var pressureSegment = state.PressureStateKind switch
+        {
+            1 => $" — Druck: Zyklus {state.PressureCycle.ToString(System.Globalization.CultureInfo.InvariantCulture)} Rest {state.PressureRemainingTicks.ToString(System.Globalization.CultureInfo.InvariantCulture)}",
+            2 => " — Druck: Fehlschlag: Zeit abgelaufen",
+            3 => " — Druck: Erfolg",
+            _ => string.Empty,
+        };
+        return $"Riftward Graybox — Modus: {modeText} — Heldenzone: {(state.HeroZone < 0 ? "–" : state.HeroZone.ToString(System.Globalization.CultureInfo.InvariantCulture))}{explorationProgress}{decisionSegment}{pressureSegment}";
     }
 
     private static void HandleMotion(
@@ -1776,7 +1860,8 @@ internal static class CommandLoopRunner
         long InteractiveContextRejections = 0,
         object? Hud = null,
         ExplorationTelemetry? Exploration = null,
-        DecisionTelemetry? Decision = null);
+        DecisionTelemetry? Decision = null,
+        PressureTelemetry? Pressure = null);
 
     /// <summary>
     /// Baut den Report: ohne Opt-in Aktivierung exakt den Bestandsreport
@@ -1790,11 +1875,13 @@ internal static class CommandLoopRunner
     {
         var report = new Dictionary<string, object>
         {
-            ["schemaVersion"] = ctx.Decision is not null
-                ? DecisionContract.ReportSchemaVersionWithDecision
-                : ctx.Exploration is null
-                    ? CommandReportSchema.VersionWithoutExploration
-                    : CommandReportSchema.VersionWithExploration,
+            ["schemaVersion"] = ctx.Pressure is not null
+                ? PressureContract.ReportSchemaVersionWithPressure
+                : ctx.Decision is not null
+                    ? DecisionContract.ReportSchemaVersionWithDecision
+                    : ctx.Exploration is null
+                        ? CommandReportSchema.VersionWithoutExploration
+                        : CommandReportSchema.VersionWithExploration,
             ["mode"] = CommandReportSchema.ModeCommandLoop,
             ["executionMode"] = ctx.ExecutionMode,
             ["command"] = $"{CommandName} --scenario {SessionContract.ScenarioId} --input-script <PFAD> --seed N --report <PFAD>",
@@ -1834,6 +1921,12 @@ internal static class CommandLoopRunner
         {
             report[DecisionContract.ReportBlockId] = BuildDecisionSession(
                 ctx.ExecutionMode, ctx.WindowCompleted, decision);
+        }
+
+        if (ctx.Pressure is { } pressure)
+        {
+            report[PressureContract.ReportBlockId] = BuildPressureSession(
+                ctx.ExecutionMode, ctx.WindowCompleted, pressure);
         }
 
         report["simulationContract"] = new
@@ -2162,6 +2255,122 @@ internal static class CommandLoopRunner
                 {
                     ["measured"] = false,
                     ["kind"] = DecisionContract.FollowUpChannelModelId,
+                    ["reason"] = unavailableReason,
+                },
+        };
+    }
+
+    /// <summary>
+    /// Drucksitzungsblock des Reports (T-036, Druckvertrag Abschnitt 8): bei
+    /// Aktivierung vertraglich gebunden — Vertrags- und Modellkennungen,
+    /// fixierte Fensterlaenge, Fensterprotokoll je Instanz, Zykluszählung,
+    /// letzter Fehlschlag mit Ursache, Wiederauffrischungsgrenze, ehrlicher
+    /// Endstatus und die versionierte Nichtpersistenzaussage; die
+    /// fensterpflichtigen Ausweise sind headless und in unvollständigen
+    /// Läufen ausdrücklich nicht gemessen mit maschinenlesbarem Grund. Rein
+    /// diagnostisch (gateCoupled=false); kein Gate, kein Budgetwert und
+    /// keine Exitcodebedeutung.
+    /// </summary>
+    internal static Dictionary<string, object> BuildPressureSession(
+        string executionMode,
+        bool windowCompleted,
+        PressureTelemetry pressure)
+    {
+        var presentationMeasured = executionMode == CommandReportSchema.ExecutionInteractive
+            && windowCompleted;
+        var unavailableReason = executionMode == CommandReportSchema.ExecutionHeadless
+            ? ExplorationContract.HeadlessMeasurementReason
+            : "run-incomplete-pressure-presentation-not-asserted";
+
+        return new Dictionary<string, object>
+        {
+            ["contract"] = new
+            {
+                document = PressureContract.DocumentPath,
+                version = PressureContract.ContractVersion,
+            },
+            ["activationId"] = PressureContract.ActivationId,
+            ["triggerId"] = PressureContract.TriggerId,
+            ["timeBasisId"] = PressureContract.TimeBasisId,
+            ["failureRuleId"] = PressureContract.FailureRuleId,
+            ["restartModelId"] = PressureContract.RestartModelId,
+            ["successRuleId"] = PressureContract.SuccessRuleId,
+            ["windowLengthTicks"] = pressure.WindowLengthTicks,
+            ["cycleCount"] = pressure.CycleCount,
+            ["windows"] = pressure.Windows.Select(window => new Dictionary<string, object?>
+            {
+                ["instance"] = window.Instance,
+                ["cycle"] = window.Cycle,
+                ["startBoundaryTick"] = window.StartBoundaryTick,
+                ["endBoundaryTick"] = window.EndBoundaryTick,
+                ["endReason"] = window.EndReason,
+                ["arrivalBoundaryTick"] = window.ArrivalBoundaryTick,
+                ["arrivalMode"] = window.ArrivalMode,
+                ["failureCause"] = window.FailureCause,
+                ["gateCoupled"] = false,
+            }).ToArray(),
+            ["lastFailure"] = pressure.LastFailureCause is { } failureCause
+                ? (object)new
+                {
+                    boundaryTick = pressure.LastFailureBoundaryTick,
+                    cause = failureCause,
+                    gateCoupled = false,
+                }
+                : new Dictionary<string, object?>
+                {
+                    ["boundaryTick"] = null,
+                    ["cause"] = null,
+                    ["gateCoupled"] = false,
+                },
+            ["reopenBoundaryTick"] = pressure.LastReopenBoundaryTick,
+            ["endStatus"] = new Dictionary<string, object?>
+            {
+                ["status"] = pressure.EndStatus,
+                ["reason"] = pressure.EndStatusReason,
+                ["gateCoupled"] = false,
+            },
+            ["persistence"] = new Dictionary<string, object>
+            {
+                ["statementId"] = PressureContract.NotPersistedStatementId,
+                ["persisted"] = PressureContract.Persisted,
+                ["saveLoad"] = "not-continued",
+                ["replay"] = "not-continued",
+                ["gateCoupled"] = false,
+            },
+            ["gateCoupled"] = false,
+            ["hud"] = presentationMeasured
+                ? (object)new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["kind"] = PressureContract.HudModelId,
+                    ["fields"] = new Dictionary<string, object>
+                    {
+                        ["cycleCount"] = pressure.CycleCount,
+                        ["endStatus"] = pressure.EndStatus,
+                        ["windowLengthTicks"] = pressure.WindowLengthTicks,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = PressureContract.HudModelId,
+                    ["reason"] = unavailableReason,
+                },
+            ["restartIndicator"] = presentationMeasured
+                ? (object)new Dictionary<string, object?>
+                {
+                    ["measured"] = true,
+                    ["kind"] = PressureContract.RestartChannelModelId,
+                    ["fields"] = new Dictionary<string, object?>
+                    {
+                        ["failureBoundaryTick"] = pressure.LastFailureBoundaryTick,
+                        ["cause"] = pressure.LastFailureCause,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = PressureContract.RestartChannelModelId,
                     ["reason"] = unavailableReason,
                 },
         };
@@ -2519,8 +2728,10 @@ internal static class CommandLoopRunner
         SystemInfo.Environment environment,
         bool explorationEnabled,
         bool decisionEnabled,
+        bool pressureEnabled,
         ExplorationTelemetry? exploration,
-        DecisionTelemetry? decision)
+        DecisionTelemetry? decision,
+        PressureTelemetry? pressure)
     {
         var verdict = new CommandGateVerdict(
             Pass: false,
@@ -2566,7 +2777,9 @@ internal static class CommandLoopRunner
             Exploration: ResolveIncompleteExploration(
                 explorationEnabled, exploration),
             Decision: ResolveIncompleteDecision(
-                decisionEnabled, decision))), BenchRunner.ReportJsonOptions) + "\n";
+                decisionEnabled, decision),
+            Pressure: ResolveIncompletePressure(
+                pressureEnabled, decisionEnabled, decision, pressure))), BenchRunner.ReportJsonOptions) + "\n";
 
         Console.Error.WriteLine("kommandoschleife: Teilreport gilt ausdruecklich nicht als Evidenz.");
         return FinishReport(reportPath, reportJson, ExitCodes.Map(PlatformErrorCode.CommandRunIncomplete));
@@ -2597,6 +2810,30 @@ internal static class CommandLoopRunner
         decisionEnabled
             ? observed ?? new DecisionSession().ToTelemetry()
             : null;
+
+    /// <summary>
+    /// Erhaelt die explizit angeforderte T-036-Aktivierung auch in
+    /// Exception-Teilreports (Druckvertrag Abschnitt 8). Bereits
+    /// beobachtete Telemetrie wird bewahrt; vor der Sitzungserzeugung
+    /// abgebrochene Laeufe tragen den kanonischen leeren, aber
+    /// vollstaendigen Schemaversion-5-Block mit ehrlichem not-started-
+    /// Endstatus aus dem angebotsstand der Entscheidungstelemetrie. Ohne
+    /// Entscheidungsaktivierung existiert vertraglich kein Druckblock
+    /// (Kopplung, kein stiller Block).
+    /// </summary>
+    internal static PressureTelemetry? ResolveIncompletePressure(
+        bool pressureEnabled,
+        bool decisionEnabled,
+        DecisionTelemetry? decision,
+        PressureTelemetry? observed)
+    {
+        if (!pressureEnabled || !decisionEnabled)
+        {
+            return null;
+        }
+
+        return observed ?? new PressureSession().ToTelemetry(decision?.OfferOpened ?? false);
+    }
 
     private static string FormatHash(ulong hash) =>
         hash.ToString(SimReportSchema.HashFormat, CultureInfo.InvariantCulture);
