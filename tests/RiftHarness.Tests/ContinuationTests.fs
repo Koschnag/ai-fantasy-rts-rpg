@@ -601,8 +601,11 @@ let headlessContinuationChainIsByteIdenticalOverBoundary () =
     // Restaurierte Kettenwahrheit: Modus, Erkundung, Entscheidung, Druck.
     let section = capture.Session
 
-    if section.ActiveMode <> byte SessionMode.Strategic then
-        failwith "Die Sektion traegt an der Speichervorgrenze nicht den wirksamen Modus."
+    // Moduswahrheit der gebundenen Kette: der Wechsel an Vorgrenze 2642
+    // stellt den persoenlichen Modus wieder her; die Wahl an 8000 ist
+    // persoenlich wirksam.
+    if section.ActiveMode <> byte SessionMode.Personal then
+        failwith $"Die Sektion traegt an der Speichervorgrenze nicht den wirksamen Modus ({section.ActiveMode})."
 
     if section.DecisionDecided <> 1uy || section.DecisionFollowUpCompleted <> 0uy then
         failwith "Die Entscheidungswahrheit an der Speichervorgrenze ist verletzt."
@@ -734,7 +737,7 @@ let cliContinuationFlowRunsSaveAndLoadOnSchemaVersion6 () =
         let restored = continuation.GetProperty("restored")
 
         if
-            jsonString restored "mode" <> ModeContract.ModeStrategicId
+            jsonString restored "mode" <> ModeContract.ModePersonalId
             || not (jsonBool (restored.GetProperty("decision")) "decided")
             || jsonBool (restored.GetProperty("decision")) "followUpCompleted"
             || jsonInt64 (restored.GetProperty("pressure")) "cycleCount" <> 1L

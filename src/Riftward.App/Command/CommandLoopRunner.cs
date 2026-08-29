@@ -877,7 +877,7 @@ internal static class CommandLoopRunner
             Commit: frame.Commit,
             BuildMode: frame.BuildMode,
             Environment: frame.Environment,
-            Pins: Array.Empty<ToolchainPin>(),
+            Pins: frame.Pins,
             Metrics: zeroMetrics,
             StartHash: 0,
             EndHash: 0,
