@@ -95,6 +95,7 @@ internal static class CommandLoopRunner
         var slotName = arguments.Option("--slot") ?? SaveContract.InteractiveSlotName;
         var saveAtTickRaw = arguments.Option("--save-at-tick");
         var loadSlotRequested = arguments.HasFlag("--load-slot");
+        var saveAtTick = 0L;
 
         if (saveAtTickRaw is not null && loadSlotRequested)
         {
@@ -119,7 +120,7 @@ internal static class CommandLoopRunner
         }
 
         if (saveAtTickRaw is not null
-            && (!long.TryParse(saveAtTickRaw, out var saveAtTick) || saveAtTick < 0))
+            && (!long.TryParse(saveAtTickRaw, out saveAtTick) || saveAtTick < 0))
         {
             Console.Error.WriteLine("kommandoschleife: --save-at-tick erwartet eine nichtnegative Ganzzahl.");
             return ExitCodes.Usage;
@@ -500,8 +501,8 @@ internal static class CommandLoopRunner
             Parsed: parsed,
             WarmupTicks: warmupTicks,
             HorizonTicks: horizonTicks,
-            TicksExecutedOverride: capture.BoundaryTick,
-            SampleTicksOverride: capture.BoundaryTick - warmupTicks,
+            TicksExecutedOverride: (int)capture.BoundaryTick,
+            SampleTicksOverride: (int)(capture.BoundaryTick - warmupTicks),
             ProcessStart: frame.ProcessStart,
             Commit: frame.Commit,
             BuildMode: frame.BuildMode,
@@ -1384,10 +1385,10 @@ internal static class CommandLoopRunner
                 IntentTick: pending.IntentTick,
                 EvaluatedBoundaryTick: pending.IntentTick,
                 EffectiveBoundaryTick: pending.EffectiveBoundaryTick,
-                PreviousMode: pending.PreviousMode == SessionMode.Personal
+                PreviousMode: pending.PreviousMode == Riftward.Save.SessionSectionCodec.ModePersonal
                     ? SessionMode.Personal
                     : SessionMode.Strategic,
-                NewMode: pending.NewMode == SessionMode.Personal
+                NewMode: pending.NewMode == Riftward.Save.SessionSectionCodec.ModePersonal
                     ? SessionMode.Personal
                     : SessionMode.Strategic,
                 EffectiveInRun: false,

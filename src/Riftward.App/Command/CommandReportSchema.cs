@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Riftward.App.Bench;
+using Riftward.Save;
 using Riftward.Session;
 
 namespace Riftward.App.Command;
@@ -344,7 +345,6 @@ public static class CommandReportSchema
             ("frameEvidence", new FrameEvidenceAlternative()),
             ("exitCode", new RInt(int.MinValue, int.MaxValue)),
         };
-    }
 
     /// <summary>
     /// Erkundungssitzungsblock (T-034, Erkundungsvertrag Abschnitt 7): bei
@@ -754,31 +754,7 @@ public static class CommandReportSchema
             ("reason", new RNullableStr()),
             ("restoredMode", new RNullableStr()),
             ("restoredBoundaryTick", new RNullableIntNode())))),
-        ("restored", new RNullableObject(new RObj(
-            ("boundaryTick", new RInt(0)),
-            ("mode", ModeName()),
-            ("exploration", new RObj(
-                ("active", new RBool()),
-                ("visitedCount", new RInt(0, NavWorld.ZoneCount)),
-                ("landmarkCount", new RInt(NavWorld.ZoneCount, NavWorld.ZoneCount)),
-                ("completed", new RBool()))),
-            ("decision", new RObj(
-                ("active", new RBool()),
-                ("offerOpened", new RBool()),
-                ("decided", new RBool()),
-                ("followUpZoneIndex", ZoneIndexNode()),
-                ("followUpCompleted", new RBool()))),
-            ("pressure", new RObj(
-                ("active", new RBool()),
-                ("cycleCount", new RInt(0)),
-                ("lastFailureCause", new NullableLiteralNode([PressureContract.FailureCauseWindowExpired])),
-                ("endStatus", new LiteralAlternative(
-                    [
-                        PressureContract.EndStatusNotStarted,
-                        PressureContract.EndStatusWindowOpen,
-                        PressureContract.EndStatusRestartPending,
-                        PressureContract.EndStatusSuccess,
-                    ])))))),
+        ("restored", new RNullableObject(RestoredStateShape())),
         ("chainContinuity", new RNullableObject(new RObj(
             ("verified", new RBool()),
             ("reasons", new RArr(new RStr())),
@@ -788,6 +764,33 @@ public static class CommandReportSchema
         ("scriptIntentsBeforeBoundary", new RNullableIntNode()),
         ("replay", new RLit("not-continued")),
         ("gateCoupled", new RBool(false)));
+
+    /// <summary>Form der wiederhergestellten Kettenwahrheit (Savevertrag V2, Abschnitt 13.8).</summary>
+    private static RObj RestoredStateShape() => new(
+        ("boundaryTick", new RInt(0)),
+        ("mode", ModeName()),
+        ("exploration", new RObj(
+            ("active", new RBool()),
+            ("visitedCount", new RInt(0, Riftward.Simulation.NavWorld.ZoneCount)),
+            ("landmarkCount", new RInt(Riftward.Simulation.NavWorld.ZoneCount, Riftward.Simulation.NavWorld.ZoneCount)),
+            ("completed", new RBool()))),
+        ("decision", new RObj(
+            ("active", new RBool()),
+            ("offerOpened", new RBool()),
+            ("decided", new RBool()),
+            ("followUpZoneIndex", ZoneIndexNode()),
+            ("followUpCompleted", new RBool()))),
+        ("pressure", new RObj(
+            ("active", new RBool()),
+            ("cycleCount", new RInt(0)),
+            ("lastFailureCause", new NullableLiteralNode([PressureContract.FailureCauseWindowExpired])),
+            ("endStatus", new LiteralAlternative(
+                [
+                    PressureContract.EndStatusNotStarted,
+                    PressureContract.EndStatusWindowOpen,
+                    PressureContract.EndStatusRestartPending,
+                    PressureContract.EndStatusSuccess,
+                ])))));
 
     /// <summary>Ganzzahlknoten, der null oder eine nichtnegative Ganzzahl akzeptiert.</summary>
     private sealed class RNullableIntNode : ReportNode
