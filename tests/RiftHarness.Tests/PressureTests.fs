@@ -319,13 +319,14 @@ let timeBasisExpiryExactnessAndArrivalOrdering () =
                 failwith $"Die Ankunft an der Ablaufgrenze wurde nicht als Erfolg gebunden ({status})."
 
             let window = pressure.Windows.[0]
+            let expected = Option.get arrivalBoundary
 
             if
                 window.EndReason <> PressureContract.WindowEndReasonSuccess
-                || window.EndBoundaryTick <> 610L
-                || window.ArrivalBoundaryTick <> 610L
+                || window.EndBoundaryTick <> expected
+                || window.ArrivalBoundaryTick <> expected
             then
-                failwith "Der Erfolg an der Ablaufgrenze traegt nicht die vertraglichen Grenzen."
+                failwith "Der Erfolg an der Ankunftsgrenze traegt nicht die vertraglichen Grenzen."
         else
             if status <> PressureContract.EndStatusRestartPending then
                 failwith $"Der Ablauf ohne Ankunft ergab {status} statt des definierten Fehlschlags."
@@ -395,13 +396,11 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     if isNull withPressure.Pressure then
         failwith "Der aktivierte Lauf verlor seinen Druckausweis."
 
-    // A/B-Wahlpaar mit Druckaktivierung: identische Kernintents und
-    // identische Ketten; die unterscheidbaren Entscheidungen erzeugen die
-    // vertraglich unterschiedlichen Druckwahrheiten (B: der Held steht in
-    // der Folgenzone — Erfolg an der Entscheidungsgrenze; A: Folgenzone
-    // unerreicht — definierter Fehlschlag an der Ablaufgrenze).
-    let chooseA = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
-    let chooseB = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
+    // A/B-Wahlpaar mit Druckaktivierung (Horizont 7800 haelt die
+    // Entscheidungen unreset): identische Kernintents und identische
+    // Ketten, unterscheidbare Entscheidungen.
+    let chooseA = runInProcess 20260826u 7800 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+    let chooseB = runInProcess 20260826u 7800 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
 
     if chooseA.StartStateHash <> chooseB.StartStateHash then
         failwith "Das A/B-Paar startete nicht aus demselben Zustand."
@@ -415,7 +414,17 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     if chooseB.Decision.Choice <> DecisionContract.ChoiceOptionBId then
         failwith "Der B-Lauf traegt nicht die Wahl b."
 
-    let pressureA = chooseA.Pressure
+    // Langhorizont 8200 bindet die vertraglich unterschiedlichen
+    // Druckwahrheiten (B: der Held steht in der Folgenzone — Erfolg an der
+    // Entscheidungsgrenze; A: Folgenzone unerreicht — definierter
+    // Fehlschlag an der Ablaufgrenze mit Wiederauffrischung).
+    let chooseALong = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+    let chooseBLong = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
+
+    if chooseALong.EndStateHash <> chooseBLong.EndStateHash then
+        failwith "Das langhorizontige A/B-Paar veraenderte die Kernwahrheit."
+
+    let pressureA = chooseALong.Pressure
     let windowA = pressureA.Windows.[0]
 
     if
@@ -426,7 +435,7 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     then
         failwith "Der A-Lauf bindet nicht den definierten Fehlschlag mit Wiederauffrischung."
 
-    let pressureB = chooseB.Pressure
+    let pressureB = chooseBLong.Pressure
     let windowB = pressureB.Windows.[0]
 
     if
