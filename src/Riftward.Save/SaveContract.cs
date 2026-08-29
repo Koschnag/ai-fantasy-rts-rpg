@@ -2,31 +2,42 @@ namespace Riftward.Save;
 
 /// <summary>
 /// Versionierte Kennungen und fixierte Werte des Savevertrags (T-031,
-/// Abschnitt 0). Jede Wahl ist in <c>docs/SAVEVERTRAG.md</c> mit
-/// Alternativen, Gruenden und Rueckrollweg dokumentiert; ein Test haelt
-/// beide Seiten konsistent. Der Vertrag entscheidet Q-TEC-006 nur im
-/// Teilaspekt Save-Umschlag/Persistenzformat des Simulationszustands;
-/// Cooked-Paket-, Definitions- und Replayformate bleiben OFFEN.
+/// Abschnitt 0; V2-Erweiterung T-037, Abschnitt 13). Jede Wahl ist in
+/// <c>docs/SAVEVERTRAG.md</c> mit Alternativen, Gruenden und Rueckrollweg
+/// dokumentiert; ein Test haelt beide Seiten konsistent. Der Vertrag
+/// entscheidet Q-TEC-006 nur im Teilaspekt Save-Umschlag/Persistenzformat
+/// des Simulationszustands und der additiven Sitzungssektion; Cooked-Paket-,
+/// Definitions- und Replayformate bleiben OFFEN.
 /// </summary>
 public static class SaveContract
 {
     /// <summary>Pfad des versionierenden Vertragsdokuments.</summary>
     public const string DocumentPath = "docs/SAVEVERTRAG.md";
 
-    /// <summary>Vertragsversion des Dokuments.</summary>
-    public const string ContractVersion = "1";
+    /// <summary>Vertragsversion des Dokuments (V2: additive Sitzungssektion, T-037).</summary>
+    public const string ContractVersion = "2";
 
     /// <summary>Kennung der kanonischen Binärcodierung.</summary>
     public const string EncodingId = "riftward-save-canonical-binary-v1";
 
-    /// <summary>Dateimagie (Bytes) eines Saves V1.</summary>
+    /// <summary>Dateimagie (Bytes) eines Saves.</summary>
     public const byte Magic0 = (byte)'R';
     public const byte Magic1 = (byte)'W';
     public const byte Magic2 = (byte)'S';
     public const byte Magic3 = (byte)'D';
 
-    /// <summary>Einzige Produkt-Schemaversion dieses Vertrags.</summary>
-    public const ushort CurrentSaveSchemaVersion = 1;
+    /// <summary>
+    /// Aktuelle Produkt-Schemaversion (V2: Umschlag mit additiver
+    /// Sitzungssektion, Savevertrag V2 Abschnitt 13.5).
+    /// </summary>
+    public const ushort CurrentSaveSchemaVersion = 2;
+
+    /// <summary>
+    /// Unterstuetzte Legacy-Schemaversion (V1): laedt unveraendert mit
+    /// ehrlicher, maschinenlesbarer Sitzungsleere ohne Migrationserfindung
+    /// (Savevertrag V2 Abschnitt 13.5).
+    /// </summary>
+    public const ushort LegacySaveSchemaVersion = 1;
 
     /// <summary>Länge des Dateimagics in Bytes.</summary>
     public const int MagicLength = 4;
@@ -36,6 +47,15 @@ public static class SaveContract
 
     /// <summary>Länge des opaken saveId-Metadatums in Bytes.</summary>
     public const int SaveIdLength = 16;
+
+    /// <summary>
+    /// Additive Kopffelder V2 am Kopfende: sessionSectionLength (u64) und
+    /// sessionSectionHash (SHA-256 über exakt die Sektionsbytes).
+    /// </summary>
+    public const int SessionSectionHeaderFieldsBytes = sizeof(ulong) + HashLength;
+
+    /// <summary>Absolutes Vorab-Limit der Sitzungssektion (DoS-Grenze) in Bytes.</summary>
+    public const long MaxSessionSectionBytes = 1024L * 1024;
 
     /// <summary>
     /// Fester Bytestrang je Agent vor dem variablen Wegpunktschwanz:
@@ -83,6 +103,12 @@ public static class SaveContract
     /// <summary>Dateiname des Prüflots innerhalb des Arbeitsverzeichnisses.</summary>
     public const string SlotFileName = "slot-current.rwsaved";
 
+    /// <summary>
+    /// Vertraglicher Slotname der interaktiven Speicher-/Ladeaktion (Savevertrag
+    /// V2 Abschnitt 13.3): genau ein Slot der laufenden Sitzung.
+    /// </summary>
+    public const string InteractiveSlotName = "slot-interactive.rwsaved";
+
     /// <summary>Exitcode: Save-Gate verletzt; Report dennoch geschrieben und nicht bestanden.</summary>
     public const int ExitCodeGateViolated = 33;
 
@@ -100,4 +126,67 @@ public static class SaveContract
     /// <summary>Maschinenlesbare Zurückstellung der DATENMODELL-Fixturliste „finalitätsnah gültig“.</summary>
     public const string FinalityFixtureDeferralStatement =
         "datenmodell-fixture-class-finality-valid-deferred-to-content-stage-documented-postponement-no-weakening";
+
+    /* ------------------------ V2-Erweiterung (T-037, Abschnitt 13) -------- */
+
+    /// <summary>Aktivierungsform des headless Speicherlaufs (Abschnitt 13.2).</summary>
+    public const string HeadlessSaveActivationId = "opt-in-continuation-save-v2";
+
+    /// <summary>Aktivierungsform des headless Fortsetzungslaufs (Abschnitt 13.2).</summary>
+    public const string HeadlessLoadActivationId = "opt-in-continuation-load-v2";
+
+    /// <summary>Aktivierungsform der interaktiven Slot-Aktionen (Abschnitt 13.3).</summary>
+    public const string InteractiveSlotActivationId = "opt-in-interactive-slot-capability-v2";
+
+    /// <summary>Sektionsaufbaukennung (Abschnitt 13.1).</summary>
+    public const string SessionSectionModelId = "session-section-full-state-v1";
+
+    /// <summary>Headless Aktivierungsmodellkennung (Abschnitt 13.2).</summary>
+    public const string HeadlessActivationModelId = "opt-in-continuation-flags-v2";
+
+    /// <summary>Interaktive Aktivierungsmodellkennung (Abschnitt 13.3).</summary>
+    public const string InteractiveActivationModelId = "opt-in-interactive-slot-actions-v2";
+
+    /// <summary>Codec-Modulgrenzkennung (Abschnitt 13.4).</summary>
+    public const string CodecBoundaryModelId = "session-section-codec-boundary-v2";
+
+    /// <summary>V1-Kompatibilitätskennung (Abschnitt 13.5).</summary>
+    public const string LegacyEmptinessModelId = "legacy-v1-session-emptiness-v2";
+
+    /// <summary>Aktivierungsgrenzkennung für untrusted Slots (Abschnitt 13.5).</summary>
+    public const string ActivationGuardModelId = "untrusted-slot-activation-guards-v2";
+
+    /// <summary>Semantische Aktionsnamen der interaktiven Slot-Aktionen (Abschnitt 13.3).</summary>
+    public const string SaveSlotActionName = "save-slot";
+    public const string LoadSlotActionName = "load-slot";
+
+    /// <summary>Vertragliche Standardbelegung: F5 (58) speichert, F9 (62) lädt.</summary>
+    public const int SaveSlotDefaultScancode = 58;
+    public const int LoadSlotDefaultScancode = 62;
+
+    /// <summary>Report-Schemaversion mit Save-/Ladeaktivierung (rein additiv).</summary>
+    public const int ReportSchemaVersionWithContinuation = 6;
+
+    /// <summary>Maschinenlesbare Aussage zur V1-Legacy-Sitzungsleere.</summary>
+    public const string LegacyV1SessionEmptinessStatement =
+        "legacy-v1-slot-loads-with-honest-machine-readable-session-emptiness-and-unchanged-chain";
+
+    /// <summary>Maschinenlesbare Aussage zur Replay-Ausnahme der Sitzungssektion.</summary>
+    public const string SessionPersistenceReplayExceptionStatement =
+        "session-section-persisted-in-save-load-with-explicit-replay-exception-t037";
+
+    /// <summary>Maschinenlesbare Ablehnungskennung: Weltkennung des Slots widerspricht der Vertragswelt.</summary>
+    public const string RejectionForeignWorldId = "foreign-world-id";
+
+    /// <summary>Maschinenlesbare Ablehnungskennung: Seed des Slots widerspricht dem Laufseed.</summary>
+    public const string RejectionForeignSeed = "foreign-seed";
+
+    /// <summary>Maschinenlesbare Ablehnungskennung: Schemaversion des Slots wird ohne Migration nicht unterstützt.</summary>
+    public const string RejectionUnsupportedSchemaVersion = "unsupported-schema-version";
+
+    /// <summary>Maschinenlesbare Ablehnungskennung: kein Slotverzeichnis konfiguriert.</summary>
+    public const string RejectionSlotDirectoryNotConfigured = "slot-directory-not-configured";
+
+    /// <summary>Maschinenlesbare Ablehnungskennung: Slot existiert nicht oder ist unlesbar.</summary>
+    public const string RejectionSlotUnreadable = "slot-unreadable";
 }
