@@ -138,8 +138,7 @@ Fixture).
 
 - Testbestand 317/317 (307 Bestand + 10 neue Fortsetzungseinträge),
   Release-Build mit 0 Warnungen, fmt/lint 0 Befunde, security PASS,
-  rag-build (Index-Hash `a5214b228c2b1b9bd04339eaa043c202b2e98f9e725ce10486925f19785e1ecb`),
-  `verify` valid (runsChecked=68).
+  rag-build, `verify` valid (runsChecked=68).
 - Regressionsläufe der Bestandsbefehle auf dem reparierten Kandidaten:
   `bench-sim` gate.pass=true (p99 0,491 ms, 0 Bytes je warmem Tick; der
   erste Lauf desselben unveränderten Kandidaten verfehlte die 0-Byte-Grenze
