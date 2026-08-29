@@ -110,7 +110,7 @@ let explorationContractMirrorsDocumentedValues () =
     if ExplorationContract.DocumentPath <> "docs/ERKUNDUNGSVERTRAG.md" then
         failwith "Erkundungsvertragspfad falsch."
 
-    if ExplorationContract.ContractVersion <> "1" then
+    if ExplorationContract.ContractVersion <> "2" then
         failwith "Erkundungsvertragsversion falsch."
 
     if

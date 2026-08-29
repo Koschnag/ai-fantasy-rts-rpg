@@ -581,7 +581,8 @@ Die versionierten Nichtpersistenzaussagen der vier Sitzungsverträge
 `pressure-session-local-not-persisted-v1` des Druckvertrags sowie die
 Persistenzvorbehaltszeile des Modevertrags Abschnitt 1) werden durch diese
 autorisierte additive Erweiterung zu versionierten Save/Load-Persistenz-
-aussagen präzisiert: Der Sitzungszustand der vier Schichten ist ab dieser
+aussagen präzisiert
+(`session-section-persisted-in-save-load-with-explicit-replay-exception-t037`): Der Sitzungszustand der vier Schichten ist ab dieser
 Vertragsversion über die additive Sektion in Save/Load fortsetzbar
 (`persisted=true`, `saveLoad=continued`); die **ausdrückliche
 Replay-Ausnahme** bleibt bestehen: Replay und Soak setzen den Sitzungszustand

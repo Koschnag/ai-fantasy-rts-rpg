@@ -132,14 +132,15 @@ let pressureContractMirrorsDocumentedValues () =
     if PressureContract.ContractVersion <> "2" then
         failwith "Druckvertragsversion falsch."
 
-    // Autorisierte additive Zyklus-Praezisierung: der Entscheidungsvertrag
-    // traegt Version 2 mit unverändertem Pfad (Druckvertrag Voraussetzungs-
-    // satz; Entscheidungsvertrag Abschnitt 13).
+    // Autorisierte additive Zyklus-Praezisierung und Persistenz-
+    // Praezisierung: der Entscheidungsvertrag traegt Version 3 (V2 =
+    // Zyklus-Praezisierung T-036, V3 = Persistenz-Praezisierung T-037) mit
+    // unverändertem Pfad.
     if
         DecisionContract.DocumentPath <> "docs/ENTSCHEIDUNGSVERTRAG.md"
-        || DecisionContract.ContractVersion <> "2"
+        || DecisionContract.ContractVersion <> "3"
     then
-        failwith "Der Entscheidungsvertrag traegt nicht die autorisierte Zyklus-Praezisierung V2."
+        failwith "Der Entscheidungsvertrag traegt nicht die autorisierten Praezisierungen V2/V3."
 
     if
         CommandReportSchema.VersionWithoutExploration <> 2

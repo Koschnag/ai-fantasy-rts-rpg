@@ -652,6 +652,8 @@ internal static class CommandLoopRunner
             Parsed: parsed,
             WarmupTicks: warmupTicks,
             HorizonTicks: horizonTicks,
+            TicksExecutedOverride: (int)(horizonTicks - loadedCapture.BoundaryTick),
+            SampleTicksOverride: (int)(horizonTicks - loadedCapture.BoundaryTick),
             ProcessStart: frame.ProcessStart,
             Commit: frame.Commit,
             BuildMode: frame.BuildMode,

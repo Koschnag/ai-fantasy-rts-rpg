@@ -1209,10 +1209,10 @@ let reportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
 
     assertHasError
         "ausserhalb"
-        // T-036-Praezedenz: Schemaversion 5 ist durch den Druckvertrag
+        // T-037-Praezedenz: Schemaversion 6 ist durch den Savevertrag V2
         // gueltig geworden; die Fabrikationsmatrix prueft weiterhin eine
         // ungueltige Version.
-        (goldenReport.Replace("\"schemaVersion\":2", "\"schemaVersion\":6"))
+        (goldenReport.Replace("\"schemaVersion\":2", "\"schemaVersion\":7"))
         "Falsche Schemaversion akzeptiert"
 
     assertHasError
