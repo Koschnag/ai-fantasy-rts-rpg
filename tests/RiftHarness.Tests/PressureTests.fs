@@ -165,7 +165,8 @@ let pressureContractMirrorsDocumentedValues () =
     if
         PressureContract.SaveLoadContinuation <> "continued"
         || PressureContract.ReplayNotContinued <> "not-continued"
-        || PressureContract.SaveLoadPersistenceStatementId <> "pressure-session-local-save-load-persisted-v2"
+        || PressureContract.SaveLoadPersistenceStatementId
+           <> "pressure-session-local-save-load-persisted-v2"
     then
         failwith "Die versionierte Save/Load-Persistenzaussage widerspricht dem Druckvertrag V2."
 

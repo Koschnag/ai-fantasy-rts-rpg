@@ -130,7 +130,8 @@ let explorationContractMirrorsDocumentedValues () =
     if
         ExplorationContract.SaveLoadContinuation <> "continued"
         || ExplorationContract.ReplayNotContinued <> "not-continued"
-        || ExplorationContract.SaveLoadPersistenceStatementId <> "session-local-save-load-persisted-v2"
+        || ExplorationContract.SaveLoadPersistenceStatementId
+           <> "session-local-save-load-persisted-v2"
     then
         failwith "Die versionierte Save/Load-Persistenzaussage widerspricht dem Erkundungsvertrag V2."
 

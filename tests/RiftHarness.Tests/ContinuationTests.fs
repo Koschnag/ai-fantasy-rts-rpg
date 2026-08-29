@@ -95,55 +95,51 @@ let private privateTempDir () =
     Path.Combine(Path.GetTempPath(), $"RiftHarness-Continuation-{Guid.NewGuid():N}")
 
 let private saveArguments (slotDir: string) (reportPath: string) =
-    [|
-        "kommandoschleife"
-        "--scenario"
-        "kommando-graybox"
-        "--input-script"
-        continuationFixturePath
-        "--seed"
-        continuationSeed
-        "--report"
-        reportPath
-        "--warmup-ticks"
-        "240"
-        "--horizon-ticks"
-        continuationHorizon
-        "--slot-dir"
-        slotDir
-        "--slot"
-        "slot-t037.rwsaved"
-        "--save-at-tick"
-        saveBoundary
-        "--exploration"
-        "--decision"
-        "--pressure"
-    |]
+    [| "kommandoschleife"
+       "--scenario"
+       "kommando-graybox"
+       "--input-script"
+       continuationFixturePath
+       "--seed"
+       continuationSeed
+       "--report"
+       reportPath
+       "--warmup-ticks"
+       "240"
+       "--horizon-ticks"
+       continuationHorizon
+       "--slot-dir"
+       slotDir
+       "--slot"
+       "slot-t037.rwsaved"
+       "--save-at-tick"
+       saveBoundary
+       "--exploration"
+       "--decision"
+       "--pressure" |]
 
 let private loadArguments (slotDir: string) (reportPath: string) =
-    [|
-        "kommandoschleife"
-        "--scenario"
-        "kommando-graybox"
-        "--input-script"
-        continuationFixturePath
-        "--seed"
-        continuationSeed
-        "--report"
-        reportPath
-        "--warmup-ticks"
-        "240"
-        "--horizon-ticks"
-        continuationHorizon
-        "--slot-dir"
-        slotDir
-        "--slot"
-        "slot-t037.rwsaved"
-        "--load-slot"
-        "--exploration"
-        "--decision"
-        "--pressure"
-    |]
+    [| "kommandoschleife"
+       "--scenario"
+       "kommando-graybox"
+       "--input-script"
+       continuationFixturePath
+       "--seed"
+       continuationSeed
+       "--report"
+       reportPath
+       "--warmup-ticks"
+       "240"
+       "--horizon-ticks"
+       continuationHorizon
+       "--slot-dir"
+       slotDir
+       "--slot"
+       "slot-t037.rwsaved"
+       "--load-slot"
+       "--exploration"
+       "--decision"
+       "--pressure" |]
 
 // ---------------------------------------------------------------------------
 // Sektionscodec: Roundtrip je Schicht, Re-Encoding-Gleichheit, kontrollierte
@@ -179,8 +175,26 @@ let private populatedSection () : SessionSectionState =
         PressureActive = 1uy,
         PressureCycleCount = 2L,
         PressureWindows =
-            [ SessionSectionWindow(1L, 1L, 2800L, 3400L, SessionSectionCodec.EndReasonExpired, -1L, SessionSectionCodec.ArrivalModeNone, SessionSectionCodec.CauseKindWindowExpired)
-              SessionSectionWindow(2L, 2L, 3401L, -1L, SessionSectionCodec.EndReasonOpen, -1L, SessionSectionCodec.ArrivalModeNone, SessionSectionCodec.CauseKindNone) ],
+            [ SessionSectionWindow(
+                  1L,
+                  1L,
+                  2800L,
+                  3400L,
+                  SessionSectionCodec.EndReasonExpired,
+                  -1L,
+                  SessionSectionCodec.ArrivalModeNone,
+                  SessionSectionCodec.CauseKindWindowExpired
+              )
+              SessionSectionWindow(
+                  2L,
+                  2L,
+                  3401L,
+                  -1L,
+                  SessionSectionCodec.EndReasonOpen,
+                  -1L,
+                  SessionSectionCodec.ArrivalModeNone,
+                  SessionSectionCodec.CauseKindNone
+              ) ],
         PressureLastFailureBoundaryTick = 3400L,
         PressureHasLastFailure = 1uy,
         PressureLastFailureFollowUpZoneIndex = 0,
@@ -189,7 +203,7 @@ let private populatedSection () : SessionSectionState =
     )
 
 let sessionSectionCodecRoundtripIsByteIdenticalPerLayer () =
-    let section = populatedSection()
+    let section = populatedSection ()
     let encoded = SessionSectionCodec.Encode(section)
     let (rejection, decoded) = decodeSection encoded
 
@@ -247,7 +261,7 @@ let sessionSectionCodecRoundtripIsByteIdenticalPerLayer () =
         failwith "Druck- und Zykluswahrheit wurde nicht erhalten."
 
 let sessionSectionCodecRejectsCorruptionMatrix () =
-    let encoded = SessionSectionCodec.Encode(populatedSection())
+    let encoded = SessionSectionCodec.Encode(populatedSection ())
 
     // Sektionsversion unbekannt: kontrollierte Klasse ohne Migrationserfindung.
     let futureVersion = Array.copy encoded
@@ -413,8 +427,11 @@ let private buildSimState (seed: uint32) (ticks: int) =
 
 let v2EnvelopeRoundtripAndLegacyV1Emptiness () =
     let (state, stateHash) = buildSimState 20260824u 900
-    let metadata = SaveEnvelopeMetadata.CreateFresh(DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
-    let section = SessionSectionCodec.Encode(populatedSection())
+
+    let metadata =
+        SaveEnvelopeMetadata.CreateFresh(DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
+
+    let section = SessionSectionCodec.Encode(populatedSection ())
 
     let v2Document =
         CanonicalSaveCodec.WriteDocumentV2(state, stateHash, 42UL, "test", metadata, section)
@@ -449,9 +466,11 @@ let v2EnvelopeRoundtripAndLegacyV1Emptiness () =
     if not v1Loaded.Value.FromLegacyV1Document then
         failwith "Legacydokument wurde nicht als ehrliche Sitzungsleere gekennzeichnet."
 
-    if v1Loaded.Value.SessionSection.ExplorationVisits.Count <> 0
+    if
+        v1Loaded.Value.SessionSection.ExplorationVisits.Count <> 0
         || v1Loaded.Value.SessionSection.PressureCycleCount <> 0L
-        || v1Loaded.Value.SessionSection.DecisionActive <> 0uy then
+        || v1Loaded.Value.SessionSection.DecisionActive <> 0uy
+    then
         failwith "Die ehrliche Sitzungsleere des Legacydokuments ist nicht leer."
 
     // Strikte Monotonie: Version 0 und 3 bleiben ohne Migrationserfindung
@@ -494,7 +513,9 @@ let v2EnvelopeRoundtripAndLegacyV1Emptiness () =
 let untrustedSlotActivationGuardsRejectMismatch () =
     let (state, stateHash) = buildSimState 20260824u 600
     let section = SessionSectionCodec.Encode(SessionSectionState.Empty)
-    let metadata = SaveEnvelopeMetadata.CreateFresh(DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
+
+    let metadata =
+        SaveEnvelopeMetadata.CreateFresh(DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
 
     let slotDir = privateTempDir ()
     Directory.CreateDirectory(slotDir) |> ignore
@@ -547,10 +568,7 @@ let untrustedSlotActivationGuardsRejectMismatch () =
 // ---------------------------------------------------------------------------
 
 let private continuationIntents () =
-    InputScriptParser.Parse(
-        File.ReadAllBytes(continuationFixturePath),
-        ScriptWindowRules(240, 11000)
-    )
+    InputScriptParser.Parse(File.ReadAllBytes(continuationFixturePath), ScriptWindowRules(240, 11000))
 
 let private freshCapture (seed: uint32) (boundary: int64) =
     SessionEngine.RunWithSaveBoundary(
@@ -760,8 +778,10 @@ let cliContinuationFlowRunsSaveAndLoadOnSchemaVersion6 () =
         let explorationPersistence =
             loadRoot.GetProperty("explorationSession").GetProperty("persistence")
 
-        if explorationPersistence.GetProperty("statementId").GetString()
-           <> ExplorationContract.SaveLoadPersistenceStatementId then
+        if
+            explorationPersistence.GetProperty("statementId").GetString()
+            <> ExplorationContract.SaveLoadPersistenceStatementId
+        then
             failwith "Der Fortsetzungslauf bindet nicht die V2-Persistenzwahrheit der Erkundung."
     finally
         try
@@ -805,6 +825,7 @@ let cliContinuationPairsAreBuilderIdentical () =
         use document = JsonDocument.Parse(json)
         let continuation = document.RootElement.GetProperty("continuation")
         let chain = continuation.GetProperty("chainContinuity")
+
         (jsonInt64 continuation "loadBoundaryTick",
          jsonString (continuation.GetProperty("restored")) "mode",
          chain.GetProperty("continuationEndHash").GetString(),
@@ -875,7 +896,9 @@ let cliContinuationRejectionsStayControlledAndExitCodesStable () =
         let foreignJson = reportJson (Path.Combine(slotDir, "foreign-report.json"))
 
         use foreignDocument = JsonDocument.Parse(foreignJson)
-        let foreignRejection = foreignDocument.RootElement.GetProperty("continuation").GetProperty("rejection")
+
+        let foreignRejection =
+            foreignDocument.RootElement.GetProperty("continuation").GetProperty("rejection")
 
         if jsonString foreignRejection "reason" <> SaveContract.RejectionForeignSeed then
             failwith "Fremdseed-Ablehnung traegt nicht die vertragliche Kennung."

@@ -160,7 +160,8 @@ let decisionContractMirrorsDocumentedValues () =
     if
         DecisionContract.SaveLoadContinuation <> "continued"
         || DecisionContract.ReplayNotContinued <> "not-continued"
-        || DecisionContract.SaveLoadPersistenceStatementId <> "decision-session-local-save-load-persisted-v3"
+        || DecisionContract.SaveLoadPersistenceStatementId
+           <> "decision-session-local-save-load-persisted-v3"
     then
         failwith "Die versionierte Save/Load-Persistenzaussage widerspricht dem Entscheidungsvertrag V3."
 
