@@ -9,7 +9,14 @@ lokalen Gates sind grün. Interaktivsmoke und Playtestausführung bleiben wegen
 der displaylosen Umgebung ausgewiesene Restpunkte mit kontrolliertem
 Code-19-Nachweis (Präzedenz T-023/T-032/T-033/T-034/T-035/T-036). Diese Datei
 beschreibt die aktuelle Produktwahrheit; sie behauptet keinen noch nicht
-ausgeführten Gate-Erfolg.
+ausgeführten Gate-Erfolg. Die unabhängige Review-Sitzung (2026-08-29) hat den
+Sektions-Decoder um zwei Rahmengrenzen-Prüfungen vor den ungezielten
+Skalarlesungen ergänzt (Abschnitt 13.5: jede Verletzung erhält eine
+unterscheidbare Klasse; Repro: zwei erreichbare Byteformen warfen zuvor eine
+unkontrollierte Ausnahme) und die Korruptionsmatrix um genau diese beiden
+Rahmenniveau-Truncationsfälle erweitert; Encoding, Ketten- und Endhashs sind
+durch die Reparatur unverändert (Evidenzläufe unten auf dem reparierten
+Kandidaten).
 
 ## Ausgangslage und Abschnitt 0
 
@@ -101,10 +108,11 @@ Der gatende Vertragsspike wurde vor der Implementierung abgeschlossen:
   `ValidateContinuationRelations`, optionale Sitzungsblöcke der Schichten,
   Persistenzwahrheit V2/V3 in den drei Schichtblöcken.
 - Tests: `tests/RiftHarness.Tests/ContinuationTests.fs` (10 Einheiten:
-  Sektions-Codec-Roundtrip und Ablehnungsmatrix, V2-Umschlag mit V1-Leere und
-  Versionsmonotonie, Aktivierungsgrenzen, Kettenfortsetzung über die
-  Vorgrenze, Fremdseed, CLI-Fresh-Prozesspaare builderidentisch, CLI-
-  Ablehnungsmatrix mit stabilen Exitcodes, Vertragsankerbindung),
+  Sektions-Codec-Roundtrip und Ablehnungsmatrix inklusive der beiden
+  Rahmenniveau-Truncationsfälle der Review-Reparatur, V2-Umschlag mit
+  V1-Leere und Versionsmonotonie, Aktivierungsgrenzen, Kettenfortsetzung
+  über die Vorgrenze, Fremdseed, CLI-Fresh-Prozesspaare builderidentisch,
+  CLI-Ablehnungsmatrix mit stabilen Exitcodes, Vertragsankerbindung),
   Fortschreibung der Spiegel- und Persistenzbindungen in Save-/Mode-/-
   Exploration-/Decision-/Pressure-Tests und der Bestandsschemamatrix
   (Golden-Mutation 6→7 gemäß T-035/T-036-Präzedenz).
@@ -130,11 +138,16 @@ Fixture).
 
 - Testbestand 317/317 (307 Bestand + 10 neue Fortsetzungseinträge),
   Release-Build mit 0 Warnungen, fmt/lint 0 Befunde, security PASS,
-  rag-build, `verify` valid (runsChecked=67).
-- Regressionsläufe der Bestandsbefehle: `bench-sim` gate.pass=true (p99
-  0,524 ms, 0 Bytes je warmem Tick), `savecheck` gate.pass=true mit 19/19
-  Prüfklassen (Verhalten unverändert, Vertragsversionsbindung fortgeschrieben
-  auf V2), Soak-Kurzlauf 3000 Ticks diagnostisch (evidenceUnit=false)
+  rag-build (Index-Hash `a5214b228c2b1b9bd04339eaa043c202b2e98f9e725ce10486925f19785e1ecb`),
+  `verify` valid (runsChecked=68).
+- Regressionsläufe der Bestandsbefehle auf dem reparierten Kandidaten:
+  `bench-sim` gate.pass=true (p99 0,491 ms, 0 Bytes je warmem Tick; der
+  erste Lauf desselben unveränderten Kandidaten verfehlte die 0-Byte-Grenze
+  mit 0,84 B/Tick als Sub-Kilobyte-Runtime-Ausreißer außerhalb des
+  Tick-Pfads und wurde transparent wiederholt), `savecheck` gate.pass=true
+  mit 19/19 Prüfklassen (Verhalten unverändert, Vertragsversionsbindung
+  fortgeschrieben auf V2), Soak-Kurzlauf 3000 Ticks diagnostisch
+  (`--diagnostic-accelerated --horizon-ticks 3000`, evidenceUnit=false)
   gate.pass=true.
 - Autoritative CLI-Läufe (artifacts/t037/continuation-evidenz/): Speicherlauf
   Schemaversion 6, gate.pass=true, Speichervorgrenze 8100, Slot geschrieben,
@@ -152,10 +165,18 @@ Fixture).
   V1-Dokument lädt mit ehrlicher Sitzungsleere und unveraenderter Kette,
   Versionen 0/3 ohne Migrationserfindung abgewiesen, Fault-Injection-Matrix
   der Sektion (Version, Abschneidung, fremde Zone, Doppelregistrierung,
-  strategische Registrierung), Aktivierungsgrenzen am Slot.
+  strategische Registrierung, beide Rahmenniveau-Truncationsfälle),
+  Aktivierungsgrenzen am Slot.
 - Blobvergleich: alle Quelldateien von `Riftward.Simulation` sind gegen den
   Vorblob (HEAD 66051d7) byteidentisch (`git hash-object` je Datei gegen
-  `git rev-parse HEAD:<Pfad>`, keine Abweichung).
+  `git rev-parse HEAD:<Pfad>`, 9/9 Dateien, keine Abweichung).
+- Portabilitätsprobe (Fresh-Bytes, contractäquivalent vor dem autorisierten
+  Commit): der Kandidat wurde in ein isoliertes Verzeichnis materialisiert
+  (HEAD-Archiv plus bytegeprüftes Kandidaten-Overlay) und durchlief dort
+  bootstrap/build/lint/test (317/317)/rag-build/verify grün; keine
+  gitignorierte Runtime-Evidenz ist Test-Fixture, der Baum blieb über die
+  Gates bytestabil. Der formale Fresh-Checkout-Gate-Lauf bleibt dem
+  autorisierten Commit der Integration vorbehalten.
 - Displayloser Interaktivlauf: kontrollierter Code-19-Abbruch
   (`WindowFailed`, „No available video device") ohne Simulation; kein
   simulierter Beweis.

@@ -490,6 +490,14 @@ public static class SessionSectionCodec
             return Invalid("Mehr als eine offene Fensterinstanz.");
         }
 
+        // Fenster-/Instanzkonsistenz (Druckvertrag Abschnitt 4): eine offene
+        // Instanz ist stets die letzte im Protokoll; eine geschlossene
+        // Instanz kann ihr nie nachfolgen.
+        if (openInstances == 1 && windows[^1].EndReasonKind != EndReasonOpen)
+        {
+            return Invalid("Die offene Fensterinstanz ist nicht die letzte im Protokoll.");
+        }
+
         var lastFailureBoundaryTick = ReadI64(section, ref offset);
         var hasLastFailure = ReadU8(section, ref offset);
         var lastFailureFollowUpZoneIndex = ReadI32(section, ref offset);

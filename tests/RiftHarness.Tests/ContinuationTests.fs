@@ -484,6 +484,39 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
     then
         failwith "Abschneidung nach dem Entscheidungsblock wurde nicht kontrolliert abgewiesen."
 
+    // Fenster-/Instanzkonsistenz: eine offene Instanz, der geschlossene
+    // Instanzen nachfolgen, ist keine echte Sitzungswahrheit.
+    let openWindowNotLast =
+        SessionSectionCodec.Encode(
+            { populatedSection () with
+                PressureWindows =
+                    [ SessionSectionWindow(
+                          1L,
+                          1L,
+                          2800L,
+                          -1L,
+                          SessionSectionCodec.EndReasonOpen,
+                          -1L,
+                          SessionSectionCodec.ArrivalModeNone,
+                          SessionSectionCodec.CauseKindNone
+                      )
+                      SessionSectionWindow(
+                          2L,
+                          2L,
+                          3401L,
+                          4001L,
+                          SessionSectionCodec.EndReasonSuccess,
+                          3900L,
+                          SessionSectionCodec.ArrivalModePersonal,
+                          SessionSectionCodec.CauseKindNone
+                      ) ] }
+        )
+
+    let (openWindowRejection, _) = decodeSection openWindowNotLast
+
+    if openWindowRejection.IsNone then
+        failwith "Eine offene Fensterinstanz vor geschlossenen wurde nicht abgewiesen."
+
 // ---------------------------------------------------------------------------
 // Umschlag V2 und V1-Kompatibilitaet: Dokumentdispatch, ehrliche
 // Sitzungsleere, strikte Versionsmonotonie (AC-T037-02/03).
