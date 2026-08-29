@@ -2183,7 +2183,31 @@ module Program =
               "T-035 schema relations reject fabricated evidence fail closed",
               DecisionTests.decisionSchemaRelationsRejectFabrication
               "T-035 builder honesty binds decision presentation flags",
-              DecisionTests.decisionBuilderEhrlichkeitBindetDarstellungsausweise ]
+              DecisionTests.decisionBuilderEhrlichkeitBindetDarstellungsausweise
+              "T-036 pressure contract mirrors documented values",
+              PressureTests.pressureContractMirrorsDocumentedValues
+              "T-036 window trigger is decision coupled once per cycle and honest without decision",
+              PressureTests.windowTriggerIsDecisionCoupledOncePerCycleAndHonestWithoutDecision
+              "T-036 time basis binds expiry exactness and arrival ordering",
+              PressureTests.timeBasisExpiryExactnessAndArrivalOrdering
+              "T-036 pressure is observation only; twin stays byte identical",
+              PressureTests.pressureIsObservationOnlyTwinStaysByteIdentical
+              "T-036 CLI pressure flow runs headless on schema version 5",
+              PressureTests.cliPressureFlowRunsHeadlessOnSchemaVersion5
+              "T-036 foreign seed changes hashes but pressure structure follows session",
+              PressureTests.foreignSeedChangesHashesButPressureStructureFollowsSession
+              "T-036 pressure without reached decision carries honest ground",
+              PressureTests.pressureWithoutReachedDecisionCarriesHonestGround
+              "T-036 pressure activation coupling stays usage error",
+              PressureTests.pressureActivationCouplingStaysUsageError
+              "T-036 incomplete report preserves pressure activation",
+              PressureTests.pressureIncompleteReportPreservesActivation
+              "T-036 title HUD binds pressure states without changing legacy form",
+              PressureTests.titleHudBindsPressureStatesWithoutChangingLegacyForm
+              "T-036 schema dispatch rejects cross variants fail closed",
+              PressureTests.pressureSchemaDispatchRejectsCrossVariants
+              "T-036 schema relations reject fabricated evidence fail closed",
+              PressureTests.pressureSchemaRelationsRejectFabrication ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die

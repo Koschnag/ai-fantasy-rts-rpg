@@ -135,16 +135,19 @@ let decisionContractMirrorsDocumentedValues () =
     if DecisionContract.DocumentPath <> "docs/ENTSCHEIDUNGSVERTRAG.md" then
         failwith "Entscheidungsvertragspfad falsch."
 
-    if DecisionContract.ContractVersion <> "1" then
-        failwith "Entscheidungsvertragsversion falsch."
+    // V2: autorisierte additive Zyklus-Praezisierung (T-036, Druckvertrag
+    // Abschnitt 4; Entscheidungsvertrag Abschnitt 13).
+    if DecisionContract.ContractVersion <> "2" then
+        failwith "Entscheidungsvertragsversion falsch (autorisierte Zyklus-Praezisierung V2 erwartet)."
 
     if
         CommandReportSchema.VersionWithoutExploration <> 2
         || CommandReportSchema.CurrentVersion <> 3
         || CommandReportSchema.VersionWithDecision <> 4
         || DecisionContract.ReportSchemaVersionWithDecision <> 4
+        || CommandReportSchema.VersionWithPressure <> 5
     then
-        failwith "Schemaversionen entsprechen nicht dem Vertrag (Bestand 2, Erkundung 3, Entscheidung 4)."
+        failwith "Schemaversionen entsprechen nicht dem Vertrag (Bestand 2, Erkundung 3, Entscheidung 4, Druck 5)."
 
     if DecisionContract.Persisted then
         failwith "Die Nichtpersistenzaussage ist verletzt."

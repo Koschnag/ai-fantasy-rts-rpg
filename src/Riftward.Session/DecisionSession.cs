@@ -245,6 +245,24 @@ public sealed class DecisionSession
     }
 
     /// <summary>
+    /// Interne Testbindung (Präzedenz <see cref="DeriveOptions"/>): öffnet
+    /// das Angebot mit fixierten Optionszonen ohne Erkundungslauf, damit
+    /// die Druckordnung (Ablaufgrenze exakt an Start + WindowLengthTicks,
+    /// Ankunft an der Ablaufgrenze als letzte Gelegenheit) unabhängig von
+    /// der Erkundungsdauer vertraglich gebunden werden kann. Kein
+    /// Produktionspfad ruft diese Methode; die Pipeline öffnet das Angebot
+    /// ausschließlich über <see cref="Observe"/> mit abgeschlossenem
+    /// Erkundungsauftrag.
+    /// </summary>
+    internal void OpenOfferForContractTest(long boundaryTick, int optionZoneA, int optionZoneB)
+    {
+        _offerOpened = true;
+        _offerBoundaryTick = boundaryTick;
+        _optionZoneA = optionZoneA;
+        _optionZoneB = optionZoneB;
+    }
+
+    /// <summary>
     /// Autorisierte additive Zyklus-Praezisierung (Entscheidungsvertrag V2,
     /// Abschnitt 13; Druckvertrag Abschnitt 4): beendet den abgelaufenen
     /// Auftragszyklus kontrolliert nach definiertem Fehlschlag — Angebot,
