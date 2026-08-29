@@ -1,6 +1,8 @@
 # Savevertrag (T-031, Abschnitt 0)
 
-**Vertragsversion:** 1
+**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
+Sitzungssektions-Erweiterung gemäß `.ai/tasks/T-037-graybox-continuation-restart.json`,
+Abschnitt 13; alle übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-031-atomic-save-load.json` festgelegt, bevor die
 Saveimplementierung (Kodierung, Validierung, Slotprotokoll, `savecheck`-Lauf)
