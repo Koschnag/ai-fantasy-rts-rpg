@@ -20,14 +20,47 @@ internal sealed class InteractiveView : IDisposable
     /// <summary>Lebensdauer eines Befehlspulses in Ticks.</summary>
     public const int CommandPulseTicks = 40;
 
-    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse, Held-Badge, Landmarkenkanal plus Folgezielmarker).</summary>
+    /// <summary>Hoechstzahl gleichzeitiger Markerinstanzen (Glyphen, Pulse, Held-Badge, Landmarkenkanal, Folgezielmarker plus Neustartanzeige).</summary>
     public const int MarkerCapacity =
         SimulationContract.AgentCount
         + SimulationContract.GroupCount
         + 1
         + 2
         + (2 * NavWorld.ZoneCount)
-        + 3;
+        + 3
+        + 2;
+
+    /// <summary>
+    /// Hoehen der zweistufigen Neustartanzeige (T-036, Druckvertrag
+    /// Abschnitt 6, pressure-restart-indicator-channel-v1): untere Ebene
+    /// ruhend mit fester Orientierung pi/4, obere Ebene rotiert mit der
+    /// Tickzahl. Abweichende Hoehen gegenueber beiden Bestandszweistufen-
+    /// formen (registrierte Landmarke 1,4/3,6 m; Folgeziel 1,2/2,4/3,6 m).
+    /// </summary>
+    public const double RestartIndicatorLowerHeightMeters = 1.5;
+
+    public const double RestartIndicatorUpperHeightMeters = 3.0;
+
+    /// <summary>
+    /// Groessen der zweistufigen Neustartanzeige: klein-unten/gross-oben
+    /// (umgekehrte Groessenordnung gegenueber der registrierten
+    /// Landmarkensaeule 1,25/1,05) als zweiter Formkanal neben der Farbe.
+    /// </summary>
+    public const float RestartIndicatorLowerSize = 0.90f;
+
+    public const float RestartIndicatorUpperSize = 1.05f;
+
+    /// <summary>
+    /// Farbkanal der Neustartanzeige (NF-005, zweiter Kanal): warmes Rot;
+    /// trennt die Anzeige von Auswahlglyphe (warmes Amber), Befehlspuls
+    /// (Cyan), Held-/Modus-Badge (Cyan/Orange), beiden Landmarkenzustaenden
+    /// (Blaugrau/Gruen) und dem Folgezielmarker (warmes Violett).
+    /// </summary>
+    public const float RestartIndicatorRed = 0.90f;
+
+    public const float RestartIndicatorGreen = 0.28f;
+
+    public const float RestartIndicatorBlue = 0.22f;
 
     /// <summary>Ankerhoehe des unbesuchten Landmarkenmarkers in Metern (Vertrag Abschnitt 5).</summary>
     public const double LandmarkMarkerHeightMeters = 1.6;
@@ -134,6 +167,8 @@ internal sealed class InteractiveView : IDisposable
 
     private DecisionSession? _decision;
 
+    private PressureSession? _pressure;
+
     public InteractiveView()
     {
         _unitsHandle = GCHandle.Alloc(_units, GCHandleType.Pinned);
@@ -177,6 +212,17 @@ internal sealed class InteractiveView : IDisposable
     /// aktivierter Erkundung, deren Landmarkenanker den Markerort bindet.
     /// </summary>
     public void BindDecision(DecisionSession? decision) => _decision = decision;
+
+    /// <summary>
+    /// Bindet die optionale Druckschicht fuer den Neustartkanal (T-036,
+    /// Druckvertrag Abschnitt 6, pressure-restart-indicator-channel-v1):
+    /// ohne Aktivierung null (Bestandsdarstellung byteidentisch); die
+    /// Anzeige liest ausschließlich Fehlschlagsgrenze und -ursache
+    /// schreibgeschützt und ist niemals Teil von Simulationszustand oder
+    /// Hash. Vertragskopplung: eine Druckschicht existiert nur mit
+    /// aktivierter Entscheidung, deren Landmarkenanker den Anzeigeort bindet.
+    /// </summary>
+    public void BindPressure(PressureSession? pressure) => _pressure = pressure;
 
     /// <summary>Meldet einen abgesetzten Gruppenbefehl fuer die Puls-Rueckmeldung.</summary>
     public void NotifyCommandIssued(long tickIndex, int zone)
@@ -568,6 +614,70 @@ internal sealed class InteractiveView : IDisposable
                     red: FollowUpMarkerRed,
                     green: FollowUpMarkerGreen,
                     blue: FollowUpMarkerBlue,
+                    alpha: 0.95f);
+            }
+        }
+
+        // Kanal 6 (T-036, Druckvertrag Abschnitt 6,
+        // pressure-restart-indicator-channel-v1): genau eine
+        // unterscheidbare Neustartanzeige am bestehenden Landmarkenanker der
+        // Folgenzone des fehlgeschlagenen Zyklus, aktiv ab der
+        // Fehlschlagsgrenze bis zur naechsten wirksamen Wahl. Zwei
+        // unterscheidbare visuelle Kanaele (NF-005, nie reine Farbcodierung):
+        // zweistufige, klein-unten/gross-oben markierte Saeule (zwei
+        // Diamantebenen bei 1,5/3,0 m; untere Ebene ruhend pi/4 in Groesse
+        // 0,90, obere Ebene rotiert mit der Tickzahl in Groesse 1,05) in
+        // warmem Rot (0,90/0,28/0,22). Die Formkanaltrennung (Höhen-/
+        // Groessenprofil gegenueber einstufig-unbesucht, zweistufig-
+        // registriert, dreistufig-Folgeziel) und der Farbkanal trennen die
+        // Anzeige von Auswahlglyphe, Befehlspuls, Badge und allen
+        // Bestandsmarkern. Ohne Druckaktivierung oder ausserhalb des
+        // Fehlschlags-/Neustartzeitraums entsteht keine Anzeige; der Anker,
+        // die Fehlschlags-, Wiederauffrischungs- und Erfolgsregeln und der
+        // Kernzustand bleiben unberuehrt.
+        if (_pressure is { } boundPressure
+            && boundPressure.LastFailureCause is not null
+            && boundPressure.OpenWindow is null
+            && markerCount + 2 <= MarkerCapacity)
+        {
+            // Der Fehlschlags-/Neustartzeitraum reicht bis zur naechsten
+            // wirksamen Wahl: solange kein Fenster offen ist und der letzte
+            // abgeschlossene Zyklus mit Ablauf endete. Der Folgenanker des
+            // fehlgeschlagenen Zyklus ist die Ankerbindung der
+            // Druckschicht (der Zykluszuruecksetzen loescht die Folgenzone
+            // der Entscheidungsschicht, die Anzeige bleibt erhalten).
+            var restartZone = boundPressure.LastFailureFollowUpZoneIndex;
+
+            if (restartZone >= 0 && restartZone < NavWorld.ZoneCount)
+            {
+                var anchor = ExplorationAnchors.DeriveLandmarks()[restartZone];
+                var anchorWorldX = RepresentativeLandscape.ToWorldX(anchor.AnchorTileX + 0.5);
+                var anchorWorldZ = RepresentativeLandscape.ToWorldZ(anchor.AnchorTileY + 0.5);
+                var anchorGroundY = RepresentativeLandscape.HeightAt(anchorWorldX, anchorWorldZ);
+
+                RepresentativeMesh.WriteDiamondInstance(
+                    _markers,
+                    markerCount++,
+                    anchorWorldX,
+                    anchorGroundY + RestartIndicatorLowerHeightMeters,
+                    anchorWorldZ,
+                    size: RestartIndicatorLowerSize,
+                    rotation: (float)(Math.PI / 4.0),
+                    red: RestartIndicatorRed,
+                    green: RestartIndicatorGreen,
+                    blue: RestartIndicatorBlue,
+                    alpha: 0.95f);
+                RepresentativeMesh.WriteDiamondInstance(
+                    _markers,
+                    markerCount++,
+                    anchorWorldX,
+                    anchorGroundY + RestartIndicatorUpperHeightMeters,
+                    anchorWorldZ,
+                    size: RestartIndicatorUpperSize,
+                    rotation: (float)(tickIndex * 0.12),
+                    red: RestartIndicatorRed,
+                    green: RestartIndicatorGreen,
+                    blue: RestartIndicatorBlue,
                     alpha: 0.95f);
             }
         }

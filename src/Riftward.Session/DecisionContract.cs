@@ -16,8 +16,8 @@ public static class DecisionContract
     /// <summary>Pfad des versionierenden Vertragsdokuments.</summary>
     public const string DocumentPath = "docs/ENTSCHEIDUNGSVERTRAG.md";
 
-    /// <summary>Vertragsversion des Dokuments.</summary>
-    public const string ContractVersion = "1";
+    /// <summary>Vertragsversion des Dokuments (V2: autorisierte additive Zyklus-Praezisierung).</summary>
+    public const string ContractVersion = "2";
 
     /// <summary>Kennung der Opt-in Aktivierung (Vertrag Abschnitt 7).</summary>
     public const string ActivationId = "opt-in-decision-activation-v1";

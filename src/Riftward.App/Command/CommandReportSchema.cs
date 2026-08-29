@@ -35,6 +35,9 @@ public static class CommandReportSchema
     /// <summary>Schemaversion mit Entscheidungsaktivierung (T-035: rein additiv um decisionSession).</summary>
     public const int VersionWithDecision = DecisionContract.ReportSchemaVersionWithDecision;
 
+    /// <summary>Schemaversion mit Druckaktivierung (T-036: rein additiv um pressureSession).</summary>
+    public const int VersionWithPressure = PressureContract.ReportSchemaVersionWithPressure;
+
     public const string ModeCommandLoop = "kommandoschleife";
     public const string ExecutionHeadless = "headless";
     public const string ExecutionInteractive = "interactive";
@@ -57,6 +60,10 @@ public static class CommandReportSchema
 
     internal static RObj InteractiveDecisionBody { get; } = BuildBody(ExecutionInteractive, VersionWithDecision);
 
+    internal static RObj HeadlessPressureBody { get; } = BuildBody(ExecutionHeadless, VersionWithPressure);
+
+    internal static RObj InteractivePressureBody { get; } = BuildBody(ExecutionInteractive, VersionWithPressure);
+
     /// <summary>
     /// Versions- und Ausführungsdispatch: Die Schemaversion
     /// <see cref="VersionWithoutExploration"/> (Bestandsstand) toleriert
@@ -78,9 +85,9 @@ public static class CommandReportSchema
                 return;
             }
 
-            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion or VersionWithDecision))
+            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion or VersionWithDecision or VersionWithPressure))
             {
-                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration}, {CurrentVersion} oder {VersionWithDecision} erwartet.");
+                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration}, {CurrentVersion}, {VersionWithDecision} oder {VersionWithPressure} erwartet.");
                 return;
             }
 
@@ -99,6 +106,8 @@ public static class CommandReportSchema
                 (CurrentVersion, ExecutionInteractive) => InteractiveExplorationBody,
                 (VersionWithDecision, ExecutionHeadless) => HeadlessDecisionBody,
                 (VersionWithDecision, ExecutionInteractive) => InteractiveDecisionBody,
+                (VersionWithPressure, ExecutionHeadless) => HeadlessPressureBody,
+                (VersionWithPressure, ExecutionInteractive) => InteractivePressureBody,
                 _ => null,
             };
 
@@ -126,6 +135,13 @@ public static class CommandReportSchema
             {
                 ValidateExplorationRelations(path, element, errors);
                 ValidateDecisionRelations(path, element, errors);
+            }
+
+            if (schemaVersion == VersionWithPressure)
+            {
+                ValidateExplorationRelations(path, element, errors);
+                ValidateDecisionRelations(path, element, errors);
+                ValidatePressureRelations(path, element, errors);
             }
         }
     }
@@ -179,6 +195,17 @@ public static class CommandReportSchema
         {
             fields.Add(("explorationSession", ExplorationSessionBody()));
             fields.Add((DecisionContract.ReportBlockId, DecisionSessionBody()));
+        }
+
+        // Rein additive Schemaversion 5 (T-036, Druckvertrag Abschnitt 8):
+        // ausschließlich neue Felder, keine Umdeutung; vertraglich an die
+        // Entscheidungsaktivierung gekoppelt, daher traegt die Druck-
+        // Schemaversion stets auch den Erkundungs- und Entscheidungsblock.
+        if (version == VersionWithPressure)
+        {
+            fields.Add(("explorationSession", ExplorationSessionBody()));
+            fields.Add((DecisionContract.ReportBlockId, DecisionSessionBody()));
+            fields.Add((PressureContract.ReportBlockId, PressureSessionBody()));
         }
 
         fields.AddRange(new List<(string Name, ReportNode Node)>
@@ -641,6 +668,161 @@ public static class CommandReportSchema
         new(DecisionTelemetry.UnsetZoneIndex, Riftward.Simulation.NavWorld.ZoneCount - 1);
 
     /// <summary>
+    /// Drucksitzungsblock (T-036, Druckvertrag Abschnitt 8): bei Aktivierung
+    /// vertraglich gebunden — Vertrags- und Modellkennungen, fixierte
+    /// Fensterlaenge, Fensterprotokoll je Instanz (Instanz-/Zyklusnummer,
+    /// Start-, Endgrenze, Endgrund, Ankunft bzw. Fehlschlagsursache),
+    /// Zykluszählung, letzter Fehlschlag mit Ursache,
+    /// Wiederauffrischungsgrenze, ehrlicher Endstatus und die versionierte
+    /// Nichtpersistenzaussage; die fensterpflichtigen Darstellungsausweise
+    /// sind headless und in unvollständigen Läufen ausdrücklich nicht
+    /// gemessen mit maschinenlesbarem Grund. Rein diagnostisch
+    /// (gateCoupled=false); kein Feld koppelt an ein Gate oder einen
+    /// Budgetwert, und keine Exitcodebedeutung entsteht.
+    /// </summary>
+    private static RObj PressureSessionBody() => new(
+        ("contract", new RObj(
+            ("document", new RLit(PressureContract.DocumentPath)),
+            ("version", new RLit(PressureContract.ContractVersion)))),
+        ("activationId", new RLit(PressureContract.ActivationId)),
+        ("triggerId", new RLit(PressureContract.TriggerId)),
+        ("timeBasisId", new RLit(PressureContract.TimeBasisId)),
+        ("failureRuleId", new RLit(PressureContract.FailureRuleId)),
+        ("restartModelId", new RLit(PressureContract.RestartModelId)),
+        ("successRuleId", new RLit(PressureContract.SuccessRuleId)),
+        ("windowLengthTicks", new RInt(PressureContract.WindowLengthTicks, PressureContract.WindowLengthTicks)),
+        ("cycleCount", new RInt(0)),
+        ("windows", new RArr(PressureWindowEntry())),
+        ("lastFailure", new RObj(
+            ("boundaryTick", new NullableBoundaryTickNode()),
+            ("cause", new NullableLiteralNode([PressureContract.FailureCauseWindowExpired])),
+            ("gateCoupled", new RBool(false)))),
+        ("reopenBoundaryTick", new RInt((int)PressureWindowEvent.UnsetBoundaryTick)),
+        ("endStatus", new RObj(
+            ("status", new LiteralAlternative(
+                [
+                    PressureContract.EndStatusNotStarted,
+                    PressureContract.EndStatusWindowOpen,
+                    PressureContract.EndStatusRestartPending,
+                    PressureContract.EndStatusSuccess,
+                ])),
+            ("reason", new RNullableStr()),
+            ("gateCoupled", new RBool(false)))),
+        ("persistence", new RObj(
+            ("statementId", new RLit(PressureContract.NotPersistedStatementId)),
+            ("persisted", new RBool(false)),
+            ("saveLoad", new RLit("not-continued")),
+            ("replay", new RLit("not-continued")),
+            ("gateCoupled", new RBool(false)))),
+        ("gateCoupled", new RBool(false)),
+        ("hud", PressureHudAlternative()),
+        ("restartIndicator", PressureRestartIndicatorAlternative()));
+
+    /// <summary>Fensterprotokolleintrag (Druckvertrag Abschnitt 8).</summary>
+    private static RObj PressureWindowEntry() => new(
+        ("instance", new RInt(1)),
+        ("cycle", new RInt(1)),
+        ("startBoundaryTick", new RInt(0)),
+        ("endBoundaryTick", new NullableBoundaryTickNode()),
+        ("endReason", new NullableLiteralNode(
+            [PressureContract.WindowEndReasonSuccess, PressureContract.WindowEndReasonExpired])),
+        ("arrivalBoundaryTick", new NullableBoundaryTickNode()),
+        ("arrivalMode", new NullableLiteralNode([ModeContract.ModePersonalId, ModeContract.ModeStrategicId])),
+        ("failureCause", new NullableLiteralNode([PressureContract.FailureCauseWindowExpired])),
+        ("gateCoupled", new RBool(false)));
+
+    /// <summary>Grenzknoten mit vertraglichem Offen-Sentinel (-1).</summary>
+    private sealed class NullableBoundaryTickNode : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.Number || !element.TryGetInt64(out var value))
+            {
+                errors.Add($"{path}: ganzzahlige Grenze erwartet.");
+                return;
+            }
+
+            if (value < PressureWindowEvent.UnsetBoundaryTick)
+            {
+                errors.Add($"{path}: Grenze ist mindestens {PressureWindowEvent.UnsetBoundaryTick} (Offen-Sentinel).");
+            }
+        }
+    }
+
+    /// <summary>Zeichenkettenknoten, der null oder exakt einen gebundenen Literalwert akzeptiert.</summary>
+    private sealed class NullableLiteralNode(IReadOnlyList<string> literals) : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind == JsonValueKind.Null)
+            {
+                return;
+            }
+
+            if (element.ValueKind != JsonValueKind.String)
+            {
+                errors.Add($"{path}: Zeichenkette oder null erwartet.");
+                return;
+            }
+
+            var value = element.GetString() ?? string.Empty;
+
+            if (!literals.Contains(value, StringComparer.Ordinal))
+            {
+                errors.Add($"{path}: konstanter Wert [{string.Join("|", literals)}] oder null erwartet.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Titel-HUD-Ausweis des Drucks (Vertrag Abschnitte 6 und 8): im
+    /// Interaktivmodus messend mit Zykluszahl, Endstatus und Fensterlaenge;
+    /// headless und in unvollständigen Läufen ausdrücklich nicht gemessen
+    /// mit maschinenlesbarem Grund statt stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative PressureHudAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(PressureContract.HudModelId)),
+                ("fields", new RObj(
+                    ("cycleCount", new RInt(0)),
+                    ("endStatus", new LiteralAlternative(
+                        [
+                            PressureContract.EndStatusNotStarted,
+                            PressureContract.EndStatusWindowOpen,
+                            PressureContract.EndStatusRestartPending,
+                            PressureContract.EndStatusSuccess,
+                        ])),
+                    ("windowLengthTicks", new RInt(PressureContract.WindowLengthTicks, PressureContract.WindowLengthTicks))))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(PressureContract.HudModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
+    /// Neustartkanal-Bindung (T-036, Vertrag Abschnitte 6 und 8): im
+    /// Interaktivmodus messend ausgewiesen; headless ausdrücklich nicht
+    /// gemessen mit maschinenlesbarem Grund statt stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative PressureRestartIndicatorAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(PressureContract.RestartChannelModelId)),
+                ("fields", new RObj(
+                    ("failureBoundaryTick", new NullableBoundaryTickNode()),
+                    ("cause", new NullableLiteralNode([PressureContract.FailureCauseWindowExpired]))))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(PressureContract.RestartChannelModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
     /// Titel-HUD-Ausweis der Entscheidung (Vertrag Abschnitte 6 und 8): im
     /// Interaktivmodus messend mit Angebots-, Options-, Folgen- und
     /// Abschlusszustand; headless und in unvollständigen Läufen ausdrücklich
@@ -837,6 +1019,257 @@ public static class CommandReportSchema
         }
     }
 
+    /// <summary>
+    /// Relationale T-036-Bindung (Druckvertrag Abschnitt 8, fail-closed):
+    /// die Zyklusnummer je Instanz ist streng aufsteigend ab 1 und
+    /// instanzgleich; jede Instanz traegt entweder den ehrlichen Offen-
+    /// zustand (ohne Endgrenze/Endgrund) oder genau einen Endgrund; die
+    /// Endgrenze liegt an oder nach der Startgrenze; die Ursachenkennung
+    /// erscheint ausschliesslich mit Endgrund expired, Ankunftsgrenze und
+    /// -modus ausschliesslich mit Endgrund success, und die Ankunft liegt
+    /// innerhalb der Instanzgrenzen; ein Fehlschlag existiert nur nach einer
+    /// abgelaufenen Instanz und die Wiederauffrischungsgrenze liegt genau an
+    /// der naechsten Vorgrenze nach der Fehlschlagsgrenze; die Instanzzaehlung
+    /// stimmt mit der Zykluszählung ueberein; ohne wirksame Entscheidung
+    /// (cycleCount 0) existiert keine Instanz, kein Fehlschlag und keine
+    /// Wiederauffrischung, und der Endstatus traegt seinen ehrlichen Grund.
+    /// </summary>
+    private static void ValidatePressureRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("pressureSession", out var pressureSession)
+            || pressureSession.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var pressurePath = $"{path}.pressureSession";
+        long cycleCount = -1;
+
+        if (pressureSession.TryGetProperty("cycleCount", out var cycleElement)
+            && cycleElement.TryGetInt64(out var cycleValue))
+        {
+            cycleCount = cycleValue;
+        }
+
+        var windowCount = -1L;
+        long? openInstances = null;
+
+        if (pressureSession.TryGetProperty("windows", out var windows)
+            && windows.ValueKind == JsonValueKind.Array)
+        {
+            windowCount = windows.GetArrayLength();
+            openInstances = 0;
+            long previousInstance = 0;
+            var index = 0;
+
+            foreach (var window in windows.EnumerateArray())
+            {
+                if (window.ValueKind != JsonValueKind.Object)
+                {
+                    index++;
+                    continue;
+                }
+
+                var instance = ReadLong(window, "instance");
+                var cycle = ReadLong(window, "cycle");
+                var start = ReadLong(window, "startBoundaryTick");
+                var end = ReadLong(window, "endBoundaryTick");
+                var endReason = ReadNullableString(window, "endReason");
+                var arrival = ReadLong(window, "arrivalBoundaryTick");
+                var arrivalMode = ReadNullableString(window, "arrivalMode");
+                var windowCause = ReadNullableString(window, "failureCause");
+
+                if (instance is { } instanceValue
+                    && (instanceValue != index + 1L || instanceValue <= previousInstance))
+                {
+                    errors.Add($"{pressurePath}.windows[{index}].instance: fortlaufende Instanznummer {index + 1} erwartet.");
+                }
+
+                if (instance is { } i && cycle is { } c && i != c)
+                {
+                    errors.Add($"{pressurePath}.windows[{index}].cycle: Instanz- und Zyklusnummer muessen uebereinstimmen.");
+                }
+
+                if (end is { } endValue && endValue < 0)
+                {
+                    if (endReason is not null)
+                    {
+                        errors.Add($"{pressurePath}.windows[{index}].endReason: eine offene Instanz traegt keinen Endgrund.");
+                    }
+
+                    openInstances = (openInstances ?? 0) + 1;
+                }
+                else if (end is { } ended)
+                {
+                    if (endReason is null)
+                    {
+                        errors.Add($"{pressurePath}.windows[{index}].endReason: eine beendete Instanz traegt ihren Endgrund.");
+                    }
+
+                    if (start is { } startValue && ended < startValue)
+                    {
+                        errors.Add($"{pressurePath}.windows[{index}].endBoundaryTick: die Endgrenze liegt an oder nach der Startgrenze.");
+                    }
+
+                    if (endReason == PressureContract.WindowEndReasonExpired)
+                    {
+                        if (windowCause is null)
+                        {
+                            errors.Add($"{pressurePath}.windows[{index}].failureCause: Ablauf traegt die Ursachenkennung.");
+                        }
+
+                        if (arrival is { } successArrival && successArrival >= 0)
+                        {
+                            errors.Add($"{pressurePath}.windows[{index}].arrivalBoundaryTick: ein Ablauf traegt keine Ankunft.");
+                        }
+
+                        if (arrivalMode is not null)
+                        {
+                            errors.Add($"{pressurePath}.windows[{index}].arrivalMode: ein Ablauf traegt keinen Ankunftsmodus.");
+                        }
+                    }
+                    else if (endReason == PressureContract.WindowEndReasonSuccess)
+                    {
+                        if (windowCause is not null)
+                        {
+                            errors.Add($"{pressurePath}.windows[{index}].failureCause: ein Erfolg traegt keine Fehlschlagsursache.");
+                        }
+
+                        if (arrival is not { } successBoundary || successBoundary < 0)
+                        {
+                            errors.Add($"{pressurePath}.windows[{index}].arrivalBoundaryTick: ein Erfolg traegt seine Ankunftsgrenze.");
+                        }
+                        else if (start is { } windowStart
+                            && (successBoundary < windowStart
+                                || successBoundary > ended))
+                        {
+                            errors.Add($"{pressurePath}.windows[{index}].arrivalBoundaryTick: die Ankunft liegt innerhalb der Instanzgrenzen.");
+                        }
+
+                        if (arrivalMode is null)
+                        {
+                            errors.Add($"{pressurePath}.windows[{index}].arrivalMode: ein Erfolg traegt seinen Ankunftsmodus.");
+                        }
+                    }
+                }
+
+                if (instance is { } currentInstance)
+                {
+                    previousInstance = currentInstance;
+                }
+
+                index++;
+            }
+        }
+
+        if (cycleCount is >= 0 && windowCount >= 0 && cycleCount != windowCount)
+        {
+            errors.Add($"{pressurePath}.cycleCount: die Zykluszählung entspricht der Instanzanzahl.");
+        }
+
+        if (openInstances is { } open && open > 1)
+        {
+            errors.Add($"{pressurePath}.windows: hoechstens eine offene Fensterinstanz erwartet.");
+        }
+
+        var cycleCountZero = cycleCount == 0;
+
+        pressureSession.TryGetProperty("lastFailure", out var lastFailure);
+        var failureBoundary = lastFailure.ValueKind == JsonValueKind.Object
+            ? ReadLong(lastFailure, "boundaryTick")
+            : null;
+        var failureCause = lastFailure.ValueKind == JsonValueKind.Object
+            ? ReadNullableString(lastFailure, "cause")
+            : null;
+        var reopenBoundary = ReadLong(pressureSession, "reopenBoundaryTick");
+
+        if (cycleCountZero)
+        {
+            if ((failureBoundary is { } orphanFailure && orphanFailure >= 0) || failureCause is not null)
+            {
+                errors.Add($"{pressurePath}.lastFailure: ohne wirksame Entscheidung gibt es keinen Fehlschlag.");
+            }
+
+            if (reopenBoundary is { } orphanReopen && orphanReopen >= 0)
+            {
+                errors.Add($"{pressurePath}.reopenBoundaryTick: ohne wirksame Entscheidung gibt es keine Wiederauffrischung.");
+            }
+
+            if (windowCount > 0)
+            {
+                errors.Add($"{pressurePath}.windows: ohne wirksame Entscheidung gibt es keine Fensterinstanz.");
+            }
+        }
+        else if ((failureCause is null) != (failureBoundary is { } boundFailure && boundFailure >= 0))
+        {
+            errors.Add($"{pressurePath}.lastFailure: Grenze und Ursache tragen dieselbe Aussage.");
+        }
+
+        if (failureBoundary is { } failureAt && failureAt >= 0
+            && reopenBoundary is { } reopenAt && reopenAt >= 0
+            && reopenAt != failureAt + 1)
+        {
+            errors.Add($"{pressurePath}.reopenBoundaryTick: die Wiederauffrischung liegt genau an der naechsten Vorgrenze nach dem Fehlschlag.");
+        }
+
+        if (pressureSession.TryGetProperty("endStatus", out var endStatus)
+            && endStatus.ValueKind == JsonValueKind.Object)
+        {
+            var status = ReadNullableString(endStatus, "status");
+            var reason = ReadNullableString(endStatus, "reason");
+
+            if (status == PressureContract.EndStatusNotStarted && reason is null)
+            {
+                errors.Add($"{pressurePath}.endStatus.reason: der not-started-Status traegt seinen ehrlichen Grund.");
+            }
+
+            if (status is not null && status != PressureContract.EndStatusNotStarted && reason is not null)
+            {
+                errors.Add($"{pressurePath}.endStatus.reason: nur not-started traegt einen Grund.");
+            }
+
+            if (cycleCount >= 0)
+            {
+                var consistent = (cycleCount == 0)
+                    == (status == PressureContract.EndStatusNotStarted);
+
+                if (!consistent)
+                {
+                    errors.Add($"{pressurePath}.endStatus.status: der Endstatus entspricht der Zykluszählung.");
+                }
+            }
+
+            if (status == PressureContract.EndStatusWindowOpen && openInstances is { } openCount && openCount != 1)
+            {
+                errors.Add($"{pressurePath}.endStatus.status: window-open erfordert genau eine offene Instanz.");
+            }
+
+            if (status is PressureContract.EndStatusSuccess or PressureContract.EndStatusRestartPending
+                && openInstances is { } openAfterEnd && openAfterEnd != 0)
+            {
+                errors.Add($"{pressurePath}.endStatus.status: ein beendeter Endstatus impliziert keine offene Instanz.");
+            }
+        }
+    }
+
+    private static long? ReadLong(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Number
+        && value.TryGetInt64(out var parsed)
+            ? parsed
+            : null;
+
+    private static string? ReadNullableString(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value)
+            ? value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null
+            : null;
+
     private static bool? ReadBool(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value)
         && value.ValueKind is JsonValueKind.True or JsonValueKind.False
@@ -893,6 +1326,14 @@ public static class CommandReportSchema
                 path, root, "decisionSession", "hud", shouldBeMeasured, errors);
             ValidateMeasuredFlag(
                 path, root, "decisionSession", "followUpChannel", shouldBeMeasured, errors);
+        }
+
+        if (root.TryGetProperty("pressureSession", out _))
+        {
+            ValidateMeasuredFlag(
+                path, root, "pressureSession", "hud", shouldBeMeasured, errors);
+            ValidateMeasuredFlag(
+                path, root, "pressureSession", "restartIndicator", shouldBeMeasured, errors);
         }
     }
 
