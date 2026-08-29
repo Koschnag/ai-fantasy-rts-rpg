@@ -2184,8 +2184,7 @@ module Program =
               DecisionTests.decisionSchemaRelationsRejectFabrication
               "T-035 builder honesty binds decision presentation flags",
               DecisionTests.decisionBuilderEhrlichkeitBindetDarstellungsausweise
-              "T-036 pressure contract mirrors documented values",
-              PressureTests.pressureContractMirrorsDocumentedValues
+              "T-036 pressure contract mirrors documented values", PressureTests.pressureContractMirrorsDocumentedValues
               "T-036 window trigger is decision coupled once per cycle and honest without decision",
               PressureTests.windowTriggerIsDecisionCoupledOncePerCycleAndHonestWithoutDecision
               "T-036 time basis binds expiry exactness and arrival ordering",

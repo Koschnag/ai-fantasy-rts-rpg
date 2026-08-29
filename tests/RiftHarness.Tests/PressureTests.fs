@@ -222,13 +222,15 @@ let pressureContractMirrorsDocumentedValues () =
 let windowTriggerIsDecisionCoupledOncePerCycleAndHonestWithoutDecision () =
     // Ohne erreichten Entscheidungsstand (kein choose-Intent): kein Fenster,
     // ehrlicher not-started-Grund, wenn das Angebot offen blieb.
-    let withoutChoice = runInProcess 20260826u 8000 (explorationBody @ [ "intent 7500 switch" ]) true true true
+    let withoutChoice =
+        runInProcess 20260826u 8000 (explorationBody @ [ "intent 7500 switch" ]) true true true
+
     let pressure = withoutChoice.Pressure
 
     if isNull pressure then
         failwith "Aktivierte Druckschicht lieferte keinen Ausweis."
 
-    if pressure.CycleCount <> 0L || not ( Seq.isEmpty pressure.Windows ) then
+    if pressure.CycleCount <> 0L || not (Seq.isEmpty pressure.Windows) then
         failwith "Ohne wirksame Entscheidung existierte eine Fensterinstanz."
 
     let status, reason = (pressure.EndStatus, pressure.EndStatusReason)
@@ -301,7 +303,7 @@ let timeBasisExpiryExactnessAndArrivalOrdering () =
 
         // Fenster startet an der Wahlgrenze 10; Ablaufgrenze ist 610
         // (Start + WindowLengthTicks exakt).
-        for boundary in 10L..609L do
+        for boundary in 10L .. 609L do
             if arrivalBoundary = Some boundary then
                 decision.Observe(boundary, world, SessionMode.Personal, exploration)
 
@@ -399,8 +401,11 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     // A/B-Wahlpaar mit Druckaktivierung (Horizont 7800 haelt die
     // Entscheidungen unreset): identische Kernintents und identische
     // Ketten, unterscheidbare Entscheidungen.
-    let chooseA = runInProcess 20260826u 7800 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
-    let chooseB = runInProcess 20260826u 7800 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
+    let chooseA =
+        runInProcess 20260826u 7800 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+
+    let chooseB =
+        runInProcess 20260826u 7800 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
 
     if chooseA.StartStateHash <> chooseB.StartStateHash then
         failwith "Das A/B-Paar startete nicht aus demselben Zustand."
@@ -418,8 +423,11 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     // Druckwahrheiten (B: der Held steht in der Folgenzone — Erfolg an der
     // Entscheidungsgrenze; A: Folgenzone unerreicht — definierter
     // Fehlschlag an der Ablaufgrenze mit Wiederauffrischung).
-    let chooseALong = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
-    let chooseBLong = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
+    let chooseALong =
+        runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+
+    let chooseBLong =
+        runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
 
     if chooseALong.EndStateHash <> chooseBLong.EndStateHash then
         failwith "Das langhorizontige A/B-Paar veraenderte die Kernwahrheit."
@@ -431,7 +439,8 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
         windowA.EndReason <> PressureContract.WindowEndReasonExpired
         || windowA.EndBoundaryTick <> 7300L + int64 PressureContract.WindowLengthTicks
         || windowA.FailureCause <> PressureContract.FailureCauseWindowExpired
-        || pressureA.LastReopenBoundaryTick <> 7300L + int64 PressureContract.WindowLengthTicks + 1L
+        || pressureA.LastReopenBoundaryTick
+           <> 7300L + int64 PressureContract.WindowLengthTicks + 1L
     then
         failwith "Der A-Lauf bindet nicht den definierten Fehlschlag mit Wiederauffrischung."
 
@@ -467,12 +476,14 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     if
         windowFull.EndReason <> PressureContract.WindowEndReasonSuccess
         || windowFull.ArrivalBoundaryTick <> fullWithPressure.Decision.ArrivalBoundaryTick
-        || windowFull.ArrivalBoundaryTick >= 7300L + int64 PressureContract.WindowLengthTicks
+        || windowFull.ArrivalBoundaryTick
+           >= 7300L + int64 PressureContract.WindowLengthTicks
     then
         failwith "Der T-035-Vollfluss schloss nicht als Erfolg innerhalb des offenen Fensters ab."
 
     // Fremdseed aendert Start- und Endhash nachweislich.
-    let foreign = runInProcess 424242u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+    let foreign =
+        runInProcess 424242u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
 
     if foreign.EndStateHash = chooseA.EndStateHash then
         failwith "Der Fremdseed veraenderte den Endhash nicht."
@@ -509,9 +520,11 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
     let scriptPath =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t036-pressure-restart.graybox")
 
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
 
-    let secondReportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
+    let secondReportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, stdout, stderr =
@@ -543,11 +556,13 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
         if
             jsonInt64 first "instance" <> 1L
             || jsonInt64 first "cycle" <> 1L
-            || first.GetProperty("endReason").GetString() <> PressureContract.WindowEndReasonExpired
+            || first.GetProperty("endReason").GetString()
+               <> PressureContract.WindowEndReasonExpired
             || first.GetProperty("failureCause").GetString()
                <> PressureContract.FailureCauseWindowExpired
             || first.GetProperty("arrivalMode").ValueKind <> JsonValueKind.Null
-            || first.GetProperty("endReason").GetString() <> PressureContract.WindowEndReasonExpired
+            || first.GetProperty("endReason").GetString()
+               <> PressureContract.WindowEndReasonExpired
         then
             failwith "Die erste Fensterinstanz traegt nicht den definierten Fehlschlag."
 
@@ -567,7 +582,8 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
         if
             jsonInt64 second "instance" <> 2L
             || jsonInt64 second "cycle" <> 2L
-            || second.GetProperty("endReason").GetString() <> PressureContract.WindowEndReasonSuccess
+            || second.GetProperty("endReason").GetString()
+               <> PressureContract.WindowEndReasonSuccess
             || second.GetProperty("arrivalMode").GetString() <> ModeContract.ModePersonalId
         then
             failwith "Die zweite Instanz schliesst nicht als persönlicher Erfolg ab."
@@ -576,7 +592,8 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
 
         if
             jsonInt64 lastFailure "boundaryTick" <> choiceTick + 600L
-            || lastFailure.GetProperty("cause").GetString() <> PressureContract.FailureCauseWindowExpired
+            || lastFailure.GetProperty("cause").GetString()
+               <> PressureContract.FailureCauseWindowExpired
         then
             failwith "Der letzte Fehlschlag traegt nicht Grenze und Ursache."
 
@@ -585,7 +602,10 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
         if endStatus.GetProperty("status").GetString() <> PressureContract.EndStatusSuccess then
             failwith "Der Endstatus des Fehlschlags-Neustart-Erfolgspfads ist nicht Erfolg."
 
-        if pressure.GetProperty("windowLengthTicks").GetInt64() <> PressureContract.WindowLengthTicks then
+        if
+            pressure.GetProperty("windowLengthTicks").GetInt64()
+            <> PressureContract.WindowLengthTicks
+        then
             failwith "Der Report bindet nicht die fixierte Fensterlaenge."
 
         let persistence = pressure.GetProperty("persistence")
@@ -600,7 +620,10 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
         let hud = pressure.GetProperty("hud")
         let indicator = pressure.GetProperty("restartIndicator")
 
-        if hud.GetProperty("measured").GetBoolean() || indicator.GetProperty("measured").GetBoolean() then
+        if
+            hud.GetProperty("measured").GetBoolean()
+            || indicator.GetProperty("measured").GetBoolean()
+        then
             failwith "Headless behauptet fensterpflichtige Druckdarstellung."
 
         if
@@ -634,7 +657,10 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
         then
             failwith "Die Ketten zweier Fresh-Prozesslaeufe sind nicht builderidentisch."
 
-        if pressure.GetProperty("windows").ToString() <> secondRoot.GetProperty("pressureSession").GetProperty("windows").ToString() then
+        if
+            pressure.GetProperty("windows").ToString()
+            <> secondRoot.GetProperty("pressureSession").GetProperty("windows").ToString()
+        then
             failwith "Das Druckprotokoll zweier Fresh-Prozesslaeufe ist nicht builderidentisch."
     finally
         if File.Exists(reportPath) then
@@ -654,9 +680,11 @@ let foreignSeedChangesHashesButPressureStructureFollowsSession () =
     let scriptPath =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t036-pressure-restart.graybox")
 
-    let contractReport = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
+    let contractReport =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
 
-    let foreignReport = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
+    let foreignReport =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
 
     try
         let contractExit, _, _ =
@@ -674,14 +702,18 @@ let foreignSeedChangesHashesButPressureStructureFollowsSession () =
         let foreignRoot = foreignDocument.RootElement
 
         if
-            contractRoot.GetProperty("stateHashChain").GetProperty("end").GetString()
-            = foreignRoot.GetProperty("stateHashChain").GetProperty("end").GetString()
+            contractRoot.GetProperty("stateHashChain").GetProperty("end").GetString() = foreignRoot
+                .GetProperty("stateHashChain")
+                .GetProperty("end")
+                .GetString()
         then
             failwith "Der Fremdseed veraenderte den Endhash nachweislich nicht."
 
         if
-            contractRoot.GetProperty("stateHashChain").GetProperty("start").GetString()
-            = foreignRoot.GetProperty("stateHashChain").GetProperty("start").GetString()
+            contractRoot.GetProperty("stateHashChain").GetProperty("start").GetString() = foreignRoot
+                .GetProperty("stateHashChain")
+                .GetProperty("start")
+                .GetString()
         then
             failwith "Der Fremdseed veraenderte den Starthash nachweislich nicht."
 
@@ -729,19 +761,17 @@ let foreignSeedChangesHashesButPressureStructureFollowsSession () =
 // ---------------------------------------------------------------------------
 
 let pressureWithoutReachedDecisionCarriesHonestGround () =
-    let neverCompleted = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.graybox")
+    let neverCompleted =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.graybox")
 
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
 
     try
         // Kein Erkundungsabschluss im Lauf: kein Angebot, kein Fenster.
         File.WriteAllText(
             neverCompleted,
-            v3Script
-                3000
-                [ "intent 250 point 149718 44500"
-                  "intent 251 move 4"
-                  "intent 750 steer 2" ]
+            v3Script 3000 [ "intent 250 point 149718 44500"; "intent 251 move 4"; "intent 750 steer 2" ]
         )
 
         let exitCode, _, stderr =
@@ -778,7 +808,8 @@ let pressureActivationCouplingStaysUsageError () =
     let scriptPath =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t034-exploration-separated.graybox")
 
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
 
     try
         let argumentsWithoutDecision =
@@ -819,7 +850,17 @@ let pressureIncompleteReportPreservesActivation () =
         PressureTelemetry(
             WindowLengthTicks = PressureContract.WindowLengthTicks,
             CycleCount = 1L,
-            Windows = [ PressureWindowEvent(1L, 1L, 8000L, 8600L, PressureContract.WindowEndReasonExpired, -1L, null, PressureContract.FailureCauseWindowExpired) ],
+            Windows =
+                [ PressureWindowEvent(
+                      1L,
+                      1L,
+                      8000L,
+                      8600L,
+                      PressureContract.WindowEndReasonExpired,
+                      -1L,
+                      null,
+                      PressureContract.FailureCauseWindowExpired
+                  ) ],
             LastFailureBoundaryTick = 8600L,
             LastFailureCause = PressureContract.FailureCauseWindowExpired,
             LastReopenBoundaryTick = -1L,
@@ -883,7 +924,7 @@ let titleHudBindsPressureStatesWithoutChangingLegacyForm () =
     // Fehlschlags-/Neustartzeitraum: Ablauf ohne Ankunft an 600; der Titel
     // traegt die unterscheidbare Fehlschlagsform bis zur naechsten
     // wirksamen Wahl.
-    for boundary in 1L..600L do
+    for boundary in 1L .. 600L do
         pressure.Observe(boundary, world, SessionMode.Personal, decision)
 
     let afterFailure =
@@ -928,7 +969,8 @@ let private pressureGolden () =
     let scriptPath =
         Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t036-pressure-restart.graybox")
 
-    let reportPath = Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
+    let reportPath =
+        Path.Combine(Path.GetTempPath(), $"RiftHarness-Pressure-{Guid.NewGuid():N}.json")
 
     try
         let exitCode, _, _ =
@@ -1000,7 +1042,7 @@ let pressureSchemaRelationsRejectFabrication () =
         (golden.Replace(
             "\"arrivalMode\":\"personal\",\"failureCause\":null",
             "\"arrivalMode\":\"personal\",\"failureCause\":\"window-expired-without-arrival\""
-         ))
+        ))
         "Erfolgsinstanz mit Fehlschlagsursache akzeptiert"
 
     // Wiederauffrischung nicht an der naechsten Vorgrenze wird abgewiesen.
@@ -1028,5 +1070,5 @@ let pressureSchemaRelationsRejectFabrication () =
         (golden.Replace(
             "\"endReason\":\"expired\",\"arrivalBoundaryTick\":-1,\"arrivalMode\":null",
             "\"endReason\":\"expired\",\"arrivalBoundaryTick\":8500,\"arrivalMode\":\"personal\""
-         ))
+        ))
         "Ablauf mit erfundener Ankunft akzeptiert"
