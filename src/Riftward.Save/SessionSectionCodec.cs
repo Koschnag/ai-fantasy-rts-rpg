@@ -254,6 +254,10 @@ public static class SessionSectionCodec
             pending[index] = new SessionSectionPendingSwitch(intentTick, effectiveTick, previousMode, newMode);
         }
 
+        // Der feste Kopf der Besuchsliste (Aktivierung plus Anzahl) liegt
+        // vollständig innerhalb der Sektion, bevor Skalare gelesen werden.
+        EnsureBytes(section, offset, sizeof(byte) + sizeof(uint));
+
         var explorationActive = ReadU8(section, ref offset);
 
         if (explorationActive > 1)
@@ -383,6 +387,10 @@ public static class SessionSectionCodec
         {
             return Invalid("Ohne Abschluss traegt die Ankunftsgrenze keinen Sentinel.");
         }
+
+        // Der feste Druckkopf (Aktivierung, Zyklusanzaehlung, Instanzanzahl)
+        // liegt vollständig innerhalb der Sektion, bevor Skalare gelesen werden.
+        EnsureBytes(section, offset, sizeof(byte) + sizeof(long) + sizeof(uint));
 
         var pressureActive = ReadU8(section, ref offset);
 
