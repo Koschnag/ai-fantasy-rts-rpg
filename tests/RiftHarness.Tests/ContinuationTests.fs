@@ -264,14 +264,21 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
     // Rohbyteschreiber fuer die Rahmenniveau-Truncationsfaelle: Little-
     // Endian-Festbreiten exakt wie der Sektionscodec.
     let writeI64 (bytes: byte[]) (offset: int) (value: int64) =
-        for i in 0 .. 7 do
+        for i in 0..7 do
             bytes.[offset + i] <- byte ((value >>> (8 * i)) &&& 0xFFL)
 
     let writeI32 (bytes: byte[]) (offset: int) (value: int) =
-        for i in 0 .. 3 do
+        for i in 0..3 do
             bytes.[offset + i] <- byte ((value >>> (8 * i)) &&& 0xFF)
 
-    let writePendingSwitch (bytes: byte[]) (offset: int) (intent: int64) (effective: int64) (previous: byte) (newMode: byte) =
+    let writePendingSwitch
+        (bytes: byte[])
+        (offset: int)
+        (intent: int64)
+        (effective: int64)
+        (previous: byte)
+        (newMode: byte)
+        =
         writeI64 bytes offset intent
         writeI64 bytes (offset + 8) effective
         bytes.[offset + 16] <- previous
@@ -446,7 +453,7 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
     let truncatedAfterSwitches = Array.zeroCreate<byte> 115
     truncatedAfterSwitches.[0] <- 1uy // Sektionsversion 1 (Little-Endian u16)
 
-    for i in 0 .. 5 do
+    for i in 0..5 do
         writePendingSwitch truncatedAfterSwitches (7 + i * 18) 0L 2L 0uy 1uy
 
     let (switchTruncationRejection, _) = decodeSection truncatedAfterSwitches
@@ -464,7 +471,7 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
     truncatedAfterDecision.[7] <- 1uy // Erkundung aktiv
     truncatedAfterDecision.[8] <- 3uy // drei gueltige Registrierungen (13 Bytes je)
 
-    for i in 0 .. 2 do
+    for i in 0..2 do
         writeVisit truncatedAfterDecision (12 + i * 13) (int64 (i + 1)) i SessionSectionCodec.ModePersonal
 
     writeDecisionEmpty truncatedAfterDecision 51 // konsistenter Block ohne Angebot/Wahl
