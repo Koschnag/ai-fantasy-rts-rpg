@@ -101,6 +101,14 @@ public sealed class PressureSession
     public long LastReopenBoundaryTick => _lastReopenBoundaryTick;
 
     /// <summary>
+    /// Offene Wiederauffrischungsregistrierung (Druckvertrag Abschnitt 4):
+    /// der Fehlschlag liegt, die Angebots-Wiederauffrischung wurde an der
+    /// nächsten Vorgrenze noch nicht registriert. Grundlage der Sektions-
+    /// erfassung (Savevertrag V2 Abschnitt 13.1).
+    /// </summary>
+    public bool RestartPendingRecording => _reopenPendingRecording;
+
+    /// <summary>
     /// Ehrlicher Fehlschlags-/Neustartzustand (Druckvertrag Abschnitt 6,
     /// Anzeigezeitraum der Neustartanzeige): mindestens ein Zyklus begonnen,
     /// kein Fenster offen und die letzte Instanz mit Ablauf geendet — also

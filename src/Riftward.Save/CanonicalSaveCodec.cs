@@ -50,8 +50,11 @@ public static class CanonicalSaveCodec
     /// <summary>Länge des metaHash-Ankers.</summary>
     public const int MetaHashBytes = SaveContract.HashLength;
 
-    /// <summary>Kopflänge bei allen Zeichenfolgen der Vertragswerte.</summary>
+    /// <summary>Kopflänge bei allen Zeichenfolgen der Vertragswerte (Legacy V1).</summary>
     public static int MinimumHeaderBytes => MeasureHeader("Riftward", "Riftward", SaveContract.EncodingId, string.Empty);
+
+    /// <summary>Kopflänge des Umschlags V2 (Legacykopf plus Sektionsfelder, Abschnitt 13.5).</summary>
+    public static int MinimumHeaderBytesV2 => MinimumHeaderBytes + SaveContract.SessionSectionHeaderFieldsBytes;
 
     /// <summary>Kodiert eine UTF-8-Zeichenfolge mit u16-Längenpräfix.</summary>
     private static void WriteString(Span<byte> target, ref int offset, string value)
@@ -89,15 +92,63 @@ public static class CanonicalSaveCodec
         + SaveContract.HashLength;
 
     /// <summary>
-    /// Schreibt ein vollständig gültiges Dokument V1: kanonischer Payload aus
-    /// dem Zustand, SHA-256-Anker über den Payload, Kopfangaben und metaHash.
+    /// Schreibt ein vollständig gültiges Dokument der Legacy-Version 1
+    /// (Bestandsformat ohne Sitzungssektion): kanonischer Payload aus dem
+    /// Zustand, SHA-256-Anker über den Payload, Kopfangaben und metaHash.
+    /// Der savecheck-Lauf und die Bestandsfixtures bleiben in diesem Verhalten
+    /// unverändert (Savevertrag V2 Abschnitt 13.5).
     /// </summary>
     public static byte[] WriteDocument(
         SimSaveState state,
         ulong snapshotStateHash,
         ulong commandPlanHash,
         string buildId,
-        SaveEnvelopeMetadata metadata)
+        SaveEnvelopeMetadata metadata) =>
+        WriteDocumentV1(state, snapshotStateHash, commandPlanHash, buildId, metadata);
+
+    /// <summary>Schreibt ein Legacydokument V1 ohne Sitzungssektion.</summary>
+    public static byte[] WriteDocumentV1(
+        SimSaveState state,
+        ulong snapshotStateHash,
+        ulong commandPlanHash,
+        string buildId,
+        SaveEnvelopeMetadata metadata) =>
+        WriteDocumentCore(state, snapshotStateHash, commandPlanHash, buildId, metadata, SaveContract.LegacySaveSchemaVersion, sessionSection: null);
+
+    /// <summary>
+    /// Schreibt ein vollständig gültiges Dokument V2 (Savevertrag V2
+    /// Abschnitt 13.5): erweiterter Kopf um sessionSectionLength und
+    /// sessionSectionHash, Payload und danach die kanonische, eigen-hash-
+    /// gebundene Sitzungssektion. Die Sektion wird hier nicht validiert —
+    /// das Atomarprotokoll validiert das geschriebene Gesamtdokument vor
+    /// jeder Ersetzung.
+    /// </summary>
+    public static byte[] WriteDocumentV2(
+        SimSaveState state,
+        ulong snapshotStateHash,
+        ulong commandPlanHash,
+        string buildId,
+        SaveEnvelopeMetadata metadata,
+        byte[] sessionSection)
+    {
+        ArgumentNullException.ThrowIfNull(sessionSection);
+
+        if (sessionSection.Length > SaveContract.MaxSessionSectionBytes)
+        {
+            throw new ArgumentException("Sektion überschreitet das absolute Vorab-Limit.", nameof(sessionSection));
+        }
+
+        return WriteDocumentCore(state, snapshotStateHash, commandPlanHash, buildId, metadata, SaveContract.CurrentSaveSchemaVersion, sessionSection);
+    }
+
+    private static byte[] WriteDocumentCore(
+        SimSaveState state,
+        ulong snapshotStateHash,
+        ulong commandPlanHash,
+        string buildId,
+        SaveEnvelopeMetadata metadata,
+        ushort schemaVersion,
+        byte[]? sessionSection)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(metadata);
@@ -115,12 +166,18 @@ public static class CanonicalSaveCodec
             SaveContract.EncodingId,
             buildId);
 
+        if (sessionSection is not null)
+        {
+            headerLength += SaveContract.SessionSectionHeaderFieldsBytes;
+        }
+
         if (headerLength > SaveContract.MaxHeaderBytes)
         {
             throw new InvalidOperationException("Kopf überschreitet die Framinggrenze.");
         }
 
-        var totalLength = PreambleBytes + headerLength + MetaHashBytes + payload.Length;
+        var sectionBytes = sessionSection is null ? 0 : sessionSection.Length;
+        var totalLength = PreambleBytes + headerLength + MetaHashBytes + payload.Length + sectionBytes;
         var document = new byte[totalLength];
 
         document[0] = SaveContract.Magic0;
@@ -129,7 +186,7 @@ public static class CanonicalSaveCodec
         document[3] = SaveContract.Magic3;
         BinaryPrimitives.WriteUInt16LittleEndian(
             document.AsSpan(SaveContract.MagicLength, sizeof(ushort)),
-            SaveContract.CurrentSaveSchemaVersion);
+            schemaVersion);
         BinaryPrimitives.WriteUInt32LittleEndian(
             document.AsSpan(PreambleBytes - sizeof(uint), sizeof(uint)),
             (uint)headerLength);
@@ -155,7 +212,16 @@ public static class CanonicalSaveCodec
         WriteUnsigned(header, ref offset, (ulong)payload.Length);
         payloadHash.CopyTo(header.Slice(offset));
 
-        if (offset + SaveContract.HashLength != headerLength)
+        if (sessionSection is not null)
+        {
+            offset += SaveContract.HashLength;
+            WriteUnsigned(header, ref offset, (ulong)sessionSection.Length);
+            SHA256.HashData(sessionSection).CopyTo(header.Slice(offset));
+        }
+
+        // V1: offset steht am Anfang des payloadHash-Felds (32 Bytes folgen);
+        // V2: die Sektionsfelder sind geschrieben, offset steht am Kopfende.
+        if (offset + (sessionSection is null ? SaveContract.HashLength : 0) != headerLength)
         {
             throw new InvalidOperationException("Kopfmaß und Kodierung weichen ab.");
         }
@@ -163,6 +229,11 @@ public static class CanonicalSaveCodec
         SHA256.HashData(document.AsSpan(0, PreambleBytes + headerLength))
             .CopyTo(document.AsSpan(PreambleBytes + headerLength, MetaHashBytes));
         payload.CopyTo(document.AsSpan(PreambleBytes + headerLength + MetaHashBytes));
+
+        if (sessionSection is not null)
+        {
+            sessionSection.CopyTo(document, PreambleBytes + headerLength + MetaHashBytes + payload.Length);
+        }
 
         return document;
     }

@@ -6,8 +6,9 @@ using Riftward.Simulation;
 namespace Riftward.Save;
 
 /// <summary>
-/// Unterscheidbare Verletzungsklassen des Loaders (Savevertrag Abschnitt 11).
-/// Jeder Save wird höchstens einer Klasse zugeordnet; die Prüfreihenfolge
+/// Unterscheidbare Verletzungsklassen des Loaders (Savevertrag Abschnitt 11;
+/// V2 ergänzt die Sektionsklassen gemäß Abschnitt 13.5). Jeder Save wird
+/// höchstens einer Klasse zugeordnet; die Prüfreihenfolge
 /// aus Savevertrag Abschnitt 2 macht die Zuordnung deterministisch.
 /// </summary>
 public enum SaveRejectionClass
@@ -40,6 +41,12 @@ public enum SaveRejectionClass
 
     /// <summary>Fehlende oder beschädigte Weltreferenz (begehbare Kacheln, Zonen).</summary>
     ReferenceInvalid,
+
+    /// <summary>Sektionsbytes passen nicht zum sessionSectionHash-Anker (Savevertrag V2, Abschnitt 13.5).</summary>
+    SessionSectionIntegrityViolation,
+
+    /// <summary>Sektionsframing/Ordnung/Grenzen/Referenzen verletzt (Savevertrag V2, Abschnitt 13.5).</summary>
+    SessionSectionInvalid,
 }
 
 /// <summary>Eine kontrollierte Ablehnung mit Klasse und verständlichem Detail ohne interne Pfade.</summary>
@@ -84,6 +91,17 @@ public sealed record LoadedSaveDocument
     public required byte[] PayloadHash { get; init; }
 
     public required SimSaveState State { get; init; }
+
+    /// <summary>
+    /// Geprüfte Sitzungssektion (Savevertrag V2 Abschnitt 13). Bei einem
+    /// Legacydokument V1 die ehrliche kanonische Sitzungsleere mit
+    /// <see cref="FromLegacyV1Document"/> = true; bei einem Dokument V2 der
+    /// vollständig validierte Sektionszustand.
+    /// </summary>
+    public required SessionSectionState SessionSection { get; init; }
+
+    /// <summary>Ehrlicher Ursprungsmarker: Sektionsleere aus einem Legacydokument V1.</summary>
+    public required bool FromLegacyV1Document { get; init; }
 }
 
 /// <summary>Ergebnis des Kopfliesens ohne Payloadprüfung (Anzeigemetadaten-Pfad).</summary>
@@ -122,21 +140,27 @@ public static class SaveDocumentValidator
             return Reject(SaveRejectionClass.MagicInvalid, "Datei trägt nicht das Vertragsmagic RWSD.");
         }
 
-        // 2) Framing: Schemaversion zuerst lesbar.
+        // 2) Framing: Schemaversion zuerst lesbar. Das Produktformat kennt
+        // genau die Versionen 1 (Legacy, ehrliche Sitzungsleere) und 2
+        // (Sektion); alles andere bleibt ohne Migrationserfindung abgewiesen
+        // (Savevertrag V2 Abschnitt 13.5).
         var schemaVersion = BinaryPrimitives.ReadUInt16LittleEndian(file.Slice(SaveContract.MagicLength, sizeof(ushort)));
 
-        if (schemaVersion != SaveContract.CurrentSaveSchemaVersion)
+        if (schemaVersion is not (SaveContract.CurrentSaveSchemaVersion or SaveContract.LegacySaveSchemaVersion))
         {
             return Reject(
                 SaveRejectionClass.SchemaVersionUnsupported,
                 $"Schemaversion {schemaVersion} wird ohne erfundene Migration nicht unterstützt.");
         }
 
+        var isSectionSchema = schemaVersion == SaveContract.CurrentSaveSchemaVersion;
+        var minimumHeader = MinimumHeaderByteCount
+            + (isSectionSchema ? SaveContract.SessionSectionHeaderFieldsBytes : 0);
         var headerLength = BinaryPrimitives.ReadUInt32LittleEndian(
             file.Slice(PreambleBytes - sizeof(uint), sizeof(uint)));
 
         // 3) Framing: Kopfgrenzen vor jeder Zuweisung.
-        if (headerLength < MinimumHeaderByteCount || headerLength > SaveContract.MaxHeaderBytes)
+        if (headerLength < minimumHeader || headerLength > SaveContract.MaxHeaderBytes)
         {
             return Reject(SaveRejectionClass.SizeLimitExceeded, "Kopflänge außerhalb der Vertragsframinggrenzen.");
         }
@@ -160,6 +184,12 @@ public static class SaveDocumentValidator
 
         var header = file.Slice(PreambleBytes, (int)headerLength);
         var payloadLength = (long)ReadHeaderU64(header, HeaderOffsetPayloadLength(header));
+        long sessionSectionLength = 0;
+
+        if (isSectionSchema)
+        {
+            sessionSectionLength = (long)ReadHeaderU64(header, HeaderOffsetSessionSectionLength(header));
+        }
 
         // 5) Absolutes Größenlimit vor Zuweisung.
         if (payloadLength < 0 || payloadLength > SaveContract.AbsoluteMaxSaveBytes)
@@ -167,8 +197,15 @@ public static class SaveDocumentValidator
             return Reject(SaveRejectionClass.SizeLimitExceeded, "Deklarierte Payloadgröße oberhalb des absoluten Limits.");
         }
 
+        if (sessionSectionLength < 0 || sessionSectionLength > SaveContract.MaxSessionSectionBytes)
+        {
+            return Reject(
+                SaveRejectionClass.SizeLimitExceeded,
+                "Deklarierte Sektionsgröße oberhalb des absoluten Limits.");
+        }
+
         // 6) Rahmenkonsistenz: Abschneidung oder Überhang.
-        var expectedTotal = (long)preamblePlusHeader + MetaHashBytes + payloadLength;
+        var expectedTotal = (long)preamblePlusHeader + MetaHashBytes + payloadLength + sessionSectionLength;
 
         if (file.Length < expectedTotal)
         {
@@ -228,9 +265,64 @@ public static class SaveDocumentValidator
             return (referenceFailure, null);
         }
 
-        var document = ReadHeaderFields(header, schemaVersion, state);
+        // 12) Sitzungssektion (nur V2): Framing-Hinweis — Abschneidung und
+        // Überhang sind bereits über die exakte Gesamtlänge geprüft; hier
+        // folgen Sektionsanker und Sektionsinhalt in der Prüfreihenfolge.
+        SessionSectionState section;
+        var fromLegacyV1 = false;
+
+        if (isSectionSchema)
+        {
+            var sectionBytes = file.Slice((int)(expectedTotal - sessionSectionLength), (int)sessionSectionLength);
+            var expectedSectionHash = SHA256.HashData(sectionBytes);
+            var declaredSectionHash = ReadHeaderSessionSectionHash(header);
+
+            if (!CryptographicOperations.FixedTimeEquals(expectedSectionHash, declaredSectionHash))
+            {
+                return Reject(
+                    SaveRejectionClass.SessionSectionIntegrityViolation,
+                    "Sektionsbytes widersprechen dem sessionSectionHash-Anker.");
+            }
+
+            var sectionDecode = SessionSectionCodec.Decode(sectionBytes);
+
+            if (sectionDecode.Rejection is not null)
+            {
+                return (
+                    new SaveRejection(
+                        MapSectionClass(sectionDecode.Rejection.Class),
+                        sectionDecode.Rejection.Detail),
+                    null);
+            }
+
+            var reencodedSection = SessionSectionCodec.Encode(sectionDecode.State!);
+
+            if (!reencodedSection.AsSpan().SequenceEqual(sectionBytes))
+            {
+                return Reject(
+                    SaveRejectionClass.SessionSectionInvalid,
+                    "Sektion verstößt gegen die feste Feld-/Bytelordnung (Re-Encoding-Ungleichheit).");
+            }
+
+            section = sectionDecode.State!;
+        }
+        else
+        {
+            // Legacy V1: ehrliche, maschinenlesbare Sitzungsleere ohne
+            // Migrationserfindung (Savevertrag V2 Abschnitt 13.5).
+            section = SessionSectionState.Empty;
+            fromLegacyV1 = true;
+        }
+
+        var document = ReadHeaderFields(header, schemaVersion, state, section, fromLegacyV1);
         return (null, document);
     }
+
+    /// <summary>Abbildung der Sektionsklassen auf die Dokumentklassen.</summary>
+    private static SaveRejectionClass MapSectionClass(SessionSectionRejectionClass sectionClass) =>
+        sectionClass == SessionSectionRejectionClass.IntegrityViolation
+            ? SaveRejectionClass.SessionSectionIntegrityViolation
+            : SaveRejectionClass.SessionSectionInvalid;
 
     /// <summary>
     /// Liest ausschließlich Kopf und Anzeigemetadaten; der Payload wird
@@ -250,7 +342,7 @@ public static class SaveDocumentValidator
 
         var schemaVersion = BinaryPrimitives.ReadUInt16LittleEndian(file.Slice(SaveContract.MagicLength, sizeof(ushort)));
 
-        if (schemaVersion != SaveContract.CurrentSaveSchemaVersion)
+        if (schemaVersion is not (SaveContract.CurrentSaveSchemaVersion or SaveContract.LegacySaveSchemaVersion))
         {
             return (
                 new SaveRejection(
@@ -259,9 +351,12 @@ public static class SaveDocumentValidator
                 null);
         }
 
+        var isSectionSchema = schemaVersion == SaveContract.CurrentSaveSchemaVersion;
+        var minimumHeader = MinimumHeaderByteCount
+            + (isSectionSchema ? SaveContract.SessionSectionHeaderFieldsBytes : 0);
         var headerLength = BinaryPrimitives.ReadUInt32LittleEndian(file.Slice(PreambleBytes - sizeof(uint), sizeof(uint)));
 
-        if (headerLength < MinimumHeaderByteCount || headerLength > SaveContract.MaxHeaderBytes)
+        if (headerLength < minimumHeader || headerLength > SaveContract.MaxHeaderBytes)
         {
             return (
                 new SaveRejection(SaveRejectionClass.SizeLimitExceeded, "Kopflänge außerhalb der Vertragsframinggrenzen."),
@@ -377,7 +472,28 @@ public static class SaveDocumentValidator
 
     private static int HeaderOffsetPayloadHash(ReadOnlySpan<byte> header) => HeaderOffsetPayloadLength(header) + sizeof(ulong);
 
-    private static LoadedSaveDocument ReadHeaderFields(ReadOnlySpan<byte> header, ushort schemaVersion, SimSaveState state)
+    /// <summary>Kopfoffset des sessionSectionLength-Felds (nur V2, Abschnitt 13.5).</summary>
+    internal static int HeaderOffsetSessionSectionLength(ReadOnlySpan<byte> header) =>
+        HeaderOffsetPayloadHash(header) + SaveContract.HashLength;
+
+    private static byte[] ReadHeaderSessionSectionHash(ReadOnlySpan<byte> header)
+    {
+        var offset = HeaderOffsetSessionSectionLength(header) + sizeof(ulong);
+
+        if (offset + SaveContract.HashLength > header.Length)
+        {
+            throw new InvalidOperationException("Kopf endet innerhalb des sessionSectionHash-Felds.");
+        }
+
+        return header.Slice(offset, SaveContract.HashLength).ToArray();
+    }
+
+    private static LoadedSaveDocument ReadHeaderFields(
+        ReadOnlySpan<byte> header,
+        ushort schemaVersion,
+        SimSaveState state,
+        SessionSectionState section,
+        bool fromLegacyV1)
     {
         var created = ReadHeaderI64(header, 0);
         var updated = ReadHeaderI64(header, sizeof(long));
@@ -414,6 +530,8 @@ public static class SaveDocumentValidator
             SnapshotStateHash = stateHash,
             PayloadHash = payloadHash,
             State = state,
+            SessionSection = section,
+            FromLegacyV1Document = fromLegacyV1,
         };
     }
 

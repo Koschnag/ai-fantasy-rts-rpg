@@ -189,6 +189,26 @@ public sealed class SessionPipeline
         ExplorationSession? exploration = null,
         DecisionSession? decision = null,
         PressureSession? pressure = null)
+        : this(world, selection, scriptedIntents, SessionMode.Strategic, Array.Empty<ModeSwitchEvent>(), exploration, decision, pressure)
+    {
+    }
+
+    /// <summary>
+    /// Wiederherstellender Konstruktor (Savevertrag V2, Abschnitt 13): der
+    /// Modus und ausgewertete, aber noch nicht wirksame Wechsel werden aus
+    /// der Sitzungssektion fortgesetzt, sodass die Vorgrenzenverarbeitung
+    /// ab der Ladegrenze exakt dem ununterbrochenen Lauf entspricht. Ohne
+    /// Restaurierung gilt der Bestandskonstruktor (Start strategisch).
+    /// </summary>
+    public SessionPipeline(
+        Riftward.Simulation.SimWorld world,
+        SelectionModel selection,
+        GrayboxIntent[] scriptedIntents,
+        SessionMode initialMode,
+        IReadOnlyList<ModeSwitchEvent> restoredPendingSwitches,
+        ExplorationSession? exploration = null,
+        DecisionSession? decision = null,
+        PressureSession? pressure = null)
     {
         World = world;
         Selection = selection;
@@ -196,6 +216,9 @@ public sealed class SessionPipeline
         _exploration = exploration;
         _decision = decision;
         _pressure = pressure;
+        _effectiveMode = initialMode;
+        _initialMode = initialMode;
+        _pendingSwitches.AddRange(restoredPendingSwitches);
 
         for (var index = 1; index < scriptedIntents.Length; index++)
         {
@@ -205,6 +228,18 @@ public sealed class SessionPipeline
             }
         }
     }
+
+    private readonly SessionMode _initialMode = SessionMode.Strategic;
+
+    /// <summary>Vertraglicher Startmodus des Laufs (Sitzungszustand; restauriert aus der Sektion).</summary>
+    public SessionMode InitialMode => _initialMode;
+
+    /// <summary>
+    /// Ausgewertete, aber noch nicht wirksame Wechsel als defensive
+    /// Momentaufnahme (Sitzungszustand, niemals Simulationszustand oder
+    /// Hash); Grundlage der Sektionserfassung (Savevertrag V2 Abschnitt 13.1).
+    /// </summary>
+    public IReadOnlyList<ModeSwitchEvent> PendingSwitches => _pendingSwitches.ToArray();
 
     public Riftward.Simulation.SimWorld World { get; }
 
@@ -952,7 +987,7 @@ public static class SessionEngine
 
         var maxSwitchReaction = effective.Count == 0 ? 0 : effective.Max();
         return new ModeTelemetry(
-            InitialMode: SessionMode.Strategic,
+            InitialMode: pipeline.InitialMode,
             FinalMode: pipeline.CurrentEffectiveMode,
             SwitchProtocol: pipeline.SwitchProtocol.ToArray(),
             StrategyIntentsRejectedInPersonalMode: pipeline.StrategyIntentsRejectedInPersonalModeTotal,
