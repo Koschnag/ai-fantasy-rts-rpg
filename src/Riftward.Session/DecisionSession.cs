@@ -245,6 +245,50 @@ public sealed class DecisionSession
     }
 
     /// <summary>
+    /// Interne Testbindung (Präzedenz <see cref="DeriveOptions"/>): öffnet
+    /// das Angebot mit fixierten Optionszonen ohne Erkundungslauf, damit
+    /// die Druckordnung (Ablaufgrenze exakt an Start + WindowLengthTicks,
+    /// Ankunft an der Ablaufgrenze als letzte Gelegenheit) unabhängig von
+    /// der Erkundungsdauer vertraglich gebunden werden kann. Kein
+    /// Produktionspfad ruft diese Methode; die Pipeline öffnet das Angebot
+    /// ausschließlich über <see cref="Observe"/> mit abgeschlossenem
+    /// Erkundungsauftrag.
+    /// </summary>
+    internal void OpenOfferForContractTest(long boundaryTick, int optionZoneA, int optionZoneB)
+    {
+        _offerOpened = true;
+        _offerBoundaryTick = boundaryTick;
+        _optionZoneA = optionZoneA;
+        _optionZoneB = optionZoneB;
+    }
+
+    /// <summary>
+    /// Autorisierte additive Zyklus-Praezisierung (Entscheidungsvertrag V2,
+    /// Abschnitt 13; Druckvertrag Abschnitt 4): beendet den abgelaufenen
+    /// Auftragszyklus kontrolliert nach definiertem Fehlschlag — Angebot,
+    /// Wahl, Folge und Ankunft des Zyklus werden sitzungsseitig
+    /// zurueckgesetzt, sodass das Angebot an der naechsten Vorgrenze
+    /// deterministisch mit unveraenderter Optionsableitung erneut oeffnet.
+    /// Die Sitzungsabweisungszaehler bleiben unverändert Sitzungsgesamtwerte.
+    /// Nur von der Druckschicht aufrufbar; ohne Druckschicht bleibt das
+    /// Verhalten exakt dem Entscheidungsvertrag V2-Einmalzyklus.
+    /// </summary>
+    internal void RestartCycle()
+    {
+        _offerOpened = false;
+        _offerBoundaryTick = DecisionTelemetry.UnsetBoundaryTick;
+        _optionZoneA = DecisionTelemetry.UnsetZoneIndex;
+        _optionZoneB = DecisionTelemetry.UnsetZoneIndex;
+        _decided = false;
+        _decisionBoundaryTick = DecisionTelemetry.UnsetBoundaryTick;
+        _choice = null;
+        _decisionMode = null;
+        _followUpZoneIndex = DecisionTelemetry.UnsetZoneIndex;
+        _followUpCompleted = false;
+        _arrivalBoundaryTick = DecisionTelemetry.UnsetBoundaryTick;
+    }
+
+    /// <summary>
     /// Schreibgeschützter Ausweis des Laufs für den Report (Vertrag
     /// Abschnitt 8): Momentaufnahme des Entscheidungszustands.
     /// </summary>

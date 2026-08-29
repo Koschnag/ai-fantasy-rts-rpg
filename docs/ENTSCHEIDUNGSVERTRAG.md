@@ -1,9 +1,12 @@
 # Entscheidungsvertrag (T-035, Abschnitt 0)
 
-**Vertragsversion:** 1
+**Vertragsversion:** 2
 **Status:** Durch den gatenden Vertragsspike des Auftrags
-`.ai/tasks/T-035-graybox-decision-step.json` vor der Implementierung festgelegt;
-die maschinenlesbaren Kennungen sind in
+`.ai/tasks/T-035-graybox-decision-step.json` vor der Implementierung festgelegt
+(V1); Version 2 ergänzt ausschließlich die autorisierte additive
+Zyklus-Präzisierung gemäß Druckvertrag T-036 (Abschnitt 13). Alle übrigen
+Abschnitte sind gegenüber V1 inhaltlich unverändert.
+Die maschinenlesbaren Kennungen sind in
 `src/Riftward.Session/DecisionContract.cs` gespiegelt und werden von einem
 Test gegen dieses Dokument gehalten.
 
@@ -57,7 +60,9 @@ oder einen bestehenden Vertrag zu berühren.
 **Wahl:** Das Angebot öffnet genau an der ersten Auswertungsgrenze (Vorgrenze
 `T`; `world.TickIndex == T` vor dem Tick), an der der sitzungslokale
 Erkundungsauftrag abgeschlossen ist (Erkundungsvertrag Abschnitt 4,
-`completed == visitedCount == landmarkCount`), und genau einmal je Sitzung.
+`completed == visitedCount == landmarkCount`), und genau einmal je
+Auftragszyklus (V2, Abschnitt 13; vor der autorisierten Zyklus-Präzisierung:
+genau einmal je Sitzung).
 Die Beobachtungsordnung an jeder Vorgrenze ist fixiert: Erst werden die
 Intents des Ticks ausgewertet (einschließlich Entscheidungsaktionen), dann die
 Erkundungsbeobachtung (T-034), dann die Entscheidungsbeobachtung — das Angebot
@@ -167,20 +172,21 @@ Skript- und Reportzähler bleiben unverändert.
 ## 5. Folgeregel (`chosen-zone-follow-up-objective-v1`, `boundary-arrival-personal-mode-only-v1`)
 
 **Wahl:** Die gewählte Zone wird sitzungslokales Folgeziel (einmalig, ohne
-Alternativwechsel: nach der Entscheidung gibt es in derselben Sitzung keine
-zweite Wahl). Der Abschluss der Folge wird mit dem bestehenden
+Alternativwechsel: nach der Entscheidung gibt es innerhalb desselben
+Auftragszyklus keine zweite Wahl; V2, Abschnitt 13). Der Abschluss der Folge
+wird mit dem bestehenden
 Vorgrenzen-Besuchsmuster beobachtet (`boundary-arrival-personal-mode-only-v1`,
 spiegelbildlich zur Aufsuchregel des Erkundungsvertrags Abschnitt 3): genau
 dann, wenn an einer Auswertungsgrenze (i) der Vertragsheld (Agentenindex 0)
 physisch in der Folgenzone ist (Zonenmitgliedschaft der Heldenposition),
 (ii) die Sitzung an dieser Vorgrenze im persönlichen Modus ist und (iii) die
-Folge in dieser Sitzung noch nicht abgeschlossen ist. Die Beobachtung
+Folge in diesem Zyklus noch nicht abgeschlossen ist. Die Beobachtung
 geschieht in der fixierten Vorgrenzenordnung nach der Entscheidungsbeobachtung;
 eine Folge kann daher frühestens an der Entscheidungsgrenze selbst
 abschließen (der Held steht dort bereits in der gewählten Zone), nicht davor.
-Genau einmal je Sitzung mit Doppelabschluss-Schutz; ohne Kernbefehl und ohne
-Simulationsberührung. Reihenfolgeunabhängigkeit: welche der beiden Optionen
-gewählt wird, ändert ausschließlich die Folgenzone, niemals die
+Genau einmal je Auftragszyklus mit Doppelabschluss-Schutz; ohne Kernbefehl und
+ohne Simulationsberührung. Reihenfolgeunabhängigkeit: welche der beiden
+Optionen gewählt wird, ändert ausschließlich die Folgenzone, niemals die
 Abschlussregel.
 
 **Alternativen:** Kerngetragenes Folgeziel (kernändernd — verworfen wie
@@ -404,3 +410,43 @@ Entscheidungsschicht konsumiert ausschließlich seine öffentlichen
 sitzungslokalen Ausweise). `docs/ARCHITEKTUR.md` hält die sitzungslokale
 Entscheidungssemantik in den Laufzeitverträgen fest; `docs/AUTOMATION.md`
 bildet die Aktivierung und die Reportfelder ab.
+
+## 13. Autorisierte additive Zyklus-Präzisierung (V2, T-036)
+
+**Änderungsumfang (ausschließlich diese eine Semantikänderung):** Die
+Angebots-Einmaligkeit wandelt von „genau einmal je Sitzung" (V1) zu
+„genau einmal je Auftragszyklus mit definierter Wiederauffrischung nach
+definiertem Fehlschlag" (V2). Nach einem definierten Fehlschlag des
+Druckzeitfensters (`docs/DRUCKVERTRAG.md`, Abschnitt 4) endet der
+abgelaufene Auftragszyklus kontrolliert: Wahl-, Folge- und
+Ankunftszustand des Zyklus werden sitzungsseitig zurückgesetzt
+(Sitzungsabweisungszähler bleiben Sitzungsgesamtwerte), und das Angebot
+öffnet an der nächsten Vorgrenze erneut mit unveränderter Optionsableitung
+aus dem Aufsuchprotokoll — jede wirksame Wahl beginnt den nächsten Zyklus.
+Die früheste erneute Wahl liegt an der ersten Vorgrenze nach der
+Wiederauffrischungsgrenze (spiegelbildlich zur Angebotsordnung in
+Abschnitt 2, da Intents vor den Beobachtungen ausgewertet werden).
+
+**Unverändert bleiben:** die Auslöseregel am Erkundungsabschluss
+(Abschnitt 2), die Optionsableitung aus dem Aufsuchprotokoll
+(Abschnitt 3), die Entscheidungseingabe mit Modus-Scoping und
+Auswertungsordnung (Abschnitt 4), die Folge- und Ankunftsregel im Übrigen
+(Abschnitt 5), das Feedback (Abschnitt 6), die Aktivierungsform
+(`--decision`, Abschnitt 7), die Reportbindung im Übrigen (Abschnitt 8) und
+alle Exitcodes (Abschnitt 11). Die Einmaligkeit des Folgeabschlusses gilt
+je Auftragszyklus; ein erfolgreicher Abschluss beendet den Auftragszyklus
+in Erfolg. Der Angebotseinmaligkeitsausweis des Reports
+(`exploration-not-completed-within-run`) bleibt unverändert gültig.
+
+**Grund und Begrenzung:** Die Präzisierung ist die vom Auftrag
+`.ai/tasks/T-036-graybox-pressure-restart.json` ausdrücklich autorisierte
+additive Voraussetzung der Neustartregel (Druckvertrag Abschnitt 4) und
+berührt keine Antwort auf eine offene Produktfrage. **Rückrollweg:** Umkehr
+auf V1 (Angebots-Einmaligkeit je Sitzung) durch Vertragsversionswechsel mit
+Neubau und Fixture-Regeneration; die Druckschicht verlangt dann die
+Alternative „explizite Neustartaktion" des Druckvertrags (Abschnitt 4,
+Alternative B). **Fixture-Regeneration:** Tests, die die V1-Einmaligkeit je
+Sitzung gebunden haben, wurden im selben Kandidaten auf die
+Zyklus-Präzisierung fortgeschrieben; Skript-, Ketten- und Endhashbindungen
+der T-035-Flüsse bleiben unverändert gültig, weil ein einzelner Zyklus sich
+in Ketten und Endhash exakt wie der V1-Fluss verhält.

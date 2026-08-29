@@ -1,0 +1,28 @@
+graybox-input-script-v3 11000
+intent 250 point 149718 44500
+intent 251 move 4
+intent 252 point 127137 48499
+intent 253 move 4
+intent 254 point 135215 48547
+intent 255 move 4
+intent 256 point 144867 47499
+intent 257 move 4
+intent 260 switch
+intent 1200 steer 2
+intent 2600 switch
+intent 2620 point 46062 45439
+intent 2621 move 0
+intent 2622 point 51256 48195
+intent 2623 move 0
+intent 2624 point 52523 43877
+intent 2625 move 0
+intent 2626 point 48933 45640
+intent 2627 move 0
+intent 2640 switch
+intent 2800 steer 1
+intent 4200 steer 5
+intent 5200 steer 3
+intent 6400 steer 4
+intent 8000 choose-a
+intent 9200 choose-b
+end

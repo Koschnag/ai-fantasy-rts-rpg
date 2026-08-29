@@ -104,7 +104,8 @@ public sealed record SessionRunResult(
     int TotalTicksExecuted,
     ModeTelemetry Telemetry,
     ExplorationTelemetry? Exploration = null,
-    DecisionTelemetry? Decision = null);
+    DecisionTelemetry? Decision = null,
+    PressureTelemetry? Pressure = null);
 
 /// <summary>Deterministische Percentil- und Zeitberechnung (Verfahren wie T-010/T-020/T-021).</summary>
 public static class SessionMath
@@ -166,6 +167,7 @@ public sealed class SessionPipeline
     private readonly List<ModeSwitchEvent> _pendingSwitches = new();
     private readonly ExplorationSession? _exploration;
     private readonly DecisionSession? _decision;
+    private readonly PressureSession? _pressure;
     private int _scriptCursor;
     private SessionMode _effectiveMode = SessionMode.Strategic;
 
@@ -185,13 +187,15 @@ public sealed class SessionPipeline
         SelectionModel selection,
         GrayboxIntent[] scriptedIntents,
         ExplorationSession? exploration = null,
-        DecisionSession? decision = null)
+        DecisionSession? decision = null,
+        PressureSession? pressure = null)
     {
         World = world;
         Selection = selection;
         _scriptedIntents = scriptedIntents;
         _exploration = exploration;
         _decision = decision;
+        _pressure = pressure;
 
         for (var index = 1; index < scriptedIntents.Length; index++)
         {
@@ -225,6 +229,16 @@ public sealed class SessionPipeline
     /// abgewiesen.
     /// </summary>
     public DecisionSession? Decision => _decision;
+
+    /// <summary>
+    /// Optionale Druckschicht (T-036): rein sitzungsseitige Beobachtung und
+    /// Semantik an jeder Auswertungsgrenze; ohne Aktivierung null
+    /// (Bestandsverhalten byteidentisch). Die Schicht liest ausschließlich
+    /// Entscheidungszustand, Heldenzone und Sitzungsmodus schreibgeschützt,
+    /// erzeugt niemals einen Kernbefehl und ist vertraglich an die
+    /// Entscheidungsaktivierung gekoppelt.
+    /// </summary>
+    public PressureSession? Pressure => _pressure;
 
     /// <summary>Stellt einen validierten Live-Intent fuer die naechste Vorgrenze bereit.</summary>
     public void EnqueueLiveIntent(GrayboxIntent intent) => _liveQueue.Add(intent);
@@ -507,6 +521,17 @@ public sealed class SessionPipeline
             decision.Observe(tick, World, _effectiveMode, _exploration);
         }
 
+        // Rein sitzungsseitige Druckbeobachtung an derselben Vorgrenze
+        // (T-036, Druckvertrag Abschnitt 2 und 9), in der vertraglichen
+        // Ordnung nach der Entscheidungsbeobachtung: startet die
+        // Fensterinstanz an der Wahlgrenze und beobachtet Erfolg, Fehlschlag
+        // mit Ursache und Wiederauffrischung. Ohne Aktivierung null —
+        // Bestandsverhalten unverändert.
+        if (_pressure is { } pressure && _decision is { } boundDecision && _exploration is not null)
+        {
+            pressure.Observe(tick, World, _effectiveMode, boundDecision);
+        }
+
         return new BoundaryOutcome
         {
             AppliedCount = applied,
@@ -724,7 +749,8 @@ public sealed record SessionRunRequest(
     int HorizonTicks,
     bool RunSelfConsistencyPass = true,
     bool ExplorationEnabled = false,
-    bool DecisionEnabled = false);
+    bool DecisionEnabled = false,
+    bool PressureEnabled = false);
 
 /// <summary>
 /// Headless Sitzungslauf (Kommandovertrag Abschnitt 7): fester 20-Hz-Tick
@@ -762,11 +788,27 @@ public static class SessionEngine
                 nameof(request));
         }
 
+        if (request.PressureEnabled && !request.DecisionEnabled)
+        {
+            // Vertragskopplung (Druckvertrag Abschnitt 7): die
+            // Druckaktivierung ist an --decision gekoppelt; ein
+            // Druckzustand ohne seinen vertraglichen Ausloesertraeger
+            // ist ein Vertragswiderspruch und wird fail-closed abgewiesen.
+            throw new ArgumentException(
+                "Die Druckaktivierung ist vertraglich an die Entscheidungsaktivierung gekoppelt.",
+                nameof(request));
+        }
+
         // Entscheidung ist rein sitzungsseitig (T-035): ohne Aktivierung
         // null; die Schicht erzeugt niemals einen Kernbefehl und ist nie
         // Simulationszustand oder Hash.
         var decision = request.DecisionEnabled ? new DecisionSession() : null;
-        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration, decision);
+
+        // Druck ist rein sitzungsseitig (T-036): ohne Aktivierung null; die
+        // Schicht erzeugt niemals einen Kernbefehl und ist nie
+        // Simulationszustand oder Hash.
+        var pressure = request.PressureEnabled && decision is not null ? new PressureSession() : null;
+        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration, decision, pressure);
 
         var windowTicks = request.HorizonTicks - request.WarmupTicks;
         var tickTimes = new double[windowTicks];
@@ -884,7 +926,8 @@ public static class SessionEngine
             TotalTicksExecuted: request.HorizonTicks,
             Telemetry: BuildModeTelemetry(pipeline),
             Exploration: exploration?.ToTelemetry(),
-            Decision: decision?.ToTelemetry());
+            Decision: decision?.ToTelemetry(),
+            Pressure: pressure?.ToTelemetry(decision!));
     }
 
     /// <summary>
