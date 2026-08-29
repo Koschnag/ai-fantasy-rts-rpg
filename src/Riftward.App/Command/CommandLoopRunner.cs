@@ -480,16 +480,27 @@ internal static class CommandLoopRunner
         {
             ["runKind"] = "save",
             ["saveBoundaryTick"] = capture.BoundaryTick,
+            ["loadBoundaryTick"] = null,
             ["slot"] = slotName,
+            ["slotDirectoryConfigured"] = true,
             ["slotWritten"] = writeResult.Success,
             ["slotWritePhase"] = writeResult.Phase,
             ["slotWriteError"] = writeResult.Error,
+            ["loadAccepted"] = false,
+            ["rejection"] = null,
+            ["fromLegacyV1Document"] = false,
             ["sessionSection"] = new Dictionary<string, object>
             {
                 ["present"] = true,
                 ["sectionVersion"] = (long)SessionSectionCodec.SectionVersion,
                 ["codecId"] = SessionSectionCodec.CodecId,
             },
+            ["saves"] = 0L,
+            ["loads"] = 0L,
+            ["lastSave"] = null,
+            ["lastLoad"] = null,
+            ["restored"] = null,
+            ["chainContinuity"] = null,
             ["scriptIntentsBeforeBoundary"] = parsed.Intents.Count(intent => intent.Tick < capture.BoundaryTick),
             ["replay"] = "not-continued",
             ["gateCoupled"] = false,
@@ -740,7 +751,12 @@ internal static class CommandLoopRunner
         {
             ["runKind"] = "load",
             ["loadBoundaryTick"] = capture.BoundaryTick,
+            ["saveBoundaryTick"] = null,
             ["slot"] = slotName,
+            ["slotDirectoryConfigured"] = true,
+            ["slotWritten"] = false,
+            ["slotWritePhase"] = null,
+            ["slotWriteError"] = null,
             ["loadAccepted"] = true,
             ["rejection"] = null,
             ["fromLegacyV1Document"] = false,
@@ -750,6 +766,10 @@ internal static class CommandLoopRunner
                 ["sectionVersion"] = (long)SessionSectionCodec.SectionVersion,
                 ["codecId"] = SessionSectionCodec.CodecId,
             },
+            ["saves"] = 0L,
+            ["loads"] = 0L,
+            ["lastSave"] = null,
+            ["lastLoad"] = null,
             ["restored"] = restored,
             ["chainContinuity"] = new Dictionary<string, object?>
             {
@@ -819,6 +839,7 @@ internal static class CommandLoopRunner
             ["saveBoundaryTick"] = saveBoundaryTick,
             ["loadBoundaryTick"] = null,
             ["slot"] = slotName,
+            ["slotDirectoryConfigured"] = true,
             ["slotWritten"] = false,
             ["slotWritePhase"] = null,
             ["slotWriteError"] = runKind == "save" && rejection is not null ? rejection.Detail : null,
@@ -833,6 +854,10 @@ internal static class CommandLoopRunner
                 ["sectionVersion"] = null,
                 ["codecId"] = SessionSectionCodec.CodecId,
             },
+            ["saves"] = 0L,
+            ["loads"] = 0L,
+            ["lastSave"] = null,
+            ["lastLoad"] = null,
             ["restored"] = null,
             ["chainContinuity"] = null,
             ["scriptIntentsBeforeBoundary"] = null,
@@ -3283,8 +3308,22 @@ internal static class CommandLoopRunner
         new()
         {
             ["runKind"] = "interactive",
+            ["saveBoundaryTick"] = null,
+            ["loadBoundaryTick"] = null,
             ["slot"] = SaveContract.InteractiveSlotName,
             ["slotDirectoryConfigured"] = slotState.SlotDirectoryConfigured,
+            ["slotWritten"] = false,
+            ["slotWritePhase"] = null,
+            ["slotWriteError"] = null,
+            ["loadAccepted"] = false,
+            ["rejection"] = null,
+            ["fromLegacyV1Document"] = false,
+            ["sessionSection"] = new Dictionary<string, object?>
+            {
+                ["present"] = false,
+                ["sectionVersion"] = null,
+                ["codecId"] = SessionSectionCodec.CodecId,
+            },
             ["saves"] = slotState.Saves,
             ["loads"] = slotState.Loads,
             ["lastSave"] = slotState.LastSave is { } save
@@ -3304,6 +3343,9 @@ internal static class CommandLoopRunner
                     ["restoredBoundaryTick"] = load.RestoredBoundaryTick,
                 }
                 : null,
+            ["restored"] = null,
+            ["chainContinuity"] = null,
+            ["scriptIntentsBeforeBoundary"] = null,
             ["replay"] = "not-continued",
             ["gateCoupled"] = false,
         };

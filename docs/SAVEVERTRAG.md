@@ -539,7 +539,9 @@ Die Sektion besitzt ein absolutes Vorab-Limit
 
 **V1-Kompatibilität (`legacy-v1-session-emptiness-v2`):** Slots der Version 1
 laden unveraendert mit ehrlicher, maschinenlesbarer Sitzungsleere und
-unveraenderter Kette — ohne Migrationserfindung, ohne Feldumdeutung. Der
+unveraenderter Kette
+(`legacy-v1-slot-loads-with-honest-machine-readable-session-emptiness-and-unchanged-chain`)
+— ohne Migrationserfindung, ohne Feldumdeutung. Der
 Loader kennzeichnet den Ursprung (`FromLegacyV1Document`); der Report weist
 die ehrliche Leere maschinenlesbar aus. Streng monoton: Version 0 und alle
 Versionen ab 3 bleiben kontrolliert mit definierter Klasse abgewiesen. Der

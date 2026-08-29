@@ -1230,7 +1230,7 @@ let reportSchemaAcceptsGoldenAndRejectsFabricationMatrix () =
     assertHasError
         "Pflichtfeld"
         (goldenReport.Replace(
-            "\"modeSession\":{\"contract\":{\"document\":\"docs/MODEVERTRAG.md\",\"version\":\"1\"},\"initialMode\":\"strategic\",\"finalMode\":\"strategic\",\"switchProtocol\":[],\"strategyIntentsRejectedInPersonalMode\":0,\"steerIntentsRejectedInStrategyMode\":0,\"steerIdleDedupes\":0,\"interactiveContextRejections\":0,\"hud\":{\"measured\":false,\"kind\":\"title-hud-mode-herozone-v1\",\"reason\":\"headless-run-without-window\"},\"switchReactionTicks\":{\"unit\":\"ticks\",\"method\":\"mode-switch-intent-tick-to-first-validity-boundary-in-new-mode\",\"p50\":0,\"p95\":0,\"p99\":0,\"max\":0,\"count\":0,\"target\":2,\"hardLimit\":3,\"gateCoupled\":false}},",
+            "\"modeSession\":{\"contract\":{\"document\":\"docs/MODEVERTRAG.md\",\"version\":\"2\"},\"initialMode\":\"strategic\",\"finalMode\":\"strategic\",\"switchProtocol\":[],\"strategyIntentsRejectedInPersonalMode\":0,\"steerIntentsRejectedInStrategyMode\":0,\"steerIdleDedupes\":0,\"interactiveContextRejections\":0,\"hud\":{\"measured\":false,\"kind\":\"title-hud-mode-herozone-v1\",\"reason\":\"headless-run-without-window\"},\"switchReactionTicks\":{\"unit\":\"ticks\",\"method\":\"mode-switch-intent-tick-to-first-validity-boundary-in-new-mode\",\"p50\":0,\"p95\":0,\"p99\":0,\"max\":0,\"count\":0,\"target\":2,\"hardLimit\":3,\"gateCoupled\":false}},",
             "\"modeSession\":{},"
         ))
         "Modussitzungsblock ohne Pflichtfelder akzeptiert"

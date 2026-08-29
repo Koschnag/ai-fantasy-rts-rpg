@@ -67,13 +67,20 @@ public static class SessionSectionCodec
     /// <summary>Hoechstzahl Fensterinstanzen (DoS-Grenze vor Zuweisung).</summary>
     public const int MaxWindows = 8192;
 
-    /// <summary>Festes Minimum der Sektionslaenge (alle Kopfzaehler ohne Listen).</summary>
-    public const int MinimumSectionBytes = sizeof(ushort) + 1 + sizeof(uint)
-        + 1 + sizeof(uint)
-        + 1 + 1 + (3 * sizeof(long)) + (2 * sizeof(int)) + 1 + sizeof(long) + 1 + 1
-            + sizeof(int) + 1 + sizeof(long) + (3 * sizeof(long))
-        + 1 + sizeof(long) + sizeof(uint)
-        + (3 * sizeof(long)) + 1 + sizeof(int) + sizeof(long) + 1;
+    /// <summary>
+    /// Festes Minimum der Sektionslaenge: alle Kopf- und Skalarfelder ohne
+    /// Listen (Kopf 7, Erkundungskopf 5, Entscheidungsschicht 66,
+    /// Druckkopf 13, Druckausklang 22).
+    /// </summary>
+    public const int MinimumSectionBytes =
+        sizeof(ushort)              // Sektionsversion
+        + 1                         // aktiver Modus
+        + sizeof(uint)              // Anzahl schwebender Wechsel
+        + 1                         // Erkundungsaktivierung
+        + sizeof(uint)              // Anzahl Besuche
+        + (1 + 1 + sizeof(long) + (2 * sizeof(int)) + 1 + sizeof(long) + 1 + 1 + sizeof(int) + 1 + sizeof(long) + (3 * sizeof(long)))
+        + (1 + sizeof(long) + sizeof(uint))
+        + (sizeof(long) + 1 + sizeof(int) + sizeof(long) + 1);
 
     /// <summary>Feste Stranglaenge einer Fensterinstanz in Bytes.</summary>
     public const int WindowStrideBytes = (4 * sizeof(long)) + 3;
