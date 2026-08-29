@@ -1425,7 +1425,8 @@ und byteidentischer Fortsetzungskette; ohne Kampf, Wirtschaft, Contentbreite,
 Schleifen- oder Menüsemantik und ohne Replay-Persistenz (Q-TEC-006 bleibt
 `OFFEN`); die Save-Persistenz ist hier der belegte unmittelbare Blocker genau
 dieses Schritts (Nichtpersistenzaussagen der vier Sitzungsverträge, T-031-Scope,
-ADR 008 Sequenzierungsnote); die reversiblen Details entstehen als
+ADR 008 Sequenzierungsnote); Implementierungsstart setzt die formale Akzeptanz
+von T-036 voraus; die reversiblen Details entstehen als
 vorregistrierte Hypothesen im gatenden Abschnitt 0 der versionierten
 Savevertrags-Erweiterung V2 (`docs/SAVEVERTRAG.md`, Spike-Klausel in
 `docs/QUALITAET.md`). Dieser Freigabelauf hat keinen Produktcode implementiert
