@@ -1,7 +1,11 @@
 # Abnahme T-036 – Graybox-Druck- und Neustartschritt
 
-**Status:** Fertiggestellter Builder-Kandidat zur unabhängigen Reviewphase.
-Der gatende Abschnitt 0 (versionierter Druckvertrag V1 samt autorisierter
+**Status:** Vom unabhängigen Reviewlauf vom 2026-08-29 geprüfter Kandidat mit
+genau einer kleinen In-Scope-Reparatur (Anzeigezeitraum-Bindung der
+Neustartanzeige, siehe Lieferumfang); alle genannten Gates wurden vom Review
+erneut grün reproduziert einschließlich des Fresh-Checkout-/Clean-Archive-
+Vertrags. Der gatende Abschnitt 0 (versionierter Druckvertrag V1 samt
+autorisierter
 additiver Zyklus-Präzisierung des Entscheidungsvertrags V2), der headless
 prüfbare Fehlschlags-Neustart-Erfolgspfad, die Beobachtungstreue, die
 Testmatrix (307/307) und alle lokalen Gates sind grün. Interaktivsmoke und

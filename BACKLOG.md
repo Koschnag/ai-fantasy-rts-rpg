@@ -1397,6 +1397,13 @@ lokalen Gates und Bestandsregressionen (bench-sim, savecheck, Soak-Kurzlauft)
 sind grün; Fresh-Prozesspaar builderidentisch (Endhash `8b4767bf5a75abb8`),
 Fremdseed ändert Start- und Endhash nachweislich. Interaktivsmoke und
 Playtestausführung bleiben wegen der displaylosen Umgebung ausgewiesene
-Restpunkte (kontrollierter Code-19-Abbruch ohne Report). T-036 bleibt bis zur
-unabhängigen Reviewphase Builder-Kandidat; Details stehen in
-`docs/abnahme/T-036-graybox-pressure-restart.md`.
+Restpunkte (kontrollierter Code-19-Abbruch ohne Report). Die unabhängige
+Review vom 2026-08-29 hat den Slice mit genau einer kleinen In-Scope-Reparatur
+vollendet (Anzeigezeitraum der Neustartanzeige ist an den ehrlichen
+Neustarendstatus `RestartPending` gebunden, sodass ein Folgazyklus-Erfolg
+niemals eine rote Neustartanzeige erzeugt; Regression im Zeitbasistest) und
+alle schnellen Gates, Bestandsregressionen und den Fresh-Checkout-Vertrag
+erneut grün bewiesen; Details stehen in
+`docs/abnahme/T-036-graybox-pressure-restart.md`. T-036 trägt den
+Manifeststatus `review`; die Promotion bleibt der separaten
+Promotion-Autorität vorbehalten.
