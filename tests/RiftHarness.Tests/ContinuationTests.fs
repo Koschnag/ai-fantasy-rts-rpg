@@ -854,7 +854,15 @@ let cliContinuationRejectionsStayControlledAndExitCodesStable () =
             failwith "Ein abgewiesener Lauf wurde als vollständiges Fenster markiert."
 
         // Fremdseed am CLI: kontrollierte Ablehnung mit vertraglicher
-        // Kennung statt stiller Aktivierung.
+        // Kennung statt stiller Aktivierung. Der Slot existiert aus dem
+        // Speicherlauf mit dem Vertragssseed; der Fremdseed-Lauf widerspricht
+        // ihm und wird vor Aktivierung abgewiesen.
+        let saveOk, _, saveStderr =
+            runAppHost (saveArguments slotDir (Path.Combine(slotDir, "seed-save.json")))
+
+        if saveOk <> ExitCodes.Ok then
+            failwith $"Speicherlauf des Fremdseed-Falls endete mit {saveOk}: {saveStderr}"
+
         let foreignArguments =
             loadArguments slotDir (Path.Combine(slotDir, "foreign-report.json"))
             |> Array.map (fun argument -> if argument = continuationSeed then "424242" else argument)

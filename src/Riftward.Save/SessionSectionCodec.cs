@@ -268,6 +268,10 @@ public static class SessionSectionCodec
 
         EnsureBytes(section, offset, (long)visitCount * VisitStrideBytes);
         var visits = new SessionSectionVisit[visitCount];
+
+        // Der feste Skalarteil hinter der Besuchsliste (Entscheidungsschicht)
+        // liegt vollständig innerhalb der Sektion, bevor Skalare gelesen werden.
+        EnsureBytes(section, offset + ((long)visitCount * VisitStrideBytes), 66);
         var seenZones = new bool[NavWorld.ZoneCount];
 
         for (var index = 0; index < visitCount; index++)
@@ -400,6 +404,10 @@ public static class SessionSectionCodec
         }
 
         EnsureBytes(section, offset, (long)windowCount * WindowStrideBytes);
+
+        // Der feste Druckausklang liegt vollständig innerhalb der Sektion,
+        // bevor Skalare gelesen werden.
+        EnsureBytes(section, offset + ((long)windowCount * WindowStrideBytes), 22);
 
         if (cycleCount != windowCount)
         {
