@@ -45,6 +45,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-034 | E-004 | kleinster spielbarer Erkundungsauftrag-Loop: modusgebundenes Aufsuchen deterministischer Graybox-Landmarken mit strategischer Mobilmachung über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
 | T-035 | E-004 | kleinster spielbarer Entscheidungsschritt: Zwei-Optionen-Aufgabenentscheidung mit sichtbarer, sitzungslokaler Folge in beiden Modi über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
 | T-036 | E-004 | kleinster spielbarer Druck- und Neustartschritt: deterministisches Zeitfenster mit definiertem Fehlschlag und sitzungslokalem Neustart des Auftrags über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
+| T-037 | E-004 | kleinster spielbarer Fortsetzungsschritt: die Graybox-Auftragskette überlebt den Prozessneustart (Savevertrags-Erweiterung um die additive Sitzungsschicht) über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -1407,3 +1408,28 @@ erneut grün bewiesen; Details stehen in
 `docs/abnahme/T-036-graybox-pressure-restart.md`. T-036 trägt den
 Manifeststatus `review`; die Promotion bleibt der separaten
 Promotion-Autorität vorbehalten.
+
+T-037 wurde am 2026-08-29 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) als sechster Slice der T-030-Zerlegung auf
+`READY` gesetzt; die vollständige Auswahlkette, Blockerbehandlung und
+Reversibilitätsbindung stehen im `releaseNote` des Manifests
+`.ai/tasks/T-037-graybox-continuation-restart.json` und in der Zeile zu T-037
+in `docs/OFFENE_FRAGEN.md`. Kurz: Der kleinste noch fehlende, direkt spielbare
+Kettenschritt aus UF-001/UF-002 über dem akzeptierten T-033-Laufzeitpfad und
+dem T-034-/T-035-/T-036-Kettenabschluss — das letzte benannte Muss-Element des
+Alpha-Loop des Release-Modus, „Save/Load überlebt einen Prozessneustart", als
+Graybox-Fortsetzungspfad: Speichern der laufenden Auftragskette (Simulation
+plus additive Sitzungsschicht: Modus, Erkundung, Entscheidung, Druck/Zyklus)
+an einer Vorgrenze, Prozessende, frisches Laden mit vollständiger Validierung
+und byteidentischer Fortsetzungskette; ohne Kampf, Wirtschaft, Contentbreite,
+Schleifen- oder Menüsemantik und ohne Replay-Persistenz (Q-TEC-006 bleibt
+`OFFEN`); die Save-Persistenz ist hier der belegte unmittelbare Blocker genau
+dieses Schritts (Nichtpersistenzaussagen der vier Sitzungsverträge, T-031-Scope,
+ADR 008 Sequenzierungsnote); Implementierungsstart setzt die formale Akzeptanz
+von T-036 voraus; die reversiblen Details entstehen als
+vorregistrierte Hypothesen im gatenden Abschnitt 0 der versionierten
+Savevertrags-Erweiterung V2 (`docs/SAVEVERTRAG.md`, Spike-Klausel in
+`docs/QUALITAET.md`). Dieser Freigabelauf hat keinen Produktcode implementiert
+und keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
+JsonSchema.Net bleibt gemäß T-022-/T-031-Präzedenz Pflichtteil des
+Spec-Reviewlaufs.
