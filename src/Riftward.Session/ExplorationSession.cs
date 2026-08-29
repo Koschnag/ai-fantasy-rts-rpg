@@ -222,6 +222,36 @@ public sealed class ExplorationSession
     }
 
     /// <summary>
+    /// Wiederherstellung aus der Sitzungssektion (Savevertrag V2, Abschnitt
+    /// 13; Erkundungsvertrag V2 Abschnitt 10): rekonstruiert Registrierungs-
+    /// zustand, Protokoll und Fortschritt exakt in kanonischer
+    /// Registrierungsfolge; der Besuchsrang ist die Listenposition. Die
+    /// Landmarkenmenge ist unverändert die seedunabhängige geometrische
+    /// Ableitung; Struktur und Referenzen der Sektion sind bereits durch den
+    /// Loader geprüft.
+    /// </summary>
+    public static ExplorationSession Restore(IReadOnlyList<Riftward.Save.SessionSectionVisit> visits)
+    {
+        ArgumentNullException.ThrowIfNull(visits);
+
+        var session = new ExplorationSession();
+
+        for (var index = 0; index < visits.Count; index++)
+        {
+            var visit = visits[index];
+            session._registered[visit.ZoneIndex] = true;
+            session._visitedCount = index + 1;
+            session._visits.Add(new ExplorationVisit(
+                EvaluationBoundaryTick: visit.BoundaryTick,
+                ZoneIndex: visit.ZoneIndex,
+                Mode: ModeContract.ModePersonalId,
+                VisitOrder: index + 1L));
+        }
+
+        return session;
+    }
+
+    /// <summary>
     /// Schreibgeschützter Ausweis des Laufs für den Report: Landmarkenmenge
     /// als read-only View, Aufsuchprotokoll als defensive Kopie in
     /// kanonischer Registrierungsfolge.

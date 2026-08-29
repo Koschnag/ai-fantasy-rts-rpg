@@ -240,6 +240,66 @@ public sealed class PressureSession
     }
 
     /// <summary>
+    /// Wiederherstellung aus der Sitzungssektion (Savevertrag V2, Abschnitt
+    /// 13; Druckvertrag V2 Abschnitt 14): rekonstruiert Fensterinstanzen,
+    /// Zykluszählung, letzten Fehlschlag, Wiederauffrischung und den Offen-
+    /// zustand exakt; eine offene Instanz (Endgrenze −1) ist die letzte im
+    /// Protokoll. Struktur und Relationswahrheiten der Sektion sind bereits
+    /// durch den Loader geprüft.
+    /// </summary>
+    public static PressureSession Restore(Riftward.Save.SessionSectionState section)
+    {
+        ArgumentNullException.ThrowIfNull(section);
+
+        var session = new PressureSession();
+
+        foreach (var window in section.PressureWindows)
+        {
+            var restored = new PressureWindowEvent(
+                Instance: window.Instance,
+                Cycle: window.Cycle,
+                StartBoundaryTick: window.StartBoundaryTick,
+                EndBoundaryTick: window.EndBoundaryTick,
+                EndReason: window.EndReasonKind switch
+                {
+                    Riftward.Save.SessionSectionCodec.EndReasonOpen => null,
+                    Riftward.Save.SessionSectionCodec.EndReasonSuccess => PressureContract.WindowEndReasonSuccess,
+                    Riftward.Save.SessionSectionCodec.EndReasonExpired => PressureContract.WindowEndReasonExpired,
+                    _ => throw new InvalidOperationException(
+                        "Unbekannter Fensterendgrund erreicht die Wiederherstellung."),
+                },
+                ArrivalBoundaryTick: window.ArrivalBoundaryTick,
+                ArrivalMode: window.ArrivalModeKind switch
+                {
+                    Riftward.Save.SessionSectionCodec.ArrivalModeNone => null,
+                    Riftward.Save.SessionSectionCodec.ModePersonal => ModeContract.ModePersonalId,
+                    Riftward.Save.SessionSectionCodec.ModeStrategic => ModeContract.ModeStrategicId,
+                    _ => throw new InvalidOperationException(
+                        "Unbekannter Ankunftsmodus erreicht die Wiederherstellung."),
+                },
+                FailureCause: window.FailureCauseKind == Riftward.Save.SessionSectionCodec.CauseKindWindowExpired
+                    ? PressureContract.FailureCauseWindowExpired
+                    : null);
+            session._windows.Add(restored);
+
+            if (restored.EndBoundaryTick == PressureWindowEvent.UnsetBoundaryTick)
+            {
+                session.OpenWindow = restored;
+            }
+        }
+
+        session._cycleCount = section.PressureCycleCount;
+        session._lastFailureBoundaryTick = section.PressureLastFailureBoundaryTick;
+        session._lastFailureCause = section.PressureHasLastFailure != 0
+            ? PressureContract.FailureCauseWindowExpired
+            : null;
+        session._lastFailureFollowUpZoneIndex = section.PressureLastFailureFollowUpZoneIndex;
+        session._lastReopenBoundaryTick = section.PressureLastReopenBoundaryTick;
+        session._reopenPendingRecording = section.PressureReopenPendingRecording != 0;
+        return session;
+    }
+
+    /// <summary>
     /// Ehrlicher Endstatus des Laufs (Vertrag Abschnitt 8): nach Erfolg
     /// <c>success</c>, mit offenem Fenster <c>window-open</c>, nach
     /// Fehlschlag ohne erneute Wahl <c>restart-pending</c> und ohne
