@@ -13,10 +13,12 @@ ausgeführten Gate-Erfolg. Die unabhängige Review-Sitzung (2026-08-29) hat den
 Sektions-Decoder um zwei Rahmengrenzen-Prüfungen vor den ungezielten
 Skalarlesungen ergänzt (Abschnitt 13.5: jede Verletzung erhält eine
 unterscheidbare Klasse; Repro: zwei erreichbare Byteformen warfen zuvor eine
-unkontrollierte Ausnahme) und die Korruptionsmatrix um genau diese beiden
-Rahmenniveau-Truncationsfälle erweitert; Encoding, Ketten- und Endhashs sind
-durch die Reparatur unverändert (Evidenzläufe unten auf dem reparierten
-Kandidaten).
+unkontrollierte Ausnahme), die Fenster-/Instanzkonsistenz um die Regel
+verschaerft, dass eine offene Instanz stets die letzte im Protokoll ist
+(validierungsstaerke nach Abschnitt 13.1; Vertragswerte unverändert), und die
+Korruptionsmatrix um genau diese drei Fälle erweitert; Encoding, Ketten- und
+Endhashs sind durch die Reparatur unverändert (Evidenzläufe unten auf dem
+reparierten Kandidaten).
 
 ## Ausgangslage und Abschnitt 0
 
@@ -164,8 +166,8 @@ Fixture).
   V1-Dokument lädt mit ehrlicher Sitzungsleere und unveraenderter Kette,
   Versionen 0/3 ohne Migrationserfindung abgewiesen, Fault-Injection-Matrix
   der Sektion (Version, Abschneidung, fremde Zone, Doppelregistrierung,
-  strategische Registrierung, beide Rahmenniveau-Truncationsfälle),
-  Aktivierungsgrenzen am Slot.
+  strategische Registrierung, beide Rahmenniveau-Truncationsfälle,
+  offene Fensterinstanz vor geschlossenen), Aktivierungsgrenzen am Slot.
 - Blobvergleich: alle Quelldateien von `Riftward.Simulation` sind gegen den
   Vorblob (HEAD 66051d7) byteidentisch (`git hash-object` je Datei gegen
   `git rev-parse HEAD:<Pfad>`, 9/9 Dateien, keine Abweichung).
