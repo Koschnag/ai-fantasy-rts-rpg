@@ -912,6 +912,12 @@ internal static class CommandLoopRunner
 
         /// <summary>Tick der letzten interaktiven Lenkanwendung (ein Lenkimpuls je Tick).</summary>
         public long LastSteerTick = -1;
+
+        /// <summary>Speicheranforderung der Save-slot-Aktion (T-037, Savevertrag V2 Abschnitt 13.3).</summary>
+        public bool SaveRequested;
+
+        /// <summary>Ladeanforderung der load-slot-Aktion (T-037, Savevertrag V2 Abschnitt 13.3).</summary>
+        public bool LoadRequested;
     }
 
     private sealed class InteractiveMeasurement
@@ -970,7 +976,8 @@ internal static class CommandLoopRunner
         bool explorationEnabled,
         bool decisionEnabled,
         bool pressureEnabled,
-        bool autoExitAtHorizon)
+        bool autoExitAtHorizon,
+        string? slotDirectory)
     {
         var environment = SystemInfo.Capture();
         var processStart = Process.GetCurrentProcess().StartTime.ToUniversalTime();
@@ -1042,16 +1049,37 @@ internal static class CommandLoopRunner
             view.BindDecision(decision);
             view.BindPressure(pressure);
 
+            // Slot-Fähigkeit der interaktiven Keymap-Aktionen (T-037,
+            // Savevertrag V2 Abschnitt 13.3): nur mit --slot-dir konfiguriert;
+            // ohne Verzeichnis erhalten die Impulse eine kontrollierte,
+            // unterscheidbare Ablehnung statt stiller Wirkung.
+            var slotTracker = new InteractiveSlotTracker();
+            var intentPlanHash = ulong.Parse(
+                parsed.IntentPlanHashHex, System.Globalization.NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+
             var projection = InteractiveCameraMath.Projection(BenchRunner.DefaultWidth, BenchRunner.DefaultHeight);
             var camera = new GrayboxCamera();
             var heroCamera = new HeroChaseCamera();
             var input = new InputState();
             SdlEventBuffer eventBuffer = default;
 
-            var measurement = RunInteractiveLoop(
+            var loop = RunInteractiveLoop(
                 context.Device, resources, view, world, pipeline, camera, heroCamera, input,
                 context.Window, ref eventBuffer, NativeApi.Instance, projection, warmupTicks, horizonTicks,
-                exploration, decision, pressure, autoExitAtHorizon);
+                exploration, decision, pressure, autoExitAtHorizon,
+                slotDirectory, SaveContract.InteractiveSlotName, seed, parsed,
+                explorationEnabled, decisionEnabled, pressureEnabled,
+                intentPlanHash, commit, slotTracker);
+            var measurement = loop.Measurement;
+
+            // Nach einem akzeptierten Slot-Laden tragen Welt, Pipeline und
+            // Sitzungsschicht die restaurierte Fortsetzung; der Report bindet
+            // den Endzustand des tatsächlich laufenden Kontexts.
+            world = loop.World;
+            pipeline = loop.Pipeline;
+            exploration = loop.Exploration;
+            decision = loop.Decision;
+            pressure = loop.Pressure;
 
             // Laufende ausgewertete, aber nicht mehr wirksame Wechsel sind
             // ausdrücklich im Protokoll gebunden statt still zu verschwinden.
@@ -1113,6 +1141,15 @@ internal static class CommandLoopRunner
             var workingSet = measurement.RssSamples.Count >= 2
                 ? new WorkingSetSamples(true, measurement.RssSamples.Min(), measurement.RssSamples.Max(), measurement.RssSamples[^1], null)
                 : new WorkingSetSamples(false, null, null, null, "rss-sampler-unavailable");
+
+            var slotState = slotDirectory is null
+                ? null
+                : new InteractiveSlotState(
+                    Saves: slotTracker.Saves,
+                    Loads: slotTracker.Loads,
+                    SlotDirectoryConfigured: true,
+                    LastSave: slotTracker.LastSave,
+                    LastLoad: slotTracker.LastLoad);
 
             var reportJson = JsonSerializer.Serialize(BuildReport(new ReportContext(
                 ExecutionMode: CommandReportSchema.ExecutionInteractive,
@@ -1185,7 +1222,12 @@ internal static class CommandLoopRunner
                 Telemetry: modeTelemetry,
                 Exploration: exploration?.ToTelemetry(),
                 Decision: decision?.ToTelemetry(),
-                Pressure: pressure?.ToTelemetry(decision!))), BenchRunner.ReportJsonOptions) + "\n";
+                Pressure: pressure?.ToTelemetry(decision!),
+                Continuation: slotState is null
+                    ? null
+                    : BuildInteractiveContinuation(slotState),
+                ContinuationActivationId: slotState is null ? null : SaveContract.InteractiveSlotActivationId,
+                SlotState: slotState)), BenchRunner.ReportJsonOptions) + "\n";
 
             return FinishReport(reportPath, reportJson, exitCode);
         }
@@ -1216,6 +1258,183 @@ internal static class CommandLoopRunner
         }
     }
 
+    /// <summary>
+    /// Führt angeforderte Slot-Aktionen an der laufenden Vorgrenze aus
+    /// (T-037, Savevertrag V2 Abschnitt 13.3): Speichern erfasst Simulation
+    /// plus Sitzungsschicht am aktuellen Zustand und schreibt atomar; Laden
+    /// validiert den Slot vollständig vor Aktivierung und ersetzt Welt,
+    /// Sitzungsschicht und Pipeline kontrolliert. Jede Ablehnung ist
+    /// unterscheidbar, sichtbar und ändert Welt, Kette oder Kern nicht.
+    /// </summary>
+    private static void HandleSlotRequests(
+        InputState input,
+        InteractiveView view,
+        ref SimWorld world,
+        ref SessionPipeline pipeline,
+        ref ExplorationSession? exploration,
+        ref DecisionSession? decision,
+        ref PressureSession? pressure,
+        string? slotDirectory,
+        string slotName,
+        uint seed,
+        ParsedInputScript parsed,
+        bool explorationEnabled,
+        bool decisionEnabled,
+        bool pressureEnabled,
+        ulong intentPlanHash,
+        string commit,
+        InteractiveSlotTracker slotTracker,
+        InteractiveMeasurement measurement)
+    {
+        if (input.SaveRequested)
+        {
+            input.SaveRequested = false;
+            slotTracker.Saves++;
+
+            if (string.IsNullOrWhiteSpace(slotDirectory))
+            {
+                slotTracker.LastSave = new InteractiveSlotOutcome(
+                    false, SaveContract.RejectionSlotDirectoryNotConfigured, null, null);
+                Console.Error.WriteLine(
+                    $"kommandoschleife: Speichern abgewiesen - {SaveContract.RejectionSlotDirectoryNotConfigured}.");
+            }
+            else
+            {
+                var capture = new SessionSaveCapture(
+                    BoundaryTick: world.TickIndex,
+                    BoundaryStateHash: world.ComputeStateHash(),
+                    Simulation: SimulationSaveAdapter.Capture(world),
+                    Session: SessionStateCapture.Capture(pipeline, exploration, decision, pressure));
+                var write = ContinuationRunner.WriteSlot(
+                    slotDirectory, slotName, capture, intentPlanHash, commit);
+                slotTracker.LastSave = new InteractiveSlotOutcome(
+                    write.Success,
+                    write.Success ? null : write.Error,
+                    null,
+                    write.Success ? world.TickIndex : null);
+
+                if (write.Success)
+                {
+                    Console.WriteLine($"kommandoschleife: Sitzung gespeichert bei Tick {world.TickIndex}.");
+                }
+                else
+                {
+                    Console.Error.WriteLine(
+                        $"kommandoschleife: Speichern fehlgeschlagen (Phase {write.Phase}): {write.Error}");
+                }
+            }
+        }
+
+        if (!input.LoadRequested)
+        {
+            return;
+        }
+
+        input.LoadRequested = false;
+        slotTracker.Loads++;
+
+        if (string.IsNullOrWhiteSpace(slotDirectory))
+        {
+            slotTracker.LastLoad = new InteractiveSlotOutcome(
+                false, SaveContract.RejectionSlotDirectoryNotConfigured, null, null);
+            Console.Error.WriteLine(
+                $"kommandoschleife: Laden abgewiesen - {SaveContract.RejectionSlotDirectoryNotConfigured}.");
+            return;
+        }
+
+        var (loadedCapture, rejection) = ContinuationRunner.LoadSlot(slotDirectory, slotName, seed);
+
+        if (rejection is not null)
+        {
+            slotTracker.LastLoad = new InteractiveSlotOutcome(false, rejection.Reason, null, null);
+            Console.Error.WriteLine(
+                $"kommandoschleife: Laden abgewiesen - {rejection.Reason}: {rejection.Detail}");
+            return;
+        }
+
+        var section = loadedCapture!.Session;
+
+        if (section.ExplorationActive != (byte)(explorationEnabled ? 1 : 0)
+            || section.DecisionActive != (byte)(decisionEnabled ? 1 : 0)
+            || section.PressureActive != (byte)(pressureEnabled ? 1 : 0))
+        {
+            slotTracker.LastLoad = new InteractiveSlotOutcome(false, "layer-activation-mismatch", null, null);
+            Console.Error.WriteLine(
+                $"kommandoschleife: Laden abgewiesen - layer-activation-mismatch: Die Schichtaktivierung des Laufs widerspricht der Sitzungssektion.");
+            return;
+        }
+
+        if (!SimulationSaveAdapter.TryRestore(
+                loadedCapture.Simulation, loadedCapture.BoundaryStateHash, out var restoredWorld, out var restoreFailure)
+            || restoredWorld is null)
+        {
+            slotTracker.LastLoad = new InteractiveSlotOutcome(false, "restore-rejected", null, null);
+            Console.Error.WriteLine($"kommandoschleife: Laden abgewiesen - restore-rejected: {restoreFailure}");
+            return;
+        }
+
+        var restoredExploration = section.ExplorationActive != 0
+            ? ExplorationSession.Restore(section.ExplorationVisits)
+            : null;
+        var restoredDecision = section.DecisionActive != 0 ? DecisionSession.Restore(section) : null;
+        var restoredPressure = section.PressureActive != 0 ? PressureSession.Restore(section) : null;
+        var restoredMode = section.ActiveMode == 1 ? SessionMode.Personal : SessionMode.Strategic;
+        var restoredPendingSwitches = section.PendingSwitches
+            .Select(pending => new ModeSwitchEvent(
+                IntentTick: pending.IntentTick,
+                EvaluatedBoundaryTick: pending.IntentTick,
+                EffectiveBoundaryTick: pending.EffectiveBoundaryTick,
+                PreviousMode: pending.PreviousMode == SessionMode.Personal
+                    ? SessionMode.Personal
+                    : SessionMode.Strategic,
+                NewMode: pending.NewMode == SessionMode.Personal
+                    ? SessionMode.Personal
+                    : SessionMode.Strategic,
+                EffectiveInRun: false,
+                SwitchReactionTicks: 0,
+                HeroPositionXMm: 0,
+                HeroPositionYMm: 0,
+                HeroZoneIndex: -1,
+                HeroPathState: 0))
+            .ToArray();
+        var continuationIntents = parsed.Intents
+            .Where(intent => intent.Tick >= restoredWorld.TickIndex)
+            .ToArray();
+        var restoredPipeline = new SessionPipeline(
+            restoredWorld,
+            new SelectionModel(SessionEngine.ReadAgentGroups(restoredWorld)),
+            continuationIntents,
+            restoredMode,
+            restoredPendingSwitches,
+            restoredExploration,
+            restoredDecision,
+            restoredPressure);
+
+        // Kontrollierter Kontextwechsel: Welt, Sitzungsschicht und Pipeline
+        // werden vollständig ersetzt; die Darstellung wird neu gebunden. Der
+        // Kettenausweis der Messung startet an der Ladegrenze ehrlich neu.
+        world = restoredWorld;
+        pipeline = restoredPipeline;
+        exploration = restoredExploration;
+        decision = restoredDecision;
+        pressure = restoredPressure;
+        view.BindSelection(pipeline.Selection);
+        view.BindExploration(exploration);
+        view.BindDecision(decision);
+        view.BindPressure(pressure);
+
+        if (measurement.HashCursor < measurement.IntervalSampleTicks.Length)
+        {
+            measurement.IntervalSampleTicks[measurement.HashCursor] = world.TickIndex;
+            measurement.IntervalHashes[measurement.HashCursor] = world.ComputeStateHash();
+            measurement.HashCursor++;
+        }
+
+        slotTracker.LastLoad = new InteractiveSlotOutcome(
+            true, null, ModeName(restoredMode), world.TickIndex);
+        Console.WriteLine($"kommandoschleife: Sitzung geladen bei Tick {world.TickIndex}.");
+    }
+
     private static double PercentileOrDefault(List<double> values, double fraction) =>
         values.Count == 0 ? 0.0 : SessionMath.Percentile(values, fraction);
 
@@ -1224,15 +1443,39 @@ internal static class CommandLoopRunner
             ? 0.0
             : measurement.AllocationSumBytes / (double)measurement.TickTimes.Count;
 
+    /// <summary>Mutabler Slot-Tracker des interaktiven Laufs (rein diagnostisch).</summary>
+    private sealed class InteractiveSlotTracker
+    {
+        public long Saves;
+
+        public long Loads;
+
+        public InteractiveSlotOutcome? LastSave;
+
+        public InteractiveSlotOutcome? LastLoad;
+    }
+
+    /// <summary>Endzustand der interaktiven Hauptschleife (auch nach Slot-Wechsel).</summary>
+    private sealed record InteractiveLoopOutcome(
+        InteractiveMeasurement Measurement,
+        SimWorld World,
+        SessionPipeline Pipeline,
+        SelectionModel Selection,
+        ExplorationSession? Exploration,
+        DecisionSession? Decision,
+        PressureSession? Pressure);
+
     /// <summary>
     /// Interaktive Hauptschleife: Ereignispumpe, Intent-Uebersetzung,
     /// wanduhrgebundene 20-Hz-Tickfolge mit Messfenster [warmup, horizon),
     /// Zweikanaldarstellung und kontrolliertem Beenden. Der Sitzungsmodus der
     /// Pipeline (T-033) waehlt den Eingabekontext, die aktive Kamera und den
     /// Badge-Kanal; der Titel-HUD traegt Modus und Heldenzone (Modevertrag
-    /// Abschnitt 8).
+    /// Abschnitt 8). Die Slot-Aktionen (T-037) speichern an der laufenden
+    /// Vorgrenze bzw. laden einen vollständig validierten Slot und ersetzen
+    /// Welt, Sitzungsschicht und Pipeline kontrolliert.
     /// </summary>
-    private static InteractiveMeasurement RunInteractiveLoop(
+    private static InteractiveLoopOutcome RunInteractiveLoop(
         BgfxDevice device,
         InteractiveSceneResources resources,
         InteractiveView view,
@@ -1250,7 +1493,17 @@ internal static class CommandLoopRunner
         ExplorationSession? exploration,
         DecisionSession? decision,
         PressureSession? pressure,
-        bool autoExitAtHorizon)
+        bool autoExitAtHorizon,
+        string? slotDirectory,
+        string slotName,
+        uint seed,
+        ParsedInputScript parsed,
+        bool explorationEnabled,
+        bool decisionEnabled,
+        bool pressureEnabled,
+        ulong intentPlanHash,
+        string commit,
+        InteractiveSlotTracker slotTracker)
     {
         var windowTicks = horizonTicks - warmupTicks;
         var measurement = new InteractiveMeasurement(windowTicks);
@@ -1276,6 +1529,15 @@ internal static class CommandLoopRunner
             }
 
             ApplyHeldKeys(input, camera, heroCamera, pipeline, world);
+
+            // Slot-Aktionen an der laufenden Vorgrenze (T-037, Savevertrag
+            // V2 Abschnitt 13.3): kontrollierte Bestätigung oder
+            // unterscheidbare Ablehnung; ein akzeptiertes Laden ersetzt
+            // Welt, Sitzungsschicht und Pipeline vollständig.
+            HandleSlotRequests(
+                input, view, ref world, ref pipeline, ref exploration, ref decision, ref pressure,
+                slotDirectory, slotName, seed, parsed, explorationEnabled, decisionEnabled, pressureEnabled,
+                intentPlanHash, commit, slotTracker, measurement);
 
             if (pipeline.CurrentEffectiveMode == SessionMode.Strategic)
             {
@@ -1448,7 +1710,7 @@ internal static class CommandLoopRunner
 
         measurement.GcPauseSumMs = GC.GetTotalPauseDuration().TotalMilliseconds - pauseSumBeforeMs;
         measurement.GcPauseCount = GcCollectionTotal() - collectionCountBefore;
-        return measurement;
+        return new InteractiveLoopOutcome(measurement, world, pipeline, pipeline.Selection, exploration, decision, pressure);
     }
 
     /// <summary>
@@ -1651,6 +1913,27 @@ internal static class CommandLoopRunner
                         action == Keymap.ChooseAActionName
                             ? GrayboxIntentKind.ChooseA
                             : GrayboxIntentKind.ChooseB));
+                    return;
+
+                case Keymap.SaveSlotActionName:
+                    // Frei belegbare Slot-Aktionen (T-037, Savevertrag V2
+                    // Abschnitt 13.3): die Anforderung wird an der laufenden
+                    // Vorgrenze nach der Ereignispumpe ausgeführt; das
+                    // Ergebnis ist eine kontrollierte Bestätigung oder
+                    // unterscheidbare Ablehnung ohne Welt- oder Kernänderung.
+                    if (!input.SaveRequested)
+                    {
+                        input.SaveRequested = true;
+                    }
+
+                    return;
+
+                case Keymap.LoadSlotActionName:
+                    if (!input.LoadRequested)
+                    {
+                        input.LoadRequested = true;
+                    }
+
                     return;
 
                 default:
@@ -2987,6 +3270,40 @@ internal static class CommandLoopRunner
                 },
         };
     }
+
+    /// <summary>
+    /// Interaktiver Fortsetzungsblock (Savevertrag V2, Abschnitt 13.3): die
+    /// Slot-Fähigkeit der Keymap-Aktionen mit Zählern und dem ehrlichen
+    /// Ergebnis der letzten Aktion; rein diagnostisch (gateCoupled=false).
+    /// </summary>
+    private static Dictionary<string, object?> BuildInteractiveContinuation(InteractiveSlotState slotState) =>
+        new()
+        {
+            ["runKind"] = "interactive",
+            ["slot"] = SaveContract.InteractiveSlotName,
+            ["slotDirectoryConfigured"] = slotState.SlotDirectoryConfigured,
+            ["saves"] = slotState.Saves,
+            ["loads"] = slotState.Loads,
+            ["lastSave"] = slotState.LastSave is { } save
+                ? new Dictionary<string, object?>
+                {
+                    ["accepted"] = save.Accepted,
+                    ["reason"] = save.Reason,
+                    ["boundaryTick"] = save.RestoredBoundaryTick,
+                }
+                : null,
+            ["lastLoad"] = slotState.LastLoad is { } load
+                ? new Dictionary<string, object?>
+                {
+                    ["accepted"] = load.Accepted,
+                    ["reason"] = load.Reason,
+                    ["restoredMode"] = load.RestoredMode,
+                    ["restoredBoundaryTick"] = load.RestoredBoundaryTick,
+                }
+                : null,
+            ["replay"] = "not-continued",
+            ["gateCoupled"] = false,
+        };
 
     /// <summary>
     /// Fortsetzungsblock des Reports (T-037, Savevertrag V2 Abschnitt 13.8):

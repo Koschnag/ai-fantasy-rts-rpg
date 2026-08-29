@@ -21,11 +21,23 @@ public static class Keymap
     public const string ChooseBActionName = "choose-b";
 
     /// <summary>
+    /// Semantischer Aktionsname des Speicherns (T-037, Savevertrag V2
+    /// Abschnitt 13.3): frei belegbar; Standardbelegung ist F5 (Scancode 58),
+    /// das im Bestandsstand unbesetzt war.
+    /// </summary>
+    public const string SaveSlotActionName = "save-slot";
+
+    /// <summary>Semantischer Aktionsname des Ladens (T-037, Savevertrag V2 Abschnitt 13.3); Standard F9 (62).</summary>
+    public const string LoadSlotActionName = "load-slot";
+
+    /// <summary>
     /// Semantische Aktionsfamilie des Vertrags. <c>mode-switch</c> ist die
     /// T-033-Erweiterung (Modevertrag Abschnitt 4): frei belegbare,
     /// datengetriebene Umschaltaktion; der Standard belegt Tab (Scancode 43),
     /// das im T-032-Stand unbesetzt war. <c>choose-a</c>/<c>choose-b</c> sind
     /// die T-035-Erweiterung (Entscheidungsvertrag Abschnitt 4).
+    /// <c>save-slot</c>/<c>load-slot</c> sind die T-037-Erweiterung
+    /// (Savevertrag V2 Abschnitt 13.3).
     /// </summary>
     public static readonly string[] SemanticActions =
     [
@@ -39,6 +51,8 @@ public static class Keymap
         "mode-switch",
         ChooseAActionName,
         ChooseBActionName,
+        SaveSlotActionName,
+        LoadSlotActionName,
     ];
 
     /// <summary>Defaultbelegung: Aktion → SDL-Scancodes (gepinnter Stand).</summary>
@@ -54,6 +68,8 @@ public static class Keymap
         ["mode-switch"] = [43], // Tab (T-033 Modevertrag Abschnitt 4)
         [ChooseAActionName] = [30], // Zifferntaste 1 (T-035 Entscheidungsvertrag Abschnitt 4)
         [ChooseBActionName] = [31], // Zifferntaste 2 (T-035 Entscheidungsvertrag Abschnitt 4)
+        [SaveSlotActionName] = [58], // F5 (T-037 Savevertrag V2 Abschnitt 13.3)
+        [LoadSlotActionName] = [62], // F9 (T-037 Savevertrag V2 Abschnitt 13.3)
     };
 
     /// <summary>

@@ -38,6 +38,9 @@ public static class CommandReportSchema
     /// <summary>Schemaversion mit Druckaktivierung (T-036: rein additiv um pressureSession).</summary>
     public const int VersionWithPressure = PressureContract.ReportSchemaVersionWithPressure;
 
+    /// <summary>Schemaversion mit Save-/Ladeaktivierung (T-037: rein additiv um continuation).</summary>
+    public const int VersionWithContinuation = SaveContract.ReportSchemaVersionWithContinuation;
+
     public const string ModeCommandLoop = "kommandoschleife";
     public const string ExecutionHeadless = "headless";
     public const string ExecutionInteractive = "interactive";
@@ -64,6 +67,10 @@ public static class CommandReportSchema
 
     internal static RObj InteractivePressureBody { get; } = BuildBody(ExecutionInteractive, VersionWithPressure);
 
+    internal static RObj HeadlessContinuationBody { get; } = BuildBody(ExecutionHeadless, VersionWithContinuation);
+
+    internal static RObj InteractiveContinuationBody { get; } = BuildBody(ExecutionInteractive, VersionWithContinuation);
+
     /// <summary>
     /// Versions- und Ausführungsdispatch: Die Schemaversion
     /// <see cref="VersionWithoutExploration"/> (Bestandsstand) toleriert
@@ -85,9 +92,9 @@ public static class CommandReportSchema
                 return;
             }
 
-            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion or VersionWithDecision or VersionWithPressure))
+            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion or VersionWithDecision or VersionWithPressure or VersionWithContinuation))
             {
-                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration}, {CurrentVersion}, {VersionWithDecision} oder {VersionWithPressure} erwartet.");
+                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration}, {CurrentVersion}, {VersionWithDecision}, {VersionWithPressure} oder {VersionWithContinuation} erwartet.");
                 return;
             }
 
@@ -108,6 +115,8 @@ public static class CommandReportSchema
                 (VersionWithDecision, ExecutionInteractive) => InteractiveDecisionBody,
                 (VersionWithPressure, ExecutionHeadless) => HeadlessPressureBody,
                 (VersionWithPressure, ExecutionInteractive) => InteractivePressureBody,
+                (VersionWithContinuation, ExecutionHeadless) => HeadlessContinuationBody,
+                (VersionWithContinuation, ExecutionInteractive) => InteractiveContinuationBody,
                 _ => null,
             };
 
@@ -142,6 +151,18 @@ public static class CommandReportSchema
                 ValidateExplorationRelations(path, element, errors);
                 ValidateDecisionRelations(path, element, errors);
                 ValidatePressureRelations(path, element, errors);
+            }
+
+            // Schemaversion 6 (T-037): die Sitzungsblöcke erscheinen genau
+            // dann, wenn ihre Aktivierung vertraglich besteht; jede
+            // vorhandene Blockinstanz wird relational bindend geprüft, und
+            // der Fortsetzungsblock trägt seine eigenen Relationswahrheiten.
+            if (schemaVersion == VersionWithContinuation)
+            {
+                ValidateExplorationRelations(path, element, errors);
+                ValidateDecisionRelations(path, element, errors);
+                ValidatePressureRelations(path, element, errors);
+                ValidateContinuationRelations(path, element, errors);
             }
         }
     }
