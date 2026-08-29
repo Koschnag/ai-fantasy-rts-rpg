@@ -137,7 +137,7 @@ let decisionContractMirrorsDocumentedValues () =
 
     // V2: autorisierte additive Zyklus-Praezisierung (T-036, Druckvertrag
     // Abschnitt 4; Entscheidungsvertrag Abschnitt 13).
-    if DecisionContract.ContractVersion <> "2" then
+    if DecisionContract.ContractVersion <> "3" then
         failwith "Entscheidungsvertragsversion falsch (autorisierte Zyklus-Praezisierung V2 erwartet)."
 
     if
@@ -149,8 +149,20 @@ let decisionContractMirrorsDocumentedValues () =
     then
         failwith "Schemaversionen entsprechen nicht dem Vertrag (Bestand 2, Erkundung 3, Entscheidung 4, Druck 5)."
 
-    if DecisionContract.Persisted then
-        failwith "Die Nichtpersistenzaussage ist verletzt."
+    // Persistenzwahrheit nach der autorisierten V3-Praezisierung (T-037):
+    // Save/Load setzt fort, die ausdrueckliche Replay-Ausnahme bleibt.
+    if not DecisionContract.Persisted then
+        failwith "Die V3-Persistenzaussage (Save/Load fortsetzbar) ist verletzt."
+
+    if DecisionContract.ReplayContinued then
+        failwith "Die ausdrueckliche Replay-Ausnahme ist verletzt."
+
+    if
+        DecisionContract.SaveLoadContinuation <> "continued"
+        || DecisionContract.ReplayNotContinued <> "not-continued"
+        || DecisionContract.SaveLoadPersistenceStatementId <> "decision-session-local-save-load-persisted-v3"
+    then
+        failwith "Die versionierte Save/Load-Persistenzaussage widerspricht dem Entscheidungsvertrag V3."
 
     if
         InteractiveView.FollowUpMarkerLowerHeightMeters <> 1.2
@@ -740,10 +752,14 @@ let cliDecisionFlowRunsHeadlessOnSchemaVersion4 () =
 
         if
             persistence.GetProperty("statementId").GetString()
-            <> DecisionContract.NotPersistedStatementId
-            || persistence.GetProperty("persisted").GetBoolean()
+            <> DecisionContract.SaveLoadPersistenceStatementId
+            || not (persistence.GetProperty("persisted").GetBoolean())
+            || persistence.GetProperty("saveLoad").GetString()
+               <> DecisionContract.SaveLoadContinuation
+            || persistence.GetProperty("replay").GetString()
+               <> DecisionContract.ReplayNotContinued
         then
-            failwith "Die maschinenlesbare Nichtpersistenzaussage fehlt oder widerspricht."
+            failwith "Die maschinenlesbare V3-Persistenzaussage fehlt oder widerspricht."
 
         let hud = decision.GetProperty("hud")
         let channel = decision.GetProperty("followUpChannel")

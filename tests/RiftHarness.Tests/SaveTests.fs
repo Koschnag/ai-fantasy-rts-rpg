@@ -87,10 +87,11 @@ let saveContractMirrorsDocumentedValues () =
         failwith "Vertragspfad falsch."
 
     if
-        SaveContract.ContractVersion <> "1"
-        || SaveContract.CurrentSaveSchemaVersion <> 1us
+        SaveContract.ContractVersion <> "2"
+        || SaveContract.CurrentSaveSchemaVersion <> 2us
+        || SaveContract.LegacySaveSchemaVersion <> 1us
     then
-        failwith "Vertragsversion falsch."
+        failwith "Vertragsversion falsch (V2 mit Legacy V1)."
 
     if SaveContract.EncodingId <> "riftward-save-canonical-binary-v1" then
         failwith "Codierkennung falsch."

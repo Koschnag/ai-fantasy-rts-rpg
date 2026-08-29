@@ -119,8 +119,20 @@ let explorationContractMirrorsDocumentedValues () =
     then
         failwith "Schemaversionen entsprechen nicht dem Vertrag (Bestand 2, aktiviert 3)."
 
-    if ExplorationContract.Persisted then
-        failwith "Die Nichtpersistenzaussage ist verletzt."
+    // Persistenzwahrheit nach der autorisierten V2-Praezisierung (T-037):
+    // Save/Load setzt fort, die ausdrueckliche Replay-Ausnahme bleibt.
+    if not ExplorationContract.Persisted then
+        failwith "Die V2-Persistenzaussage (Save/Load fortsetzbar) ist verletzt."
+
+    if ExplorationContract.ReplayContinued then
+        failwith "Die ausdrueckliche Replay-Ausnahme ist verletzt."
+
+    if
+        ExplorationContract.SaveLoadContinuation <> "continued"
+        || ExplorationContract.ReplayNotContinued <> "not-continued"
+        || ExplorationContract.SaveLoadPersistenceStatementId <> "session-local-save-load-persisted-v2"
+    then
+        failwith "Die versionierte Save/Load-Persistenzaussage widerspricht dem Erkundungsvertrag V2."
 
     if
         InteractiveView.LandmarkMarkerHeightMeters <> 1.6
@@ -396,7 +408,7 @@ let finalBoundaryHudMatchesMeasuredReportBeforeAutoExit () =
     let source = readDocument "src/Riftward.App/Command/CommandLoopRunner.cs"
 
     let loopStart =
-        source.IndexOf("private static InteractiveMeasurement RunInteractiveLoop(", StringComparison.Ordinal)
+        source.IndexOf("private static InteractiveLoopOutcome RunInteractiveLoop(", StringComparison.Ordinal)
 
     let boundary =
         source.IndexOf("var outcome = pipeline.ProcessBoundary(tick);", loopStart, StringComparison.Ordinal)
@@ -568,10 +580,14 @@ let headlessExplorationRunVisitsAllLandmarksOnSchemaVersion3 () =
 
         if
             persistence.GetProperty("statementId").GetString()
-            <> ExplorationContract.NotPersistedStatementId
-            || persistence.GetProperty("persisted").GetBoolean()
+            <> ExplorationContract.SaveLoadPersistenceStatementId
+            || not (persistence.GetProperty("persisted").GetBoolean())
+            || persistence.GetProperty("saveLoad").GetString()
+               <> ExplorationContract.SaveLoadContinuation
+            || persistence.GetProperty("replay").GetString()
+               <> ExplorationContract.ReplayNotContinued
         then
-            failwith "Die maschinenlesbare Nichtpersistenzaussage fehlt oder widerspricht."
+            failwith "Die maschinenlesbare V2-Persistenzaussage fehlt oder widerspricht."
 
         let landmarks = exploration.GetProperty("landmarks")
         let mutable zone = 0
