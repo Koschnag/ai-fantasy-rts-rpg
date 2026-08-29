@@ -228,10 +228,10 @@ let windowTriggerIsDecisionCoupledOncePerCycleAndHonestWithoutDecision () =
     if isNull pressure then
         failwith "Aktivierte Druckschicht lieferte keinen Ausweis."
 
-    if pressure.CycleCount <> 0L || not (isNull pressure.OpenWindow) then
+    if pressure.CycleCount <> 0L || not ( Seq.isEmpty pressure.Windows ) then
         failwith "Ohne wirksame Entscheidung existierte eine Fensterinstanz."
 
-    let status, reason = pressure |> fun telemetry -> (telemetry.EndStatus, telemetry.EndStatusReason)
+    let status, reason = (pressure.EndStatus, pressure.EndStatusReason)
 
     if
         status <> PressureContract.EndStatusNotStarted
@@ -254,7 +254,7 @@ let windowTriggerIsDecisionCoupledOncePerCycleAndHonestWithoutDecision () =
     if
         window.Instance <> 1L
         || window.Cycle <> 1L
-        || window.StartBoundaryTick <> withChoice.Decision.Value.DecisionBoundaryTick
+        || window.StartBoundaryTick <> withChoice.Decision.DecisionBoundaryTick
     then
         failwith "Die Fensterinstanz startet nicht genau an der Entscheidungsgrenze."
 
@@ -306,7 +306,7 @@ let timeBasisExpiryExactnessAndArrivalOrdering () =
 
         pressure.Observe(610L, world, SessionMode.Personal, decision)
 
-        let status, _ = pressure.ResolveEndStatus(decision)
+        let struct (status, _) = pressure.ResolveEndStatus(decision)
 
         if expectSuccess then
             if status <> PressureContract.EndStatusSuccess then
@@ -398,10 +398,10 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     if chooseA.EndStateHash <> chooseB.EndStateHash then
         failwith "Das A/B-Wahlpaar veraenderte die Kernwahrheit."
 
-    if chooseA.Decision.Value.Choice <> DecisionContract.ChoiceOptionAId then
+    if chooseA.Decision.Choice <> DecisionContract.ChoiceOptionAId then
         failwith "Der A-Lauf traegt nicht die Wahl a."
 
-    if chooseB.Decision.Value.Choice <> DecisionContract.ChoiceOptionBId then
+    if chooseB.Decision.Choice <> DecisionContract.ChoiceOptionBId then
         failwith "Der B-Lauf traegt nicht die Wahl b."
 
     for run in [ chooseA; chooseB ] do
@@ -410,7 +410,7 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
 
         if
             window.EndReason <> PressureContract.WindowEndReasonSuccess
-            || window.ArrivalBoundaryTick <> run.Decision.Value.ArrivalBoundaryTick
+            || window.ArrivalBoundaryTick <> run.Decision.ArrivalBoundaryTick
         then
             failwith "Der T-035-Vollfluss schloss nicht als Erfolg innerhalb des offenen Fensters ab."
 
@@ -504,7 +504,7 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
         then
             failwith "Die erste Instanz laeuft nicht exakt an Wahl + WindowLengthTicks ab."
 
-        if jsonInt64 pressure.GetProperty("reopenBoundaryTick") <> choiceTick + 601L then
+        if jsonInt64 pressure "reopenBoundaryTick" <> choiceTick + 601L then
             failwith "Die Wiederauffrischung liegt nicht genau an der naechsten Vorgrenze nach dem Fehlschlag."
 
         if
@@ -552,7 +552,7 @@ let cliPressureFlowRunsHeadlessOnSchemaVersion5 () =
         then
             failwith "Headless Druckausweise fehlen an Grund statt stiller Behauptung."
 
-        if jsonInt root "exitCode" <> ExitCodes.Ok then
+        if jsonInt64 root "exitCode" <> int64 ExitCodes.Ok then
             failwith "Report-Exitcode widerspricht der Laufbeobachtung."
 
         // Zweiter echter App-Prozess: builderidentische Ketten und
@@ -634,8 +634,8 @@ let foreignSeedChangesHashesButPressureStructureFollowsSession () =
         // Strukturinvarianten des Druckprotokolls: gleiche Instanz-/Zyklus-
         // zahl, gleiche Endgruende, gleicher Endstatus, gleiche Fensterlaenge.
         if
-            jsonInt64 contractPressure.GetProperty("cycleCount")
-            <> jsonInt64 foreignPressure.GetProperty("cycleCount")
+            jsonInt64 contractPressure "cycleCount"
+            <> jsonInt64 foreignPressure "cycleCount"
             || contractPressure.GetProperty("endStatus").GetProperty("status").GetString()
                <> foreignPressure.GetProperty("endStatus").GetProperty("status").GetString()
             || contractPressure.GetProperty("windowLengthTicks").GetInt64()
@@ -701,7 +701,7 @@ let pressureWithoutReachedDecisionCarriesHonestGround () =
             <> PressureContract.EndStatusNotStarted
             || pressure.GetProperty("endStatus").GetProperty("reason").GetString()
                <> PressureContract.NotStartedReasonDecisionNotReached
-            || jsonInt64 pressure.GetProperty("cycleCount") <> 0L
+            || jsonInt64 pressure "cycleCount" <> 0L
             || pressure.GetProperty("windows").GetArrayLength() <> 0
         then
             failwith "Der Lauf ohne Entscheidungsstand trug nicht den ehrlichen not-started-Grund."
