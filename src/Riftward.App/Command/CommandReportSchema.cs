@@ -731,14 +731,19 @@ public static class CommandReportSchema
         ("failureCause", new NullableLiteralNode([PressureContract.FailureCauseWindowExpired])),
         ("gateCoupled", new RBool(false)));
 
-    /// <summary>Grenzknoten mit vertraglichem Offen-Sentinel (-1).</summary>
+    /// <summary>Grenzknoten mit vertraglichem Offen-Sentinel (-1) oder ehrlichem Null ohne Fehlschlag.</summary>
     private sealed class NullableBoundaryTickNode : ReportNode
     {
         public override void Check(string path, JsonElement element, List<string> errors)
         {
+            if (element.ValueKind == JsonValueKind.Null)
+            {
+                return;
+            }
+
             if (element.ValueKind != JsonValueKind.Number || !element.TryGetInt64(out var value))
             {
-                errors.Add($"{path}: ganzzahlige Grenze erwartet.");
+                errors.Add($"{path}: ganzzahlige Grenze oder ehrliches Null erwartet.");
                 return;
             }
 

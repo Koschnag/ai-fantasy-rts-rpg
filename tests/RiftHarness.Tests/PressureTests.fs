@@ -240,9 +240,11 @@ let windowTriggerIsDecisionCoupledOncePerCycleAndHonestWithoutDecision () =
         failwith $"Der nicht gestartete Lauf trug {status}/{reason} statt des ehrlichen Angebotsgrunds."
 
     // Mit wirksamer Entscheidung startet genau eine Instanz an der
-    // Entscheidungsgrenze (T-035-Fullflow: Wahl an 7300).
+    // Entscheidungsgrenze (Wahl an 7300); der Horizont 7800 haelt das
+    // offene Fenster bis zum Laufende, sodass der Entscheidungszustand
+    // unreset ist und der Endstatus ehrlich window-open lautet.
     let withChoice =
-        runInProcess 20260826u 8000 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+        runInProcess 20260826u 7800 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
 
     let pressure = withChoice.Pressure
 
@@ -255,12 +257,16 @@ let windowTriggerIsDecisionCoupledOncePerCycleAndHonestWithoutDecision () =
         window.Instance <> 1L
         || window.Cycle <> 1L
         || window.StartBoundaryTick <> withChoice.Decision.DecisionBoundaryTick
+        || not (isNull (box window.EndReason))
     then
-        failwith "Die Fensterinstanz startet nicht genau an der Entscheidungsgrenze."
+        failwith "Die Fensterinstanz startet nicht genau an der Entscheidungsgrenze bzw. traegt einen Endgrund."
+
+    if pressure.EndStatus <> PressureContract.EndStatusWindowOpen then
+        failwith $"Der offene Fensterlauf trug {pressure.EndStatus} statt window-open."
 
     // Der decision-gekoppelte Start ist kein Angebot-Start: vor der Wahl
     // existiert keine Instanz (CycleCount 0 im ohne-Wahl-Lauf oben).
-    if pressure.Windows.Count <> 1 then
+    if Seq.length pressure.Windows <> 1 then
         failwith "Die Instanzzahl widerspricht der einmaligen Ausloesung je Zyklus."
 
 // ---------------------------------------------------------------------------
@@ -368,8 +374,8 @@ let timeBasisExpiryExactnessAndArrivalOrdering () =
 let pressureIsObservationOnlyTwinStaysByteIdentical () =
     let body = explorationBody @ [ "intent 7300 choose-a" ]
 
-    let twin = runInProcess 20260826u 8000 body true true false
-    let withPressure = runInProcess 20260826u 8000 body true true true
+    let twin = runInProcess 20260826u 7800 body true true false
+    let withPressure = runInProcess 20260826u 7800 body true true true
 
     if twin.StartStateHash <> withPressure.StartStateHash then
         failwith "Der Starthash weicht zwischen Zwilling und Drucklauf ab."
@@ -383,14 +389,19 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     if twin.KernelCommandsTotal <> withPressure.KernelCommandsTotal then
         failwith "Die Druckschicht veraenderte die Kernbefehlszahl."
 
-    if not (isNull withPressure.Pressure) then
+    if not (isNull twin.Pressure) then
         failwith "Der Zwilling ohne Aktivierung traegt einen Druckausweis."
 
-    // A/B-Wahlpaar mit Druckaktivierung: identische Kernintents, identische
-    // Ketten, unterscheidbare Entscheidungen — beide schliessen im offenen
-    // Fenster als Erfolg ab.
-    let chooseA = runInProcess 20260826u 8000 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
-    let chooseB = runInProcess 20260826u 8000 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
+    if isNull withPressure.Pressure then
+        failwith "Der aktivierte Lauf verlor seinen Druckausweis."
+
+    // A/B-Wahlpaar mit Druckaktivierung: identische Kernintents und
+    // identische Ketten; die unterscheidbaren Entscheidungen erzeugen die
+    // vertraglich unterschiedlichen Druckwahrheiten (B: der Held steht in
+    // der Folgenzone — Erfolg an der Entscheidungsgrenze; A: Folgenzone
+    // unerreicht — definierter Fehlschlag an der Ablaufgrenze).
+    let chooseA = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+    let chooseB = runInProcess 20260826u 8200 (explorationBody @ [ "intent 7300 choose-b" ]) true true true
 
     if chooseA.StartStateHash <> chooseB.StartStateHash then
         failwith "Das A/B-Paar startete nicht aus demselben Zustand."
@@ -404,18 +415,55 @@ let pressureIsObservationOnlyTwinStaysByteIdentical () =
     if chooseB.Decision.Choice <> DecisionContract.ChoiceOptionBId then
         failwith "Der B-Lauf traegt nicht die Wahl b."
 
-    for run in [ chooseA; chooseB ] do
-        let pressure = run.Pressure
-        let window = pressure.Windows.[0]
+    let pressureA = chooseA.Pressure
+    let windowA = pressureA.Windows.[0]
 
-        if
-            window.EndReason <> PressureContract.WindowEndReasonSuccess
-            || window.ArrivalBoundaryTick <> run.Decision.ArrivalBoundaryTick
-        then
-            failwith "Der T-035-Vollfluss schloss nicht als Erfolg innerhalb des offenen Fensters ab."
+    if
+        windowA.EndReason <> PressureContract.WindowEndReasonExpired
+        || windowA.EndBoundaryTick <> 7300L + int64 PressureContract.WindowLengthTicks
+        || windowA.FailureCause <> PressureContract.FailureCauseWindowExpired
+        || pressureA.LastReopenBoundaryTick <> 7300L + int64 PressureContract.WindowLengthTicks + 1L
+    then
+        failwith "Der A-Lauf bindet nicht den definierten Fehlschlag mit Wiederauffrischung."
+
+    let pressureB = chooseB.Pressure
+    let windowB = pressureB.Windows.[0]
+
+    if
+        windowB.EndReason <> PressureContract.WindowEndReasonSuccess
+        || windowB.ArrivalBoundaryTick <> 7300L
+    then
+        failwith "Der B-Lauf schloss nicht als Erfolg an der Entscheidungsgrenze ab."
+
+    // T-035-Vollfluss (mit Mobilmachung) mit Druckaktivierung: die
+    // Ankunft liegt innerhalb des offenen Fensters; Ketten und Endhash
+    // bleiben gegen den druckfreien Vollfluss identisch.
+    let fullFlow =
+        explorationBody
+        @ [ "intent 7300 choose-a"
+            "intent 7400 switch"
+            "intent 7420 box 0 0 159000 89000"
+            "intent 7430 move 0"
+            "intent 7500 switch" ]
+
+    let fullWithoutPressure = runInProcess 20260826u 8200 fullFlow true true false
+    let fullWithPressure = runInProcess 20260826u 8200 fullFlow true true true
+
+    if fullWithoutPressure.EndStateHash <> fullWithPressure.EndStateHash then
+        failwith "Der Vollfluss veraenderte mit Druckaktivierung den Endhash."
+
+    let pressureFull = fullWithPressure.Pressure
+    let windowFull = pressureFull.Windows.[0]
+
+    if
+        windowFull.EndReason <> PressureContract.WindowEndReasonSuccess
+        || windowFull.ArrivalBoundaryTick <> fullWithPressure.Decision.ArrivalBoundaryTick
+        || windowFull.ArrivalBoundaryTick >= 7300L + int64 PressureContract.WindowLengthTicks
+    then
+        failwith "Der T-035-Vollfluss schloss nicht als Erfolg innerhalb des offenen Fensters ab."
 
     // Fremdseed aendert Start- und Endhash nachweislich.
-    let foreign = runInProcess 424242u 8000 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
+    let foreign = runInProcess 424242u 8200 (explorationBody @ [ "intent 7300 choose-a" ]) true true true
 
     if foreign.EndStateHash = chooseA.EndStateHash then
         failwith "Der Fremdseed veraenderte den Endhash nicht."
@@ -813,9 +861,9 @@ let titleHudBindsPressureStatesWithoutChangingLegacyForm () =
     then
         failwith "Der Bestandstitel wurde durch die Druckschicht veraendert."
 
-    decision.OpenOfferForContractTest(10L, heroZone, otherZone)
-    decision.TryChoose(DecisionChoiceOption.A, 10L, SessionMode.Personal) |> ignore
-    pressure.Observe(10L, world, SessionMode.Personal, decision)
+    decision.OpenOfferForContractTest(0L, heroZone, otherZone)
+    decision.TryChoose(DecisionChoiceOption.A, 0L, SessionMode.Personal) |> ignore
+    pressure.Observe(0L, world, SessionMode.Personal, decision)
 
     let windowOpen =
         CommandLoopRunner.BuildTitleHudText(SessionMode.Personal, world, exploration, decision, pressure)
@@ -823,10 +871,10 @@ let titleHudBindsPressureStatesWithoutChangingLegacyForm () =
     if not (windowOpen.Contains(" — Druck: Zyklus 1 Rest 600", StringComparison.Ordinal)) then
         failwith $"Das offene Fenster erscheint nicht in der festen Titel-Form: {windowOpen}"
 
-    // Fehlschlags-/Neustartzeitraum: Ablauf ohne Ankunft an 610, danach
-    // Wiederaufnimmung an 611; der Titel traegt die unterscheidbare
-    // Fehlschlagsform bis zur naechsten wirksamen Wahl.
-    for boundary in 11L..610L do
+    // Fehlschlags-/Neustartzeitraum: Ablauf ohne Ankunft an 600; der Titel
+    // traegt die unterscheidbare Fehlschlagsform bis zur naechsten
+    // wirksamen Wahl.
+    for boundary in 1L..600L do
         pressure.Observe(boundary, world, SessionMode.Personal, decision)
 
     let afterFailure =
@@ -843,13 +891,13 @@ let titleHudBindsPressureStatesWithoutChangingLegacyForm () =
     let successPressure = PressureSession()
     let successHeroZone = HeroTracker.ZoneIndexOf(successWorld)
 
-    successDecision.OpenOfferForContractTest(10L, successHeroZone, (successHeroZone + 1) % NavWorld.ZoneCount)
+    successDecision.OpenOfferForContractTest(0L, successHeroZone, (successHeroZone + 1) % NavWorld.ZoneCount)
 
-    successDecision.TryChoose(DecisionChoiceOption.A, 10L, SessionMode.Personal)
+    successDecision.TryChoose(DecisionChoiceOption.A, 0L, SessionMode.Personal)
     |> ignore
 
-    successDecision.Observe(10L, successWorld, SessionMode.Personal, successExploration)
-    successPressure.Observe(10L, successWorld, SessionMode.Personal, successDecision)
+    successDecision.Observe(0L, successWorld, SessionMode.Personal, successExploration)
+    successPressure.Observe(0L, successWorld, SessionMode.Personal, successDecision)
 
     let afterSuccess =
         CommandLoopRunner.BuildTitleHudText(

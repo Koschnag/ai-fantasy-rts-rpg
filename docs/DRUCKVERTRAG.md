@@ -127,7 +127,9 @@ ebenfalls über Vertragsversion 2.
 ## 4. Fehlschlags- und Neustartregel (`defined-failure-automatic-reopen-v1`, reversible Produktfrage)
 
 **Wahl: definierter Fehlschlag mit Ursache und deterministische
-automatische Wiederauffrischung des Angebots an der nächsten Vorgrenze.**
+automatische Wiederauffrischung des Angebots an der nächsten Vorgrenze**
+(`defined-failure-automatic-reopen-v1`, Neustartmodell
+`session-local-cycle-restart-v1`).
 Läuft das offene Fenster an der Ablaufgrenze ohne persönliche Ankunft in
 der Folgenzone ab, erzeugt die Schicht an dieser Vorgrenze einen
 definierten Fehlschlag mit der vertraglichen Ursachenkennung
