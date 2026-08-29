@@ -488,7 +488,31 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
     // Instanzen nachfolgen, ist keine echte Sitzungswahrheit.
     let openWindowNotLast =
         SessionSectionCodec.Encode(
-            { populatedSection () with
+            SessionSectionState(
+                ActiveMode = byte SessionMode.Personal,
+                PendingSwitches =
+                    [ SessionSectionPendingSwitch(300L, 302L, byte SessionMode.Strategic, byte SessionMode.Personal) ],
+                ExplorationActive = 1uy,
+                ExplorationVisits =
+                    [ SessionSectionVisit(1200L, 2, SessionSectionCodec.ModePersonal)
+                      SessionSectionVisit(2400L, 0, SessionSectionCodec.ModePersonal) ],
+                DecisionActive = 1uy,
+                DecisionOfferOpened = 1uy,
+                DecisionOfferBoundaryTick = 2600L,
+                DecisionOptionZoneA = 0,
+                DecisionOptionZoneB = 2,
+                DecisionDecided = 1uy,
+                DecisionBoundaryTick = 2800L,
+                DecisionChoiceKind = SessionSectionCodec.ChoiceKindA,
+                DecisionModeKind = 1uy,
+                DecisionFollowUpZoneIndex = 0,
+                DecisionFollowUpCompleted = 1uy,
+                DecisionArrivalBoundaryTick = 3000L,
+                DecisionRejectionsBeforeOffer = 2L,
+                DecisionRejectionsInStrategicMode = 1L,
+                DecisionRejectionsAfterDecision = 0L,
+                PressureActive = 1uy,
+                PressureCycleCount = 2L,
                 PressureWindows =
                     [ SessionSectionWindow(
                           1L,
@@ -509,7 +533,13 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
                           3900L,
                           SessionSectionCodec.ArrivalModePersonal,
                           SessionSectionCodec.CauseKindNone
-                      ) ] }
+                      ) ],
+                PressureLastFailureBoundaryTick = 3400L,
+                PressureHasLastFailure = 0uy,
+                PressureLastFailureFollowUpZoneIndex = -1,
+                PressureLastReopenBoundaryTick = 3401L,
+                PressureReopenPendingRecording = 0uy
+            )
         )
 
     let (openWindowRejection, _) = decodeSection openWindowNotLast
