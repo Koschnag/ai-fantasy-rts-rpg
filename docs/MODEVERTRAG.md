@@ -1,6 +1,8 @@
 # Modevertrag (T-033, Abschnitt 0)
 
-**Vertragsversion:** 1
+**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
+Persistenz-Präzisierung gemäß Savevertrag V2/T-037, Abschnitt 12; alle
+übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-033-mode-switch-prototype.json` vor der Implementierung festgelegt;
 die maschinenlesbaren Kennungen sind in
@@ -438,3 +440,34 @@ Replayformat), Q-TEC-010 (tolerierte Benchmarkstreuung), Q-OPS-001
 (Referenzhardware). Kein Budgetwert wird geändert; Pflichtprofile bleiben
 `NOT-MEASURED`. GAME_DESIGN.md und ANFORDERUNGEN.md bleiben durch die
 Implementierung unberührt.
+
+## 12. Autorisierte additive Persistenz-Präzisierung (V2, T-037)
+
+**Änderungsumfang (ausschließlich diese eine Wahrheitsänderung):** Die
+Persistenzwahrheit des aktiven Sitzungsmodus wandelt von „einer späteren
+Savevertrags-Erweiterung vorbehalten" (V1, Abschnitt 1; ADR 008
+Sequenzierungsnote) zu „über die additive Sitzungssektion des Savevertrags V2
+(T-037) in Save/Load fortsetzbar": Der aktive Modus samt schwebender
+Moduswechsel (Pending-Switches der Same-Tick-Regel) ist Teil der versionierten,
+eigen-hashgebundenen Sitzungssektion und wird nach dem Laden an derselben
+Tickgrenze deterministisch fortgesetzt. Die **ausdrückliche Replay-Ausnahme**
+bleibt bestehen: Replay und Soak setzen den Moduszustand nicht fort
+(`replay=not-continued`), und die finale Wechsel-Detailregel Q-GAM-010 bleibt
+`OFFEN` — diese Präzisierung legt ausschließlich die dokumentierte
+Graybox-Kettenwahrheit des Modusflags in Save/Load fest, nicht die finale
+Produkt-Persistenzwahrheit.
+
+**Unverändert bleiben:** Auslösung, Same-Tick-Regel, Modus-Scoping,
+Kontexttrennung, Wechselreaktionsableitung, Feedback und alle Exitcodes
+(Abschnitte 3 bis 10). Der Modus ist weiterhin niemals Teil des
+Simulationszustands oder Hashes; ein Sektionsbyte berührt die Hashkette
+nicht. **Grund und Begrenzung:** Die Präzisierung ist die vom Auftrag
+`.ai/tasks/T-037-graybox-continuation-restart.json` autorisierte additive
+Voraussetzung des Fortsetzungsschritts und antwortet auf keine offene
+Produktfrage. **Rückrollweg:** Umkehr auf V1 (Nichtpersistenz des Modus)
+durch Vertragsversionswechsel mit Neubau und Fixture-Regeneration; die
+Sektion trägt dann ehrliche Sitzungsleere für die Modusschicht. **Fixture-
+Regeneration:** Tests, die die V1-Persistenzvorbehaltszeile gebunden haben,
+wurden im selben Kandidaten auf die V2-Präzisierung fortgeschrieben;
+Wechsel-, Ketten- und Endhashbindungen der T-033-/T-034-/T-035-/T-036-Flüsse
+bleiben unverändert gültig.
