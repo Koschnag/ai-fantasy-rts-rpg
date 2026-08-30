@@ -2229,8 +2229,7 @@ module Program =
               ContinuationTests.cliContinuationRejectionsStayControlledAndExitCodesStable
               "T-037 save contract documents bind continuation truth",
               ContinuationTests.saveContractDocumentsBindContinuationTruth
-              "T-038 package codec roundtrip is canonical and stable",
-              PackageTests.codecRoundtripIsCanonicalAndStable
+              "T-038 package codec roundtrip is canonical and stable", PackageTests.codecRoundtripIsCanonicalAndStable
               "T-038 package codec rejects corruption matrix fail closed",
               PackageTests.codecRejectsCorruptionMatrixFailClosed
               "T-038 package composer produces deterministic staging and manifest",
@@ -2239,8 +2238,7 @@ module Program =
               PackageTests.verifierDistinguishesViolationMatrixFailClosed
               "T-038 package archive write is deterministic and verifiable",
               PackageTests.archiveWriteIsDeterministicAndVerifiable
-              "T-038 package CLI usage rejections stay controlled",
-              PackageTests.cliUsageRejectionsStayControlled
+              "T-038 package CLI usage rejections stay controlled", PackageTests.cliUsageRejectionsStayControlled
               "T-038 package CLI verify rejects manipulated archive with distinguishable class",
               PackageTests.cliVerifyRejectsManipulatedArchiveWithDistinguishableClass
               "T-038 package exit code mapping binds package codes and documents",

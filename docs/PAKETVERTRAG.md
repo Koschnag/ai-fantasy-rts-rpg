@@ -79,9 +79,11 @@ Pflichtregeln:
 | B. Framework-abhängig mit gebündelter Runtime | Manual-Bundle (`dotnet store`/Runtimepakete) erzeugt eine zweite Verteilform mit eigenen Reproduzierbarkeitsfallen; kein Vorteil gegenüber A. |
 | C. Native AOT | Verboten ohne die geforderte Messung (Q-TEC-008 bleibt `OFFEN`); Reflection-/Trimmingvertrag des Hosts wäre neu zu beweisen. |
 
-**Empfehlung A.** Prüfkriterium: das extrahierte Paket startet in einem
+**Empfehlung A.** Vertragskennung der Runtimeform:
+`self-contained-coreclr-no-aot-no-trimming-v1` (im Paketmanifest gebunden).
+Prüfkriterium: das extrahierte Paket startet in einem
 frischen Verzeichnis ohne installiertes .NET-SDK, ohne Repository und ohne
-Netzwerk und führt die Alpha-Loop-Verifikation aus (Abschnitt 6); der
+Netzwerk und führt die Alpha-Loop-Verifikation aus (Abschnitt 7); der
 Publish erzeugt null neue Compiler-, Analyzer- und AOT-/Trimming-Warnungen.
 Rückrollweg: AOT-/Trimmingentscheidung bleibt über Q-TEC-008 offen und
 bedarf einer messenden Entscheidung; die Paketform ändert keine

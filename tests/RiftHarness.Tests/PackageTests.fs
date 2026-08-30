@@ -55,7 +55,9 @@ let private runAppHost (arguments: string[]) =
     (processHandle.ExitCode, stdout.TrimEnd(), stderr.TrimEnd())
 
 let private violationClasses (verification: PackageDirectoryVerification) =
-    verification.Violations |> Seq.map (fun violation -> violation.Class) |> Seq.toArray
+    verification.Violations
+    |> Seq.map (fun violation -> violation.Class)
+    |> Seq.toArray
 
 // ---------------------------------------------------------------------------
 // Synthetische Eingaben: Publish-Ausgabe, Native-Dist und Artefaktmanifest
@@ -71,10 +73,24 @@ let private writeText (path: string) (content: string) =
 let private syntheticPublishDir (root: string) =
     let dir = Path.Combine(root, "publish")
     Directory.CreateDirectory(Path.Combine(dir, "runtimes", "native")) |> ignore
-    writeText (Path.Combine(dir, "RiftwardAppStub.dll")) "publish-stub-v1\n" |> ignore
-    writeText (Path.Combine(dir, "RiftwardApp.deps.json")) "{\"stub\":true}\n" |> ignore
+
+    writeText (Path.Combine(dir, "RiftwardAppStub.dll")) "publish-stub-v1\n"
+    |> ignore
+
+    writeText (Path.Combine(dir, "RiftwardApp.deps.json")) "{\"stub\":true}\n"
+    |> ignore
+
     let executable = writeText (Path.Combine(dir, "RiftwardApp")) "elf-stub\n"
-    File.SetUnixFileMode(executable, UnixFileMode.UserRead ||| UnixFileMode.UserWrite ||| UnixFileMode.UserExecute ||| UnixFileMode.GroupRead ||| UnixFileMode.OtherRead)
+
+    File.SetUnixFileMode(
+        executable,
+        UnixFileMode.UserRead
+        ||| UnixFileMode.UserWrite
+        ||| UnixFileMode.UserExecute
+        ||| UnixFileMode.GroupRead
+        ||| UnixFileMode.OtherRead
+    )
+
     dir
 
 let private syntheticNativeDist (root: string) =
@@ -97,8 +113,11 @@ let private syntheticNativeDist (root: string) =
     let shaderHash = sha256File shaderFile
 
     // Loader-Symlinks wie im echten Native-Dist.
-    File.CreateSymbolicLink(Path.Combine(lib, "libstub.so.0"), "libstub.so.0.1.2") |> ignore
-    File.CreateSymbolicLink(Path.Combine(lib, "libstub.so"), "libstub.so.0.1.2") |> ignore
+    File.CreateSymbolicLink(Path.Combine(lib, "libstub.so.0"), "libstub.so.0.1.2")
+    |> ignore
+
+    File.CreateSymbolicLink(Path.Combine(lib, "libstub.so"), "libstub.so.0.1.2")
+    |> ignore
 
     let manifest =
         "{\n"
@@ -125,7 +144,8 @@ let private compositionInput (root: string) (publishDir: string) (nativeDist: st
         binding.CommitSha256,
         binding.TreeSha256,
         PackageDocs.ReadPinCohort(Path.Combine(repositoryRoot, "toolchain.lock.json")),
-        PackageDocs.DotnetRuntimeVersion())
+        PackageDocs.DotnetRuntimeVersion()
+    )
 
 // ---------------------------------------------------------------------------
 // Codec: kanonische Form, Parse-Roundtrip, unterscheidbare Ablehnungsmatrix.
@@ -133,18 +153,53 @@ let private compositionInput (root: string) (publishDir: string) (nativeDist: st
 
 let private sampleManifest () =
     PackageManifest(
-        PackageHeader(PackageContract.PackageId, "0.1.0-alpha.12345678", PackageContract.SupportedRid, PackageContract.RuntimeForm, PackageContract.AlphaMarker),
+        PackageHeader(
+            PackageContract.PackageId,
+            "0.1.0-alpha.12345678",
+            PackageContract.SupportedRid,
+            PackageContract.RuntimeForm,
+            PackageContract.AlphaMarker
+        ),
         PackageSourceBinding(String.replicate 40 "a", String.replicate 64 "b", PackageContract.SourceDateEpoch),
-        PackageArtifactManifestBinding(PackageContract.NativeManifestTargetPath, String.replicate 64 "c", "2026-08-23-cohort-1"),
-        PackageProtection(PackageContract.ProtectionKind, "native", PackageContract.NativeManifestTargetPath, PackageContract.ProtectionExitCodes),
-        [
-            PackageEntry("docs/RELEASE_NOTES.md", PackageEntryKind.File, String.replicate 64 "1", Nullable 12L, null, PackageContract.UnixModeRegular)
-            PackageEntry("native/lib/libstub.so.0", PackageEntryKind.Symlink, null, Nullable(), "libstub.so.0.1.2", PackageContract.UnixModeSymlink)
-            PackageEntry("native/lib/libstub.so.0.1.2", PackageEntryKind.File, String.replicate 64 "2", Nullable 512L, null, PackageContract.UnixModeExecutable)
-        ])
+        PackageArtifactManifestBinding(
+            PackageContract.NativeManifestTargetPath,
+            String.replicate 64 "c",
+            "2026-08-23-cohort-1"
+        ),
+        PackageProtection(
+            PackageContract.ProtectionKind,
+            "native",
+            PackageContract.NativeManifestTargetPath,
+            PackageContract.ProtectionExitCodes
+        ),
+        [ PackageEntry(
+              "docs/RELEASE_NOTES.md",
+              PackageEntryKind.File,
+              String.replicate 64 "1",
+              Nullable 12L,
+              null,
+              PackageContract.UnixModeRegular
+          )
+          PackageEntry(
+              "native/lib/libstub.so.0",
+              PackageEntryKind.Symlink,
+              null,
+              Nullable(),
+              "libstub.so.0.1.2",
+              PackageContract.UnixModeSymlink
+          )
+          PackageEntry(
+              "native/lib/libstub.so.0.1.2",
+              PackageEntryKind.File,
+              String.replicate 64 "2",
+              Nullable 512L,
+              null,
+              PackageContract.UnixModeExecutable
+          ) ]
+    )
 
 let private parseFromBytes (bytes: byte[]) =
-    let path = Path.Combine(tempRoot(), $"manifest-{Guid.NewGuid():N}.json")
+    let path = Path.Combine(tempRoot (), $"manifest-{Guid.NewGuid():N}.json")
     Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
     File.WriteAllBytes(path, bytes)
     PackageManifestCodec.Parse(path)
@@ -161,19 +216,23 @@ let codecRoundtripIsCanonicalAndStable () =
 
     let parsed = parseFromBytes bytes
 
-    if parsed.Package.Version <> manifest.Package.Version
-       || parsed.Source.CommitSha256 <> manifest.Source.CommitSha256
-       || parsed.Source.TreeSha256 <> manifest.Source.TreeSha256
-       || parsed.ArtifactManifest.Sha256 <> manifest.ArtifactManifest.Sha256
-       || parsed.Entries.Count <> manifest.Entries.Count then
+    if
+        parsed.Package.Version <> manifest.Package.Version
+        || parsed.Source.CommitSha256 <> manifest.Source.CommitSha256
+        || parsed.Source.TreeSha256 <> manifest.Source.TreeSha256
+        || parsed.ArtifactManifest.Sha256 <> manifest.ArtifactManifest.Sha256
+        || parsed.Entries.Count <> manifest.Entries.Count
+    then
         failwith "Parse-Roundtrip veraenderte die Manifestwahrheit."
 
     for (original, decoded) in Seq.zip manifest.Entries parsed.Entries do
-        if original.Path <> decoded.Path
-           || original.Kind <> decoded.Kind
-           || original.UnixMode <> decoded.UnixMode
-           || original.LinkTarget <> decoded.LinkTarget
-           || original.Bytes <> decoded.Bytes then
+        if
+            original.Path <> decoded.Path
+            || original.Kind <> decoded.Kind
+            || original.UnixMode <> decoded.UnixMode
+            || original.LinkTarget <> decoded.LinkTarget
+            || original.Bytes <> decoded.Bytes
+        then
             failwith $"Eintrag {original.Path} wich im Roundtrip ab."
 
     if PackageManifestCodec.Encode(parsed) <> bytes then
@@ -197,18 +256,28 @@ let codecRejectsCorruptionMatrixFailClosed () =
     // Schlechtes JSON.
     expectClass "MANIFEST_MALFORMED" (System.Text.Encoding.UTF8.GetBytes("{nope"))
     // Falsche Vertragskennung.
-    expectClass "MANIFEST_MALFORMED" (System.Text.Encoding.UTF8.GetBytes(text.Replace(PackageContract.ContractId, "riftward-paketvertrag-v9")))
+    expectClass
+        "MANIFEST_MALFORMED"
+        (System.Text.Encoding.UTF8.GetBytes(text.Replace(PackageContract.ContractId, "riftward-paketvertrag-v9")))
     // Falsche RID.
     expectClass "MANIFEST_MALFORMED" (System.Text.Encoding.UTF8.GetBytes(text.Replace("\"linux-x64\"", "\"win-x64\"")))
     // Ungueltige Eintragshash-Form.
-    expectClass "MANIFEST_HASH_INVALID" (System.Text.Encoding.UTF8.GetBytes(text.Replace(String.replicate 64 "1", "abcd")))
+    expectClass
+        "MANIFEST_HASH_INVALID"
+        (System.Text.Encoding.UTF8.GetBytes(text.Replace(String.replicate 64 "1", "abcd")))
     // Unsortierte Eintraege.
     let unsorted =
-        text.Replace("\"path\":\"docs/RELEASE_NOTES.md\"", "\"path\":\"zzz-nach-alle.md\"")
+        text
+            .Replace("\"path\":\"docs/RELEASE_NOTES.md\"", "\"path\":\"zzz-nach-alle.md\"")
             .Replace("\"path\":\"native/lib/libstub.so.0\"", "\"path\":\"docs/RELEASE_NOTES.md\"")
+
     expectClass "MANIFEST_MALFORMED" (System.Text.Encoding.UTF8.GetBytes(unsorted))
     // Unsicherer Pfad.
-    expectClass "MANIFEST_MALFORMED" (System.Text.Encoding.UTF8.GetBytes(text.Replace("\"path\":\"docs/RELEASE_NOTES.md\"", "\"path\":\"../escape.md\"")))
+    expectClass
+        "MANIFEST_MALFORMED"
+        (System.Text.Encoding.UTF8.GetBytes(
+            text.Replace("\"path\":\"docs/RELEASE_NOTES.md\"", "\"path\":\"../escape.md\"")
+        ))
 
 // ---------------------------------------------------------------------------
 // Composer + Verifikator: deterministisches Staging, Positivfall und
@@ -218,7 +287,10 @@ let codecRejectsCorruptionMatrixFailClosed () =
 let private composedStage (root: string) =
     let publishDir = syntheticPublishDir root
     let (nativeDist, nativeManifest, _, _) = syntheticNativeDist root
-    let result = PackageComposer.Compose(root, compositionInput root publishDir nativeDist nativeManifest)
+
+    let result =
+        PackageComposer.Compose(root, compositionInput root publishDir nativeDist nativeManifest)
+
     result
 
 let composerProducesDeterministicStagingAndManifest () =
@@ -232,16 +304,23 @@ let composerProducesDeterministicStagingAndManifest () =
         if result1.RootName <> result2.RootName then
             failwith "Zwei Compose-Läufe desselben Baums erzeugten verschiedene Wurzelnamen."
 
-        let manifest1 = File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.ManifestFileName))
-        let manifest2 = File.ReadAllText(Path.Combine(result2.StageRoot, PackageContract.ManifestFileName))
+        let manifest1 =
+            File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.ManifestFileName))
+
+        let manifest2 =
+            File.ReadAllText(Path.Combine(result2.StageRoot, PackageContract.ManifestFileName))
 
         if manifest1 <> manifest2 then
             failwith "Paketmanifest war nicht deterministisch."
 
-        if result1.ManifestSha256 <> sha256File (Path.Combine(result1.StageRoot, PackageContract.ManifestFileName)) then
+        if
+            result1.ManifestSha256
+            <> sha256File (Path.Combine(result1.StageRoot, PackageContract.ManifestFileName))
+        then
             failwith "Anker stimmte nicht mit dem Manifesthash überein."
 
-        let anchor = File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.AnchorFileName))
+        let anchor =
+            File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.AnchorFileName))
 
         if not (anchor.Contains(result1.ManifestSha256)) then
             failwith "Ankerdatei bindet nicht den Manifesthash."
@@ -255,25 +334,25 @@ let composerProducesDeterministicStagingAndManifest () =
 
             previous := entry.Path
 
-        // Version folgt der Baumbindung: tree8 = erste 8 Hex des SHA-256 über den Git-Baum-Digest.
-        let expectedTreeSha256 =
-            Convert.ToHexString(SHA256.HashData(Convert.FromHexString(result1.Manifest.Source.TreeSha256))).ToLowerInvariant()
+        // Version folgt der Baumbindung: tree8 = erste 8 Hexzeichen des gebundenen
+        // Baum-SHA-256 (SHA-256 über den 40-stelligen Git-Baum-Digest).
+        if result1.Manifest.Source.TreeSha256.Length <> 64 then
+            failwith "Baumbindung besitzt nicht die SHA-256-Form."
 
-        if not (result1.Manifest.Package.Version.EndsWith(expectedTreeSha256[..7])) then
+        if not (result1.Manifest.Package.Version.EndsWith(result1.Manifest.Source.TreeSha256[..7])) then
             failwith "Version bindet nicht die ersten 8 Hexzeichen des Baum-SHA-256."
 
         // Release Notes tragen die ehrliche Alpha-Kennzeichnung und Aussagegrenze.
-        let notes = File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.ReleaseNotesTargetPath))
+        let notes =
+            File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.ReleaseNotesTargetPath))
 
-        for required in
-            [ PackageContract.AlphaMarker
-              "kein" 
-              "Q-PRD-001" ] do
+        for required in [ PackageContract.AlphaMarker; "kein"; "Q-PRD-001" ] do
             if not (notes.Contains(required)) then
                 failwith $"Release Notes erwähnen '{required}' nicht."
 
         // Lizenzen stammen aus dem Lockfile und benennen die Komponenten.
-        let licenses = File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.LicensesTargetPath))
+        let licenses =
+            File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.LicensesTargetPath))
 
         for componentName in [ "sdl3"; "bgfx"; "bx"; "bimg" ] do
             if not (licenses.Contains(componentName)) then
@@ -294,7 +373,10 @@ let verifierDistinguishesViolationMatrixFailClosed () =
         if not positive.Valid then
             failwith $"Positivfall schlug fehl: {positive.Violations}"
 
-        if positive.ArtifactChecks.Count <> 3 || not (positive.ArtifactChecks |> Seq.forall (fun check -> check.Valid)) then
+        if
+            positive.ArtifactChecks.Count <> 3
+            || not (positive.ArtifactChecks |> Seq.forall (fun check -> check.Valid))
+        then
             failwith "Die drei synthetischen Artefakte wurden nicht alle freigegeben."
 
         // Manipulationsmatrix: jede Klasse bleibt unterscheidbar.
@@ -327,11 +409,11 @@ let verifierDistinguishesViolationMatrixFailClosed () =
                 Directory.Delete(caseRoot, true)
                 reraise ()
 
-        // ENTRY_HASH_MISMATCH: Inhaltsmanipulation.
+        // ENTRY_HASH_MISMATCH: Inhaltsmanipulation mit gleicher Bytezahl.
         let hashCase =
             mutateStage (fun stage ->
                 let path = Path.Combine(stage, "native", "lib", "libriftstub.so")
-                File.WriteAllText(path, "manipuliert"))
+                File.WriteAllText(path, String.replicate 64 "z"))
 
         if not (Array.contains "ENTRY_HASH_MISMATCH" hashCase) then
             failwith "Inhaltsmanipulation ergab nicht ENTRY_HASH_MISMATCH."
@@ -362,7 +444,10 @@ let verifierDistinguishesViolationMatrixFailClosed () =
         // ANCHOR_MISMATCH.
         let anchorCase =
             mutateStage (fun stage ->
-                File.WriteAllText(Path.Combine(stage, PackageContract.AnchorFileName), String.replicate 64 "0" + "  package-manifest.json\n"))
+                File.WriteAllText(
+                    Path.Combine(stage, PackageContract.AnchorFileName),
+                    String.replicate 64 "0" + "  package-manifest.json\n"
+                ))
 
         if not (Array.contains "ANCHOR_MISMATCH" anchorCase) then
             failwith "Falscher Anker ergab nicht ANCHOR_MISMATCH."
@@ -423,8 +508,10 @@ let archiveWriteIsDeterministicAndVerifiable () =
         PackageArchive.Extract(archive1, extractDir)
         let extractedRoot = Directory.GetDirectories(extractDir) |> Seq.exactlyOne
 
-        if File.ReadAllText(Path.Combine(extractedRoot, PackageContract.AnchorFileName))
-           <> File.ReadAllText(Path.Combine(result.StageRoot, PackageContract.AnchorFileName)) then
+        if
+            File.ReadAllText(Path.Combine(extractedRoot, PackageContract.AnchorFileName))
+            <> File.ReadAllText(Path.Combine(result.StageRoot, PackageContract.AnchorFileName))
+        then
             failwith "Entpackter Anker wich vom Staging ab."
 
         let verification = PackageVerifier.VerifyDirectory(extractedRoot)
@@ -456,7 +543,8 @@ let cliUsageRejectionsStayControlled () =
             failwith $"Unbekannte RID ergab {exitCode2} statt 2."
 
         // --verify schließt --output-dir aus → 2.
-        let (exitCode3, _, _) = runAppHost [| "package"; "--verify"; "x.tar.gz"; "--output-dir"; "y" |]
+        let (exitCode3, _, _) =
+            runAppHost [| "package"; "--verify"; "x.tar.gz"; "--output-dir"; "y" |]
 
         if exitCode3 <> 2 then
             failwith $"Kombinierte Flags ergaben {exitCode3} statt 2."
@@ -477,7 +565,8 @@ let cliUsageRejectionsStayControlled () =
 let cliVerifyRejectsManipulatedArchiveWithDistinguishableClass () =
     // Der Fall benötigt ein echtes Paket; ohne Native-Dist kontrolliert 39
     // (dokumentierte Voraussetzung, kein stiller Skip, Präzedenz T-032).
-    let nativeManifest = Path.Combine(repositoryRoot, PackageContract.NativeManifestSourcePath)
+    let nativeManifest =
+        Path.Combine(repositoryRoot, PackageContract.NativeManifestSourcePath)
 
     if not (File.Exists(nativeManifest)) then
         let root = tempRoot ()
@@ -514,7 +603,8 @@ let cliVerifyRejectsManipulatedArchiveWithDistinguishableClass () =
             // selbst sind gzip-komprimiert und werden am Archivhash gebunden).
             File.WriteAllText(archive + ".sha256", String.replicate 64 "0" + "  " + Path.GetFileName(archive) + "\n")
 
-            let (tamperedExit, tamperedStdout, _) = runAppHost [| "package"; "--verify"; archive |]
+            let (tamperedExit, tamperedStdout, _) =
+                runAppHost [| "package"; "--verify"; archive |]
 
             if tamperedExit <> 40 then
                 failwith $"Manipuliertes Paket ergab {tamperedExit} statt 40."
@@ -525,7 +615,8 @@ let cliVerifyRejectsManipulatedArchiveWithDistinguishableClass () =
             // Negativ: fehlendes Sidecar → SIDE_CAR_MISSING.
             File.Delete(archive + ".sha256")
 
-            let (missingExit, missingStdout, _) = runAppHost [| "package"; "--verify"; archive |]
+            let (missingExit, missingStdout, _) =
+                runAppHost [| "package"; "--verify"; archive |]
 
             if missingExit <> 40 || not (missingStdout.Contains("SIDE_CAR_MISSING")) then
                 failwith $"Fehlendes Sidecar ergab {missingExit} ohne SIDE_CAR_MISSING."
@@ -544,13 +635,15 @@ let exitCodeMappingBindsPackageCodes () =
     if ExitCodes.Map(PlatformErrorCode.PackageVerificationFailed) <> 40 then
         failwith "Paketverifikations-Exitcode ist nicht 40."
 
-    let nativeUnterbau = File.ReadAllText(Path.Combine(repositoryRoot, "docs", "NATIVE_UNTERBAU.md"))
+    let nativeUnterbau =
+        File.ReadAllText(Path.Combine(repositoryRoot, "docs", "NATIVE_UNTERBAU.md"))
 
     for documented in [ "| 39 |"; "| 40 |" ] do
         if not (nativeUnterbau.Contains(documented, StringComparison.Ordinal)) then
             failwith $"docs/NATIVE_UNTERBAU.md dokumentiert {documented} nicht."
 
-    let paketvertrag = File.ReadAllText(Path.Combine(repositoryRoot, "docs", "PAKETVERTRAG.md"))
+    let paketvertrag =
+        File.ReadAllText(Path.Combine(repositoryRoot, "docs", "PAKETVERTRAG.md"))
 
     for required in
         [ PackageContract.ContractId
