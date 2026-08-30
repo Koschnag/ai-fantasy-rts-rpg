@@ -157,11 +157,12 @@ Native-Quellarchive —, danach läuft der Bau offline.
   .NET-Runtime samt Pakethinweis auf die NuGet-Notices). Rückrollweg:
   Felderweiterungen sind additive Schemaversion 2; bestehende Felder werden
   nicht umgedeutet.
-- Quellbindung: `source.commitSha256` ist der volle Commit-SHA-256
-  (`git rev-parse HEAD`); `source.treeSha256` ist der SHA-256 über den
-  40-stelligen Git-Baum-Digest des hypothetischen Add-A-Baums (privater
-  Temporärindex im vertraglichen Arbeitsbereich, der echte Index bleibt
-  unberührt); `<tree8>` sind die ersten 8 Hexzeichen dieses Wertes.
+- Quellbindung: `source.commitSha256` ist der volle Git-Commit-Digest
+  (`git rev-parse HEAD`, 40 Hexzeichen; 64 in SHA-256-Repositorys);
+  `source.treeSha256` ist der SHA-256 über den 40-stelligen Git-Baum-Digest
+  des hypothetischen Add-A-Baums (privater Temporärindex im vertraglichen
+  Arbeitsbereich, der echte Index bleibt unberührt); `<tree8>` sind die
+  ersten 8 Hexzeichen dieses Wertes.
 
 ## 5. Versionierungs- und Kennzeichnungsschema
 

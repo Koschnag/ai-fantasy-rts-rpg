@@ -326,7 +326,11 @@ public static class PackageRunner
         }
     }
 
-    private static readonly JsonSerializerOptions ReportOptions = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions ReportOptions = new()
+    {
+        WriteIndented = false,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
 
     private static void WriteReport(object report)
     {

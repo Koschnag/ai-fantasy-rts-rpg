@@ -283,9 +283,9 @@ public static class PackageManifestCodec
         var commit = RequiredString(element, "commitSha256");
         var tree = RequiredString(element, "treeSha256");
 
-        if (!IsLowerHex64(commit) || !IsLowerHex64(tree))
+        if (!IsGitDigest(commit) || !IsLowerHex64(tree))
         {
-            throw Malformed("Commit-/Baumbindung besitzt keine gueltige SHA-256-Form.");
+            throw Malformed("Commit-/Baumbindung besitzt keine gueltige Digest-Form.");
         }
 
         if (!element.TryGetProperty("sourceDateEpoch", out var epoch) || epoch.GetInt64() != PackageContract.SourceDateEpoch)
@@ -475,4 +475,8 @@ public static class PackageManifestCodec
 
     private static bool IsLowerHex64(string value) =>
         value.Length == 64 && value.All(static character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    /// <summary>Akzeptiert den vollen Git-Commit-Digest (40 Hexzeichen) und SHA-256-Repositorys (64).</summary>
+    private static bool IsGitDigest(string value) =>
+        (value.Length == 40 || value.Length == 64) && value.All(static character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
 }
