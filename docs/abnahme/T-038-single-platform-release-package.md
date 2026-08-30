@@ -93,10 +93,15 @@ ausgewiesen `OFFEN`.
 ## Evidenz (autoritative Läufe, `artifacts/t038/authoritative/`)
 
 - **Doppelbau byteidentisch:** zwei Paketbaue desselben Baums liefern
-  SHA-256 `1c22d683f6abd9850126bbed5efffc8273dd87af8381ecaa9ed80bab6b76a7db`
-  (Version `0.1.0-alpha.59004992`, 227 manifestierte Einträge, 96 896 635
+  SHA-256 `3230ffe7a593623eeb87a31f57d980218b35ad184a0b5a6c12d8269ce8b19987`
+  (Version `0.1.0-alpha.1893a438`, 227 manifestierte Einträge, 96 896 957
   Bytes Nutzinhalt); beide Archive bestehen `--verify` mit `ok=true`
-  (`verify-a.json`, `verify-b.json`).
+  (`verify-a.json`, `verify-b.json`). Während der Evidenzphase wurde eine
+  Wahrheitsreparatur an den generierten Release Notes vorgenommen (das
+  dokumentierte interaktive Verifikationskommando um `--horizon-ticks 11000`
+  ergänzt, damit es am gebundenen Skriptkopf nicht mit Code 37 scheitert);
+  die obige Bindung stammt vom reparierten Finalbaum, die Suite (326/326)
+  und alle Gates wurden danach erneut grün ausgeführt.
 - **Frischsystem-Verifikation:** das in ein frisches Verzeichnis extrahierte
   Paket läuft unter `env -i` (ohne Repository-Pfad, ohne SDK-Aufruf, ohne
   Netzwerk) und besteht `bench --scenario bench-sim` (`gate.pass=true`) und
@@ -116,7 +121,7 @@ ausgewiesen `OFFEN`.
 - **Blobvergleich:** alle Quelldateien von `Riftward.Simulation` sind gegen
   den Vorblob (HEAD 46d02e5) byteidentisch (`git hash-object` je Datei,
   `simulation-blob-files.txt`).
-- **Testmatrix:** Suite 326/326 (317 Bestand + 9 neue T-038-Einheiten), davon
+- **Testmatrix:** Suite 326/326 (318 Bestand + 8 neue T-038-Einheiten), davon
   gebunden: Codec-Roundtrip/Kanonform, Ablehnungsmatrix
   (schlechtes JSON, falsche Vertragskennung, falsche RID, ungültige
   Hashform, Unsortiertheit, unsicherer Pfad), deterministisches Staging und
