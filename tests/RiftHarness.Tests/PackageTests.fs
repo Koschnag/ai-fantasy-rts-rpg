@@ -624,6 +624,34 @@ let cliVerifyRejectsManipulatedArchiveWithDistinguishableClass () =
             if Directory.Exists(root) then
                 Directory.Delete(root, true)
 
+let cliVerifyRejectsUnreadableArchiveWithDistinguishableClass () =
+    // Korrupte Archivbytes mit konsistent gefaschtem Sidecar (z. B. nach einem
+    // Rekompressions- oder Rehash-Unfall) bleiben ein kontrollierter Befund:
+    // Exit 40 mit Pruefreport und Klasse ARCHIVE_UNREADABLE, niemals ein
+    // unkontrollierter Prozessabbruch.
+    let root = tempRoot ()
+
+    try
+        let archive = Path.Combine(root, "kein-gzip.tar.gz")
+        File.WriteAllText(archive, "not-a-gzip-archive-at-all\n")
+
+        let hash =
+            use stream = File.OpenRead(archive)
+            Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant()
+
+        File.WriteAllText(archive + ".sha256", hash + "  kein-gzip.tar.gz\n")
+
+        let (exitCode, stdout, _) = runAppHost [| "package"; "--verify"; archive |]
+
+        if exitCode <> 40 then
+            failwith $"Unlesbares Archiv ergab {exitCode} statt 40."
+
+        if not (stdout.Contains("ARCHIVE_UNREADABLE")) then
+            failwith "Unlesbares Archiv ergab nicht ARCHIVE_UNREADABLE."
+    finally
+        if Directory.Exists(root) then
+            Directory.Delete(root, true)
+
 // ---------------------------------------------------------------------------
 // Exitcode- und Doku-Bindung.
 // ---------------------------------------------------------------------------

@@ -142,7 +142,10 @@ Native-Quellarchive —, danach läuft der Bau offline.
   `MANIFEST_MISSING`, `MANIFEST_MALFORMED`, `MANIFEST_HASH_INVALID`,
   `ANCHOR_MISSING`, `ANCHOR_MISMATCH`, `SIDE_CAR_MISSING`,
   `SIDE_CAR_MISMATCH`, `ENTRY_MISSING`, `ENTRY_INCOMPLETE`,
-  `ENTRY_HASH_MISMATCH`, `ENTRY_SYMLINK_MISMATCH`, `UNMANIFESTED_FILE`;
+  `ENTRY_HASH_MISMATCH`, `ENTRY_SYMLINK_MISMATCH`, `UNMANIFESTED_FILE`,
+  `ARCHIVE_UNREADABLE` (korrupte oder nicht entpackbare Archivbytes mit
+  konsistentem Sidecar bleiben ein kontrollierter Befund mit Prüfreport,
+  niemals ein unkontrollierter Prozessabbruch);
   als Aggregatkennung über der bestehenden Host-Prüfung zusätzlich
   `ARTIFACT_MANIFEST_REJECTED` mit gebundenem Bestandsgrund.
   Zusätzlich prüft die Verifikation das gebündelte Native-Artefaktmanifest

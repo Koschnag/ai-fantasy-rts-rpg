@@ -2,7 +2,7 @@
 
 **Status:** Implementierter Kandidat zur frischen Review. Der gatende
 Abschnitt 0 (versionierter Paketvertrag `docs/PAKETVERTRAG.md` V1), der
-öffentliche `package`-Befehl (Build und `--verify`), die Testmatrix (326/326)
+öffentliche `package`-Befehl (Build und `--verify`), die Testmatrix (327/327)
 und alle lokalen Gates sind grün. Der fensterpflichtige Paketsmoke bleibt
 wegen der displaylosen Umgebung ein ausgewiesener Restpunkt mit
 kontrolliertem Code-19-Nachweis (Präzedenz T-023/T-032/T-033 bis T-037).
@@ -33,7 +33,7 @@ Der gatende Vertragsspike wurde vor der Implementierung abgeschlossen
   einmalige Erstbeschaffung des Runtime-Packs in den lokalen NuGet-Cache ist
   die dokumentierte Offline-Ausnahme (analog zur Native-Cache-Erstbeschaffung).
 - **Manifest-/Checksum-/Attributionsschema** (Abschnitt 4): SHA-256 je Datei
-  plus Paketanker (`package-manifest.sha256`) und Archiv-Sidecar; zwölf
+  plus Paketanker (`package-manifest.sha256`) und Archiv-Sidecar; dreizehn
   unterscheidbare Verletzungsklassen plus `ARTIFACT_MANIFEST_REJECTED` über
   die bestehende Host-Prüfung; ehrliche interne-Alpha-Kennzeichnung; das
   Lizenz-/Attributionsmanifest wird deterministisch aus `toolchain.lock.json`
@@ -121,7 +121,7 @@ ausgewiesen `OFFEN`.
 - **Blobvergleich:** alle Quelldateien von `Riftward.Simulation` sind gegen
   den Vorblob (HEAD 46d02e5) byteidentisch (`git hash-object` je Datei,
   `simulation-blob-files.txt`).
-- **Testmatrix:** Suite 326/326 (318 Bestand + 8 neue T-038-Einheiten), davon
+- **Testmatrix:** Suite 327/327 (318 Bestand + 9 T-038-Einheiten), davon
   gebunden: Codec-Roundtrip/Kanonform, Ablehnungsmatrix
   (schlechtes JSON, falsche Vertragskennung, falsche RID, ungültige
   Hashform, Unsortiertheit, unsicherer Pfad), deterministisches Staging und
@@ -143,6 +143,20 @@ ausgewiesen `OFFEN`.
   mit 0 Warnungen (Publish erzeugt keine neuen Compiler-/Analyzer-/AOT-/Trimming-
   Warnungen; `TreatWarningsAsErrors` erzwingt dies), security PASS,
   rag-build OK, `rift.sh verify` valid (`runsChecked=69`).
+- **Unabhängiger Review-Lauf (2026-08-30) und Wahrheitsreparatur:** die
+  Review-Sitzung fand einen In-Scope-Defekt am Systemrand des
+  `--verify`-Vertrags und reparierte ihn im selben Kandidaten: korrupte oder
+  nicht entpackbare Archivbytes mit konsistentem Sidecar führten zuvor zu
+  einem unkontrollierten Prozessabbruch (SIGABRT, Exit 134, kein
+  Prüfreport); der Verifikator weist sie jetzt kontrolliert mit Exit 40,
+  Prüfreport und der Vertragsklasse `ARCHIVE_UNREADABLE` ab (PAKETVERTRAG
+  Abschnitt 4 um die Klasse ergänzt; ebenso falsch typisierte Manifestfelder
+  kontrolliert als `MANIFEST_MALFORMED`). Testmatrix danach 327/327 (neu:
+  CLI-Verifikation des unlesbaren Archivs), Doppelbau auf dem Reparaturbaum
+  erneut byteidentisch, Frischsystemkette (bench-sim/savecheck/
+  Speicher-/Fortsetzungslauf) aus dem Reparaturpaket erneut mit
+  builderidentischen Endhashes gebunden, Manipulationsabweisung 17 und
+  displayloser Code-19-Nachweis erneut belegt.
 
 ## AC-Abdeckung
 

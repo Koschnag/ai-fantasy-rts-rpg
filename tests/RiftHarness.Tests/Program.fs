@@ -2241,6 +2241,8 @@ module Program =
               "T-038 package CLI usage rejections stay controlled", PackageTests.cliUsageRejectionsStayControlled
               "T-038 package CLI verify rejects manipulated archive with distinguishable class",
               PackageTests.cliVerifyRejectsManipulatedArchiveWithDistinguishableClass
+              "T-038 package CLI verify rejects unreadable archive with distinguishable class",
+              PackageTests.cliVerifyRejectsUnreadableArchiveWithDistinguishableClass
               "T-038 package exit code mapping binds package codes and documents",
               PackageTests.exitCodeMappingBindsPackageCodes ]
 

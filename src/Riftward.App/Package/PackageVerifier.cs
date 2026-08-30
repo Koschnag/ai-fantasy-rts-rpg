@@ -39,6 +39,16 @@ public static class PackageVerifier
             violations.Add(new PackageViolation(exception.ViolationClass, exception.Path, exception.Detail));
             return new PackageDirectoryVerification(false, violations, artifactChecks);
         }
+        catch (Exception exception) when (exception is FormatException or InvalidOperationException or JsonException)
+        {
+            // Ein in der Struktur gueltiges, aber vertraglich falsch typisiertes
+            // Manifest darf den Verifikator nicht unkontrolliert beenden.
+            violations.Add(new PackageViolation(
+                PackageViolationClassNames.Of(PackageViolationClass.ManifestMalformed),
+                PackageContract.ManifestFileName,
+                $"Manifest nicht lesbar: {exception.Message}"));
+            return new PackageDirectoryVerification(false, violations, artifactChecks);
+        }
 
         // Wurzelverzeichnisname an die Version gebunden (sichere Entpackform).
         var actualRootName = new DirectoryInfo(packageRoot).Name;
@@ -292,7 +302,21 @@ public static class PackageVerifier
             Directory.Delete(workDirectory, recursive: true);
         }
 
-        PackageArchive.Extract(archivePath, workDirectory);
+        try
+        {
+            PackageArchive.Extract(archivePath, workDirectory);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            // Korrupte oder nicht entpackbare Archivbytes mit konsistentem
+            // Sidecar bleiben ein kontrollierter, unterscheidbarer Befund
+            // (Exit 40 mit Pruefreport), niemals ein unkontrollierter Abbruch.
+            violations.Add(new PackageViolation(
+                PackageViolationClassNames.Of(PackageViolationClass.ArchiveUnreadable),
+                Path.GetFileName(archivePath),
+                $"Archiv konnte nicht entpackt werden: {exception.Message}"));
+            return new PackageDirectoryVerification(false, violations, Array.Empty<PackageArtifactCheck>());
+        }
 
         var directories = Directory.GetDirectories(workDirectory);
 

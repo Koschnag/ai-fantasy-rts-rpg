@@ -15,6 +15,7 @@ public enum PackageViolationClass
     EntryHashMismatch,
     EntrySymlinkMismatch,
     UnmanifestedFile,
+    ArchiveUnreadable,
 }
 
 /// <summary>Vertragskennung einer Verletzungsklasse im maschinenlesbaren Report.</summary>
@@ -35,6 +36,7 @@ public static class PackageViolationClassNames
         PackageViolationClass.EntryHashMismatch => "ENTRY_HASH_MISMATCH",
         PackageViolationClass.EntrySymlinkMismatch => "ENTRY_SYMLINK_MISMATCH",
         PackageViolationClass.UnmanifestedFile => "UNMANIFESTED_FILE",
+        PackageViolationClass.ArchiveUnreadable => "ARCHIVE_UNREADABLE",
         _ => throw new ArgumentOutOfRangeException(nameof(violationClass)),
     };
 }
