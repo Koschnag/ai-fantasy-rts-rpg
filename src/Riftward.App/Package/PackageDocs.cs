@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Riftward.Platform;
 
 namespace Riftward.App.Package;
 
@@ -20,12 +22,12 @@ public static class PackageDocs
         var text = new StringBuilder();
         text.AppendLine("# Riftward Interne Alpha — Release Notes");
         text.AppendLine();
-        text.AppendLine($"- **Paket:** {PackageContract.PackageId} {manifest.Package.Version}");
-        text.AppendLine($"- **Archiv:** {archiveFileName} (Prüfsumme in der Sidecar-Datei {archiveFileName}.sha256)");
-        text.AppendLine($"- **RID:** {manifest.Package.Rid}");
-        text.AppendLine($"- **Runtimeform:** {manifest.Package.RuntimeForm}");
-        text.AppendLine($"- **Quellbindung:** Commit {manifest.Source.CommitSha256}, Baum {manifest.Source.TreeSha256}");
-        text.AppendLine($"- **Alpha-Marker:** {manifest.Package.AlphaMarker}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"- **Paket:** {PackageContract.PackageId} {manifest.Package.Version}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"- **Archiv:** {archiveFileName} (Prüfsumme in der Sidecar-Datei {archiveFileName}.sha256)");
+        text.AppendLine(CultureInfo.InvariantCulture, $"- **RID:** {manifest.Package.Rid}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"- **Runtimeform:** {manifest.Package.RuntimeForm}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"- **Quellbindung:** Commit {manifest.Source.CommitSha256}, Baum {manifest.Source.TreeSha256}");
+        text.AppendLine(CultureInfo.InvariantCulture, $"- **Alpha-Marker:** {manifest.Package.AlphaMarker}");
         text.AppendLine();
         text.AppendLine("## Aussagegrenze (verbindlich)");
         text.AppendLine();
@@ -93,11 +95,11 @@ public static class PackageDocs
             var pin = component.RefType == "tag"
                 ? $"Tag `{component.Ref}`, Commit `{component.Commit}`"
                 : $"Commit `{component.Commit}`";
-            text.AppendLine($"| {component.Id} | {pin} | {component.LicenseSpdx} | {component.Purpose} |");
+            text.AppendLine(CultureInfo.InvariantCulture, $"| {component.Id} | {pin} | {component.LicenseSpdx} | {component.Purpose} |");
         }
 
         text.AppendLine();
-        text.AppendLine($"## Gebündelte .NET-Runtime ({dotnetRuntimeVersion})");
+        text.AppendLine(CultureInfo.InvariantCulture, $"## Gebündelte .NET-Runtime ({dotnetRuntimeVersion})");
         text.AppendLine();
         text.AppendLine("Das Paket bündelt die Microsoft .NET-Runtime (CoreCLR, selbstenthalten,");
         text.AppendLine("ohne AOT und Trimming). Die Runtime steht unter der MIT-Lizenz:");

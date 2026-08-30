@@ -161,8 +161,7 @@ public static class PackageManifestCodec
     {
         if (!File.Exists(path))
         {
-            throw new PackageVerificationException(
-                PackageViolationClass.ManifestMissing,
+            throw PackageVerificationException.Of(PackageViolationClass.ManifestMissing,
                 PackageContract.ManifestFileName,
                 "Paketmanifest fehlt.");
         }
@@ -170,8 +169,7 @@ public static class PackageManifestCodec
         var info = new FileInfo(path);
         if (info.Length is 0 or > MaxManifestBytes)
         {
-            throw new PackageVerificationException(
-                PackageViolationClass.ManifestMalformed,
+            throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                 PackageContract.ManifestFileName,
                 $"Unzulaessige Manifestgroesse ({info.Length} Bytes).");
         }
@@ -183,8 +181,7 @@ public static class PackageManifestCodec
         }
         catch (JsonException exception)
         {
-            throw new PackageVerificationException(
-                PackageViolationClass.ManifestMalformed,
+            throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                 PackageContract.ManifestFileName,
                 $"Manifest ist kein gueltiges JSON: {exception.Message}");
         }
@@ -221,9 +218,9 @@ public static class PackageManifestCodec
     public static bool IsSafeRelativePath(string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath)
-            || relativePath.Contains('\\', StringComparison.Ordinal)
-            || relativePath.StartsWith('/', StringComparison.Ordinal)
-            || relativePath.EndsWith('/', StringComparison.Ordinal)
+            || relativePath.Contains('\\')
+            || relativePath.StartsWith('/')
+            || relativePath.EndsWith('/')
             || relativePath.Split('/').Any(static segment => segment is ".." or "."))
         {
             return false;
@@ -233,7 +230,7 @@ public static class PackageManifestCodec
     }
 
     private static PackageVerificationException Malformed(string detail) =>
-        new(PackageViolationClass.ManifestMalformed, PackageContract.ManifestFileName, detail);
+        PackageVerificationException.Of(PackageViolationClass.ManifestMalformed, PackageContract.ManifestFileName, detail);
 
     private static PackageHeader ParseHeader(JsonElement root)
     {
@@ -369,7 +366,7 @@ public static class PackageManifestCodec
         return new PackageProtection(kind, artifactsDir, manifestPath, PackageContract.ProtectionExitCodes);
     }
 
-    private static IReadOnlyList<PackageEntry> ParseEntries(JsonElement root)
+    private static List<PackageEntry> ParseEntries(JsonElement root)
     {
         if (!root.TryGetProperty("entries", out var element) || element.ValueKind != JsonValueKind.Array)
         {
@@ -390,16 +387,14 @@ public static class PackageManifestCodec
 
             if (!IsSafeRelativePath(path))
             {
-                throw new PackageVerificationException(
-                    PackageViolationClass.ManifestMalformed,
+                throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                     path,
                     "Unzulaessiger Manifestpfad.");
             }
 
             if (previousPath is not null && string.CompareOrdinal(previousPath, path) >= 0)
             {
-                throw new PackageVerificationException(
-                    PackageViolationClass.ManifestMalformed,
+                throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                     path,
                     "Manifesteinträge sind nicht strikt aufsteigend sortiert.");
             }
@@ -413,8 +408,7 @@ public static class PackageManifestCodec
                 && mode != PackageContract.UnixModeRegular
                 && mode != PackageContract.UnixModeSymlink)
             {
-                throw new PackageVerificationException(
-                    PackageViolationClass.ManifestMalformed,
+                throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                     path,
                     $"Unzulaessiger Unix-Modus {mode}.");
             }
@@ -425,16 +419,14 @@ public static class PackageManifestCodec
 
                 if (!IsLowerHex64(sha256))
                 {
-                    throw new PackageVerificationException(
-                        PackageViolationClass.ManifestHashInvalid,
+                    throw PackageVerificationException.Of(PackageViolationClass.ManifestHashInvalid,
                         path,
                         "Manifesteintrag besitzt keine gueltige SHA-256-Form.");
                 }
 
                 if (!item.TryGetProperty("bytes", out var bytes) || bytes.GetInt64() < 0)
                 {
-                    throw new PackageVerificationException(
-                        PackageViolationClass.ManifestMalformed,
+                    throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                         path,
                         "Manifesteintrag besitzt keine nichtnegative Bytegroesse.");
                 }
@@ -445,10 +437,9 @@ public static class PackageManifestCodec
             {
                 var target = RequiredString(item, "target");
 
-                if (string.IsNullOrWhiteSpace(target) || target.Contains('/', StringComparison.Ordinal) || target.StartsWith('/', StringComparison.Ordinal))
+                if (string.IsNullOrWhiteSpace(target) || target.Contains('/') || target.StartsWith('/'))
                 {
-                    throw new PackageVerificationException(
-                        PackageViolationClass.ManifestMalformed,
+                    throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                         path,
                         "Symlinkeintrag besitzt kein relativ, einzelnes Ziel.");
                 }
@@ -457,8 +448,7 @@ public static class PackageManifestCodec
             }
             else
             {
-                throw new PackageVerificationException(
-                    PackageViolationClass.ManifestMalformed,
+                throw PackageVerificationException.Of(PackageViolationClass.ManifestMalformed,
                     path,
                     $"Unbekannter Eintragstyp {type}.");
             }

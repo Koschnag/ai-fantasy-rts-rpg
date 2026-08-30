@@ -1,4 +1,6 @@
 using System.Formats.Tar;
+using System.IO.Compression;
+using Riftward.Platform;
 using System.Security.Cryptography;
 
 namespace Riftward.App.Package;
@@ -21,7 +23,7 @@ public static class PackageArchive
 
         using var fileStream = File.Create(archivePath);
         using (var gzip = new GZipStream(fileStream, CompressionLevel.Optimal, leaveOpen: true))
-        using (var writer = new TarWriter(gzip, TarEntryFormat.Ustar))
+        using (var writer = new TarWriter(gzip, TarEntryFormat.Ustar, leaveOpen: false))
         {
             WriteDirectoryEntry(writer, rootName);
 
@@ -37,7 +39,7 @@ public static class PackageArchive
                 {
                     var entry = new UstarTarEntry(TarEntryType.SymbolicLink, entryName)
                     {
-                        LinkTarget = linkTarget,
+                        LinkName = linkTarget!,
                         Mode = UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute
                             | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute
                             | UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute,
@@ -140,10 +142,18 @@ public static class PackageArchive
     }
 
     private static void ApplyFixedTime(UstarTarEntry entry) =>
-        entry.MTime = DateTimeOffset.FromUnixTimeSeconds(PackageContract.SourceDateEpoch).ToUniversalTime();
+        entry.ModificationTime = DateTimeOffset.FromUnixTimeSeconds(PackageContract.SourceDateEpoch).ToUniversalTime();
 
     private static bool IsExecutable(string filePath)
     {
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new PlatformException(new PlatformError(
+                PlatformErrorCode.UnsupportedPlatform,
+                "Der Paketbau unterstützt nur linux-x64.",
+                filePath));
+        }
+
         var mode = File.GetUnixFileMode(filePath);
         return (mode & UnixFileMode.UserExecute) != 0
             || (mode & UnixFileMode.GroupExecute) != 0

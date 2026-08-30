@@ -264,7 +264,12 @@ case "$rift_command" in
     rift_harness verify
     find .ai -type f -name '*.json' -not -path '.ai/runtime/*' -exec jq empty {} +
     ;;
-  check|package)
+  package)
+    rift_need_dotnet
+    rift_need_app_output
+    exec dotnet "$rift_root/src/Riftward.App/bin/Release/net10.0/Riftward.App.dll" package "$@"
+    ;;
+  check)
     rift_unavailable "$rift_command"
     ;;
   help|-h|--help)
@@ -298,6 +303,12 @@ case "$rift_command" in
       '             fehlgeschlagener opt-in Abgriff mit 38; Fortsetzung' \
       '             (T-037) über --slot-dir/--slot mit --save-at-tick oder' \
       '             --load-slot (headless) bzw. den Keymap-Aktionen' \
+      '  package ...  versioniertes, checksumgebundenes linux-x64-' \
+      '             Alphapaket erzeugen (T-038, Paketvertrag' \
+      '             docs/PAKETVERTRAG.md V1) oder mit --verify prüfen;' \
+      '             unbekannte RIDs/Optionen schlagen mit Usage-Code 2' \
+      '             fehl, ein gescheiterter Bau mit 39, eine' \
+      '             gescheiterte Verifikation mit 40' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \

@@ -1,7 +1,18 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Riftward.Platform;
 
 namespace Riftward.App.Package;
+
+/// <summary>Kontrollierter Usage-Fehler des package-Befehls (bestehende Bedeutung 2).</summary>
+public sealed class PackageUsageException : Exception
+{
+    /// <summary>Erzeugt einen Usage-Fehler.</summary>
+    public PackageUsageException(string message)
+        : base(message)
+    {
+    }
+}
 
 /// <summary>
 /// Öffentlicher package-Befehl (T-038, Paketvertrag V1): baut für genau
@@ -16,6 +27,21 @@ public static class PackageRunner
 
     /// <summary>Einstieg des Befehls.</summary>
     public static int Run(CommandLineArgs arguments)
+    {
+        try
+        {
+            return Dispatch(arguments);
+        }
+        catch (PackageUsageException exception)
+        {
+            Console.Error.WriteLine(exception.Message);
+            Console.Error.WriteLine("Verwendung: Riftward.App package [--output-dir VERZ] [--work VERZ] [--rid linux-x64]");
+            Console.Error.WriteLine("            Riftward.App package --verify ARCHIV.tar.gz [--work VERZ]");
+            return ExitCodes.Usage;
+        }
+    }
+
+    private static int Dispatch(CommandLineArgs arguments)
     {
         string? outputDir = null;
         string? workDir = null;
@@ -44,10 +70,7 @@ public static class PackageRunner
 
                     if (rid != PackageContract.SupportedRid)
                     {
-                        throw new PlatformException(new PlatformError(
-                            PlatformErrorCode.Usage,
-                            $"Unbekannte RID '{rid}'; der Paketvertrag umfasst genau {PackageContract.SupportedRid}.",
-                            "package"));
+                        throw new PackageUsageException($"Unbekannte RID '{rid}'; der Paketvertrag umfasst genau {PackageContract.SupportedRid}.");
                     }
 
                     break;
@@ -55,10 +78,7 @@ public static class PackageRunner
                     verifyArchive = RequireValue(arguments, argument);
                     break;
                 default:
-                    throw new PlatformException(new PlatformError(
-                        PlatformErrorCode.Usage,
-                        $"Unbekannte Option '{argument}' im package-Befehl.",
-                        "package"));
+                    throw new PackageUsageException($"Unbekannte Option '{argument}' im package-Befehl.");
             }
         }
 
@@ -66,10 +86,7 @@ public static class PackageRunner
         {
             if (outputDir is not null || rid is not null)
             {
-                throw new PlatformException(new PlatformError(
-                    PlatformErrorCode.Usage,
-                    "--verify schließt --output-dir und --rid aus.",
-                    "package"));
+                throw new PackageUsageException("--verify schließt --output-dir und --rid aus.");
             }
 
             return Verify(verifyArchive, workDir);
@@ -84,10 +101,7 @@ public static class PackageRunner
 
         if (string.IsNullOrEmpty(value) || value.StartsWith("--", StringComparison.Ordinal))
         {
-            throw new PlatformException(new PlatformError(
-                PlatformErrorCode.Usage,
-                $"Option {option} benötigt einen Wert.",
-                "package"));
+            throw new PackageUsageException($"Option {option} benötigt einen Wert.");
         }
 
         return value!;
@@ -105,7 +119,7 @@ public static class PackageRunner
         try
         {
             // 1. Ehrliche Quellbindung (privater Index, echter Index unberührt).
-            var binding = PackageSourceBinding.Read(repoRoot, buildWorkDir);
+            var binding = PackageSourceReader.Read(repoRoot, buildWorkDir);
             var version = PackageContract.VersionBase + binding.TreeSha256[..8];
 
             // 2. Locked RID-Restore und selbstenthaltener Publish (offline).
@@ -177,7 +191,7 @@ public static class PackageRunner
                 return (int)PlatformErrorCode.PackageVerificationFailed;
             }
 
-            return (int)PlatformErrorCode.Ok;
+            return ExitCodes.Ok;
         }
         finally
         {
@@ -218,7 +232,7 @@ public static class PackageRunner
             artifactChecks = verification.ArtifactChecks,
         });
 
-        return verification.Valid ? (int)PlatformErrorCode.Ok : (int)PlatformErrorCode.PackageVerificationFailed;
+        return verification.Valid ? ExitCodes.Ok : ExitCodes.Map(PlatformErrorCode.PackageVerificationFailed);
     }
 
     private static void Publish(string repoRoot, string publishDir)
@@ -305,9 +319,11 @@ public static class PackageRunner
         }
     }
 
+    private static readonly JsonSerializerOptions ReportOptions = new() { WriteIndented = false };
+
     private static void WriteReport(object report)
     {
-        var json = JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = false });
+        var json = JsonSerializer.Serialize(report, ReportOptions);
         Console.WriteLine(json);
     }
 

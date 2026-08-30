@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Text;
+using Riftward.Platform;
 
 namespace Riftward.App.Package;
 
@@ -8,7 +10,7 @@ namespace Riftward.App.Package;
 /// Add-A-Baums (Kandidatenidentität, privater Temporärindex im vertraglichen
 /// Arbeitsbereich). Der echte Git-Index wird niemals berührt.
 /// </summary>
-public static class PackageSourceBinding
+public static class PackageSourceReader
 {
     /// <summary>Ermittelt Commit- und Baum_DIGEST aus dem Repository um <paramref name="repoRoot"/>.</summary>
     public static PackageSourceBinding Read(string repoRoot, string privateIndexDir)

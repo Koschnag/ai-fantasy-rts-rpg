@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Riftward.Platform;
 
 namespace Riftward.App.Package;
 
@@ -172,7 +173,7 @@ public static class PackageComposer
                 continue;
             }
 
-            if (linkTarget.Contains('/', StringComparison.Ordinal) || linkTarget.StartsWith('/', StringComparison.Ordinal))
+            if (linkTarget.Contains('/', StringComparison.Ordinal) || linkTarget.StartsWith('/'))
             {
                 throw new PlatformException(new PlatformError(
                     PlatformErrorCode.PackageBuildFailed,
@@ -289,7 +290,7 @@ public static class PackageComposer
 
             if (info is DirectoryInfo subDirectory)
             {
-                Walk(subDirectory.FullName, relative, entries, stageRoot);
+                Walk(subDirectory.FullName, relative, entries);
                 continue;
             }
 
@@ -299,7 +300,8 @@ public static class PackageComposer
                 continue;
             }
 
-            var executable = (File.GetUnixFileMode(info.FullName) & UnixFileMode.UserExecute) != 0;
+            var executable = OperatingSystem.IsLinux()
+                && (File.GetUnixFileMode(info.FullName) & UnixFileMode.UserExecute) != 0;
             var length = new FileInfo(info.FullName).Length;
 
             entries.Add(new PackageEntry(
