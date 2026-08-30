@@ -113,6 +113,8 @@ Distributionspakete gelten nicht als Shipping-Version.
 | 36 | Kommandoschleifenlauf unvollständig oder vorzeitig beendet; der Teilreport gilt ausdrücklich nicht als Evidenz (T-032) |
 | 37 | Kommandoschleifen-Szenario unbekannt oder Eingabeskript unlesbar/malformiert/außerhalb Wertebereiche; kein Report (T-032) |
 | 38 | Opt-in Abgriffpaar der Kommandoschleife (je ein Einzelabgriff pro Modus über demselben Weltzustand am selben Tick, T-033) fehlgeschlagen; der Report wurde dennoch geschrieben und bindet `captured=false` mit Grund (T-032 Einzelabgriff-Präzedenz) |
+| 39 | Paketbau fehlgeschlagen (T-038); kontrollierter Abbruch ohne Teilpaket und ohne Report — Ursachen sind u. a. fehlender Quellbaum, gescheiterte Quellbindung, fehlendes Native-Artefaktmanifest, gescheiterter RID-Restore/Publish oder Schreibgrenzverletzung |
+| 40 | Paketverifikation fehlgeschlagen (T-038); der Prüfreport wurde dennoch geschrieben und klar als nicht bestanden markiert, mit unterscheidbarer Verletzungsklasse (Paketvertrag `docs/PAKETVERTRAG.md` Abschnitt 4) |
 
 Die Codes sind Teil des öffentlichen Befehlsvertrags; Änderungen benötigen eine
 dokumentierte Entscheidung und eine Anpassung der Tests
@@ -128,6 +130,8 @@ dokumentierte Entscheidung und eine Anpassung der Tests
 ./scripts/rift.sh bench --scenario bench-representative --report artifacts/t023/bench-representative.json
 ./scripts/rift.sh soak --scenario soak-replay --report artifacts/t022/soak-replay-authoritative.json
 ./scripts/rift.sh savecheck --report artifacts/t031/savecheck.json
+./scripts/rift.sh package --output-dir artifacts/package
+./scripts/rift.sh package --verify artifacts/package/riftward-<version>-linux-x64.tar.gz
 ```
 
 Beide ersten Befehle schreiben einen einzeiligen maschinenlesbaren JSON-Report mit
@@ -357,3 +361,28 @@ trägt der rein additive Report Schemaversion 3 den Pflichtblock
 die fensterpflichtigen visuellen Kanäle mit Grund als nicht gemessen aus.
 Läufe auf dem Entwickler-PC sind diagnostische
 Baseline gemäß Q-OPS-001; Pflichtprofile bleiben `NOT-MEASURED`.
+
+## package (T-038) — Paketvertrag
+
+`rift.sh package [--output-dir VERZ] [--work VERZ] [--rid linux-x64]` erzeugt
+für genau linux-x64 ein versioniertes, reproduzierbares Alphapaket gemäß
+versioniertem Paketvertrag `docs/PAKETVERTRAG.md` V1: selbstenthaltener
+CoreCLR-Publish ohne AOT und Trimming, native Laufzeitartefakte
+(`libSDL3.so.0`, `libriftbgfx.so`, `shaders/*.bin`) mit über die bestehende
+Host-Prüfung gebundenem Manifest, die versionierten Bestandsfixtures,
+deterministisch erzeugte Release Notes und ein Lizenz-/Attributionsmanifest
+aus `toolchain.lock.json` und `THIRD_PARTY_NOTICES.md`, dazu
+`package-manifest.json` (SHA-256 je Datei) mit Anker
+`package-manifest.sha256` und Sidecar `<archiv>.sha256` (Paketanker).
+`rift.sh package --verify ARCHIV.tar.gz` prüft Sidecar, Archiv, Manifestkette
+und das gebündelte Native-Artefaktmanifest (Bestandscodes 14–17) und schreibt
+einen einzeiligen maschinenlesbaren Prüfreport mit unterscheidbaren
+Verletzungsklassen. Unbekannte Optionen/RIDs schlagen mit Usage-Code 2 fehl,
+ein gescheiterter Bau mit 39, eine gescheiterte Verifikation mit 40. Zwei
+Paketbaue desselben Baums sind byteidentisch (fixiertes `SOURCE_DATE_EPOCH`,
+sortierte Ustar-Einträge, gzip ohne Zeitstempel); der Versionsschlüssel
+`0.1.0-alpha.<tree8>` bindet Commit- und Baumdigest. Der RID-Restore leitet
+die Restore-Lockdateien in das gitignorierte obj-Gebiet um (Restore-Regel,
+Paketvertrag Abschnitt 3). Das Runtime-Pack liegt nach einmaliger
+Erstbeschaffung im vertraglichen lokalen NuGet-Cache; danach läuft der Bau
+ohne Netzwerk. `check` bleibt unverändert NICHT VERFÜGBAR.

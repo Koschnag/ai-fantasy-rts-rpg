@@ -26,7 +26,7 @@ Die genannten GPUs beschreiben Leistungsprofile. Sie erzwingen keine Unterstütz
 | Plattform | Architektur | vorläufige Mindestbasis | Renderer | Paket / Pflichtnachweis |
 |---|---|---|---|---|
 | Windows | x64 | Windows 10 LTSC/Enterprise in einer von .NET 10 unterstützten Version oder Windows 11 | D3D11 | ZIP/MSIX-Entscheidung in T-011; sauberer Start, Save, Shader und Eingabe |
-| Linux | x64 | Ubuntu 22.04 LTS als älteste geplante Build-/Testbasis; weitere Distributionen best effort bis getestet | OpenGL 3.3 Core | Tar/AppImage-Entscheidung in T-011; glibc-/Native-Abhängigkeiten protokolliert |
+| Linux | x64 | Ubuntu 22.04 LTS als älteste geplante Build-/Testbasis; weitere Distributionen best effort bis getestet | OpenGL 3.3 Core | T-038: deterministisches tar.gz nach `docs/PAKETVERTRAG.md` V1 (Interne Alpha, linux-x64); Windows-/macOS-Pakete und die dreiplattformige Matrix bleiben in T-011 |
 | macOS | arm64 | macOS 14 Sonoma oder neuer, solange von .NET 10 unterstützt | Metal | signiertes/notarisiertes `.app`; M1/8-GB-Smoke und Benchmark |
 | macOS | x64 | OFFEN; nur bei vertretbarem Test- und Supportaufwand | Metal | eigener nativer Runner erforderlich |
 
