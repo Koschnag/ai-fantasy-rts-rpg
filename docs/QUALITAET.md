@@ -53,7 +53,7 @@ Eine Umsetzungseinheit ist erst `DONE`, wenn:
 | G-VISUAL Bild/Atmosphäre | Golden-Szenen, Lesbarkeit, Originalität und Atmosphärenrubrik | Reviewprotokoll; später Evaluator | Rubrik spezifiziert, ausführbarer Evaluator noch NICHT VERFÜGBAR | Rubrik und harte Originalitätsbedingungen erfüllt |
 | G-SECURITY Sicherheit/Lizenzen | Secrets, Abhängigkeiten, native Lizenzen und untrusted inputs | `./scripts/rift.sh security` | lokaler Baseline-Gate implementiert; native Lizenzen, Threat Model und Releaseprüfung noch NICHT VERFÜGBAR | Baseline Exit 0 und alle aufgabenspezifisch benötigten Nachweise vorhanden; Baseline allein ist keine Releasefreigabe |
 | G-PLATFORM Plattform | native Builds, ABI- und Smoke-Prüfungen je betroffenem RID | native CI-/Smoke-Aufträge | NICHT VERFÜGBAR | jeder betroffene Ziel-RID nativ grün |
-| G-PACKAGE Packaging | RID-spezifischer reproduzierbarer Releasebuild | `package` | NICHT VERFÜGBAR | natives Artefakt, Manifest, Hash, Lizenztexte und Smoke grün |
+| G-PACKAGE Packaging | RID-spezifischer reproduzierbarer Releasebuild | `package` | für linux-x64 implementiert (T-038, Paketvertrag `docs/PAKETVERTRAG.md` V1): versioniertes, checksumgebundenes Alphapaket mit Native-Artefaktbindung, Lizenz-/Attributionsmanifest, Release Notes und `--verify`-Prüfreport; Windows/macOS bleiben NICHT VERFÜGBAR (T-011) | natives Artefakt, Manifest, Hash, Lizenztexte und Smoke grün |
 
 Ein als `NICHT VERFÜGBAR` markiertes Gate ist keine bestandene Prüfung. Ein Task, dessen Abnahmekriterien dieses Gate benötigen, kann erst `DONE` werden, nachdem das Gate oder ein gleichwertiger, dokumentierter Nachweis implementiert ist.
 

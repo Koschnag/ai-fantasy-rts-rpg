@@ -64,7 +64,20 @@ Diese Aufgaben werden früh im Repository bereitgestellt und bleiben die einzige
 - `kommandoschleife ... --save-at-tick N` beziehungsweise `... --load-slot` aktiviert den headless Fortsetzungspfad T-037 über exakt demselben Pipelinepfad (Savevertrag `docs/SAVEVERTRAG.md` V2, Abschnitt 13.2); `--slot-dir VERZ` ist Pflicht, `--slot NAME` wählt den Slot (Standard `slot-interactive.rwsaved`), und die Flags schließen sich mit `--interactive` aus (bestehende Usage-Bedeutung 2). Der Speicherlauf spielt die unveränderte Skriptgrammatik bis zur Vorgrenze `N` innerhalb des Messfensters, schreibt Simulation plus additive Sitzungssektion (aktiver Modus samt schwebender Wechsel, Aufsuchprotokoll, Entscheidungsangebot/Wahl/Folge, Druckfenster/Zyklus) atomar in den Slot und endet; der Fortsetzungslauf ist ein frischer Prozess, der den Slot vollständig vor Aktivierung validiert (T-031-Prüfklassen uneingeschränkt für die Sektion, Aktivierungsgrenzen `foreign-world-id`/`foreign-seed`/`layer-activation-mismatch`), Welt und Sitzungsschicht wiederherstellt und dieselbe Skriptausführung ab der Ladegrenze fortsetzt. Die Fortsetzungskette ist ab der Ladegrenze byteidentisch zur unterbrochenen In-Prozess-Referenz und bindet als Bestandskriterium 5 fail-closed; die restaurierte Kettenwahrheit und die Fortsetzungsidentität sind rein additive, nicht gategekoppelte Felder des Pflichtblocks `continuation` der Schemaversion 6. V1-Slots laden unverändert mit ehrlicher, maschinenlesbarer Sitzungsleere; abgewiesene Ladungen enden kontrolliert mit Code 36 ohne neue Exitcodebedeutung; die Persistenzwahrheit der vier Sitzungsschichten ist save/load-fortsetzbar mit ausdrücklicher Replay-Ausnahme (`replay=not-continued`). Interaktiv speichert und lädt die frei belegbare Keymap-Familie über `save-slot` (Standard F5) und `load-slot` (Standard F9) mit `--slot-dir`; ohne Verzeichnis erhalten die Impulse eine kontrollierte, unterscheidbare Ablehnung, und nach dem Laden weist der Titel-HUD die wiederhergestellte Kettenwahrheit in beiden Modi ohne Tastendruck aus. Playtests prüfen die vorregistrierten Kriterien des Savevertrags Abschnitt 13.7; ohne Display bleiben Interaktivsmoke und Playtestausführung ausgewiesene Restpunkte mit kontrolliertem Code-19-Nachweis.
 - `security`: Secrets, Abhängigkeiten und Lizenzen prüfen
 - `check`: alle nicht verändernden lokalen Gates ausführen
-- `package`: Release-Artefakt für genau einen RID erzeugen
+- `package [--output-dir VERZ] [--work VERZ] [--rid linux-x64]` beziehungsweise
+  `package --verify ARCHIV.tar.gz`: versioniertes, checksumgebundenes
+  linux-x64-Alphapaket (T-038) gemäß versioniertem Paketvertrag
+  `docs/PAKETVERTRAG.md` V1 erzeugen oder prüfen — selbstenthaltener
+  CoreCLR-Publish ohne AOT/Trimming, native Laufzeitartefakte mit
+  artifact-hashgebundener Manifestbindung über die bestehende Host-Prüfung,
+  Bestandsfixtures, deterministisch erzeugte Release Notes und
+  Lizenz-/Attributionsmanifest, `package-manifest.json` mit Anker und
+  Archiv-Sidecar; byteidentischer Doppelbau desselben Baums; unbekannte
+  RIDs/Optionen schlagen mit Usage-Code 2 fehl, ein gescheiterter Bau mit 39,
+  eine gescheiterte Verifikation mit 40. Die erste Beschaffung des
+  Runtime-Packs in den lokalen NuGet-Cache ist die dokumentierte
+  Offline-Ausnahme; danach läuft der Bau ohne Netzwerk. `check` bleibt
+  unverändert NICHT VERFÜGBAR.
 
 Ein nicht implementiertes Gate muss fehlschlagen oder ausdrücklich `NICHT VERFÜGBAR` melden; es darf keinen leeren grünen Erfolg vortäuschen.
 
