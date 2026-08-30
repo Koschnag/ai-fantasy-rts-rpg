@@ -630,6 +630,7 @@ let cliVerifyRejectsUnreadableArchiveWithDistinguishableClass () =
     // Exit 40 mit Pruefreport und Klasse ARCHIVE_UNREADABLE, niemals ein
     // unkontrollierter Prozessabbruch.
     let root = tempRoot ()
+    Directory.CreateDirectory(root) |> ignore
 
     try
         let archive = Path.Combine(root, "kein-gzip.tar.gz")
