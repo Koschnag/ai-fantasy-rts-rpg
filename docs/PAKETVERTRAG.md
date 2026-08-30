@@ -126,7 +126,9 @@ Begründung; Verschärfung (z. B. Cross-Umgebungsbindung) bleibt zulässig.
   `MANIFEST_MISSING`, `MANIFEST_MALFORMED`, `MANIFEST_HASH_INVALID`,
   `ANCHOR_MISSING`, `ANCHOR_MISMATCH`, `SIDE_CAR_MISSING`,
   `SIDE_CAR_MISMATCH`, `ENTRY_MISSING`, `ENTRY_INCOMPLETE`,
-  `ENTRY_HASH_MISMATCH`, `ENTRY_SYMLINK_MISMATCH`, `UNMANIFESTED_FILE`.
+  `ENTRY_HASH_MISMATCH`, `ENTRY_SYMLINK_MISMATCH`, `UNMANIFESTED_FILE`;
+  als Aggregatkennung über der bestehenden Host-Prüfung zusätzlich
+  `ARTIFACT_MANIFEST_REJECTED` mit gebundenem Bestandsgrund.
   Zusätzlich prüft die Verifikation das gebündelte Native-Artefaktmanifest
   über die bestehende Host-Prüfung (`NativeArtifacts.Validate`) und bindet
   deren unterscheidbaren Bestandsgrund (Codes 14–17) in denselben Report.
@@ -141,12 +143,17 @@ Begründung; Verschärfung (z. B. Cross-Umgebungsbindung) bleibt zulässig.
   .NET-Runtime samt Pakethinweis auf die NuGet-Notices). Rückrollweg:
   Felderweiterungen sind additive Schemaversion 2; bestehende Felder werden
   nicht umgedeutet.
+- Quellbindung: `source.commitSha256` ist der volle Commit-SHA-256
+  (`git rev-parse HEAD`); `source.treeSha256` ist der SHA-256 über den
+  40-stelligen Git-Baum-Digest des hypothetischen Add-A-Baums (privater
+  Temporärindex im vertraglichen Arbeitsbereich, der echte Index bleibt
+  unberührt); `<tree8>` sind die ersten 8 Hexzeichen dieses Wertes.
 
 ## 5. Versionierungs- und Kennzeichnungsschema
 
 | Option | Bewertung |
 |---|---|
-| **A. `0.1.0-alpha.<tree8>` mit Quellbindung (Empfehlung)** | `<tree8>` sind die ersten 8 Hexzeichen des SHA-256 des hypothetischen Add-A-Baums (Kandidatenidentität, privater Index, ohne Änderung des echten Index). Zusätzlich bindet das Manifest den vollen Commit-SHA-256 und den Baum-Digest. |
+| **A. `0.1.0-alpha.<tree8>` mit Quellbindung (Empfehlung)** | `<tree8>` sind die ersten 8 Hexzeichen des SHA-256 über den 40-stelligen Git-Baum-Digest des hypothetischen Add-A-Baums (Kandidatenidentität, privater Index, ohne Änderung des echten Index). Zusätzlich bindet das Manifest den vollen Commit-SHA-256 und den Baum-Digest. |
 | B. Nur Datums-/Kalenderversion | Bindet keine Quelle; zwei Pakete desselben Datums wären ununterscheidbar. |
 | C. Nur Baum-Digest als Name | Ehrlich, aber ohne Ordnungshinweis; Alpha-Stufe bliebe unmarkiert. |
 
