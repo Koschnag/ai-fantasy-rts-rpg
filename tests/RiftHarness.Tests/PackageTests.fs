@@ -71,8 +71,8 @@ let private writeText (path: string) (content: string) =
 let private syntheticPublishDir (root: string) =
     let dir = Path.Combine(root, "publish")
     Directory.CreateDirectory(Path.Combine(dir, "runtimes", "native")) |> ignore
-    writeText (Path.Combine(dir, "RiftwardAppStub.dll")) "publish-stub-v1\n"
-    writeText (Path.Combine(dir, "RiftwardApp.deps.json")) "{\"stub\":true}\n"
+    writeText (Path.Combine(dir, "RiftwardAppStub.dll")) "publish-stub-v1\n" |> ignore
+    writeText (Path.Combine(dir, "RiftwardApp.deps.json")) "{\"stub\":true}\n" |> ignore
     let executable = writeText (Path.Combine(dir, "RiftwardApp")) "elf-stub\n"
     File.SetUnixFileMode(executable, UnixFileMode.UserRead ||| UnixFileMode.UserWrite ||| UnixFileMode.UserExecute ||| UnixFileMode.GroupRead ||| UnixFileMode.OtherRead)
     dir
@@ -138,9 +138,9 @@ let private sampleManifest () =
         PackageArtifactManifestBinding(PackageContract.NativeManifestTargetPath, String.replicate 64 "c", "2026-08-23-cohort-1"),
         PackageProtection(PackageContract.ProtectionKind, "native", PackageContract.NativeManifestTargetPath, PackageContract.ProtectionExitCodes),
         [
-            PackageEntry("docs/RELEASE_NOTES.md", PackageEntryKind.File, Some(String.replicate 64 "1"), Some 12L, None, PackageContract.UnixModeRegular)
-            PackageEntry("native/lib/libstub.so.0", PackageEntryKind.Symlink, None, None, Some "libstub.so.0.1.2", PackageContract.UnixModeSymlink)
-            PackageEntry("native/lib/libstub.so.0.1.2", PackageEntryKind.File, Some(String.replicate 64 "2"), Some 512L, None, PackageContract.UnixModeExecutable)
+            PackageEntry("docs/RELEASE_NOTES.md", PackageEntryKind.File, String.replicate 64 "1", Nullable 12L, null, PackageContract.UnixModeRegular)
+            PackageEntry("native/lib/libstub.so.0", PackageEntryKind.Symlink, null, Nullable(), "libstub.so.0.1.2", PackageContract.UnixModeSymlink)
+            PackageEntry("native/lib/libstub.so.0.1.2", PackageEntryKind.File, String.replicate 64 "2", Nullable 512L, null, PackageContract.UnixModeExecutable)
         ])
 
 let private parseFromBytes (bytes: byte[]) =
@@ -275,9 +275,9 @@ let composerProducesDeterministicStagingAndManifest () =
         // Lizenzen stammen aus dem Lockfile und benennen die Komponenten.
         let licenses = File.ReadAllText(Path.Combine(result1.StageRoot, PackageContract.LicensesTargetPath))
 
-        for component in [ "sdl3"; "bgfx"; "bx"; "bimg" ] do
-            if not (licenses.Contains(component)) then
-                failwith $"Attributionsmanifest nennt {component} nicht."
+        for componentName in [ "sdl3"; "bgfx"; "bx"; "bimg" ] do
+            if not (licenses.Contains(componentName)) then
+                failwith $"Attributionsmanifest nennt {componentName} nicht."
     finally
         Directory.Delete(root1, true)
         Directory.Delete(root2, true)
@@ -307,7 +307,8 @@ let verifierDistinguishesViolationMatrixFailClosed () =
             let classes = violationClasses verification
 
             if not (Array.contains expected classes) then
-                failwith $"Erwartet {expected}, erhalten {String.concat ', ' classes}."
+                let actual = String.Join(" | ", classes)
+                failwith $"Erwartet {expected}, erhalten {actual}."
 
         let mutateStage (mutation: string -> unit) =
             // Frisches Staging je Fall, damit Manipulationen sich nicht überlagern.
@@ -511,7 +512,7 @@ let cliVerifyRejectsManipulatedArchiveWithDistinguishableClass () =
 
             // Negativ: manipuliertes Sidecar → SIDE_CAR_MISMATCH (die Archivbytes
             // selbst sind gzip-komprimiert und werden am Archivhash gebunden).
-            File.WriteAllText(archive + ".sha256", String.replicate 64 "0" + $"  {Path.GetFileName(archive)}\n")
+            File.WriteAllText(archive + ".sha256", String.replicate 64 "0" + "  " + Path.GetFileName(archive) + "\n")
 
             let (tamperedExit, tamperedStdout, _) = runAppHost [| "package"; "--verify"; archive |]
 

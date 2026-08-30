@@ -2228,7 +2228,23 @@ module Program =
               "T-037 CLI continuation rejections stay controlled and exit codes stable",
               ContinuationTests.cliContinuationRejectionsStayControlledAndExitCodesStable
               "T-037 save contract documents bind continuation truth",
-              ContinuationTests.saveContractDocumentsBindContinuationTruth ]
+              ContinuationTests.saveContractDocumentsBindContinuationTruth
+              "T-038 package codec roundtrip is canonical and stable",
+              PackageTests.codecRoundtripIsCanonicalAndStable
+              "T-038 package codec rejects corruption matrix fail closed",
+              PackageTests.codecRejectsCorruptionMatrixFailClosed
+              "T-038 package composer produces deterministic staging and manifest",
+              PackageTests.composerProducesDeterministicStagingAndManifest
+              "T-038 package verifier distinguishes violation matrix fail closed",
+              PackageTests.verifierDistinguishesViolationMatrixFailClosed
+              "T-038 package archive write is deterministic and verifiable",
+              PackageTests.archiveWriteIsDeterministicAndVerifiable
+              "T-038 package CLI usage rejections stay controlled",
+              PackageTests.cliUsageRejectionsStayControlled
+              "T-038 package CLI verify rejects manipulated archive with distinguishable class",
+              PackageTests.cliVerifyRejectsManipulatedArchiveWithDistinguishableClass
+              "T-038 package exit code mapping binds package codes and documents",
+              PackageTests.exitCodeMappingBindsPackageCodes ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die
