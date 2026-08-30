@@ -16,8 +16,8 @@ public static class DecisionContract
     /// <summary>Pfad des versionierenden Vertragsdokuments.</summary>
     public const string DocumentPath = "docs/ENTSCHEIDUNGSVERTRAG.md";
 
-    /// <summary>Vertragsversion des Dokuments (V2: autorisierte additive Zyklus-Praezisierung).</summary>
-    public const string ContractVersion = "2";
+    /// <summary>Vertragsversion des Dokuments (V3: additive Persistenz-Präzisierung, T-037; V2: Zyklus-Präzisierung).</summary>
+    public const string ContractVersion = "3";
 
     /// <summary>Kennung der Opt-in Aktivierung (Vertrag Abschnitt 7).</summary>
     public const string ActivationId = "opt-in-decision-activation-v1";
@@ -41,16 +41,32 @@ public static class DecisionContract
     public const string ArrivalRuleId = "boundary-arrival-personal-mode-only-v1";
 
     /// <summary>
-    /// Versionierte maschinenlesbare Nichtpersistenzaussage (Vertrag
-    /// Abschnitt 7): Angebot, Entscheidung, Folge und Protokoll sind
-    /// sitzungslokal, werden weder in Save/Load noch in Replay fortgesetzt
-    /// und bleiben einer spaeteren Savevertrags-Erweiterung vorbehalten
-    /// (ADR 008).
+    /// Versionierte historische Nichtpersistenzaussage (Vertrag V1,
+    /// Abschnitt 7): bleibt als dokumentierte Vorgeschichte der V3-
+    /// Präzisierung im Vertrag enthalten und wird im Report nicht mehr
+    /// als aktuelle Wahrheit ausgegeben.
     /// </summary>
     public const string NotPersistedStatementId = "decision-session-local-not-persisted-v1";
 
-    /// <summary>Vertragliche Nichtpersistenzaussage im Report (maschinenlesbar).</summary>
-    public const bool Persisted = false;
+    /// <summary>
+    /// Versionierte Save/Load-Persistenzaussage (Vertrag V3, Abschnitt 14;
+    /// Savevertrag V2 Abschnitt 13.6): Angebot, Entscheidung, Folge und
+    /// Zykluszustand sind über die additive Sitzungssektion in Save/Load
+    /// fortsetzbar.
+    /// </summary>
+    public const string SaveLoadPersistenceStatementId = "decision-session-local-save-load-persisted-v3";
+
+    /// <summary>Vertragliche Persistenzwahrheit im Report (maschinenlesbar, V3).</summary>
+    public const bool Persisted = true;
+
+    /// <summary>Ausdrückliche Replay-Ausnahme der Persistenz (V3; Replay setzt nicht fort).</summary>
+    public const bool ReplayContinued = false;
+
+    /// <summary>Vertraglicher saveLoad-Ausweis der Persistenz (V3).</summary>
+    public const string SaveLoadContinuation = "continued";
+
+    /// <summary>Vertraglicher replay-Ausweis der Replay-Ausnahme (V3).</summary>
+    public const string ReplayNotContinued = "not-continued";
 
     /// <summary>Kennung der Titel-HUD-Erweiterung (Vertrag Abschnitt 6).</summary>
     public const string HudModelId = "title-hud-decision-objective-v1";

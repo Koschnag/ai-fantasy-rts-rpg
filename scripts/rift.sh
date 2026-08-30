@@ -295,7 +295,9 @@ case "$rift_command" in
       '             oder mit --interactive; Gateverletzungen schlagen mit' \
       '             Exitcode 35 fehl, ein unvollständiger Lauf mit 36,' \
       '             unbekanntes Szenario/Skript mit 37 (kein Report), ein' \
-      '             fehlgeschlagener opt-in Abgriff mit 38' \
+      '             fehlgeschlagener opt-in Abgriff mit 38; Fortsetzung' \
+      '             (T-037) über --slot-dir/--slot mit --save-at-tick oder' \
+      '             --load-slot (headless) bzw. den Keymap-Aktionen' \
       '  rag-build     lokalen BM25-Index nach bootstrap/build neu bauen' \
       '  rag-query ... vorhandenen, aktuellen BM25-Index abfragen' \
       '  assets-check  Assetprovenienz und Clean-Room-Regeln offline prüfen' \

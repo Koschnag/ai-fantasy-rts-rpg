@@ -15,15 +15,18 @@ public sealed record MigrationOutcome
 }
 
 /// <summary>
-/// Migrationsregel des Savevertrags Abschnitt 8: <c>saveSchemaVersion</c> ist
-/// streng monoton; unbekannte frühere und zukünftige Versionen werden
-/// kontrolliert abgewiesen, ohne eine Migration zu erfinden oder still zu
-/// verwerfen. Echte Schritte laufen ausschließlich auf Kopien, schrittweise,
-/// validieren nach jedem Schritt und sind idempotent; ein Fehler erhält den
-/// Originalstand.
+/// Migrationsregel des Savevertrags Abschnitt 8 (V2-Erweiterung Abschnitt
+/// 13.5): <c>saveSchemaVersion</c> ist strikt monoton; unbekannte frühere und
+/// zukünftige Versionen werden kontrolliert abgewiesen, ohne eine Migration
+/// zu erfinden oder still zu verwerfen. Die unterstützten Versionen sind die
+/// aktuelle Version 2 und die Legacy-Version 1 — beide sind identische No-op-
+/// Erreichbarkeit (byteidentisch, null Schritte), denn V1 lädt direkt mit
+/// ehrlicher Sitzungsleere. Echte Schritte laufen ausschließlich auf Kopien,
+/// schrittweise, validieren nach jedem Schritt und sind idempotent; ein
+/// Fehler erhält den Originalstand.
 ///
-/// Das Produkt registriert derzeit keinen Schritt (genau Version 1). Die für
-/// AC-T031-07 erforderlichen synthetischen Zwei-Version-Fixtures sind reine
+/// Das Produkt registriert keinen Migrationsschritt. Die für AC-T031-07
+/// erforderlichen synthetischen Zwei-Version-Fixtures sind reine
 /// interne Testinfrastruktur (<c>RegisterStepForTests</c>) und begründen
 /// keinerlei Produktmigrations- oder Altdatenzusagen.
 /// </summary>
@@ -58,9 +61,10 @@ public sealed class SaveMigrator
     }
 
     /// <summary>
-    /// Migriert eine Kopie des Originalstands zur aktuellen Version. Für ein
-    /// Dokument der aktuellen Version ist das Ergebnis byteidentisch zum
-    /// Original (Idempotenz); fehlende Schritte werden nie erfunden.
+    /// Migriert eine Kopie des Originalstands zu einer unterstützten Version.
+    /// Für ein Dokument einer unterstützten Version (2 und Legacy 1) ist das
+    /// Ergebnis byteidentisch zum Original (Idempotenz); fehlende Schritte
+    /// werden nie erfunden.
     /// </summary>
     public MigrationOutcome MigrateToCurrentVersionOnCopy(byte[] originalBytes)
     {
@@ -76,7 +80,7 @@ public sealed class SaveMigrator
             };
         }
 
-        if (version == SaveContract.CurrentSaveSchemaVersion)
+        if (IsSupportedSchemaVersion(version))
         {
             return new MigrationOutcome
             {
@@ -89,7 +93,7 @@ public sealed class SaveMigrator
         var working = originalBytes.ToArray();
         var applied = new List<string>();
 
-        while (version != SaveContract.CurrentSaveSchemaVersion)
+        while (!IsSupportedSchemaVersion(version))
         {
             if (!_steps.TryGetValue(version, out var step))
             {
@@ -124,7 +128,7 @@ public sealed class SaveMigrator
 
             // Nach jedem Schritt wird die Kopie vollständig validiert;
             // ein ungültiges Zwischenergebnis erhält den Originalstand.
-            if (version == SaveContract.CurrentSaveSchemaVersion)
+            if (IsSupportedSchemaVersion(version))
             {
                 var (rejection, _) = SaveDocumentValidator.Validate(working);
 
@@ -144,4 +148,8 @@ public sealed class SaveMigrator
 
         return new MigrationOutcome { Success = true, MigratedBytes = working, AppliedSteps = applied };
     }
+
+    private static bool IsSupportedSchemaVersion(int version) =>
+        version == SaveContract.CurrentSaveSchemaVersion
+        || version == SaveContract.LegacySaveSchemaVersion;
 }

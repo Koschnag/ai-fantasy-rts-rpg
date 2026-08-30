@@ -1,10 +1,12 @@
 # Entscheidungsvertrag (T-035, Abschnitt 0)
 
-**Vertragsversion:** 2
+**Vertragsversion:** 3
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-035-graybox-decision-step.json` vor der Implementierung festgelegt
 (V1); Version 2 ergänzt ausschließlich die autorisierte additive
-Zyklus-Präzisierung gemäß Druckvertrag T-036 (Abschnitt 13). Alle übrigen
+Zyklus-Präzisierung gemäß Druckvertrag T-036 (Abschnitt 13); Version 3
+ergänzt ausschließlich die autorisierte additive Persistenz-Präzisierung
+gemäß Savevertrag V2/T-037 (Abschnitt 14). Alle übrigen
 Abschnitte sind gegenüber V1 inhaltlich unverändert.
 Die maschinenlesbaren Kennungen sind in
 `src/Riftward.Session/DecisionContract.cs` gespiegelt und werden von einem
@@ -450,3 +452,32 @@ Sitzung gebunden haben, wurden im selben Kandidaten auf die
 Zyklus-Präzisierung fortgeschrieben; Skript-, Ketten- und Endhashbindungen
 der T-035-Flüsse bleiben unverändert gültig, weil ein einzelner Zyklus sich
 in Ketten und Endhash exakt wie der V1-Fluss verhält.
+
+## 14. Autorisierte additive Persistenz-Präzisierung (V3, T-037)
+
+**Änderungsumfang (ausschließlich diese eine Wahrheitsänderung):** Die
+versionierte Nichtpersistenzaussage `decision-session-local-not-persisted-v1`
+(Abschnitt 7) wird durch die Savevertrags-Erweiterung V2 (T-037, SAVEVERTRAG
+Abschnitt 13.6) zu einer versionierten Save/Load-Persistenzaussage präzisiert:
+Angebot, Entscheidung, Folge und der aktuelle Auftragszyklus sind ab dieser
+Vertragsversion über die additive Sitzungssektion in Save/Load fortsetzbar
+(`persisted=true`, `saveLoad=continued`). Die **ausdrückliche
+Replay-Ausnahme** bleibt bestehen: Replay und Soak setzen den
+Entscheidungszustand nicht fort (`replay=not-continued`). Die Schicht ist
+weiterhin rein sitzungsseitig, erzeugt niemals einen Kernbefehl und ist nie
+Teil des Simulationszustands oder Hashes; kein Sektionsbyte berührt die
+Hashkette.
+
+**Unverändert bleiben:** Auslöseregel, Optionsableitung, Entscheidungseingabe
+mit Modus-Scoping und Auswertungsordnung, Folge- und Ankunftsregel, Feedback,
+Aktivierungsform und alle Exitcodes (Abschnitte 2 bis 6 und 8 bis 13).
+**Grund und Begrenzung:** Die Präzisierung ist die vom Auftrag
+`.ai/tasks/T-037-graybox-continuation-restart.json` autorisierte additive
+Voraussetzung des Fortsetzungsschritts und antwortet auf keine offene
+Produktfrage. **Rückrollweg:** Umkehr auf V1 (Nichtpersistenz) durch
+Vertragsversionswechsel mit Neubau und Fixture-Regeneration; die Sektion
+trägt dann ehrliche Sitzungsleere für die Entscheidungsschicht. **Fixture-
+Regeneration:** Tests, die `decision-session-local-not-persisted-v1` und
+`persisted=false` gebunden haben, wurden im selben Kandidaten auf die V3-
+Präzisierung fortgeschrieben; Angebots-, Ketten- und Endhashbindungen der
+T-035-/T-036-Flüsse bleiben unverändert gültig.

@@ -2206,7 +2206,29 @@ module Program =
               "T-036 schema dispatch rejects cross variants fail closed",
               PressureTests.pressureSchemaDispatchRejectsCrossVariants
               "T-036 schema relations reject fabricated evidence fail closed",
-              PressureTests.pressureSchemaRelationsRejectFabrication ]
+              PressureTests.pressureSchemaRelationsRejectFabrication
+              "T-037 session section codec roundtrip is byte identical per layer",
+              ContinuationTests.sessionSectionCodecRoundtripIsByteIdenticalPerLayer
+              "T-037 session section codec rejects corruption matrix",
+              ContinuationTests.sessionSectionCodecRejectsCorruptionMatrix
+              "T-037 V2 envelope roundtrip and legacy V1 honest emptiness",
+              ContinuationTests.v2EnvelopeRoundtripAndLegacyV1Emptiness
+              "T-037 untrusted slot activation guards reject mismatch",
+              ContinuationTests.untrustedSlotActivationGuardsRejectMismatch
+              "T-037 headless continuation chain is byte identical over boundary",
+              ContinuationTests.headlessContinuationChainIsByteIdenticalOverBoundary
+              "T-037 pending mode switch survives the save boundary",
+              ContinuationTests.pendingModeSwitchSurvivesTheSaveBoundary
+              "T-037 foreign seed changes hashes but continuity holds",
+              ContinuationTests.foreignSeedChangesHashesButContinuityHolds
+              "T-037 CLI continuation flow runs save and load on schema version 6",
+              ContinuationTests.cliContinuationFlowRunsSaveAndLoadOnSchemaVersion6
+              "T-037 CLI continuation pairs are builder identical",
+              ContinuationTests.cliContinuationPairsAreBuilderIdentical
+              "T-037 CLI continuation rejections stay controlled and exit codes stable",
+              ContinuationTests.cliContinuationRejectionsStayControlledAndExitCodesStable
+              "T-037 save contract documents bind continuation truth",
+              ContinuationTests.saveContractDocumentsBindContinuationTruth ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die

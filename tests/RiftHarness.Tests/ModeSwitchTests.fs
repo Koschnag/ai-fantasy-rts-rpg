@@ -87,7 +87,7 @@ let modeContractMirrorsDocumentedValues () =
     if ModeContract.DocumentPath <> "docs/MODEVERTRAG.md" then
         failwith "Modevertragspfad falsch."
 
-    if ModeContract.ContractVersion <> "1" then
+    if ModeContract.ContractVersion <> "2" then
         failwith "Modevertragsversion falsch."
 
     if ModeContract.HeroAgentIndex <> 0 || ModeContract.HeroGroupIndex <> 0 then
