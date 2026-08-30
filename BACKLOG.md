@@ -46,6 +46,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-035 | E-004 | kleinster spielbarer Entscheidungsschritt: Zwei-Optionen-Aufgabenentscheidung mit sichtbarer, sitzungslokaler Folge in beiden Modi über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
 | T-036 | E-004 | kleinster spielbarer Druck- und Neustartschritt: deterministisches Zeitfenster mit definiertem Fehlschlag und sitzungslokalem Neustart des Auftrags über dem unveränderten Simulationskern | Z-001, F-001, F-010, NF-001, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
 | T-037 | E-004 | kleinster spielbarer Fortsetzungsschritt: die Graybox-Auftragskette überlebt den Prozessneustart (Savevertrags-Erweiterung um die additive Sitzungsschicht) über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
+| T-038 | E-004 | kleinster Single-Platform-Releasepfad: versioniertes, checksumgebundenes linux-x64-Alphapaket mit Lizenz-/Attributionsmanifest und Release Notes über der Graybox-Auftragskette (G-PACKAGE) | Z-001, Z-003, Z-004, NF-003, NF-006, NF-008 | M | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -1433,3 +1434,31 @@ Savevertrags-Erweiterung V2 (`docs/SAVEVERTRAG.md`, Spike-Klausel in
 und keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
 JsonSchema.Net bleibt gemäß T-022-/T-031-Präzedenz Pflichtteil des
 Spec-Reviewlaufs.
+
+T-038 wurde am 2026-08-30 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) als siebter Slice der T-030-Zerlegung auf
+`READY` gesetzt; die vollständige Auswahlkette, Blockerbehandlung und
+Reversibilitätsbindung stehen im `releaseNote` des Manifests
+`.ai/tasks/T-038-single-platform-release-package.json` und in der Zeile zu
+T-038 in `docs/OFFENE_FRAGEN.md`. Kurz: Die direkt spielbare Graybox-Kette ist
+über T-032 bis T-037 inhaltlich vollständig (Ziel, Aktion, Feedback, Progression,
+Gewinn, Verlust, Neustart, Save-Fortsetzung = der benannte Alpha-Loop des
+Release-Modus); nach Release-Modus Schritt 3 (2026-08-26) ist der kleinste
+Single-Platform-Releasepfad der nächste Auftrag. Der Slice schließt den konkret
+benannten Releaseblocker `G-PACKAGE`/`package` (`docs/QUALITAET.md`,
+`scripts/rift.sh` Exitcode 3, `NICHT VERFÜGBAR`) und liefert zugleich direkt
+spielbares Verhalten: das versionierte linux-x64-Alphapaket (checksumgebunden,
+Lizenz-/Attributionsmanifest, Release Notes) führt den Alpha-Loop auf einem
+frischen System ohne Repository, .NET-SDK und Netzwerk aus. Ohne Kampf,
+Wirtschaft, Contentbreite oder Audio; Q-TEC-006 (kein gecooktes Content-Asset im
+Paket), Q-TEC-008 (kein AOT-/Trimmingvergleich), Q-PRD-001 bis Q-PRD-005
+(keine Lizenz-, Vertriebs- oder Verteilentscheidung; nur ehrliche
+interne-Alpha-Kennzeichnung) und Q-OPS-002/Q-OPS-003 (keine Signier- oder
+Runnerentscheidung; T-011 bleibt unberührt) bleiben `OFFEN`; die reversiblen
+Paketdetails entstehen als vorregistrierte Hypothesen im gatenden Abschnitt 0
+des versionierten Paketvertrags `docs/PAKETVERTRAG.md` (Spike-Klausel in
+`docs/QUALITAET.md`); Implementierungsstart setzt die formale Akzeptanz von
+T-037 voraus. Dieser Freigabelauf hat keinen Produktcode implementiert und
+keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
+JsonSchema.Net 8.0.5 wurde in diesem Lauf gegen alle Manifeste unter `.ai/tasks/`
+ausgeführt.
