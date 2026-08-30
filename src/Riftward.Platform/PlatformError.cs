@@ -86,6 +86,12 @@ public enum PlatformErrorCode
 
     /// <summary>Opt-in Einzelabgriff der Kommandoschleife fehlgeschlagen (T-032); Report wurde dennoch geschrieben mit captured=false und Grund.</summary>
     CommandCaptureFailed = 38,
+
+    /// <summary>Paketbau fehlgeschlagen (T-038); kontrollierter Abbruch, es entsteht kein Teilpaket und kein Report.</summary>
+    PackageBuildFailed = 39,
+
+    /// <summary>Paketverifikation fehlgeschlagen (T-038); der Prüfreport wurde dennoch geschrieben und klar als nicht bestanden markiert.</summary>
+    PackageVerificationFailed = 40,
 }
 
 /// <summary>Ein einzelner kontrollierter Fehler mit Code, Meldung und Detailpfad.</summary>
