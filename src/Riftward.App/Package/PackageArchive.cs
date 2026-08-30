@@ -83,8 +83,9 @@ public static class PackageArchive
     public static void Extract(string archivePath, string targetDirectory)
     {
         Directory.CreateDirectory(targetDirectory);
-        using var stream = File.OpenRead(archivePath);
-        TarFile.ExtractToDirectory(stream, targetDirectory, overwriteFiles: true);
+        using var fileStream = File.OpenRead(archivePath);
+        using var gzip = new GZipStream(fileStream, CompressionMode.Decompress);
+        TarFile.ExtractToDirectory(gzip, targetDirectory, overwriteFiles: true);
     }
 
     /// <summary>Liefert alle Einträge des Baums deterministisch (ordinal sortierte Pfade, Verzeichnisse ohne Namenstrenner am Ende).</summary>
