@@ -49,7 +49,7 @@ public static class PackageDocs
         text.AppendLine("4. Fensterpflichtiger Smoke auf einer Linux-Displaysession:");
         text.AppendLine("   `./Riftward.App plattformsmoke --artifacts-dir native --manifest native/artifact-hashes.json --report PFAD`");
         text.AppendLine("5. Interaktive Graybox-Schleife (Moduswechsel Tab, Speichern F5, Laden F9):");
-        text.AppendLine("   `./Riftward.App kommandoschleife --scenario kommando-graybox --input-script fixtures/command/t036-pressure-restart.graybox --seed 20260826 --report PFAD --interactive --auto-exit-at-horizon --artifacts-dir native --manifest native/artifact-hashes.json --exploration --decision --pressure`");
+        text.AppendLine("   `./Riftward.App kommandoschleife --scenario kommando-graybox --input-script fixtures/command/t036-pressure-restart.graybox --seed 20260826 --report PFAD --interactive --auto-exit-at-horizon --horizon-ticks 11000 --artifacts-dir native --manifest native/artifact-hashes.json --exploration --decision --pressure`");
         text.AppendLine();
         text.AppendLine("Das Paket benötigt kein installiertes .NET-SDK, kein Repository und kein");
         text.AppendLine("Netzwerk. Es werden nur Dateien im von Ihnen gewählten Verzeichnis");
