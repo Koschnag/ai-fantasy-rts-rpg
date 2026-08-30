@@ -247,7 +247,14 @@ public static class PackageRunner
                 projectPath));
         }
 
-        RunDotnet(repoRoot, $"restore \"{projectPath}\" -r linux-x64 --locked-mode", "Locked RID-Restore");
+        // Der RID-Restore leitet die Lockdateien in das gitignorierte obj-gebiet
+        // um (Restore-Regel des Paketvertrags Abschnitt 3): die versionierten
+        // packages.lock.json bleiben unberührt, ein RID-Abschnitt würde den
+        // vertraglichen locked Restore der Solution brechen.
+        RunDotnet(
+            repoRoot,
+            $"restore \"{projectPath}\" -r linux-x64 -p:NuGetLockFilePath=obj/restore/packages.lock.json",
+            "RID-Restore");
         RunDotnet(
             repoRoot,
             $"publish \"{projectPath}\" -c Release -r linux-x64 --self-contained true --no-restore -o \"{publishDir}\"",

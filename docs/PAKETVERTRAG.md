@@ -105,6 +105,20 @@ zusage wird ausdrücklich nicht gemacht. Rückrollweg: eine Lockerung auf
 logische Reproduzierbarkeit wäre eine dokumentierte Vertragsänderung mit
 Begründung; Verschärfung (z. B. Cross-Umgebungsbindung) bleibt zulässig.
 
+Restore- und Pin-Regel des Paketbaus: Der RID-Restore des Paketbaus leitet
+die Restore-Lockdateien mit `NuGetLockFilePath=obj/restore/packages.lock.json`
+in das gitignorierte obj-Gebiet je Projekt um und berührt die versionierten
+`packages.lock.json`-Dateien in keiner Richtung; ein RID-Abschnitt in den
+Lockfiles würde den vertraglichen locked Restore der gesamten Solution
+(`rift.sh build`) brechen. Das ist hier ohne Pin-Verlust zulässig, weil die
+geündelten Runtimeprojekte keine externen NuGet-Paketabhängigkeiten besitzen
+und die Version des Runtime-Packs über den gepinnten SDK-Stand (global.json)
+gebunden ist. Das Runtime-Pack (`Microsoft.NETCore.App.Runtime.linux-x64`)
+liegt nach dem ersten Abruf im vertraglichen lokalen NuGet-Cache
+(`.ai/runtime/cache/nuget`); diese einmalige Erstbeschaffung ist die
+dokumentierte Ausnahme zur Netzwerkfreiheit — analog zur Erstbeschaffung der
+Native-Quellarchive —, danach läuft der Bau offline.
+
 ## 4. Manifest-, Checksum- und Attributionsschema
 
 | Option | Bewertung |
