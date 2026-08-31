@@ -28,18 +28,30 @@ public sealed record SessionSectionRejection(SessionSectionRejectionClass Class,
 }
 
 /// <summary>
-/// Kanonische Binaercodierung der Sitzungssektion V1
-/// (<c>riftward-session-section-canonical-binary-v1</c>, Savevertrag V2
-/// Abschnitte 13.1 und 13.4): feste Feldordnung, Little-Endian-
+/// Kanonische Binaercodierung der Sitzungssektion
+/// (<c>riftward-session-section-canonical-binary-v1</c>, Savevertrag V2/V3
+/// Abschnitte 13.1/13.4 und 15): feste Feldordnung, Little-Endian-
 /// Festbreiten-Ganzzahlen, keine Auffuellbytes, keine Feldkennungen, exakter
 /// Byteverbrauch und Re-Encoding-Gleichheit wie der Savekern. Strikter
 /// Einzelpass-Decoder mit vor der Zuweisung gepruefter Laengengrenzen;
-/// BCL-only, reflectionsfrei, ohne Fließkommaanteil.
+/// BCL-only, reflectionsfrei, ohne Fließkommaanteil. Die Sektionsversion 2
+/// (Savevertrag V3, Abschnitt 15) ergänzt die additive Missionsfläche am
+/// Sektionsende; die Sektionsversion 1 bleibt als ehrliche, maschinenlesbare
+/// Missionsleere ladbar
+/// (<c>legacy-section-v1-mission-emptiness-v3</c>) und wird versionsgetreu
+/// re-enkodiert.
 /// </summary>
 public static class SessionSectionCodec
 {
-    /// <summary>Einzige Sektionsversion dieser Vertragsstufe.</summary>
-    public const ushort SectionVersion = 1;
+    /// <summary>Aktuelle Sektionsversion dieser Vertragsstufe (Savevertrag V3, Abschnitt 15).</summary>
+    public const ushort CurrentSectionVersion = 2;
+
+    /// <summary>
+    /// Unterstuetzte Legacy-Sektionsversion (Savevertrag V2, Abschnitt 13):
+    /// laedt unverändert mit ehrlicher, maschinenlesbarer Missionsleere ohne
+    /// Migrationserfindung.
+    /// </summary>
+    public const ushort LegacySectionVersion = 1;
 
     /// <summary>Kennung der kanonischen Sektionscodierung (Vertragsanker).</summary>
     public const string CodecId = "riftward-session-section-canonical-binary-v1";
@@ -68,9 +80,16 @@ public static class SessionSectionCodec
     public const int MaxWindows = 8192;
 
     /// <summary>
-    /// Festes Minimum der Sektionslaenge: alle Kopf- und Skalarfelder ohne
-    /// Listen (Kopf 7, Erkundungskopf 5, Entscheidungsschicht 66,
-    /// Druckkopf 13, Druckausklang 22).
+    /// Feste Missions-Sektionsflaeche der Version 2 in Bytes (u8 + i64;
+    /// Savevertrag V3, Abschnitt 15).
+    /// </summary>
+    public const int MissionFieldsBytes = 1 + sizeof(long);
+
+    /// <summary>
+    /// Feste Bytestrangliste der Sektionsversion 1 (Bestandslayout ohne
+    /// Missionsfelder): alle Kopf- und Skalarfelder ohne Listen
+    /// (Kopf 7, Erkundungskopf 5, Entscheidungsschicht 66, Druckkopf 13,
+    /// Druckausklang 22).
     /// </summary>
     public const int MinimumSectionBytes =
         sizeof(ushort)              // Sektionsversion
@@ -82,6 +101,9 @@ public static class SessionSectionCodec
         + (1 + sizeof(long) + sizeof(uint))
         + (sizeof(long) + 1 + sizeof(int) + sizeof(long) + 1);
 
+    /// <summary>Feste Bytestrangliste der Sektionsversion 2 (Bestandslayout plus Missionsflaeche).</summary>
+    public const int MinimumSectionBytesV2 = MinimumSectionBytes + MissionFieldsBytes;
+
     /// <summary>Feste Stranglaenge einer Fensterinstanz in Bytes (5×i64 + 3 Kennungen).</summary>
     public const int WindowStrideBytes = (5 * sizeof(long)) + 3;
 
@@ -91,15 +113,22 @@ public static class SessionSectionCodec
     /// <summary>Feste Stranglaenge eines schwebenden Moduswechsels in Bytes.</summary>
     public const int PendingSwitchStrideBytes = (2 * sizeof(long)) + 2;
 
-    /// <summary>Kodiert den vollstaendigen Sitzungszustand kanonisch.</summary>
+    /// <summary>Kodiert den vollstaendigen Sitzungszustand kanonisch in der Sektionsversion des Zustands.</summary>
     public static byte[] Encode(SessionSectionState state)
     {
         ArgumentNullException.ThrowIfNull(state);
 
+        if (state.SectionVersion != LegacySectionVersion && state.SectionVersion != CurrentSectionVersion)
+        {
+            throw new InvalidOperationException(
+                $"Sektionsversion {state.SectionVersion} ist ohne erfundene Migration nicht kodierbar.");
+        }
+
+        var isV2 = state.SectionVersion == CurrentSectionVersion;
         var switches = state.PendingSwitches;
         var visits = state.ExplorationVisits;
         var windows = state.PressureWindows;
-        var total = MinimumSectionBytes
+        var total = (isV2 ? MinimumSectionBytesV2 : MinimumSectionBytes)
             + ((long)switches.Count * PendingSwitchStrideBytes)
             + ((long)visits.Count * VisitStrideBytes)
             + ((long)windows.Count * WindowStrideBytes);
@@ -112,7 +141,7 @@ public static class SessionSectionCodec
         var section = new byte[total];
         var offset = 0;
 
-        WriteU16(section, ref offset, SectionVersion);
+        WriteU16(section, ref offset, (ushort)state.SectionVersion);
         WriteU8(section, ref offset, state.ActiveMode);
 
         WriteU32(section, ref offset, (uint)switches.Count);
@@ -173,6 +202,14 @@ public static class SessionSectionCodec
         WriteI64(section, ref offset, state.PressureLastReopenBoundaryTick);
         WriteU8(section, ref offset, state.PressureReopenPendingRecording);
 
+        if (isV2)
+        {
+            // Additive Missionsflaeche der Sektionsversion 2 (Savevertrag V3,
+            // Abschnitt 15): exakt zwei Felder am Sektionsende.
+            WriteU8(section, ref offset, state.MissionActive);
+            WriteI64(section, ref offset, state.MissionChainRunCount);
+        }
+
         if (offset != total)
         {
             throw new InvalidOperationException("Sektionsmass und Kodierung weichen ab.");
@@ -209,9 +246,16 @@ public static class SessionSectionCodec
         var offset = 0;
         var version = ReadU16(section, ref offset);
 
-        if (version != SectionVersion)
+        if (version != CurrentSectionVersion && version != LegacySectionVersion)
         {
             return Invalid($"Sektionsversion {version} wird ohne erfundene Migration nicht unterstuetzt.");
+        }
+
+        var isV2 = version == CurrentSectionVersion;
+
+        if (section.Length < (isV2 ? MinimumSectionBytesV2 : MinimumSectionBytes))
+        {
+            return Invalid("Sektion unterschreitet das feste Mass des Sitzungszustands.");
         }
 
         var activeMode = ReadU8(section, ref offset);
@@ -536,6 +580,44 @@ public static class SessionSectionCodec
             return Invalid("Wiederauffrischungspendenz ohne Fehlschlag.");
         }
 
+        // Additive Missionsflaeche (nur Sektionsversion 2; Savevertrag V3
+        // Abschnitt 15): Aktivierung und Kettenlaufzaehlung mit den
+        // vertraglichen Relationswahrheiten. Die Legacy-Sektionsversion 1
+        // traegt die ehrliche, maschinenlesbare Missionsleere.
+        byte missionActive = 0;
+        long missionChainRunCount = 0;
+
+        if (isV2)
+        {
+            missionActive = ReadU8(section, ref offset);
+            missionChainRunCount = ReadI64(section, ref offset);
+
+            if (missionActive > 1)
+            {
+                return Invalid("Missionsaktivierung ist kein boolescher Wert.");
+            }
+
+            if (missionChainRunCount < 0)
+            {
+                return Invalid("Kettenlaufanzahl ist negativ.");
+            }
+
+            if (missionActive == 0 && missionChainRunCount != 0)
+            {
+                return Invalid("Ohne Missionsaktivierung traegt die Kettenlaufanzahl keinen Leerstand.");
+            }
+
+            if (missionActive == 1 && missionChainRunCount < 1)
+            {
+                return Invalid("Mit Missionsaktivierung traegt die Kettenlaufanzahl mindestens 1.");
+            }
+
+            if (missionActive == 1 && pressureActive != 1)
+            {
+                return Invalid("Die Missionsaktivierung ist vertraglich an die Druckaktivierung gekoppelt.");
+            }
+        }
+
         if (offset != section.Length)
         {
             return Invalid("Sektion besitzt Restbytes jenseits des festen Zustandsmasses.");
@@ -543,6 +625,7 @@ public static class SessionSectionCodec
 
         var state = new SessionSectionState
         {
+            SectionVersion = version,
             ActiveMode = activeMode,
             PendingSwitches = pending,
             ExplorationActive = explorationActive,
@@ -570,6 +653,8 @@ public static class SessionSectionCodec
             PressureLastFailureFollowUpZoneIndex = lastFailureFollowUpZoneIndex,
             PressureLastReopenBoundaryTick = lastReopenBoundaryTick,
             PressureReopenPendingRecording = reopenPendingRecording,
+            MissionActive = missionActive,
+            MissionChainRunCount = missionChainRunCount,
         };
 
         return (null, state);

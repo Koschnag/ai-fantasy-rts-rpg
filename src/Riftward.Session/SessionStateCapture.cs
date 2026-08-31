@@ -14,7 +14,7 @@ namespace Riftward.Session;
 public static class SessionStateCapture
 {
     /// <summary>
-    /// Erfasst die Kettenwahrheit der vier Sitzungsschichten plus des
+    /// Erfasst die Kettenwahrheit der fünf Sitzungsschichten plus des
     /// Modusflags und seiner schwebenden Wechsel aus der laufenden Pipeline.
     /// Die Schichten werden genau dann erfasst, wenn sie aktiviert sind; ohne
     /// Aktivierung trägt die Sektion die ehrliche Schichtleere.
@@ -28,6 +28,7 @@ public static class SessionStateCapture
         ExplorationSession? exploration,
         DecisionSession? decision,
         PressureSession? pressure,
+        MissionSession? mission,
         IReadOnlyList<ModeSwitchEvent>? pendingSwitches = null)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
@@ -112,6 +113,8 @@ public static class SessionStateCapture
             PressureLastFailureFollowUpZoneIndex = pressure?.LastFailureFollowUpZoneIndex ?? -1,
             PressureLastReopenBoundaryTick = pressure?.LastReopenBoundaryTick ?? -1,
             PressureReopenPendingRecording = pressure is { RestartPendingRecording: true } ? (byte)1 : (byte)0,
+            MissionActive = mission is not null ? (byte)1 : (byte)0,
+            MissionChainRunCount = mission?.ChainRunCount ?? 0,
         };
     }
 }

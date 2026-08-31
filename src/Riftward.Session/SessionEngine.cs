@@ -1018,11 +1018,21 @@ public static class SessionEngine
                 nameof(request));
         }
 
+        if (request.MissionEnabled && !request.PressureEnabled)
+        {
+            throw new ArgumentException(
+                "Die Abschluss- und Wiederholungsaktivierung ist vertraglich an die Druckaktivierung gekoppelt.",
+                nameof(request));
+        }
+
         var decision = request.DecisionEnabled && capture.Session.DecisionActive != 0
             ? DecisionSession.Restore(capture.Session)
             : null;
         var pressure = request.PressureEnabled && capture.Session.PressureActive != 0
             ? PressureSession.Restore(capture.Session)
+            : null;
+        var mission = request.MissionEnabled && capture.Session.MissionActive != 0
+            ? MissionSession.Restore(capture.Session)
             : null;
 
         // Skriptintents vor der Ladegrenze sind im Speicherlauf verbraucht;
@@ -1052,7 +1062,7 @@ public static class SessionEngine
             .ToArray();
         var restoredMode = capture.Session.ActiveMode == 1 ? SessionMode.Personal : SessionMode.Strategic;
         var pipeline = new SessionPipeline(
-            world, selection, continuationIntents, restoredMode, pendingSwitches, exploration, decision, pressure);
+            world, selection, continuationIntents, restoredMode, pendingSwitches, exploration, decision, pressure, mission);
 
         var result = RunMeasuredWindow(
             request, world, pipeline, capture.BoundaryTick, request.HorizonTicks,
@@ -1252,7 +1262,7 @@ public static class SessionEngine
                 BoundaryStateHash: world.ComputeStateHash(),
                 Simulation: Riftward.Save.SimulationSaveAdapter.Capture(world),
                 Session: SessionStateCapture.Capture(
-                    pipeline, exploration, decision, pressure, pendingSwitchesAtWindowEnd));
+                    pipeline, exploration, decision, pressure, mission, pendingSwitchesAtWindowEnd));
         }
 
         return (result, capture);

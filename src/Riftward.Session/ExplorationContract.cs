@@ -16,8 +16,8 @@ public static class ExplorationContract
     /// <summary>Pfad des versionierenden Vertragsdokuments.</summary>
     public const string DocumentPath = "docs/ERKUNDUNGSVERTRAG.md";
 
-    /// <summary>Vertragsversion des Dokuments (V2: additive Persistenz-Präzisierung, T-037).</summary>
-    public const string ContractVersion = "2";
+    /// <summary>Vertragsversion des Dokuments (V3: additive Ketten-Präzisierung, T-039; V2: Persistenz-Präzisierung, T-037).</summary>
+    public const string ContractVersion = "3";
 
     /// <summary>Kennung der Opt-in Aktivierung (Vertrag Abschnitt 6).</summary>
     public const string ActivationId = "opt-in-exploration-activation-v1";
