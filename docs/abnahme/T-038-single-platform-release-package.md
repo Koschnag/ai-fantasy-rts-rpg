@@ -76,8 +76,8 @@ ausgewiesen `OFFEN`.
   und Usage um den Befehl erweitert.
 - `scripts/rift.sh`: `package` delegiert an den Host; `check` bleibt
   unverändert NICHT VERFÜGBAR; Hilfetext um die Paketzeile erweitert.
-- Tests: `tests/RiftHarness.Tests/PackageTests.fs` (8 Einheiten) mit
-  hermetischen synthetischen Eingaben (Publish-Ausgabe, Native-Dist und
+- Tests: `tests/RiftHarness.Tests/PackageTests.fs` (9 Einheiten nach der
+  Review-Reparatur 1) mit hermetischen synthetischen Eingaben (Publish-Ausgabe, Native-Dist und
   Artefaktmanifest im Temp-Verzeichnis erzeugt; gitignorierte Runtime-Evidenz
   ist Voraussetzung keines schnellen Gates — der CLI-Paketbau prüft das
   Fehlen des Native-Dists als kontrollierten Code 39, T-032-Präzedenz) und
