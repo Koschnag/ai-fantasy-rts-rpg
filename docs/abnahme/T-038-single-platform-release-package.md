@@ -210,3 +210,37 @@ ausgewiesen `OFFEN`.
 - Die Projektlizenz bleibt offen (Q-PRD-001); das Paket enthält die
   Komponentenlizenzen der gebündelten Dritten und erhebt keine
   Lizenzbehauptung für eigenen Code.
+
+## Unabhängige Fortsetzungs-Review 2026-08-31 (Quality-Job `t038-fresh-a3c9c255-r6`)
+
+**Befund:** der an den Kandidaten `a3c9c25` (Baum-Fingerprint
+`e37f3605…`) gebundene Fresh-Checkout-Portabilitätslauf endete `FAILED`.
+Eigene Diagnose: `./scripts/rift.sh verify` reproduziert denselben Fehler —
+der Suiteeintrag `T-037 CLI continuation flow runs save and load on schema
+version 6` scheitert, weil der frische Speicherprozesslauf des
+`kommandoschleife`-Vertragstests mit Exitcode 35 und der Gateverletzung
+`allocations-per-warm-tick-above-limit` endet (gemessen 0,128 Bytes je
+warmem Tick statt exakt 0). Strukturell identische Läufe desselben Befehls
+bestehen im selben Suitezug (Paar- und Ablehnungstests) und 5 von 6
+manuellen Wiederholungen; die Simulationsbytes sind seit der grünen
+T-037-/T-038-Abnahme unverändert. Belegte Ursache ist damit der
+dokumentierte lastabhängige Prozessglobalzähler-Transient der
+Exakt-Null-Allokationsklasse (Hostlast 16,5 bei 8 Kernen während der
+Laufversuche), nicht ein Kandidatendefekt: das prozessweite
+`GC.GetTotalAllocatedBytes`-Fenster zählt sporadische Runtime-Fremdbytes
+(T-033-Präzedenz, `docs/abnahme/T-033-mode-switch-prototype.md` AC-T033-09).
+
+**Nebenreparatur für die Schlussfreigabe (Test-Harness):** die T-037-CLI-
+Fortsetzungstests hatten als einzige CLI-Vertragsfamilie die etablierte
+transiente Lasttoleranz nicht übernommen. `tests/RiftHarness.Tests/
+ContinuationTests.fs` erhält deshalb den gegenüber T-032/T-033/T-034/T-035/
+T-036 identischen `runToleratingTransientGate`-Wrapper (genau eine
+Wiederholung ausschließlich bei Exitcode 35 gemäß T-021-/T-032-Präzedenz,
+`docs/abnahme/T-032-graybox-command-loop.md` Abschnitt 7) und wendet ihn auf
+die drei erfolgserwartenden frischen Prozessläufe an; die kontrollierten
+Frühablehnungen (Fehlender Slot, Fremdseed, Code 36) bleiben strikt, da ihr
+Gate vor Fensterabschluss nie ausgewertet wird. Engine-Gate, Grenzwert 0,
+Exitcodebedeutungen, Reportvertrag und `Riftward.Simulation` bleiben
+unberührt; dauerhafte Verletzungen scheitern weiter in beiden Versuchen.
+Die strukturelle Härtung der Messbasis gegen Kaltprozess-Transients bleibt
+unverändert der bereits registrierte spätere Eigen-Slice.
