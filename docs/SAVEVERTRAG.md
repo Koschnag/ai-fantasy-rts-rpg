@@ -1,8 +1,10 @@
 # Savevertrag (T-031, Abschnitt 0)
 
-**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
-Sitzungssektions-Erweiterung gemäß `.ai/tasks/T-037-graybox-continuation-restart.json`,
-Abschnitt 13; alle übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
+**Vertragsversion:** 3 (V3 ergänzt ausschließlich die autorisierte additive
+Missions-Sektionsfläche gemäß Abschlussvertrag V1/T-039, Abschnitt 15; V2
+ergänzte die additive Sitzungssektions-Erweiterung gemäß
+`.ai/tasks/T-037-graybox-continuation-restart.json`, Abschnitt 13; alle
+übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-031-atomic-save-load.json` festgelegt, bevor die
 Saveimplementierung (Kodierung, Validierung, Slotprotokoll, `savecheck`-Lauf)
@@ -661,3 +663,74 @@ Byteidentität, und keine Antwort auf eine offene Produktfrage. `DATENMODELL.md`
 bleibt byteidentisch, weil Umschlag und Atomarprotokoll unverändert bleiben
 und die Sektion im vertraglich versionierten Payloadumfang als additive
 Sektion lebt.
+
+## 15. Autorisierte additive Missions-Sektionsfläche (V3, T-039)
+
+**Status:** Autorisierte additive Erweiterung gemäß dem gatenden Abschnitt 0
+des Auftrags `.ai/tasks/T-039-graybox-completion-repeat.json` und dem
+Abschlussvertrag V1 (`docs/ABSCHLUSSVERTRAG.md`, Abschnitt 5,
+`mission-chain-run-counter-persisted-v1`). Sie antwortet auf keine offene
+Produktfrage; Q-TEC-006 bleibt `OFFEN`; kein Budgetwert wird geändert; die
+Abschnitte 1 bis 14 gelten zeichentreu weiter, soweit dieser Abschnitt
+nichts Additives ergänzt.
+
+### 15.1 Additive Sektionsfelder (`mission-chain-run-section-fields-v3`)
+
+**Wahl:** Die kanonische Sitzungssektion erhält als **Sektionsversion 2**
+genau zwei additive Felder am Sektionsende (nach dem Druckausklang, feste
+Feldordnung, Little-Endian-Festbreiten, Sentinel-Regeln wie der Bestand):
+
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| `MissionActive` | u8 | Aktivierungskennung der Abschluss- und Wiederholungsschicht (0/1); 1 ist vertraglich an `PressureActive = 1` gekoppelt. |
+| `MissionChainRunCount` | i64 | Kettenlauf-Anzahl der aktuellen Kette; beginnt bei 1 und erhöht sich je wirksamer Wiederholung um genau eins. |
+
+Relationswahrheiten der Sektion (fail-closed, unterscheidbare
+Verletzungsklasse `SESSION_SECTION_INVALID`): `MissionActive > 1` ist
+unbekannt; ohne Aktivierung trägt die Zählung 0; mit Aktivierung trägt sie
+mindestens 1; mit Aktivierung ohne Druckaktivierung widerspricht die
+vertragliche Kopplung. Die abgeleitete Abschlusswahrheit selbst trägt kein
+Sektionsbyte (Abschlussvertrag Abschnitt 2): sie ist nach dem Laden aus den
+fortgesetzten Erkundungs-, Entscheidungs- und Druckwahrheiten erneut
+ableitbar. `saveSchemaVersion` bleibt unverändert 2; die
+Sektionsversion (`sessionSectionVersion`) wird 2 und ist von der
+Umschlagsversion unabhängig wie bisher.
+
+**Alternativen:** eigenes zweites Sektionsobjekt nur für die Missionsfläche
+(zweite Hash-/Framingfläche ohne Mehrwert — abgelehnt); Missionswahrheit im
+Payload (Berührung des simrelevanten Relevantzustands — abgelehnt, die
+Sektion ist die vertragliche Sitzungswahrheit).
+
+### 15.2 Legacy-Kompatibilität, Guards und Reportlinie
+
+**Legacy (`legacy-section-v1-mission-emptiness-v3`):** Slots mit Sektionsversion 1
+laden unverändert mit ehrlicher, maschinenrebarer Missionsleere
+(`MissionActive = 0`, `MissionChainRunCount = 0`) ohne Migrationserfindung;
+das Re-Encoding einer dekodierten Sektion erfolgt versionsgetreu (v1-Bytes
+bleiben v1, v2-Bytes bleiben v2), sodass die Re-Encoding-Gleichheit beider
+Bestände bindet. Neue Slots schreiben Sektionsversion 2.
+
+**Aktivierungsgrenze:** Die bestehende Grenze `layer-activation-mismatch`
+gilt unverändert für die Missionsaktivierung: die Schichtflags des
+Fortsetzungslaufs müssen mit der Sektion übereinstimmen; ein Widerspruch ist
+ein kontrollierter Abbruch ohne Aktivierung.
+
+**Reportlinie:** Save-/Ladeläufe mit Missionsaktivierung tragen die rein
+additive Schemaversion 7 (Abschlussvertrag Abschnitt 8) mit dem
+Pflichtblock `missionSession` und dem Fortsetzungsblock; Save-/Ladeläufe
+ohne Missionsaktivierung bleiben bei Schemaversion 6 byteidentisch. Es
+entstehen keine neuen Exitcodebedeutungen; die ausdrückliche Replay-Ausnahme
+(Abschnitt 13.6) gilt unverändert für die Kettenlaufwahrheit
+(`replay=not-continued`).
+
+**Playtestkriterien:** Nach dem Speichern in Kettenlauf 2 und dem Laden in
+einem frischen Prozess trägt der Report dieselbe Kettenlauf-Anzahl und
+denselben abgeleiteten Abschlusszustand; ein Slot der Sektionsversion 1
+lädt unverändert mit ehrlicher Missionsleere. **Rückrollweg:** Umkehr auf
+V2 (keine Missionsfelder) durch Vertragsversionswechsel mit Neubau und
+Fixture-Regeneration; die Abschlussschicht trägt dann die ehrliche
+Nichtpersistenz ihres Zählers. **Fixture-Regeneration:** Tests, die die
+Sektionslänge, die Prüfklassen und die Restaurierung an der
+Sektionsversion 1 gebunden haben, wurden im selben Kandidaten um die
+Sektionsversion 2 erweitert; Payload-, Ketten- und Endhashbindungen bleiben
+unverändert gültig.

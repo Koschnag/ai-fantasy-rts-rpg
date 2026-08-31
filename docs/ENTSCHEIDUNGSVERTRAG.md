@@ -481,3 +481,38 @@ Regeneration:** Tests, die `decision-session-local-not-persisted-v1` und
 `persisted=false` gebunden haben, wurden im selben Kandidaten auf die V3-
 Präzisierung fortgeschrieben; Angebots-, Ketten- und Endhashbindungen der
 T-035-/T-036-Flüsse bleiben unverändert gültig.
+
+## 15. Autorisierte additive Ketten-Präzisierung (V4, T-039)
+
+**Änderungsumfang (ausschließlich diese eine Wahrheitsänderung):** Die
+Auslöseregel des Abschnitts 2 („genau einmal je Auftragszyklus") wird auf
+die Kettenebene präzisiert (`chain-scoped-offer-and-cycle-truth-v4`): Die
+Kettenebene liegt über der Zyklusebene. Der definierte Kettenneustart des
+Abschlussvertrags V1 (`docs/ABSCHLUSSVERTRAG.md`, Abschnitt 4,
+`full-chain-restart-including-visit-protocol-v1`) setzt die
+Entscheidungswahrheit der Kette kontrolliert zurück (Angebot, Wahl, Folge,
+Ankunft); das Angebot öffnet erneut an der ersten Auswertungsgrenze mit
+abgeschlossenem Erkundungsauftrag **der neuen Kette**, und die
+Optionsableitung ist die reine Funktion des Aufsuchprotokolls der neuen
+Kette (`visit-protocol-zone-options-v1` unverändert) — eine abweichende
+Aufsuchfolge der neuen Kette kann zu abweichenden Optionen führen
+(Wiederholvarianz ohne Content). Die Zykluszählung des Druckvertrags bleibt
+je Kette: der Kettenneustart setzt sie kontrolliert zurück, und die
+Zyklusnummern beginnen je Kette erneut bei 1. Die Wahl-, Folge- und
+Ankunftsregeln der Abschnitte 4 und 5 bleiben zeichentreu unverändert.
+
+**Unverändert bleiben:** Auslöseregel und Optionsableitung je Zyklus,
+Modus-Scoping, Auswertungsordnung, Angebotsöffnung je Auftragszyklus,
+Persistenzwahrheit, Feedback, Aktivierungsform und alle Exitcodes
+(Abschnitte 2 bis 8 und 10 bis 14). **Grund und Begrenzung:** Die
+Präzisierung ist die vom Auftrag
+`.ai/tasks/T-039-graybox-completion-repeat.json` autorisierte additive
+Voraussetzung des Abschluss- und Wiederholungsschritts und antwortet auf
+keine offene Produktfrage; die Entscheidungsschicht bleibt rein
+sitzungsseitig und erzeugt niemals einen Kernbefehl. **Rückrollweg:** Umkehr
+auf V3 (keine Kettenebene) durch Vertragsversionswechsel mit Neubau und
+Fixture-Regeneration; die Abschlussschicht trägt dann die ehrliche
+Missionsleere. **Fixture-Regeneration:** Tests, die die
+Optionsableitung ausschließlich über die Sitzungsebene gebunden haben,
+wurden im selben Kandidaten um die Kettenebene erweitert; Angebots-, Ketten-
+und Endhashbindungen der T-035-/T-036-Flüsse bleiben unverändert gültig.

@@ -34,6 +34,12 @@ public enum IntentDisposition : byte
 
     /// <summary>Entscheidung ohne aktivierte Entscheidungsschicht abgewiesen (T-035, Auswertungsordnung Stufe 1).</summary>
     RejectedDecisionNotActivated = 9,
+
+    /// <summary>Wiederholen vor dem abgeleiteten Abschluss abgewiesen (T-039, Abschlussvertrag Abschnitt 3).</summary>
+    RejectedRepeatBeforeCompletion = 10,
+
+    /// <summary>Wiederholen ohne aktivierte Abschlussschicht abgewiesen (T-039, Auswertungsordnung Stufe 1).</summary>
+    RejectedRepeatNotActivated = 11,
 }
 
 /// <summary>Ergebnis einer Vorgrenzenverarbeitung (Befehlstick).</summary>
@@ -71,6 +77,12 @@ public readonly struct BoundaryOutcome
 
     /// <summary>An dieser Vorgrenze ohne Aktivierung abgewiesene Entscheidungen (T-035).</summary>
     public int RejectedDecisionNotActivated { get; init; }
+
+    /// <summary>An dieser Vorgrenze vor dem Abschluss abgewiesene Wiederholen-Aktionen (T-039).</summary>
+    public int RejectedRepeatBeforeCompletion { get; init; }
+
+    /// <summary>An dieser Vorgrenze ohne Aktivierung abgewiesene Wiederholen-Aktionen (T-039).</summary>
+    public int RejectedRepeatNotActivated { get; init; }
 }
 
 /// <summary>Aggregierte Kennzahlen eines Sitzungslaufs.</summary>
@@ -105,7 +117,8 @@ public sealed record SessionRunResult(
     ModeTelemetry Telemetry,
     ExplorationTelemetry? Exploration = null,
     DecisionTelemetry? Decision = null,
-    PressureTelemetry? Pressure = null);
+    PressureTelemetry? Pressure = null,
+    MissionTelemetry? Mission = null);
 
 /// <summary>Deterministische Percentil- und Zeitberechnung (Verfahren wie T-010/T-020/T-021).</summary>
 public static class SessionMath
@@ -168,6 +181,7 @@ public sealed class SessionPipeline
     private readonly ExplorationSession? _exploration;
     private readonly DecisionSession? _decision;
     private readonly PressureSession? _pressure;
+    private readonly MissionSession? _mission;
     private int _scriptCursor;
     private SessionMode _effectiveMode = SessionMode.Strategic;
 
@@ -189,7 +203,7 @@ public sealed class SessionPipeline
         ExplorationSession? exploration = null,
         DecisionSession? decision = null,
         PressureSession? pressure = null)
-        : this(world, selection, scriptedIntents, SessionMode.Strategic, Array.Empty<ModeSwitchEvent>(), exploration, decision, pressure)
+        : this(world, selection, scriptedIntents, SessionMode.Strategic, Array.Empty<ModeSwitchEvent>(), exploration, decision, pressure, null)
     {
     }
 
@@ -208,7 +222,8 @@ public sealed class SessionPipeline
         IReadOnlyList<ModeSwitchEvent> restoredPendingSwitches,
         ExplorationSession? exploration = null,
         DecisionSession? decision = null,
-        PressureSession? pressure = null)
+        PressureSession? pressure = null,
+        MissionSession? mission = null)
     {
         World = world;
         Selection = selection;
@@ -216,9 +231,22 @@ public sealed class SessionPipeline
         _exploration = exploration;
         _decision = decision;
         _pressure = pressure;
+        _mission = mission;
         _effectiveMode = initialMode;
         _initialMode = initialMode;
         _pendingSwitches.AddRange(restoredPendingSwitches);
+
+        if (mission is not null && (exploration is null || decision is null || pressure is null))
+        {
+            // Vertragskopplung (Abschlussvertrag Abschnitt 7): die
+            // Abschluss- und Wiederholungsschicht ist an die Druck- (und
+            // damit Entscheidungs- und Erkundungs-) aktivierung gekoppelt;
+            // ein Abschlusszustand ohne seine vertraglichen Wahrheitstraeger
+            // ist ein Vertragswiderspruch und wird fail-closed abgewiesen.
+            throw new ArgumentException(
+                "Die Abschluss- und Wiederholungsaktivierung ist vertraglich an die Druckaktivierung gekoppelt.",
+                nameof(mission));
+        }
 
         for (var index = 1; index < scriptedIntents.Length; index++)
         {
@@ -274,6 +302,16 @@ public sealed class SessionPipeline
     /// Entscheidungsaktivierung gekoppelt.
     /// </summary>
     public PressureSession? Pressure => _pressure;
+
+    /// <summary>
+    /// Optionale Abschluss- und Wiederholungsschicht (T-039): rein
+    /// sitzungsseitige Beobachtung und Semantik an jeder Auswertungsgrenze;
+    /// ohne Aktivierung null (Bestandsverhalten byteidentisch). Die Schicht
+    /// liest ausschließlich die Schichtwahrheiten schreibgeschützt, erzeugt
+    /// niemals einen Kernbefehl und ist vertraglich an die Druckaktivierung
+    /// gekoppelt (Abschlussvertrag Abschnitt 7).
+    /// </summary>
+    public MissionSession? Mission => _mission;
 
     /// <summary>Stellt einen validierten Live-Intent fuer die naechste Vorgrenze bereit.</summary>
     public void EnqueueLiveIntent(GrayboxIntent intent) => _liveQueue.Add(intent);
@@ -358,6 +396,8 @@ public sealed class SessionPipeline
         var rejectedDecisionInStrategicMode = 0;
         var rejectedDecisionAfterDecision = 0;
         var rejectedDecisionNotActivated = 0;
+        var rejectedRepeatBeforeCompletion = 0;
+        var rejectedRepeatNotActivated = 0;
         var switchIntentsEvaluated = 0;
         Span<Riftward.Simulation.SimCommand> commands = stackalloc Riftward.Simulation.SimCommand[
             Riftward.Simulation.SimulationContract.GroupCount];
@@ -399,11 +439,11 @@ public sealed class SessionPipeline
 
                 case GrayboxIntentKind.ChooseA:
                 case GrayboxIntentKind.ChooseB:
-                    // Entscheidungsaktionen sind in beiden Kontexten
-                    // grammatisch gueltig; Angebot, Modus und
-                    // Entscheidungsstand entscheidet die vertragliche
-                    // Auswertungsordnung in EvaluateDecisionChoice
-                    // (Entscheidungsvertrag Abschnitt 4).
+                case GrayboxIntentKind.RepeatMission:
+                    // Entscheidungs- und Wiederholen-Aktionen sind in beiden
+                    // Kontexten grammatisch gueltig; Angebot, Modus,
+                    // Entscheidungs- und Abschlussstand entscheidet die
+                    // vertragliche Auswertungsordnung.
                     break;
 
                 case GrayboxIntentKind.SwitchMode:
@@ -526,6 +566,33 @@ public sealed class SessionPipeline
 
                     break;
 
+                case GrayboxIntentKind.RepeatMission:
+                    {
+                        var (repeatApplied, repeatDisposition) = EvaluateRepeatMission(intent, tick);
+
+                        switch (repeatDisposition)
+                        {
+                            case IntentDisposition.RejectedRepeatBeforeCompletion:
+                                rejectedRepeatBeforeCompletion++;
+                                break;
+
+                            case IntentDisposition.RejectedRepeatNotActivated:
+                                rejectedRepeatNotActivated++;
+                                break;
+                        }
+
+                        if (repeatApplied)
+                        {
+                            applied++;
+                        }
+                        else
+                        {
+                            rejected++;
+                        }
+                    }
+
+                    break;
+
                 case GrayboxIntentKind.SwitchMode:
                     EvaluateModeSwitch(tick);
                     switchIntentsEvaluated++;
@@ -567,6 +634,18 @@ public sealed class SessionPipeline
             pressure.Observe(tick, World, _effectiveMode, boundDecision);
         }
 
+        // Rein sitzungsseitige Abschlussbeobachtung an derselben Vorgrenze
+        // (T-039, Abschlussvertrag Abschnitte 2 und 9), in der vertraglichen
+        // Ordnung nach der Druckbeobachtung: bindet die erste Grenze der
+        // aktuellen Kette, an der die abgeleitete Abschlussfunktion über den
+        // drei Schichtwahrheiten gilt. Ohne Aktivierung null —
+        // Bestandsverhalten unverändert.
+        if (_mission is { } mission && _exploration is { } missionExploration
+            && _decision is { } missionDecision && _pressure is { } missionPressure)
+        {
+            mission.Observe(tick, missionExploration, missionDecision, missionPressure);
+        }
+
         return new BoundaryOutcome
         {
             AppliedCount = applied,
@@ -581,6 +660,8 @@ public sealed class SessionPipeline
             RejectedDecisionInStrategicMode = rejectedDecisionInStrategicMode,
             RejectedDecisionAfterDecision = rejectedDecisionAfterDecision,
             RejectedDecisionNotActivated = rejectedDecisionNotActivated,
+            RejectedRepeatBeforeCompletion = rejectedRepeatBeforeCompletion,
+            RejectedRepeatNotActivated = rejectedRepeatNotActivated,
         };
     }
 
@@ -622,6 +703,43 @@ public sealed class SessionPipeline
 
         ChooseIntentsRejectedAfterDecisionTotal++;
         return (false, Journal(intent, IntentDisposition.RejectedDecisionAfterDecision));
+    }
+
+    /// <summary>
+    /// Auswertung einer Wiederholen-Aktion an ihrer Vorgrenze (T-039,
+    /// Abschlussvertrag Abschnitt 3, Wirksamkeitsregel
+    /// <c>mission-repeat-completion-only-v1</c>): rein sitzungsseitig, ohne
+    /// Kernbefehl, ohne Simulationszustand. Die wirksame Aktion loest den
+    /// definierten Kettenneustart in vertraglicher Ordnung aus — Modus,
+    /// Sitzungsabweisungszaehler, Welt und Kern bleiben unberuehrt; die
+    /// Beobachtungen derselben Vorgrenze laufen gegen die neue Kette. Rueckgabe
+    /// ist das Paar (wirksam, Disposition).
+    /// </summary>
+    private (bool Applied, IntentDisposition Disposition) EvaluateRepeatMission(
+        GrayboxIntent intent,
+        long tick)
+    {
+        if (_mission is not { } mission)
+        {
+            RepeatIntentsRejectedWithoutActivationTotal++;
+            return (false, Journal(intent, IntentDisposition.RejectedRepeatNotActivated));
+        }
+
+        if (mission.TryRepeat(tick))
+        {
+            // Definierter Kettenneustart (Abschlussvertrag Abschnitt 4,
+            // full-chain-restart-including-visit-protocol-v1): die Schicht-
+            // resets laufen in vertraglicher Ordnung (Erkundung, Entscheidung,
+            // Druck); die Kettenlaufanzahl hat die Wiederholung bereits
+            // erhöht. ADR 008: kein Welt- oder Kernzustand, kein Kernbefehl.
+            _exploration!.RestartChain();
+            _decision!.RestartChain();
+            _pressure!.RestartChain();
+            return (true, Journal(intent, IntentDisposition.Applied));
+        }
+
+        RepeatIntentsRejectedBeforeCompletionTotal++;
+        return (false, Journal(intent, IntentDisposition.RejectedRepeatBeforeCompletion));
     }
 
     /// <summary>
@@ -761,6 +879,12 @@ public sealed class SessionPipeline
     /// <summary>Gesamtzaehler Entscheidungen nach gefallener Wahl (T-035, Stufe 4).</summary>
     public long ChooseIntentsRejectedAfterDecisionTotal { get; private set; }
 
+    /// <summary>Gesamtzaehler Wiederholen-Aktionen vor dem abgeleiteten Abschluss (T-039).</summary>
+    public long RepeatIntentsRejectedBeforeCompletionTotal { get; private set; }
+
+    /// <summary>Gesamtzaehler Wiederholen-Aktionen ohne aktivierte Schicht (T-039, Stufe 1).</summary>
+    public long RepeatIntentsRejectedWithoutActivationTotal { get; private set; }
+
     private IntentDisposition Journal(GrayboxIntent intent, IntentDisposition disposition)
     {
         if (disposition == IntentDisposition.Applied)
@@ -785,7 +909,8 @@ public sealed record SessionRunRequest(
     bool RunSelfConsistencyPass = true,
     bool ExplorationEnabled = false,
     bool DecisionEnabled = false,
-    bool PressureEnabled = false);
+    bool PressureEnabled = false,
+    bool MissionEnabled = false);
 
 /// <summary>
 /// In-Prozess-Träger eines Speichers an einer Vorgrenze (Savevertrag V2,
@@ -1075,6 +1200,18 @@ public static class SessionEngine
                 nameof(request));
         }
 
+        if (request.MissionEnabled && !request.PressureEnabled)
+        {
+            // Vertragskopplung (Abschlussvertrag Abschnitt 7): die
+            // Abschluss- und Wiederholungsaktivierung ist an --pressure
+            // gekoppelt; ein Abschlusszustand ohne seinen vertraglichen
+            // Ausloesertraeger ist ein Vertragswiderspruch und wird
+            // fail-closed abgewiesen.
+            throw new ArgumentException(
+                "Die Abschluss- und Wiederholungsaktivierung ist vertraglich an die Druckaktivierung gekoppelt.",
+                nameof(request));
+        }
+
         // Entscheidung ist rein sitzungsseitig (T-035): ohne Aktivierung
         // null; die Schicht erzeugt niemals einen Kernbefehl und ist nie
         // Simulationszustand oder Hash.
@@ -1084,7 +1221,16 @@ public static class SessionEngine
         // Schicht erzeugt niemals einen Kernbefehl und ist nie
         // Simulationszustand oder Hash.
         var pressure = request.PressureEnabled && decision is not null ? new PressureSession() : null;
-        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration, decision, pressure);
+
+        // Abschluss- und Wiederholungsschicht ist rein sitzungsseitig
+        // (T-039): ohne Aktivierung null; die Schicht erzeugt niemals einen
+        // Kernbefehl und ist nie Simulationszustand oder Hash. Sie ist
+        // vertraglich an die Druckaktivierung gekoppelt und liest die drei
+        // Schichtwahrheiten schreibgeschützt.
+        var mission = request.MissionEnabled && pressure is not null && decision is not null && exploration is not null
+            ? new MissionSession()
+            : null;
+        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration, decision, pressure, mission);
 
         // Warmphase ohne Messung; es gibt keine Intents vor dem Fenster.
         for (var tick = 0L; tick < request.WarmupTicks; tick++)
@@ -1245,7 +1391,8 @@ public static class SessionEngine
             Telemetry: BuildModeTelemetry(pipeline),
             Exploration: explorationTelemetryOrNull(pipeline),
             Decision: decisionTelemetryOrNull(pipeline),
-            Pressure: pressureTelemetryOrNull(pipeline));
+            Pressure: pressureTelemetryOrNull(pipeline),
+            Mission: missionTelemetryOrNull(pipeline));
     }
 
     private static ExplorationTelemetry? explorationTelemetryOrNull(SessionPipeline pipeline) =>
@@ -1257,6 +1404,14 @@ public static class SessionEngine
     private static PressureTelemetry? pressureTelemetryOrNull(SessionPipeline pipeline) =>
         pipeline.Pressure is { } pressure && pipeline.Decision is { } decision
             ? pressure.ToTelemetry(decision)
+            : null;
+
+    private static MissionTelemetry? missionTelemetryOrNull(SessionPipeline pipeline) =>
+        pipeline.Mission is { } mission
+        && pipeline.Exploration is { } exploration
+        && pipeline.Decision is { } decision
+        && pipeline.Pressure is { } pressure
+            ? mission.ToTelemetry(MissionSession.IsDerivedCompleted(exploration, decision, pressure))
             : null;
 
     /// <summary>
