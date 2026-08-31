@@ -28,7 +28,7 @@ public static class SessionStateCapture
         ExplorationSession? exploration,
         DecisionSession? decision,
         PressureSession? pressure,
-        MissionSession? mission,
+        MissionSession? mission = null,
         IReadOnlyList<ModeSwitchEvent>? pendingSwitches = null)
     {
         ArgumentNullException.ThrowIfNull(pipeline);

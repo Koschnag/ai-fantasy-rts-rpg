@@ -31,13 +31,23 @@ public static class Keymap
     public const string LoadSlotActionName = "load-slot";
 
     /// <summary>
+    /// Semantischer Aktionsname des Wiederholens (T-039, Abschlussvertrag
+    /// Abschnitt 3): frei belegbar; Standardbelegung ist F7 (Scancode 64),
+    /// das im Bestandsstand unbesetzt war. Wirksam ausschließlich im
+    /// abgeleiteten Abschlusszustand (mission-repeat-completion-only-v1).
+    /// </summary>
+    public const string RepeatMissionActionName = "repeat-mission";
+
+    /// <summary>
     /// Semantische Aktionsfamilie des Vertrags. <c>mode-switch</c> ist die
     /// T-033-Erweiterung (Modevertrag Abschnitt 4): frei belegbare,
     /// datengetriebene Umschaltaktion; der Standard belegt Tab (Scancode 43),
     /// das im T-032-Stand unbesetzt war. <c>choose-a</c>/<c>choose-b</c> sind
     /// die T-035-Erweiterung (Entscheidungsvertrag Abschnitt 4).
     /// <c>save-slot</c>/<c>load-slot</c> sind die T-037-Erweiterung
-    /// (Savevertrag V2 Abschnitt 13.3).
+    /// (Savevertrag V2 Abschnitt 13.3). <c>repeat-mission</c> ist die
+    /// T-039-Erweiterung (Abschlussvertrag Abschnitt 3, Kommandovertrag
+    /// Abschnitt 13).
     /// </summary>
     public static readonly string[] SemanticActions =
     [
@@ -53,6 +63,7 @@ public static class Keymap
         ChooseBActionName,
         SaveSlotActionName,
         LoadSlotActionName,
+        RepeatMissionActionName,
     ];
 
     /// <summary>Defaultbelegung: Aktion → SDL-Scancodes (gepinnter Stand).</summary>
@@ -70,6 +81,7 @@ public static class Keymap
         [ChooseBActionName] = [31], // Zifferntaste 2 (T-035 Entscheidungsvertrag Abschnitt 4)
         [SaveSlotActionName] = [62], // F5 (T-037 Savevertrag V2 Abschnitt 13.3)
         [LoadSlotActionName] = [66], // F9 (T-037 Savevertrag V2 Abschnitt 13.3)
+        [RepeatMissionActionName] = [64], // F7 (T-039 Abschlussvertrag Abschnitt 3)
     };
 
     /// <summary>

@@ -733,7 +733,7 @@ public sealed class SessionPipeline
             // Druck); die Kettenlaufanzahl hat die Wiederholung bereits
             // erhöht. ADR 008: kein Welt- oder Kernzustand, kein Kernbefehl.
             _exploration!.RestartChain();
-            _decision!.RestartChain();
+            _decision!.RestartCycle();
             _pressure!.RestartChain();
             return (true, Journal(intent, IntentDisposition.Applied));
         }
@@ -1240,7 +1240,9 @@ public static class SessionEngine
         var mission = request.MissionEnabled && pressure is not null && decision is not null && exploration is not null
             ? new MissionSession()
             : null;
-        var pipeline = new SessionPipeline(world, selection, request.ScriptedIntents, exploration, decision, pressure, mission);
+        var pipeline = new SessionPipeline(
+            world, selection, request.ScriptedIntents, SessionMode.Strategic,
+            Array.Empty<ModeSwitchEvent>(), exploration, decision, pressure, mission);
 
         // Warmphase ohne Messung; es gibt keine Intents vor dem Fenster.
         for (var tick = 0L; tick < request.WarmupTicks; tick++)
