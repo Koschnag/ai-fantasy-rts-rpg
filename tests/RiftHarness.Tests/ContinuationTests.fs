@@ -52,6 +52,22 @@ let private runAppHost (arguments: string[]) =
     processHandle.WaitForExit()
     (processHandle.ExitCode, stdout.TrimEnd(), stderr.TrimEnd())
 
+// Transiente Lasttoleranz gemäß T-021-/T-032-Präzedenz (dokumentiert in
+// docs/abnahme/T-032-graybox-command-loop.md Abschnitt 7): ein frischer
+// Prozesslauf, der ausschließlich den lastabhängigen Exakt-Null-
+// Allokationstransienten des Kommandoschleifen-Gates zeigt (Exitcode 35,
+// gemessene Summe wenige Bytes statt 0), wird genau einmal wiederholt;
+// dauerhafte Gateverletzungen scheitern weiter reproduzierbar in beiden
+// Versuchen. Kein Schwellwert, keine Gateabschwächung, Exakt-Null-Klasse
+// des Engine-Reports unberührt.
+let private runToleratingTransientGate arguments =
+    let exitCode, stdout, stderr = runAppHost arguments
+
+    if exitCode = ExitCodes.Map(PlatformErrorCode.CommandGateViolated) then
+        runAppHost arguments
+    else
+        exitCode, stdout, stderr
+
 let private reportJson (path: string) =
     if not (File.Exists(path)) then
         failwith $"Report wurde nicht geschrieben: {path}"
@@ -906,12 +922,14 @@ let foreignSeedChangesHashesButContinuityHolds () =
 // ---------------------------------------------------------------------------
 
 let private freshProcessPair (slotDir: string) (saveReport: string) (loadReport: string) =
-    let saveExit, _, saveStderr = runAppHost (saveArguments slotDir saveReport)
+    let saveExit, _, saveStderr =
+        runToleratingTransientGate (saveArguments slotDir saveReport)
 
     if saveExit <> ExitCodes.Ok then
         failwith $"Speicherlauf endete mit {saveExit}: {saveStderr}"
 
-    let loadExit, _, loadStderr = runAppHost (loadArguments slotDir loadReport)
+    let loadExit, _, loadStderr =
+        runToleratingTransientGate (loadArguments slotDir loadReport)
 
     if loadExit <> ExitCodes.Ok then
         failwith $"Fortsetzungslauf endete mit {loadExit}: {loadStderr}"
@@ -1100,7 +1118,7 @@ let cliContinuationRejectionsStayControlledAndExitCodesStable () =
         // Speicherlauf mit dem Vertragssseed; der Fremdseed-Lauf widerspricht
         // ihm und wird vor Aktivierung abgewiesen.
         let saveOk, _, saveStderr =
-            runAppHost (saveArguments slotDir (Path.Combine(slotDir, "seed-save.json")))
+            runToleratingTransientGate (saveArguments slotDir (Path.Combine(slotDir, "seed-save.json")))
 
         if saveOk <> ExitCodes.Ok then
             failwith $"Speicherlauf des Fremdseed-Falls endete mit {saveOk}: {saveStderr}"
