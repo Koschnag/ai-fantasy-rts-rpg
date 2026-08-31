@@ -1,8 +1,10 @@
 # Erkundungsvertrag (T-034, Abschnitt 0)
 
-**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
-Persistenz-Präzisierung gemäß Savevertrag V2/T-037, Abschnitt 10; alle
-übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
+**Vertragsversion:** 3 (V3 ergänzt ausschließlich die autorisierte additive
+Ketten-Präzisierung gemäß Abschlussvertrag V1/T-039, Abschnitt 12; V2
+ergänzte die autorisierte additive Persistenz-Präzisierung gemäß
+Savevertrag V2/T-037, Abschnitt 10; alle übrigen Abschnitte sind gegenüber
+V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-034-graybox-exploration-loop.json` vor der Implementierung
 festgelegt; die maschinenlesbaren Kennungen sind in
@@ -382,3 +384,36 @@ Vertragshelden — jeweils gedeckt durch die eigenen Rückrollklauseln des
 Modevertrags Abschnitt 8 (Hypothesenkonstanten ohne Vertragsversionswechsel).
 Wechsel-, Verb-, Eingabe- und Exitcode-Semantik des Modevertrags bleiben
 unverändert.
+
+## 12. Autorisierte additive Ketten-Präzisierung (V3, T-039)
+
+**Änderungsumfang (ausschließlich diese eine Wahrheitsänderung):** Die
+Registrierungsregel des Abschnitts 3 („die Landmarke ist in dieser Sitzung
+noch nicht registriert") wird auf die Kettenebene präzisiert
+(`registration-uniqueness-per-chain-v3`): Jede Landmarke registriert
+genau einmal **je Kette**; der definierte Kettenneustart des Abschlussvertrags
+V1 (`docs/ABSCHLUSSVERTRAG.md`, Abschnitt 4,
+`full-chain-restart-including-visit-protocol-v1`) ist die einzige
+Wirksamkeitsbedingung, die eine erneute Registrierung ermöglicht. Mit dem
+Kettenneustart werden Registrierungszustand, Aufsuchprotokoll und Fortschritt
+kontrolliert zurückgesetzt; der Besuchsrang beginnt je Kette erneut bei 1,
+und die Abschlussbedingung des Abschnitts 4 gilt je Kette erneut. Ohne
+definierten Reset gilt die Einmaligkeit unverändert (Doppelbesuche
+registrieren nie erneut, keine stille Mehrfachzählung).
+
+**Unverändert bleiben:** Landmarkenmenge, Aufsuch- und Moduskopplungsregel,
+Fortschritts- und Abschlussableitung, Feedback, Aktivierungsform,
+Persistenzwahrheit und alle Exitcodes (Abschnitte 2 bis 6 und 8 bis 11).
+**Grund und Begrenzung:** Die Präzisierung ist die vom Auftrag
+`.ai/tasks/T-039-graybox-completion-repeat.json` autorisierte additive
+Voraussetzung des Abschluss- und Wiederholungsschritts (die Wiederholung
+öffnet die Erkundung erneut mit Wiederholvarianz über die Aufsuchfolge) und
+antwortet auf keine offene Produktfrage; die Registrierung bleibt rein
+sitzungsseitig und erzeugt niemals einen Kernbefehl. **Rückrollweg:** Umkehr
+auf V2 (Einmaligkeit je Sitzung ohne Resetbedingung) durch
+Vertragsversionswechsel mit Neubau und Fixture-Regeneration; die
+Abschlussschicht trägt dann die ehrliche Missionsleere für die
+Registrierungsänderung. **Fixture-Regeneration:** Tests, die die Einmaligkeit
+ausschließlich je Sitzung gebunden haben, wurden im selben Kandidaten um die
+Kettenebene erweitert; Landmarken-, Ketten- und Endhashbindungen bleiben
+unverändert gültig.

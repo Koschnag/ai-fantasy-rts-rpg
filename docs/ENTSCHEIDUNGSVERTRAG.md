@@ -1,6 +1,6 @@
 # Entscheidungsvertrag (T-035, Abschnitt 0)
 
-**Vertragsversion:** 3
+**Vertragsversion:** 4
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-035-graybox-decision-step.json` vor der Implementierung festgelegt
 (V1); Version 2 ergänzt ausschließlich die autorisierte additive
