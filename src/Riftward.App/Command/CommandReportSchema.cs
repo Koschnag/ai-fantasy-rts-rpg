@@ -42,6 +42,9 @@ public static class CommandReportSchema
     /// <summary>Schemaversion mit Save-/Ladeaktivierung (T-037: rein additiv um continuation).</summary>
     public const int VersionWithContinuation = SaveContract.ReportSchemaVersionWithContinuation;
 
+    /// <summary>Schemaversion mit Missionsaktivierung (T-039: rein additiv um missionSession).</summary>
+    public const int VersionWithMission = MissionContract.ReportSchemaVersionWithMission;
+
     public const string ModeCommandLoop = "kommandoschleife";
     public const string ExecutionHeadless = "headless";
     public const string ExecutionInteractive = "interactive";
@@ -72,6 +75,10 @@ public static class CommandReportSchema
 
     internal static RObj InteractiveContinuationBody { get; } = BuildBody(ExecutionInteractive, VersionWithContinuation);
 
+    internal static RObj HeadlessMissionBody { get; } = BuildBody(ExecutionHeadless, VersionWithMission);
+
+    internal static RObj InteractiveMissionBody { get; } = BuildBody(ExecutionInteractive, VersionWithMission);
+
     /// <summary>
     /// Versions- und Ausführungsdispatch: Die Schemaversion
     /// <see cref="VersionWithoutExploration"/> (Bestandsstand) toleriert
@@ -93,9 +100,9 @@ public static class CommandReportSchema
                 return;
             }
 
-            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion or VersionWithDecision or VersionWithPressure or VersionWithContinuation))
+            if (schemaVersion is not (VersionWithoutExploration or CurrentVersion or VersionWithDecision or VersionWithPressure or VersionWithContinuation or VersionWithMission))
             {
-                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration}, {CurrentVersion}, {VersionWithDecision}, {VersionWithPressure} oder {VersionWithContinuation} erwartet.");
+                errors.Add($"$.schemaVersion: Wert ausserhalb der erlaubten Schemaversionen; {VersionWithoutExploration}, {CurrentVersion}, {VersionWithDecision}, {VersionWithPressure}, {VersionWithContinuation} oder {VersionWithMission} erwartet.");
                 return;
             }
 
@@ -118,6 +125,8 @@ public static class CommandReportSchema
                 (VersionWithPressure, ExecutionInteractive) => InteractivePressureBody,
                 (VersionWithContinuation, ExecutionHeadless) => HeadlessContinuationBody,
                 (VersionWithContinuation, ExecutionInteractive) => InteractiveContinuationBody,
+                (VersionWithMission, ExecutionHeadless) => HeadlessMissionBody,
+                (VersionWithMission, ExecutionInteractive) => InteractiveMissionBody,
                 _ => null,
             };
 
@@ -164,6 +173,25 @@ public static class CommandReportSchema
                 ValidateDecisionRelations(path, element, errors);
                 ValidatePressureRelations(path, element, errors);
                 ValidateContinuationRelations(path, element, errors);
+            }
+
+            // Schemaversion 7 (T-039): die Abschluss- und Wiederholungs-
+            // aktivierung ist vertraglich an die Druckaktivierung gekoppelt;
+            // sämtliche Schichtblöcke sind Pflicht, und der Missionsblock
+            // trägt seine relationalen Wahrheiten (Abschluss nur nach
+            // Erfolgs-/Schichtkonsistenz, Reset nur nach Abschluss,
+            // Kettenlaufzählung konsistent).
+            if (schemaVersion == VersionWithMission)
+            {
+                ValidateExplorationRelations(path, element, errors);
+                ValidateDecisionRelations(path, element, errors);
+                ValidatePressureRelations(path, element, errors);
+                ValidateMissionRelations(path, element, errors);
+
+                if (element.TryGetProperty("continuation", out _))
+                {
+                    ValidateContinuationRelations(path, element, errors);
+                }
             }
         }
     }
@@ -228,6 +256,27 @@ public static class CommandReportSchema
             fields.Add(("explorationSession", ExplorationSessionBody()));
             fields.Add((DecisionContract.ReportBlockId, DecisionSessionBody()));
             fields.Add((PressureContract.ReportBlockId, PressureSessionBody()));
+        }
+
+        // Rein additive Schemaversion 7 (T-039, Abschlussvertrag Abschnitt
+        // 8): ausschließlich neue Felder, keine Umdeutung; vertraglich an die
+        // Druckaktivierung gekoppelt, daher traegt die Missions-Schemaversion
+        // stets auch die Erkundungs-, Entscheidungs- und Druckblöcke sowie
+        // den Pflichtblock missionSession; der Fortsetzungsblock erscheint
+        // genau in Save-/Ladeläufen.
+        if (version == VersionWithMission)
+        {
+            return new RObj(fields
+                .Concat(new (string, ReportNode)[]
+                {
+                    (ExplorationContract.ReportBlockId, ExplorationSessionBody()),
+                    (DecisionContract.ReportBlockId, DecisionSessionBody()),
+                    (PressureContract.ReportBlockId, PressureSessionBody()),
+                    (MissionContract.ReportBlockId, MissionSessionBody()),
+                    ("continuation", new OptionalFieldNode("continuation", ContinuationBody())),
+                })
+                .Concat(CommonTailFields(executionMode))
+                .ToArray());
         }
 
         // Rein additive Schemaversion 6 (T-037, Savevertrag V2 Abschnitt
@@ -790,7 +839,10 @@ public static class CommandReportSchema
                     PressureContract.EndStatusWindowOpen,
                     PressureContract.EndStatusRestartPending,
                     PressureContract.EndStatusSuccess,
-                ])))));
+                ])))),
+        ("mission", new RObj(
+            ("active", new RBool()),
+            ("chainRunCount", new RInt(0)))));
 
     /// <summary>Ganzzahlknoten, der null oder eine nichtnegative Ganzzahl akzeptiert.</summary>
     private sealed class RNullableIntNode : ReportNode
@@ -953,6 +1005,251 @@ public static class CommandReportSchema
     /// <summary>Zonenknoten inklusive vertraglichem Sentinel.</summary>
     private static RInt ZoneIndexNode() =>
         new(DecisionTelemetry.UnsetZoneIndex, Riftward.Simulation.NavWorld.ZoneCount - 1);
+
+    /// <summary>
+    /// Abschluss- und Wiederholungsblock (T-039, Abschlussvertrag Abschnitt
+    /// 8): bei Aktivierung vertraglich gebunden — Vertrags- und
+    /// Modellkennungen, ehrlicher Abschlussausweis (Zustand, Grenze, Grund),
+    /// Kettenlaufzählung, Wiederholungsprotokoll je Eintrag
+    /// (Vorgrenze, Disposition, Kettenlaufstand), Abweisungszähler und die
+    /// versionierte Persistenzaussage (Kettenlaufzählung fortsetzbar,
+    /// abgeleitete Abschlusswahrheit ohne Persistenzbyte); die
+    /// fensterpflichtigen Darstellungsausweise sind headless und in
+    /// unvollständigen Läufen ausdrücklich nicht gemessen mit
+    /// maschinenlesbarem Grund. Rein diagnostisch (gateCoupled=false); kein
+    /// Feld koppelt an ein Gate oder einen Budgetwert, und keine
+    /// Exitcodebedeutung entsteht.
+    /// </summary>
+    private static RObj MissionSessionBody() => new(
+        ("contract", new RObj(
+            ("document", new RLit(MissionContract.DocumentPath)),
+            ("version", new RLit(MissionContract.ContractVersion)))),
+        ("activationId", new RLit(MissionContract.ActivationId)),
+        ("completionModel", new RLit(MissionContract.CompletionModelId)),
+        ("completionBoundaryModel", new RLit(MissionContract.CompletionBoundaryModelId)),
+        ("repeatActivationModel", new RLit(MissionContract.RepeatActivationModelId)),
+        ("resetScope", new RLit(MissionContract.ResetScopeId)),
+        ("completion", new FlagAlternative("state",
+        [
+            new RObj(
+                ("state", new RLit(MissionContract.CompletionStateCompleted)),
+                ("boundaryTick", new RInt(0)),
+                ("reason", new RNullableStr())),
+            new RObj(
+                ("state", new RLit(MissionContract.CompletionStateOpen)),
+                ("boundaryTick", new RInt((int)MissionTelemetry.UnsetBoundaryTick)),
+                ("reason", new LiteralAlternative([MissionContract.OpenReasonNoCycleSuccess]))),
+        ])),
+        ("chainRunCount", new RInt(1)),
+        ("repeatProtocol", new RArr(MissionRepeatEntry())),
+        ("repeatRejectionsBeforeCompletion", new RInt(0)),
+        ("persistence", new RObj(
+            ("statementId", new RLit(MissionContract.PersistenceStatementId)),
+            ("persisted", new RBool(MissionContract.Persisted)),
+            ("saveLoad", new RLit(MissionContract.SaveLoadContinuation)),
+            ("replay", new RLit(MissionContract.ReplayNotContinued)),
+            ("completionStatePersisted", new RBool(MissionContract.CompletionStatePersisted)),
+            ("gateCoupled", new RBool(false)))),
+        ("gateCoupled", new RBool(false)),
+        ("hud", MissionHudAlternative()),
+        ("repeatKeymap", MissionRepeatKeymapAlternative()));
+
+    /// <summary>Wiederholungsprotokolleintrag (Abschlussvertrag Abschnitt 8).</summary>
+    private static RObj MissionRepeatEntry() => new(
+        ("boundaryTick", new RInt(0)),
+        ("disposition", new LiteralAlternative(
+            [MissionContract.RepeatDispositionApplied, MissionContract.RepeatDispositionRejectedBeforeCompletion])),
+        ("chainRunAfter", new RInt(1)),
+        ("gateCoupled", new RBool(false)));
+
+    /// <summary>
+    /// Titel-HUD-Ausweis des Abschlusses (Abschlussvertrag Abschnitte 6 und
+    /// 8): im Interaktivmodus messend mit Abschlusszustand und
+    /// Kettenlaufzählung; headless und in unvollständigen Läufen
+    /// ausdrücklich nicht gemessen mit maschinenlesbarem Grund statt stiller
+    /// Behauptung.
+    /// </summary>
+    private static MeasuredAlternative MissionHudAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(MissionContract.HudModelId)),
+                ("fields", new RObj(
+                    ("completionState", new LiteralAlternative(
+                        [MissionContract.CompletionStateCompleted, MissionContract.CompletionStateOpen])),
+                    ("chainRunCount", new RInt(1))))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(MissionContract.HudModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
+    /// Keymap-Ausweis der Wiederholen-Aktion (Abschlussvertrag Abschnitte 3
+    /// und 8): im Interaktivmodus messend ausgewiesen; headless ausdrücklich
+    /// nicht gemessen mit maschinenlesbarem Grund statt stiller Behauptung.
+    /// </summary>
+    private static MeasuredAlternative MissionRepeatKeymapAlternative() =>
+        new(
+        [
+            new RObj(
+                ("measured", new RBool(true)),
+                ("kind", new RLit(MissionContract.RepeatActivationModelId)),
+                ("fields", new RObj(
+                    ("action", new RLit(MissionContract.RepeatActionName)),
+                    ("defaultScancode", new RInt(MissionContract.RepeatDefaultScancode, MissionContract.RepeatDefaultScancode))))),
+            new RObj(
+                ("measured", new RBool(false)),
+                ("kind", new RLit(MissionContract.RepeatActivationModelId)),
+                ("reason", new RStr())),
+        ]);
+
+    /// <summary>
+    /// Relationale T-039-Bindung (Abschlussvertrag Abschnitt 8, fail-closed):
+    /// der Abschluss existiert nur nach einem Zykluserfolg der aktuellen
+    /// Kette — der Abschlussblock trägt dieselbe Aussage wie die bestehenden
+    /// Schichtblöcke (Druck `success`, abgeschlossene Entscheidung,
+    /// abgeschlossene Erkundung); im Offenzustand trägt der Abschluss seine
+    /// Grenze nicht; jede wirksame Wiederholung erhöht die Kettenlaufzählung
+    /// um genau eins, abgewiesene verändern sie nicht; die
+    /// Abweisungszählerbindung hält Protokoll und Zähler konsistent.
+    /// </summary>
+    private static void ValidateMissionRelations(
+        string path,
+        JsonElement root,
+        List<string> errors)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty(MissionContract.ReportBlockId, out var mission)
+            || mission.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var missionPath = $"{path}.{MissionContract.ReportBlockId}";
+
+        if (!mission.TryGetProperty("completion", out var completion)
+            || completion.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add($"{missionPath}.completion: Abschlussausweis erwartet.");
+            return;
+        }
+
+        var state = completion.TryGetProperty("state", out var stateElement)
+            && stateElement.ValueKind == JsonValueKind.String
+            ? stateElement.GetString()
+            : null;
+        var completed = string.Equals(state, MissionContract.CompletionStateCompleted, StringComparison.Ordinal);
+
+        // Abschluss nur nach den Schichtwahrheiten der aktuellen Kette: die
+        // abgeleitete Funktion muss von den bestehenden Blöcken getragen
+        // werden (Druck `success`, abgeschlossene Entscheidung, abgeschlossene
+        // Erkundung).
+        var pressureSuccess = root.TryGetProperty(PressureContract.ReportBlockId, out var pressureBlock)
+            && pressureBlock.ValueKind == JsonValueKind.Object
+            && pressureBlock.TryGetProperty("endStatus", out var pressureEndStatus)
+            && pressureEndStatus.ValueKind == JsonValueKind.Object
+            && pressureEndStatus.TryGetProperty("status", out var statusElement)
+            && statusElement.ValueKind == JsonValueKind.String
+            && string.Equals(statusElement.GetString(), PressureContract.EndStatusSuccess, StringComparison.Ordinal);
+        var decisionFollowUpCompleted = root.TryGetProperty(DecisionContract.ReportBlockId, out var decisionBlock)
+            && decisionBlock.ValueKind == JsonValueKind.Object
+            && decisionBlock.TryGetProperty("followUp", out var followUp)
+            && followUp.ValueKind == JsonValueKind.Object
+            && ReadBool(followUp, "completed") == true;
+        var explorationCompleted = root.TryGetProperty(ExplorationContract.ReportBlockId, out var explorationBlock)
+            && explorationBlock.ValueKind == JsonValueKind.Object
+            && explorationBlock.TryGetProperty("progress", out var progress)
+            && progress.ValueKind == JsonValueKind.Object
+            && ReadBool(progress, "completed") == true;
+
+        var layersCarryCompletion = pressureSuccess && decisionFollowUpCompleted && explorationCompleted;
+
+        if (completed && !layersCarryCompletion)
+        {
+            errors.Add($"{missionPath}.completion.state: ein Abschluss existiert nur nach dem Zykluserfolg der Schichten.");
+        }
+
+        var chainRunCount = ReadLong(mission, "chainRunCount") ?? 0;
+
+        if (chainRunCount < 1)
+        {
+            errors.Add($"{missionPath}.chainRunCount: die Kettenlaufzählung beginnt bei 1.");
+        }
+
+        // Reset nur nach Abschluss: ein wirksamer Wiederholungseintrag setzt
+        // voraus, dass zuvor ein Abschlusszustand bestand. Das Protokoll
+        // bindet die Kettenlaufstände: die Zählung beginnt bei 1, jede
+        // wirksame Wiederholung erhöht sie um genau eins, und abgewiesene
+        // verändern sie nicht.
+        var appliedCount = 0;
+        var rejectedCount = 0;
+        var lastChainRun = 1L;
+        var relationViolation = false;
+
+        if (mission.TryGetProperty("repeatProtocol", out var protocol)
+            && protocol.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var entry in protocol.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                var disposition = entry.TryGetProperty("disposition", out var dispositionElement)
+                    && dispositionElement.ValueKind == JsonValueKind.String
+                    ? dispositionElement.GetString()
+                    : null;
+                var chainRunAfter = entry.TryGetProperty("chainRunAfter", out var chainRunElement)
+                    && chainRunElement.TryGetInt64(out var chainRunValue)
+                    ? chainRunValue
+                    : -1L;
+
+                if (string.Equals(disposition, MissionContract.RepeatDispositionApplied, StringComparison.Ordinal))
+                {
+                    appliedCount++;
+
+                    if (chainRunAfter != lastChainRun + 1)
+                    {
+                        relationViolation = true;
+                        break;
+                    }
+
+                    lastChainRun = chainRunAfter;
+                }
+                else if (string.Equals(
+                    disposition, MissionContract.RepeatDispositionRejectedBeforeCompletion, StringComparison.Ordinal))
+                {
+                    rejectedCount++;
+
+                    if (chainRunAfter != lastChainRun)
+                    {
+                        relationViolation = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (relationViolation)
+        {
+            errors.Add($"{missionPath}.repeatProtocol: die Kettenlaufzählung beginnt bei 1, jede wirksame Wiederholung erhöht sie um genau eins, und abgewiesene verändern sie nicht.");
+        }
+
+        if (chainRunCount != lastChainRun)
+        {
+            errors.Add($"{missionPath}.chainRunCount: die Kettenlaufzählung entspricht der Anzahl wirksamer Wiederholungen plus 1.");
+        }
+
+        var rejections = ReadLong(mission, "repeatRejectionsBeforeCompletion") ?? 0;
+
+        if (rejections != rejectedCount)
+        {
+            errors.Add($"{missionPath}.repeatRejectionsBeforeCompletion: der Abweisungszähler entspricht der Protokollanzahl.");
+        }
+    }
 
     /// <summary>
     /// Drucksitzungsblock (T-036, Druckvertrag Abschnitt 8): bei Aktivierung

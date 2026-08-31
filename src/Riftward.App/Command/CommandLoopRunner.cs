@@ -616,7 +616,7 @@ internal static class CommandLoopRunner
                 $"kommandoschleife: Slot abgewiesen - {slotRejection.Reason}: {slotRejection.Detail}");
             return WriteIncompleteContinuationReport(
                 reportPath, seed, parsed, warmupTicks, horizonTicks, frame,
-                explorationEnabled, decisionEnabled, pressureEnabled,
+                explorationEnabled, decisionEnabled, pressureEnabled, missionEnabled,
                 SaveContract.HeadlessLoadActivationId, "load",
                 slotName, slotRejection, saveBoundaryTick: null);
         }
@@ -1115,7 +1115,9 @@ internal static class CommandLoopRunner
             mission = missionEnabled && pressure is not null && decision is not null && exploration is not null
                 ? new MissionSession()
                 : null;
-            var pipeline = new SessionPipeline(world, selection, parsed.Intents, exploration, decision, pressure, mission);
+            var pipeline = new SessionPipeline(
+                world, selection, parsed.Intents, SessionMode.Strategic,
+                Array.Empty<ModeSwitchEvent>(), exploration, decision, pressure, mission);
             view = new InteractiveView();
             view.BindAgentGroups(selectionGroups);
             view.BindSelection(selection);
@@ -3414,6 +3416,106 @@ internal static class CommandLoopRunner
                 {
                     ["measured"] = false,
                     ["kind"] = PressureContract.RestartChannelModelId,
+                    ["reason"] = unavailableReason,
+                },
+        };
+    }
+
+    /// <summary>
+    /// Abschluss- und Wiederholungsblock des Reports (T-039, Abschlussvertrag
+    /// Abschnitt 8): Vertrags- und Modellbindungen, ehrlicher
+    /// Abschlussausweis mit Grenze, Kettenlaufzählung, Wiederholungsprotokoll
+    /// je Eintrag, Abweisungszähler und die versionierte Persistenzaussage
+    /// (Kettenlaufzählung fortsetzbar, abgeleitete Abschlusswahrheit ohne
+    /// Persistenzbyte); die fensterpflichtigen Darstellungsausweise sind
+    /// headless und in unvollständigen Läufen ausdrücklich nicht gemessen mit
+    /// maschinenlesbarem Grund. Rein diagnostisch (gateCoupled=false); kein
+    /// Feld koppelt an ein Gate oder einen Budgetwert, und keine
+    /// Exitcodebedeutung entsteht.
+    /// </summary>
+    internal static Dictionary<string, object> BuildMissionSession(
+        string executionMode,
+        bool windowCompleted,
+        MissionTelemetry mission)
+    {
+        var presentationMeasured = executionMode == CommandReportSchema.ExecutionInteractive
+            && windowCompleted;
+        var unavailableReason = executionMode == CommandReportSchema.ExecutionHeadless
+            ? ExplorationContract.HeadlessMeasurementReason
+            : "run-incomplete-mission-presentation-not-asserted";
+        var completed = string.Equals(
+            mission.CompletionState, MissionContract.CompletionStateCompleted, StringComparison.Ordinal);
+
+        return new Dictionary<string, object>
+        {
+            ["contract"] = new
+            {
+                document = MissionContract.DocumentPath,
+                version = MissionContract.ContractVersion,
+            },
+            ["activationId"] = MissionContract.ActivationId,
+            ["completionModel"] = MissionContract.CompletionModelId,
+            ["completionBoundaryModel"] = MissionContract.CompletionBoundaryModelId,
+            ["repeatActivationModel"] = MissionContract.RepeatActivationModelId,
+            ["resetScope"] = MissionContract.ResetScopeId,
+            ["completion"] = new Dictionary<string, object?>
+            {
+                ["state"] = mission.CompletionState,
+                ["boundaryTick"] = completed ? mission.CompletionBoundaryTick : MissionTelemetry.UnsetBoundaryTick,
+                ["reason"] = mission.CompletionStateReason,
+                ["gateCoupled"] = false,
+            },
+            ["chainRunCount"] = mission.ChainRunCount,
+            ["repeatProtocol"] = mission.RepeatProtocol.Select(entry => new Dictionary<string, object?>
+            {
+                ["boundaryTick"] = entry.BoundaryTick,
+                ["disposition"] = entry.Disposition,
+                ["chainRunAfter"] = entry.ChainRunAfter,
+                ["gateCoupled"] = false,
+            }).ToArray(),
+            ["repeatRejectionsBeforeCompletion"] = mission.RepeatRejectionsBeforeCompletion,
+            ["persistence"] = new Dictionary<string, object>
+            {
+                ["statementId"] = MissionContract.PersistenceStatementId,
+                ["persisted"] = MissionContract.Persisted,
+                ["saveLoad"] = MissionContract.SaveLoadContinuation,
+                ["replay"] = MissionContract.ReplayNotContinued,
+                ["completionStatePersisted"] = MissionContract.CompletionStatePersisted,
+                ["gateCoupled"] = false,
+            },
+            ["gateCoupled"] = false,
+            ["hud"] = presentationMeasured
+                ? (object)new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["kind"] = MissionContract.HudModelId,
+                    ["fields"] = new Dictionary<string, object?>
+                    {
+                        ["completionState"] = mission.CompletionState,
+                        ["chainRunCount"] = mission.ChainRunCount,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = MissionContract.HudModelId,
+                    ["reason"] = unavailableReason,
+                },
+            ["repeatKeymap"] = presentationMeasured
+                ? (object)new Dictionary<string, object>
+                {
+                    ["measured"] = true,
+                    ["kind"] = MissionContract.RepeatActivationModelId,
+                    ["fields"] = new Dictionary<string, object?>
+                    {
+                        ["action"] = MissionContract.RepeatActionName,
+                        ["defaultScancode"] = MissionContract.RepeatDefaultScancode,
+                    },
+                }
+                : new Dictionary<string, object>
+                {
+                    ["measured"] = false,
+                    ["kind"] = MissionContract.RepeatActivationModelId,
                     ["reason"] = unavailableReason,
                 },
         };
