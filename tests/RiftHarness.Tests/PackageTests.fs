@@ -31,6 +31,80 @@ let private repositoryRoot =
 let private tempRoot () =
     Path.Combine(Path.GetTempPath(), $"RiftHarness-Package-{Guid.NewGuid():N}")
 
+// ---------------------------------------------------------------------------
+// Hermetische Quellbindung: Die Quellbindung des Paketvertrags ist an
+// `git rev-parse HEAD` plus hypothetischen Add-A-Baum gebunden (PAKETVERTRAG
+// Abschnitt 4). Damit kein schneller Gate-Lauf den Git-Zustand des
+// umgebenden Arbeitsbaums als versteckte Testvoraussetzung konsumiert
+// (Fresh-Checkout-/Clean-Archive-Vertrag: der Portabilitätslauf materialisiert
+// den Kandidatenbaum ohne auflösbare HEAD-Referenz), binden die
+// Composer-Tests die Quelle an einen eigenen, deterministischen
+// Temporär-Git-Baum mit den vertraglichen getrackten Eingaben. Feste
+// Identitäts- und Datumsangaben machen den Commit zweier solcher Bäume
+// hashidentisch; der echte Repository-Index bleibt unberührt.
+// ---------------------------------------------------------------------------
+
+let private fixedGitTimestamp = "2026-08-23T00:00:00+00:00"
+
+let private trackedSourceInputs =
+    [ "toolchain.lock.json"; "THIRD_PARTY_NOTICES.md" ]
+
+let private runGitIn (workingDirectory: string) (arguments: string list) =
+    let startInfo = ProcessStartInfo("git")
+    startInfo.WorkingDirectory <- workingDirectory
+    startInfo.UseShellExecute <- false
+    startInfo.RedirectStandardOutput <- true
+    startInfo.RedirectStandardError <- true
+    startInfo.EnvironmentVariables["GIT_AUTHOR_DATE"] <- fixedGitTimestamp
+    startInfo.EnvironmentVariables["GIT_COMMITTER_DATE"] <- fixedGitTimestamp
+
+    for argument in arguments do
+        startInfo.ArgumentList.Add(argument)
+
+    use processHandle = Process.Start(startInfo)
+    let stdout = processHandle.StandardOutput.ReadToEnd()
+    let stderr = processHandle.StandardError.ReadToEnd()
+    processHandle.WaitForExit()
+
+    if processHandle.ExitCode <> 0 then
+        let command = String.concat " " arguments
+        failwith $"Synthetischer Git-Schritt '{command}' schlug fehl: {stderr.TrimEnd()}"
+
+    stdout.TrimEnd()
+
+let private syntheticSourceRepo (root: string) =
+    let repo = Path.Combine(root, "source-repo")
+    Directory.CreateDirectory(repo) |> ignore
+
+    for relative in trackedSourceInputs do
+        let target = Path.Combine(repo, relative)
+        Directory.CreateDirectory(Path.GetDirectoryName(target)) |> ignore
+        File.Copy(Path.Combine(repositoryRoot, relative), target, true)
+
+    let fixtureTarget = Path.Combine(repo, PackageContract.FixtureSourceDir)
+    Directory.CreateDirectory(fixtureTarget) |> ignore
+
+    for script in Directory.GetFiles(Path.Combine(repositoryRoot, PackageContract.FixtureSourceDir), "*.graybox") do
+        File.Copy(script, Path.Combine(fixtureTarget, Path.GetFileName(script)), true)
+
+    runGitIn repo [ "init"; "--quiet" ] |> ignore
+    runGitIn repo [ "add"; "-A" ] |> ignore
+
+    runGitIn
+        repo
+        [ "-c"
+          "user.name=Riftward Harness Tests"
+          "-c"
+          "user.email=harness@riftward.invalid"
+          "commit"
+          "--no-gpg-sign"
+          "--quiet"
+          "-m"
+          "T-038 hermetische Paketquellbindung" ]
+    |> ignore
+
+    repo
+
 let private sha256File (path: string) =
     use stream = File.OpenRead(path)
     Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant()
@@ -62,7 +136,9 @@ let private violationClasses (verification: PackageDirectoryVerification) =
 // ---------------------------------------------------------------------------
 // Synthetische Eingaben: Publish-Ausgabe, Native-Dist und Artefaktmanifest
 // werden hermetisch im Temp-Verzeichnis erzeugt; gitignorierte Runtime-Evidenz
-// ist niemals Voraussetzung eines schnellen Gates.
+// und der Git-Zustand des umgebenden Arbeitsbaums sind niemals Voraussetzung
+// eines schnellen Gates (die Quellbindung läuft über den synthetischen
+// Temporär-Git-Baum oben).
 // ---------------------------------------------------------------------------
 
 let private writeText (path: string) (content: string) =
@@ -133,17 +209,23 @@ let private syntheticNativeDist (root: string) =
     let manifestPath = writeText (Path.Combine(root, "artifact-hashes.json")) manifest
     (dist, manifestPath, manifestEntryHash, bytes)
 
-let private compositionInput (root: string) (publishDir: string) (nativeDist: string) (nativeManifest: string) =
-    let binding = PackageSourceReader.Read(repositoryRoot, root)
+let private compositionInput
+    (sourceRepo: string)
+    (root: string)
+    (publishDir: string)
+    (nativeDist: string)
+    (nativeManifest: string)
+    =
+    let binding = PackageSourceReader.Read(sourceRepo, root)
 
     PackageComposer.CompositionInput(
-        repositoryRoot,
+        sourceRepo,
         publishDir,
         nativeDist,
         nativeManifest,
         binding.CommitSha256,
         binding.TreeSha256,
-        PackageDocs.ReadPinCohort(Path.Combine(repositoryRoot, "toolchain.lock.json")),
+        PackageDocs.ReadPinCohort(Path.Combine(sourceRepo, "toolchain.lock.json")),
         PackageDocs.DotnetRuntimeVersion()
     )
 
@@ -284,22 +366,24 @@ let codecRejectsCorruptionMatrixFailClosed () =
 // unterscheidbare Verletzungsmatrix auf hermetischen Eingaben.
 // ---------------------------------------------------------------------------
 
-let private composedStage (root: string) =
+let private composedStage (sourceRepo: string) (root: string) =
     let publishDir = syntheticPublishDir root
     let (nativeDist, nativeManifest, _, _) = syntheticNativeDist root
 
     let result =
-        PackageComposer.Compose(root, compositionInput root publishDir nativeDist nativeManifest)
+        PackageComposer.Compose(root, compositionInput sourceRepo root publishDir nativeDist nativeManifest)
 
     result
 
 let composerProducesDeterministicStagingAndManifest () =
     let root1 = tempRoot ()
     let root2 = tempRoot ()
+    let sourceRoot = tempRoot ()
+    let sourceRepo = syntheticSourceRepo sourceRoot
 
     try
-        let result1 = composedStage root1
-        let result2 = composedStage root2
+        let result1 = composedStage sourceRepo root1
+        let result2 = composedStage sourceRepo root2
 
         if result1.RootName <> result2.RootName then
             failwith "Zwei Compose-Läufe desselben Baums erzeugten verschiedene Wurzelnamen."
@@ -358,14 +442,22 @@ let composerProducesDeterministicStagingAndManifest () =
             if not (licenses.Contains(componentName)) then
                 failwith $"Attributionsmanifest nennt {componentName} nicht."
     finally
-        Directory.Delete(root1, true)
-        Directory.Delete(root2, true)
+        if Directory.Exists(root1) then
+            Directory.Delete(root1, true)
+
+        if Directory.Exists(root2) then
+            Directory.Delete(root2, true)
+
+        if Directory.Exists(sourceRoot) then
+            Directory.Delete(sourceRoot, true)
 
 let verifierDistinguishesViolationMatrixFailClosed () =
     let root = tempRoot ()
+    let sourceRoot = tempRoot ()
+    let sourceRepo = syntheticSourceRepo sourceRoot
 
     try
-        let result = composedStage root
+        let result = composedStage sourceRepo root
 
         // Positivfall.
         let positive = PackageVerifier.VerifyDirectory(result.StageRoot)
@@ -395,7 +487,7 @@ let verifierDistinguishesViolationMatrixFailClosed () =
         let mutateStage (mutation: string -> unit) =
             // Frisches Staging je Fall, damit Manipulationen sich nicht überlagern.
             let caseRoot = tempRoot ()
-            let caseResult = composedStage caseRoot
+            let caseResult = composedStage sourceRepo caseRoot
 
             try
                 mutation caseResult.StageRoot
@@ -482,15 +574,20 @@ let verifierDistinguishesViolationMatrixFailClosed () =
         if Directory.Exists(root) then
             Directory.Delete(root, true)
 
+        if Directory.Exists(sourceRoot) then
+            Directory.Delete(sourceRoot, true)
+
 // ---------------------------------------------------------------------------
 // Archiv: deterministische tar.gz-Erzeugung, Sidecar- und Entpackpfad.
 // ---------------------------------------------------------------------------
 
 let archiveWriteIsDeterministicAndVerifiable () =
     let root = tempRoot ()
+    let sourceRoot = tempRoot ()
+    let sourceRepo = syntheticSourceRepo sourceRoot
 
     try
-        let result = composedStage root
+        let result = composedStage sourceRepo root
         let archive1 = Path.Combine(root, "a1.tar.gz")
         let archive2 = Path.Combine(root, "a2.tar.gz")
 
@@ -521,6 +618,9 @@ let archiveWriteIsDeterministicAndVerifiable () =
     finally
         if Directory.Exists(root) then
             Directory.Delete(root, true)
+
+        if Directory.Exists(sourceRoot) then
+            Directory.Delete(sourceRoot, true)
 
 // ---------------------------------------------------------------------------
 // Befehlsvertrag: Usage-Ablehnung, Verifikationsnegativfälle, Frischverzeichnis.

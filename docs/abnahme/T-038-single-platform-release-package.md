@@ -76,8 +76,8 @@ ausgewiesen `OFFEN`.
   und Usage um den Befehl erweitert.
 - `scripts/rift.sh`: `package` delegiert an den Host; `check` bleibt
   unverändert NICHT VERFÜGBAR; Hilfetext um die Paketzeile erweitert.
-- Tests: `tests/RiftHarness.Tests/PackageTests.fs` (8 Einheiten) mit
-  hermetischen synthetischen Eingaben (Publish-Ausgabe, Native-Dist und
+- Tests: `tests/RiftHarness.Tests/PackageTests.fs` (9 Einheiten nach der
+  Review-Reparatur 1) mit hermetischen synthetischen Eingaben (Publish-Ausgabe, Native-Dist und
   Artefaktmanifest im Temp-Verzeichnis erzeugt; gitignorierte Runtime-Evidenz
   ist Voraussetzung keines schnellen Gates — der CLI-Paketbau prüft das
   Fehlen des Native-Dists als kontrollierten Code 39, T-032-Präzedenz) und
@@ -244,3 +244,62 @@ Exitcodebedeutungen, Reportvertrag und `Riftward.Simulation` bleiben
 unberührt; dauerhafte Verletzungen scheitern weiter in beiden Versuchen.
 Die strukturelle Härtung der Messbasis gegen Kaltprozess-Transients bleibt
 unverändert der bereits registrierte spätere Eigen-Slice.
+
+## Unabhängige Integrationsreparatur-Review 2026-08-31 (Prepush-Gate `3c1be792`)
+
+**Befund:** das lokale Portabilitätsgate (Fresh-Checkout-Vertrag) am
+Kandidaten `3c1be792` (Baum `f808cfc5…`, Gate-Receipt unter
+`prepush-gates/3c1be792…/result.json`) endete `FAILED` mit 324/327: genau die
+drei T-038-Composer-Tests scheiterten im isolierten Checkout mit
+`PackageBuildFailed: Quellbindung fehlgeschlagen: git rev-parse HEAD lieferte
+keinen Commit`. Eigene Reproduktion am gate-faithlich rekonstruierten Baum
+(`.git` mit exaktem Kandidatenbaum im Index, ungeborene HEAD-Referenz,
+`git rev-parse HEAD` → Exit 128): 324/327 mit exakt denselben drei Befunden;
+zusätzlich am reinen `git archive`-Checkout (ohne `.git`) 323/327 inklusive
+des vorregistrierten `ASSET_GIT_CHECK_FAILED`-Befunds der T-032-Linie. Die
+irreführende Pfadfehlermeldung des ersten Tests ist die Finally-Aufräumung
+`Directory.Delete(root2)` auf das nie erstellte zweite Stagingverzeichnis,
+die die eigentliche `PackageBuildFailed`-Ausnahme maskiert.
+
+**Belegte Ursache:** die drei T-038-Composer-Tests konsumierten über
+`PackageSourceReader.Read(repositoryRoot, …)` den Git-Zustand des umgebenden
+Arbeitsbaums als versteckte In-Tree-Testvoraussetzung; der Portabilitätslauf
+materialisiert den Kandidaten hingegen baumgebunden ohne auflösbare
+HEAD-Referenz. Der Produktvertrag (`PAKETVERTRAG.md` Abschnitt 4: Quellbindung
+an `git rev-parse HEAD` plus privater Add-A-Baum) und der gesamte Produktcode
+bleiben unverändert; der Paketbau in einem Git-Arbeitsbaum verhält sich
+unverändert.
+
+**Reparatur (nur Tests):** `tests/RiftHarness.Tests/PackageTests.fs` bindet
+die Quelle der drei Composer-Tests jetzt an einen eigenen, deterministischen
+Temporär-Git-Baum (`syntheticSourceRepo`: byteidentisch kopierte getrackte
+Vertragseingaben `toolchain.lock.json`, `THIRD_PARTY_NOTICES.md` und die
+Bestandsfixtures; `git init`/`add`/`commit` mit fester Identität und festen
+Autor-/Committer-Datumsangaben, dadurch hashidentischer Commit über beide
+Stagingläufe); außerdem existenzgeprüfte Finally-Aufräumung statt
+maskierender `Directory.Delete`. Keine Abnahmekriterien entfernt oder
+abgeschwächt: die Quellbindung entsteht weiterhin ehrlich über
+`PackageSourceReader.Read` (`rev-parse HEAD` + privater Add-A-Index +
+`write-tree`), nun gegen den hermetischen statt des umgebenden Arbeitsbaums.
+
+**Evidenz nach der Reparatur (eigene Läufe dieser Sitzung):**
+
+- In-Tree-Suite 327/327 (Exit 0). In zwei Vorläufen scheiterte der
+  Fremdseed-Speicherlauf des T-037-Ablehnungstests am dokumentierten
+  lastabhängigen Exakt-Null-Allokationstransienten (Exit 35; Hostlast 11–12
+  bei 8 Kernen); der manuelle Isolationslauf desselben Befehls endet Exit 0
+  mit `gate.pass=true` ohne Verletzung — bekannte Klasse (T-033-Präzedenz,
+  T-021-/T-032-Wiederholungspräzedenz), strukturelle Härtung der Messbasis
+  bleibt registrierter späterer Eigen-Slice.
+- Fresh-Checkout-Nachweis am gate-faithlich rekonstruierten Kandidatenbaum
+  (ungeborene HEAD-Referenz): Suite 327/327 (Exit 0).
+- Clean-Archive-Nachweis am reinen `git archive`-Kandidaten: 326/327 —
+  alle drei T-038-Tests grün; einziger verbleibender Befund ist der
+  vorregistrierte verschobene `ASSET_GIT_CHECK_FAILED`-Slice (reine
+  Archivextraktion ohne `.git`); im Portabilitätsvertrag (isolierter Klon)
+  bleibt dieser Test grün (Gate-Log und Reproduktion belegen es).
+- NO_DRIFT: 402/402 getrackte Dateien in beiden Nachweischäcken byteidentisch
+  zum Kandidatenbaum; die Nachweise konsumierten ausschließlich committete
+  Bytes plus die eine reparierte Testdatei — keine gitignorierte
+  Runtime-Evidenz und kein unversioniertes Fixture als versteckte
+  Testvoraussetzung.
