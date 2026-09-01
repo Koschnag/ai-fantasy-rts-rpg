@@ -1004,27 +1004,26 @@ let cliSaveWithoutLayerActivationSatisfiesSchema6 () =
         let reportPath = Path.Combine(slotDir, "plain-save.json")
 
         let (saveExit, _, saveStderr) =
-            runMissionCliToleratingTransientGate [
-                "kommandoschleife"
-                "--scenario"
-                "kommando-graybox"
-                "--input-script"
-                fixturePath
-                "--seed"
-                "20260826"
-                "--report"
-                reportPath
-                "--warmup-ticks"
-                "240"
-                "--horizon-ticks"
-                "17500"
-                "--slot-dir"
-                slotDir
-                "--slot"
-                "plain.rwsaved"
-                "--save-at-tick"
-                "4800"
-            ]
+            runMissionCliToleratingTransientGate
+                [ "kommandoschleife"
+                  "--scenario"
+                  "kommando-graybox"
+                  "--input-script"
+                  fixturePath
+                  "--seed"
+                  "20260826"
+                  "--report"
+                  reportPath
+                  "--warmup-ticks"
+                  "240"
+                  "--horizon-ticks"
+                  "17500"
+                  "--slot-dir"
+                  slotDir
+                  "--slot"
+                  "plain.rwsaved"
+                  "--save-at-tick"
+                  "4800" ]
 
         if saveExit <> 0 then
             failwith $"Schichtleerer Speicherlauf endete mit {saveExit}: {saveStderr}"
@@ -1056,7 +1055,8 @@ let cliSaveWithoutLayerActivationSatisfiesSchema6 () =
         if
             continuation.GetProperty("runKind").GetString() <> "save"
             || not (continuation.GetProperty("slotWritten").GetBoolean())
-            || continuation.GetProperty("sessionSection").GetProperty("sectionVersion").GetInt32() <> 2
+            || continuation.GetProperty("sessionSection").GetProperty("sectionVersion").GetInt32()
+               <> 2
         then
             failwith "Der schichtleere Speicherlauf bindet nicht die ehrliche Fortsetzungswahrheit."
     finally
@@ -1179,18 +1179,13 @@ let missionSchemaRelationsRejectFabricationFailClosed () =
 
     let ghostErrors =
         CommandReportSchema.Validate(
-            ghostBoundary.Replace(
-                "\"state\":\"open\",\"boundaryTick\":-1",
-                "\"state\":\"open\",\"boundaryTick\":7400"
-            )
+            ghostBoundary.Replace("\"state\":\"open\",\"boundaryTick\":-1", "\"state\":\"open\",\"boundaryTick\":7400")
         )
 
     let ghostJoined = String.concat "; " ghostErrors
 
     if
         ghostErrors.Count = 0
-        || not (
-            ghostJoined.Contains("trägt der Abschluss seine Grenze nicht", StringComparison.Ordinal)
-        )
+        || not (ghostJoined.Contains("trägt der Abschluss seine Grenze nicht", StringComparison.Ordinal))
     then
         failwith "Die Offenzustandsbindung akzeptierte eine erfundene Abschlussgrenze."
