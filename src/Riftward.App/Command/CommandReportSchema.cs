@@ -2104,7 +2104,13 @@ public static class CommandReportSchema
     /// fremder Bezeichner wird abgewiesen.
     /// </summary>
     private static LiteralAlternative ScriptFormat() =>
-        new([SessionContract.ScriptFormatId, ModeContract.ScriptFormatIdV2, DecisionContract.ScriptFormatIdV3]);
+        new(
+        [
+            SessionContract.ScriptFormatId,
+            ModeContract.ScriptFormatIdV2,
+            DecisionContract.ScriptFormatIdV3,
+            MissionContract.ScriptFormatIdV4,
+        ]);
 
     /// <summary>
     /// Modussitzungsblock (T-033, Modevertrag Abschnitt 7): Wechselprotokoll
