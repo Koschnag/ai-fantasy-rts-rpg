@@ -136,9 +136,11 @@ let decisionContractMirrorsDocumentedValues () =
         failwith "Entscheidungsvertragspfad falsch."
 
     // V2: autorisierte additive Zyklus-Praezisierung (T-036, Druckvertrag
-    // Abschnitt 4; Entscheidungsvertrag Abschnitt 13).
-    if DecisionContract.ContractVersion <> "3" then
-        failwith "Entscheidungsvertragsversion falsch (autorisierte Zyklus-Praezisierung V2 erwartet)."
+    // Abschnitt 4; Entscheidungsvertrag Abschnitt 13); V3: autorisierte
+    // additive Persistenz-Praezisierung (T-037); V4: autorisierte additive
+    // Ketten-Praezisierung (T-039, Entscheidungsvertrag Abschnitt 15).
+    if DecisionContract.ContractVersion <> "4" then
+        failwith "Entscheidungsvertragsversion falsch (autorisierte Praezisierungen bis V4 erwartet)."
 
     if
         CommandReportSchema.VersionWithoutExploration <> 2
