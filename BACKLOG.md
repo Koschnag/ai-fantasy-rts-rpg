@@ -1500,3 +1500,20 @@ Schreibfehler in den neuen Vertragstexten. T-039 trägt den
 Manifeststatus `review`; die Promotion bleibt der separaten Promotion-
 Autorität vorbehalten; Details in
 `docs/abnahme/T-039-graybox-completion-repeat.md`.
+
+Am 2026-09-01 reparierte eine frische Review-Sitzung den konkreten
+Promotionsblocker im Fresh-Checkout-Vertrag: Die Schrittliste in
+`scripts/fresh-checkout-test.sh` wiederholte Release-Build, komplette
+Testsuite und assets-check, obwohl `verify` beide bereits vollständig
+enthält, und ließ den Portability-Lauf das 30-Minuten-Integrationsfenster
+überschreiten (Exit 124 im verify-Suitenlauf bei 315/341 Tests, Commit
+dacdc28). Die Reparatur entfernt ausschließlich diese redundanten
+Wiederholungen; jede Prüfung läuft genau einmal auf denselben Archivbytes
+(bootstrap, lint, rag-build, verify samt Locked-Restore, Release-Build,
+Suite, assets-check, Harness-Verify und JSON-Integrität), Archiv-,
+Sauberkeits- und Driftprüfung bleiben unverändert; der Befehlsvertragstext
+in `scripts/rift.sh` wurde gleichlautend korrigiert. Kein Gate wurde
+entfernt, verkürzt oder abgeschwächt. Evidenz dieses Laufs:
+Kandidaten-Diff-Check, lint, security und verify (Suite 341/341) grün;
+Fresh-Checkout-/Clean-Archive-Vertrag selbst auf den Kandidatenbytes im
+isolierten Temporärmaterialisat grün.

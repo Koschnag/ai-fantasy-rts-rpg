@@ -33,11 +33,19 @@ cd "$rift_fresh_tmp"
 git init --quiet
 git add -f --all
 
+# Der Vertrag führt jede Prüfung der ursprünglichen Vereinigung genau einmal
+# auf denselben Archivbytes aus: bootstrap stellt Tool-Restore, Locked-Restore,
+# Release-Build, Harness-Init und den RAG-Index her; lint prüft Format- und
+# Toolchain-/Lizenz-/ISA-Baseline; verify enthält Locked-Restore, Release-Build,
+# die volle Testsuite, assets-check, Harness-Verify und JSON-Integrität;
+# rag-build belegt den deterministischen Indexneubau, den verify validiert.
+# Die frühere Schrittliste wiederholte Release-Build und komplette Testsuite
+# ohne Erkenntnisgewinn (verify enthält beide) und ließ den Vertrag das
+# 30-Minuten-Integrationsfenster messbar überschreiten (Exit 124 im
+# verify-Suitenlauf bei 315/341 Tests, Commit dacdc28). Kein Gate ist entfernt,
+# verkürzt oder abgeschwächt; die Archive- und Driftprüfung bleibt unverändert.
 ./scripts/rift.sh bootstrap
-./scripts/rift.sh build
 ./scripts/rift.sh lint
-./scripts/rift.sh test
-./scripts/rift.sh assets-check
 ./scripts/rift.sh rag-build
 ./scripts/rift.sh verify
 
