@@ -164,14 +164,17 @@ let missionContractMirrorsDocumentedValues () =
         || MissionContract.CompletionStatePersisted
         || MissionContract.SaveLoadContinuation <> "continued"
         || MissionContract.ReplayNotContinued <> "not-continued"
-        || MissionContract.PersistenceStatementId <> "mission-chain-run-counter-persisted-v1"
+        || MissionContract.PersistenceStatementId
+           <> "mission-chain-run-counter-persisted-v1"
     then
         failwith "Die versionierte Persistenzaussage widerspricht dem Abschlussvertrag V1."
 
     // Additive Sektionsflaeche (Savevertrag V3, Abschnitt 15).
     if
-        SaveContract.MissionSectionFieldsModelId <> "mission-chain-run-section-fields-v3"
-        || SaveContract.LegacySectionEmptinessModelId <> "legacy-section-v1-mission-emptiness-v3"
+        SaveContract.MissionSectionFieldsModelId
+        <> "mission-chain-run-section-fields-v3"
+        || SaveContract.LegacySectionEmptinessModelId
+           <> "legacy-section-v1-mission-emptiness-v3"
         || SessionSectionCodec.CurrentSectionVersion <> 2us
         || SessionSectionCodec.LegacySectionVersion <> 1us
     then
@@ -234,7 +237,12 @@ let missionContractMirrorsDocumentedValues () =
 
     if
         not (explorationDocument.Contains("registration-uniqueness-per-chain-v3", StringComparison.Ordinal))
-        || not (explorationDocument.Contains("Autorisierte additive Ketten-Präzisierung (V3, T-039)", StringComparison.Ordinal))
+        || not (
+            explorationDocument.Contains(
+                "Autorisierte additive Ketten-Präzisierung (V3, T-039)",
+                StringComparison.Ordinal
+            )
+        )
     then
         failwith "Der Erkundungsvertrag traegt die autorisierte Ketten-Praezisierung V3 nicht."
 
@@ -242,7 +250,9 @@ let missionContractMirrorsDocumentedValues () =
 
     if
         not (decisionDocument.Contains("chain-scoped-offer-and-cycle-truth-v4", StringComparison.Ordinal))
-        || not (decisionDocument.Contains("Autorisierte additive Ketten-Präzisierung (V4, T-039)", StringComparison.Ordinal))
+        || not (
+            decisionDocument.Contains("Autorisierte additive Ketten-Präzisierung (V4, T-039)", StringComparison.Ordinal)
+        )
     then
         failwith "Der Entscheidungsvertrag traegt die autorisierte Ketten-Praezisierung V4 nicht."
 
@@ -250,14 +260,18 @@ let missionContractMirrorsDocumentedValues () =
 
     if
         not (pressureDocument.Contains("chain-scoped-cycle-counting-v3", StringComparison.Ordinal))
-        || not (pressureDocument.Contains("Autorisierte additive Ketten-Präzisierung (V3, T-039)", StringComparison.Ordinal))
+        || not (
+            pressureDocument.Contains("Autorisierte additive Ketten-Präzisierung (V3, T-039)", StringComparison.Ordinal)
+        )
     then
         failwith "Der Druckvertrag traegt die autorisierte Ketten-Praezisierung V3 nicht."
 
     let saveDocument = readDocument SaveContract.DocumentPath
 
     if
-        not (saveDocument.Contains("Autorisierte additive Missions-Sektionsfläche (V3, T-039)", StringComparison.Ordinal))
+        not (
+            saveDocument.Contains("Autorisierte additive Missions-Sektionsfläche (V3, T-039)", StringComparison.Ordinal)
+        )
         || not (saveDocument.Contains("mission-chain-run-section-fields-v3", StringComparison.Ordinal))
         || not (saveDocument.Contains("legacy-section-v1-mission-emptiness-v3", StringComparison.Ordinal))
     then
@@ -277,8 +291,7 @@ let missionContractMirrorsDocumentedValues () =
 
 let completionDerivationIsPureFunctionOfLayerTruths () =
     // Frische Schichten ohne Erfolg: offene Kette mit ehrlichem Grund.
-    let withoutSuccess =
-        runInProcess 20260826u 9000 explorationBody true true true true
+    let withoutSuccess = runInProcess 20260826u 9000 explorationBody true true true true
 
     let mission = withoutSuccess.Mission
 
@@ -294,30 +307,22 @@ let completionDerivationIsPureFunctionOfLayerTruths () =
         failwith "Offene Kette ohne Zykluserfolg trug nicht den ehrlichen Abschlussausweis."
 
     // Totale Ableitung: ohne Schichtaktivierung ist die Ableitung false.
-    if
-        MissionSession.IsDerivedCompleted(ExplorationSession(), DecisionSession(), PressureSession())
-    then
+    if MissionSession.IsDerivedCompleted(ExplorationSession(), DecisionSession(), PressureSession()) then
         failwith "Die Ableitung war ohne Schichtwahrheiten wahr."
 
-    // Wiederholen ohne aktivierte Schicht bleibt grammatisch unmoeglich:
-    // unter v1/v2/v3 ist die Aktion UnknownAction (eigene Pruefung unten);
-    // mit v4-Kopf ohne Missionsaktivierung weist die Pipeline mit der
-    // Auswertungsordnung Stufe 1 ab (eigene Pruefung unten).
+// Wiederholen ohne aktivierte Schicht bleibt grammatisch unmoeglich:
+// unter v1/v2/v3 ist die Aktion UnknownAction (eigene Pruefung unten);
+// mit v4-Kopf ohne Missionsaktivierung weist die Pipeline mit der
+// Auswertungsordnung Stufe 1 ab (eigene Pruefung unten).
 
 let repeatBeforeCompletionIsRejectedAndChangesNothing () =
     // Wiederholen vor dem Abschluss: die Aktion wird mit unterscheidbarer
     // Klasse abgewiesen und veraendert nachweislich nichts.
     let withEarlyRepeat =
-        runInProcess
-            20260826u
-            9000
-            (explorationBody @ [ "intent 8900 repeat" ])
-            true
-            true
-            true
-            true
+        runInProcess 20260826u 9000 (explorationBody @ [ "intent 8900 repeat" ]) true true true true
 
-    let twinWithoutRepeat = runInProcess 20260826u 9000 explorationBody true true true true
+    let twinWithoutRepeat =
+        runInProcess 20260826u 9000 explorationBody true true true true
 
     let mission = withEarlyRepeat.Mission
 
@@ -329,7 +334,8 @@ let repeatBeforeCompletionIsRejectedAndChangesNothing () =
 
     if
         mission.RepeatProtocol.Count <> 1
-        || mission.RepeatProtocol[0].Disposition <> MissionContract.RepeatDispositionRejectedBeforeCompletion
+        || mission.RepeatProtocol[0].Disposition
+           <> MissionContract.RepeatDispositionRejectedBeforeCompletion
         || mission.RepeatProtocol[0].ChainRunAfter <> 1L
     then
         failwith "Die abgewiesene Wiederholung trug nicht ihre unterscheidbare Klasse."
@@ -344,7 +350,8 @@ let repeatBeforeCompletionIsRejectedAndChangesNothing () =
 
     // Auch der Sitzungszustand (Erkundungsprotokoll) bleibt unveraendert.
     if
-        withEarlyRepeat.Exploration.VisitedCount <> twinWithoutRepeat.Exploration.VisitedCount
+        withEarlyRepeat.Exploration.VisitedCount
+        <> twinWithoutRepeat.Exploration.VisitedCount
         || withEarlyRepeat.Exploration.Completed <> twinWithoutRepeat.Exploration.Completed
     then
         failwith "Eine abgewiesene Wiederholung veraenderte die Erkundungswahrheit."
@@ -393,7 +400,10 @@ let repeatUnderLegacyHeadersIsUnknownAction () =
     let bodyLines = [ "intent 40 clear"; "intent 50 repeat" ]
     let body = String.concat "\n" bodyLines
 
-    for header in [ "graybox-input-script-v1"; "graybox-input-script-v2"; "graybox-input-script-v3" ] do
+    for header in
+        [ "graybox-input-script-v1"
+          "graybox-input-script-v2"
+          "graybox-input-script-v3" ] do
         let script = header + " 9000\n" + body + "\nend\n"
 
         let raised =
@@ -408,11 +418,21 @@ let repeatUnderLegacyHeadersIsUnknownAction () =
         | None -> failwith ("repeat unter " + header + " wurde nicht als UnknownAction abgewiesen.")
         | Some detail ->
             if detail.Reason <> InputScriptRejectReason.UnknownAction then
-                failwith ("repeat unter " + header + " erhielt die Klasse " + string detail.Reason + " statt UnknownAction.")
+                failwith (
+                    "repeat unter "
+                    + header
+                    + " erhielt die Klasse "
+                    + string detail.Reason
+                    + " statt UnknownAction."
+                )
 
     // Die v4-Grammatik ist eine strikte Obermenge: die Legacy-Verbmenge
     // bleibt unter ihren Koepfen gueltig, und der Kopf bindet das Format.
-    let legacyBody = [ "intent 40 clear"; "intent 50 point 1000 1000"; "intent 60 switch"; "intent 70 choose-a" ]
+    let legacyBody =
+        [ "intent 40 clear"
+          "intent 50 point 1000 1000"
+          "intent 60 switch"
+          "intent 70 choose-a" ]
 
     for (header, expectedFormat) in
         [ "graybox-input-script-v1", SessionContract.ScriptFormatId
@@ -421,7 +441,8 @@ let repeatUnderLegacyHeadersIsUnknownAction () =
           "graybox-input-script-v4", MissionContract.ScriptFormatIdV4 ] do
         let lines =
             if header = "graybox-input-script-v1" then
-                legacyBody |> List.filter (fun line -> not (line.Contains("switch") || line.Contains("choose")))
+                legacyBody
+                |> List.filter (fun line -> not (line.Contains("switch") || line.Contains("choose")))
             else if header = "graybox-input-script-v2" then
                 legacyBody |> List.filter (fun line -> not (line.Contains("choose")))
             else
@@ -431,7 +452,13 @@ let repeatUnderLegacyHeadersIsUnknownAction () =
         let parsed = InputScriptParser.Parse(Encoding.UTF8.GetBytes(script), rulesFor 9000)
 
         if parsed.FormatId <> expectedFormat then
-            failwith ("Der Kopf " + header + " band nicht seine Formatkennung (" + parsed.FormatId + ").")
+            failwith (
+                "Der Kopf "
+                + header
+                + " band nicht seine Formatkennung ("
+                + parsed.FormatId
+                + ")."
+            )
 
 // ---------------------------------------------------------------------------
 // Zwei-Ketten-Flow (AC-T039-02): Abschluss, Wiederholung, Optionsvarianz,
@@ -441,7 +468,10 @@ let repeatUnderLegacyHeadersIsUnknownAction () =
 let twoChainFlowBindsCompletionRepeatAndOptionVariance () =
     let result = runInProcess 20260826u 17500 twoChainBody true true true true
 
-    if result.StateChainSelfConsistent.HasValue && not result.StateChainSelfConsistent.Value then
+    if
+        result.StateChainSelfConsistent.HasValue
+        && not result.StateChainSelfConsistent.Value
+    then
         failwith "Der Zwei-Ketten-Lauf verlor seine Selbstkonsistenz."
 
     // Kette 2 Registrierung: abweichende Aufsuchfolge, jede Zone genau
@@ -451,7 +481,10 @@ let twoChainFlowBindsCompletionRepeatAndOptionVariance () =
     if exploration.VisitedCount <> 6 then
         failwith "Die Erkundung der neuen Kette registrierte nicht alle Landmarken."
 
-    let zones = exploration.VisitProtocol |> Seq.map (fun visit -> visit.ZoneIndex) |> Seq.toList
+    let zones =
+        exploration.VisitProtocol
+        |> Seq.map (fun visit -> visit.ZoneIndex)
+        |> Seq.toList
 
     if zones <> [ 4; 2; 1; 5; 3; 0 ] then
         failwith $"Die Aufsuchfolge der neuen Kette wich vom Vertrag ab: {zones}."
@@ -493,7 +526,8 @@ let twoChainFlowBindsCompletionRepeatAndOptionVariance () =
 
     if
         mission.RepeatProtocol.Count <> 1
-        || mission.RepeatProtocol[0].Disposition <> MissionContract.RepeatDispositionApplied
+        || mission.RepeatProtocol[0].Disposition
+           <> MissionContract.RepeatDispositionApplied
         || mission.RepeatProtocol[0].BoundaryTick <> 9400L
         || mission.RepeatProtocol[0].ChainRunAfter <> 2L
     then
@@ -550,7 +584,9 @@ let foreignSeedChangesHashesButMissionStructureFollowsSession () =
         (run.Mission.CompletionState,
          run.Mission.ChainRunCount,
          run.Mission.RepeatProtocol.Count,
-         run.Mission.RepeatProtocol |> Seq.map (fun entry -> entry.Disposition) |> Seq.toList)
+         run.Mission.RepeatProtocol
+         |> Seq.map (fun entry -> entry.Disposition)
+         |> Seq.toList)
 
     if structuralTruth baseline <> structuralTruth foreign then
         failwith
@@ -571,9 +607,13 @@ let foreignSeedChangesHashesButMissionStructureFollowsSession () =
 let legacyPressureFixtureStaysChainIdenticalWithMission () =
     // Die Legacy-Kette (T-036-Fixture) bleibt mit Missionsaktivierung
     // ketten- und endhashidentisch; nur additive Sitzungsfelder entstehen.
-    let fixturePath = Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t036-pressure-restart.graybox")
+    let fixturePath =
+        Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t036-pressure-restart.graybox")
+
     let rawBytes = File.ReadAllBytes(fixturePath)
-    let intents = InputScriptParser.Parse(rawBytes, ScriptWindowRules(240, 11000)).Intents
+
+    let intents =
+        InputScriptParser.Parse(rawBytes, ScriptWindowRules(240, 11000)).Intents
 
     let runWith (mission: bool) =
         SessionEngine.Run(
@@ -727,7 +767,8 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
         legacyRejection.IsSome
         || legacyDecoded.Value.MissionActive <> 0uy
         || legacyDecoded.Value.MissionChainRunCount <> 0L
-        || legacyDecoded.Value.SectionVersion <> int SessionSectionCodec.LegacySectionVersion
+        || legacyDecoded.Value.SectionVersion
+           <> int SessionSectionCodec.LegacySectionVersion
     then
         failwith "Die Legacy-Sektionsversion 1 trug nicht die ehrliche Missionsleere."
 
@@ -741,7 +782,10 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
 
     let (futureRejection, _) = decodeSection futureBytes
 
-    if futureRejection.IsNone || futureRejection.Value.Class <> SessionSectionRejectionClass.Invalid then
+    if
+        futureRejection.IsNone
+        || futureRejection.Value.Class <> SessionSectionRejectionClass.Invalid
+    then
         failwith "Die Sektionsversion 3 wurde nicht ohne Migrationserfindung abgewiesen."
 
     // Relationswahrheiten der Missionsflaeche (fail-closed).
@@ -752,10 +796,7 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
         let bytes = SessionSectionCodec.Encode(invalidState active count pressure)
         let struct (rejection, _) = SessionSectionCodec.Decode(bytes)
 
-        if
-            isNull rejection
-            || rejection.Class <> SessionSectionRejectionClass.Invalid
-        then
+        if isNull rejection || rejection.Class <> SessionSectionRejectionClass.Invalid then
             failwith $"Die Missionsrelation ({active}, {count}, {pressure}) wurde nicht fail-closed abgewiesen."
 
 // ---------------------------------------------------------------------------
@@ -772,27 +813,39 @@ let private freshSlotDir () =
 
 let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
     let slotDir = freshSlotDir ()
-    let fixturePath = Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t039-completion-repeat.graybox")
+
+    let fixturePath =
+        Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t039-completion-repeat.graybox")
 
     try
         let baseArguments =
             [ "kommandoschleife"
-              "--scenario"; "kommando-graybox"
-              "--input-script"; fixturePath
-              "--seed"; "20260826"
-              "--warmup-ticks"; "240"
-              "--horizon-ticks"; "17500"
+              "--scenario"
+              "kommando-graybox"
+              "--input-script"
+              fixturePath
+              "--seed"
+              "20260826"
+              "--warmup-ticks"
+              "240"
+              "--horizon-ticks"
+              "17500"
               "--exploration"
               "--decision"
               "--pressure"
               "--mission"
-              "--slot-dir"; slotDir
-              "--slot"; "m.rwsaved" ]
+              "--slot-dir"
+              slotDir
+              "--slot"
+              "m.rwsaved" ]
 
         // Speicherlauf in Kette 2 nach der Wiederholung.
         let (saveExit, _, saveStderr) =
             runAppHost (
-                Array.ofList (baseArguments @ [ "--report"; Path.Combine(slotDir, "save.json"); "--save-at-tick"; "9600" ])
+                Array.ofList (
+                    baseArguments
+                    @ [ "--report"; Path.Combine(slotDir, "save.json"); "--save-at-tick"; "9600" ]
+                )
             )
 
         if saveExit <> 0 then
@@ -804,7 +857,8 @@ let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
         if saveReport.GetProperty("schemaVersion").GetInt32() <> 7 then
             failwith "Der Missions-Speicherlauf trug nicht die Schemaversion 7."
 
-        let saveSection = saveReport.GetProperty("continuation").GetProperty("sessionSection")
+        let saveSection =
+            saveReport.GetProperty("continuation").GetProperty("sessionSection")
 
         if saveSection.GetProperty("sectionVersion").GetInt32() <> 2 then
             failwith "Der Missions-Speicherlauf schrieb nicht die Sektionsversion 2."
@@ -818,7 +872,10 @@ let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
         // schlaegt erneut als Erfolg ab.
         let (loadExit, _, loadStderr) =
             runAppHost (
-                Array.ofList (baseArguments @ [ "--report"; Path.Combine(slotDir, "load.json"); "--load-slot" ])
+                Array.ofList (
+                    baseArguments
+                    @ [ "--report"; Path.Combine(slotDir, "load.json"); "--load-slot" ]
+                )
             )
 
         if loadExit <> 0 then
@@ -853,18 +910,25 @@ let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
             Directory.Delete(slotDir, true)
 
 let cliMissionCouplingAndExitCodesStayStable () =
-    let fixturePath = Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t039-completion-repeat.graybox")
+    let fixturePath =
+        Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t039-completion-repeat.graybox")
 
     // --mission ohne --pressure: bestehende Usage-Bedeutung (2), keine neue.
     let (usageExit, _, _) =
         runAppHost (
             [| "kommandoschleife"
-               "--scenario"; "kommando-graybox"
-               "--input-script"; fixturePath
-               "--seed"; "20260826"
-               "--report"; Path.Combine(freshSlotDir (), "unused.json")
-               "--warmup-ticks"; "240"
-               "--horizon-ticks"; "17500"
+               "--scenario"
+               "kommando-graybox"
+               "--input-script"
+               fixturePath
+               "--seed"
+               "20260826"
+               "--report"
+               Path.Combine(freshSlotDir (), "unused.json")
+               "--warmup-ticks"
+               "240"
+               "--horizon-ticks"
+               "17500"
                "--exploration"
                "--decision"
                "--mission" |]
@@ -874,19 +938,27 @@ let cliMissionCouplingAndExitCodesStayStable () =
         failwith $"--mission ohne --pressure ergab {usageExit} statt der bestehenden Usage-Bedeutung."
 
     // Legacyskripte unter v3 bleiben gueltig; Schema 5 (Druck) unveraendert.
-    let legacyFixture = Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t036-pressure-restart.graybox")
+    let legacyFixture =
+        Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t036-pressure-restart.graybox")
+
     let legacyDir = freshSlotDir ()
 
     try
         let (legacyExit, _, legacyStderr) =
             runAppHost (
                 [| "kommandoschleife"
-                   "--scenario"; "kommando-graybox"
-                   "--input-script"; legacyFixture
-                   "--seed"; "20260826"
-                   "--report"; Path.Combine(legacyDir, "legacy.json")
-                   "--warmup-ticks"; "240"
-                   "--horizon-ticks"; "11000"
+                   "--scenario"
+                   "kommando-graybox"
+                   "--input-script"
+                   legacyFixture
+                   "--seed"
+                   "20260826"
+                   "--report"
+                   Path.Combine(legacyDir, "legacy.json")
+                   "--warmup-ticks"
+                   "240"
+                   "--horizon-ticks"
+                   "11000"
                    "--exploration"
                    "--decision"
                    "--pressure" |]
@@ -901,7 +973,10 @@ let cliMissionCouplingAndExitCodesStayStable () =
         if legacyReport.GetProperty("schemaVersion").GetInt32() <> 5 then
             failwith "Der Legacyskriptlauf veraenderte die Schemalinie (5 erwartet)."
 
-        if legacyReport.GetProperty("commandContract").GetProperty("scriptFormat").GetString() <> "graybox-input-script-v3" then
+        if
+            legacyReport.GetProperty("commandContract").GetProperty("scriptFormat").GetString()
+            <> "graybox-input-script-v3"
+        then
             failwith "Der Legacyskriptlauf veraenderte die Formatkennung."
     finally
         if Directory.Exists(legacyDir) then
@@ -928,7 +1003,9 @@ let private goldenMissionishJsonWithCompletionState (state: string) =
         + "\"completionBoundaryModel\":\"derived-completion-first-boundary-observation-v1\","
         + "\"repeatActivationModel\":\"script-v4-plus-keymap-repeat-action-v1\","
         + "\"resetScope\":\"full-chain-restart-including-visit-protocol-v1\","
-        + "\"completion\":" + completionBlock + ","
+        + "\"completion\":"
+        + completionBlock
+        + ","
         + "\"chainRunCount\":1,"
         + "\"chainRunCountAtRunStart\":1,"
         + "\"repeatProtocol\":[],"
@@ -945,7 +1022,9 @@ let private goldenMissionishJsonWithCompletionState (state: string) =
     + "\"explorationSession\":{\"contract\":{\"document\":\"docs/ERKUNDUNGSVERTRAG.md\",\"version\":\"3\"},\"activationId\":\"opt-in-exploration-activation-v1\",\"landmarkModel\":\"graybox-landmark-zone-anchor-v1\",\"visitRule\":\"boundary-visit-personal-mode-only-v1\",\"counterModel\":\"session-local-visit-counter-v1\",\"landmarks\":[],\"visitProtocol\":[],\"progress\":{\"visitedCount\":0,\"landmarkCount\":6,\"completed\":false,\"gateCoupled\":false},\"persistence\":{\"statementId\":\"session-local-save-load-persisted-v2\",\"persisted\":true,\"saveLoad\":\"continued\",\"replay\":\"not-continued\",\"gateCoupled\":false},\"gateCoupled\":false,\"hud\":{\"measured\":false,\"kind\":\"title-hud-expedition-progress-v1\",\"reason\":\"headless-run-without-window\"},\"landmarkChannel\":{\"measured\":false,\"kind\":\"landmark-state-channel-v1\",\"reason\":\"headless-run-without-window\"}},"
     + "\"decisionSession\":{\"contract\":{\"document\":\"docs/ENTSCHEIDUNGSVERTRAG.md\",\"version\":\"4\"},\"activationId\":\"opt-in-decision-activation-v1\",\"offerRule\":\"completion-gated-decision-offer-v1\",\"optionsModel\":\"visit-protocol-zone-options-v1\",\"choiceScopingRule\":\"decision-choose-personal-mode-only-v1\",\"followUpRule\":\"chosen-zone-follow-up-objective-v1\",\"arrivalRule\":\"boundary-arrival-personal-mode-only-v1\",\"offer\":{\"opened\":false,\"boundaryTick\":-1,\"optionZoneA\":-1,\"optionZoneB\":-1,\"reason\":\"exploration-not-completed-within-run\"},\"decision\":{\"decided\":false,\"boundaryTick\":-1,\"choice\":null,\"mode\":null,\"optionZone\":-1},\"followUp\":{\"zoneIndex\":-1,\"completed\":false,\"arrivalBoundaryTick\":-1,\"gateCoupled\":false},\"rejections\":{\"beforeOffer\":0,\"inStrategicMode\":0,\"afterDecision\":0,\"gateCoupled\":false},\"persistence\":{\"statementId\":\"decision-session-local-save-load-persisted-v3\",\"persisted\":true,\"saveLoad\":\"continued\",\"replay\":\"not-continued\",\"gateCoupled\":false},\"gateCoupled\":false,\"hud\":{\"measured\":false,\"kind\":\"title-hud-decision-objective-v1\",\"reason\":\"headless-run-without-window\"},\"followUpChannel\":{\"measured\":false,\"kind\":\"follow-up-marker-channel-v1\",\"reason\":\"headless-run-without-window\"}},"
     + "\"pressureSession\":{\"contract\":{\"document\":\"docs/DRUCKVERTRAG.md\",\"version\":\"3\"},\"activationId\":\"opt-in-pressure-activation-v1\",\"triggerId\":\"decision-coupled-window-v1\",\"timeBasisId\":\"fixed-deterministic-tick-window-v1\",\"failureRuleId\":\"defined-failure-automatic-reopen-v1\",\"restartModelId\":\"session-local-cycle-restart-v1\",\"successRuleId\":\"unchanged-decision-arrival-within-window-v1\",\"windowLengthTicks\":600,\"cycleCount\":0,\"windows\":[],\"lastFailure\":{\"boundaryTick\":null,\"cause\":null,\"gateCoupled\":false},\"reopenBoundaryTick\":-1,\"endStatus\":{\"status\":\"not-started\",\"reason\":\"decision-not-reached-within-run\",\"gateCoupled\":false},\"persistence\":{\"statementId\":\"pressure-session-local-save-load-persisted-v2\",\"persisted\":true,\"saveLoad\":\"continued\",\"replay\":\"not-continued\",\"gateCoupled\":false},\"gateCoupled\":false,\"hud\":{\"measured\":false,\"kind\":\"title-hud-pressure-window-v1\",\"reason\":\"headless-run-without-window\"},\"restartIndicator\":{\"measured\":false,\"kind\":\"pressure-restart-indicator-channel-v1\",\"reason\":\"headless-run-without-window\"}},"
-    + "\"missionSession\":" + missionSession + ","
+    + "\"missionSession\":"
+    + missionSession
+    + ","
     + "\"simulationContract\":{\"document\":\"docs/SIMULATIONSVERTRAG.md\",\"version\":\"1\",\"numericModel\":\"q16-16-fixed-point-intonly-v1\",\"hashAlgorithm\":\"fnv1a64-canonical-chain-v1\",\"allocationLimitBytesPerWarmTick\":0},"
     + "\"inputScript\":{\"scriptSha256\":\"cbcab89e6961e4bfeaad33f3dde8b63cd17c27e892f66d11b6396cd8c51ffc33\",\"intentPlanHash\":\"4b891064971749c2\",\"horizonTicks\":17500,\"warmupTicks\":240,\"intentsTotal\":1,\"appliedTotal\":0,\"rejectedTotal\":0,\"emptyPointDeselects\":0,\"moveWithoutSelectionRejects\":0,\"noZoneRejects\":0,\"kernelCommandsTotal\":0},"
     + "\"startedAtUtc\":\"2026-08-31T07:42:17.6202299Z\",\"finishedAtUtc\":\"2026-08-31T07:42:18.266729Z\","
@@ -979,28 +1058,34 @@ let missionSchemaRelationsRejectFabricationFailClosed () =
         failwith "Ein offener Lauf trug nicht den ehrlichen Grund."
 
     // Teilmatrix: ohne Zykluserfolg ist die Ableitung nie abgeschlossen.
-    let openRun =
-        runInProcess 20260826u 9000 explorationBody true true true true
+    let openRun = runInProcess 20260826u 9000 explorationBody true true true true
 
     if openRun.Mission.CompletionState <> MissionContract.CompletionStateOpen then
         failwith "Die Ableitung schloss eine Kette ohne Zykluserfolg."
 
     // Der relationale Schema-Knoten weist Fabrikationen fail-closed ab:
     // ein abgeschlossener Ausweis ohne Schichtkonsistenz ist unzulaessig.
-    let fabrication = goldenMissionishJsonWithCompletionState MissionContract.CompletionStateCompleted
+    let fabrication =
+        goldenMissionishJsonWithCompletionState MissionContract.CompletionStateCompleted
+
     let errors = CommandReportSchema.Validate(fabrication)
     let joined = String.concat "; " errors
 
     if
         errors.Count = 0
-        || not (joined.Contains("ein Abschluss existiert nur nach dem Zykluserfolg der Schichten", StringComparison.Ordinal))
+        || not (
+            joined.Contains("ein Abschluss existiert nur nach dem Zykluserfolg der Schichten", StringComparison.Ordinal)
+        )
     then
         failwith "Die relationale Abschlussbindung wies die Fabrikation nicht ab."
 
     // Kettenlaufzaehlung konsistent: eine verschobene Zaehlung ohne
     // zugehoerige Wiederholung wird abgewiesen.
-    let drifted = goldenMissionishJsonWithCompletionState MissionContract.CompletionStateOpen
-    let driftedErrors = CommandReportSchema.Validate(drifted.Replace("\"chainRunCount\":1", "\"chainRunCount\":5"))
+    let drifted =
+        goldenMissionishJsonWithCompletionState MissionContract.CompletionStateOpen
+
+    let driftedErrors =
+        CommandReportSchema.Validate(drifted.Replace("\"chainRunCount\":1", "\"chainRunCount\":5"))
 
     if driftedErrors.Count = 0 then
         failwith "Die Kettenlaufzaehlungsbindung akzeptierte einen Drift."

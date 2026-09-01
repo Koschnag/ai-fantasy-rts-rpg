@@ -2245,8 +2245,7 @@ module Program =
               PackageTests.cliVerifyRejectsUnreadableArchiveWithDistinguishableClass
               "T-038 package exit code mapping binds package codes and documents",
               PackageTests.exitCodeMappingBindsPackageCodes
-              "T-039 mission contract mirrors documented values",
-              MissionTests.missionContractMirrorsDocumentedValues
+              "T-039 mission contract mirrors documented values", MissionTests.missionContractMirrorsDocumentedValues
               "T-039 completion derivation is a pure function of layer truths",
               MissionTests.completionDerivationIsPureFunctionOfLayerTruths
               "T-039 repeat before completion is rejected and changes nothing",
