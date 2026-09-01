@@ -266,7 +266,10 @@ public static class CommandReportSchema
         // genau in Save-/Ladeläufen.
         if (version == VersionWithMission)
         {
-            return new RObj(fields
+            return RObj.WithOptionalFields(
+            [
+                "continuation",
+            ], fields
                 .Concat(new (string, ReportNode)[]
                 {
                     (ExplorationContract.ReportBlockId, ExplorationSessionBody()),
@@ -282,10 +285,16 @@ public static class CommandReportSchema
         // Rein additive Schemaversion 6 (T-037, Savevertrag V2 Abschnitt
         // 13.8): ausschließlich neue Felder; der Pflichtblock `continuation`
         // traegt die Save-/Ladewahrheit, die Sitzungsblöcke der Schichten
-        // erscheinen genau dann, wenn ihre Aktivierung vertraglich besteht.
+        // erscheinen genau dann, wenn ihre Aktivierung vertraglich besteht
+        // (keine Schichtblockpflicht).
         if (version == VersionWithContinuation)
         {
-            return new RObj(fields
+            return RObj.WithOptionalFields(
+            [
+                ExplorationContract.ReportBlockId,
+                DecisionContract.ReportBlockId,
+                PressureContract.ReportBlockId,
+            ], fields
                 .Concat(new (string, ReportNode)[]
                 {
                     (ExplorationContract.ReportBlockId, new OptionalFieldNode(ExplorationContract.ReportBlockId, ExplorationSessionBody())),
@@ -1033,16 +1042,18 @@ public static class CommandReportSchema
         ("completionBoundaryModel", new RLit(MissionContract.CompletionBoundaryModelId)),
         ("repeatActivationModel", new RLit(MissionContract.RepeatActivationModelId)),
         ("resetScope", new RLit(MissionContract.ResetScopeId)),
-        ("completion", new FlagAlternative("state",
+        ("completion", new LiteralDispatchNode("state",
         [
-            new RObj(
+            (MissionContract.CompletionStateCompleted, new RObj(
                 ("state", new RLit(MissionContract.CompletionStateCompleted)),
                 ("boundaryTick", new RInt(0)),
-                ("reason", new RNullableStr())),
-            new RObj(
+                ("reason", new NullableLiteralNode([])),
+                ("gateCoupled", new RBool(false)))),
+            (MissionContract.CompletionStateOpen, new RObj(
                 ("state", new RLit(MissionContract.CompletionStateOpen)),
                 ("boundaryTick", new RInt((int)MissionTelemetry.UnsetBoundaryTick)),
-                ("reason", new LiteralAlternative([MissionContract.OpenReasonNoCycleSuccess]))),
+                ("reason", new LiteralAlternative([MissionContract.OpenReasonNoCycleSuccess])),
+                ("gateCoupled", new RBool(false)))),
         ])),
         ("chainRunCount", new RInt(1)),
         ("repeatProtocol", new RArr(MissionRepeatEntry())),
@@ -1057,6 +1068,45 @@ public static class CommandReportSchema
         ("gateCoupled", new RBool(false)),
         ("hud", MissionHudAlternative()),
         ("repeatKeymap", MissionRepeatKeymapAlternative()));
+
+    /// <summary>
+    /// Literalgesteuerte Alternativform (T-039): das Feld
+    /// <paramref name="fieldName"/> traegt einen gebundenen Literalwert und
+    /// waehlt die zugehoerige geschlossene Form; die übrigen Felder der Form
+    /// sind relational an den Literalwert gebunden (Abschlussvertrag
+    /// Abschnitt 8: ehrlicher Abschlussausweis).
+    /// </summary>
+    private sealed class LiteralDispatchNode(string fieldName, IReadOnlyList<(string Value, RObj Shape)> cases) : ReportNode
+    {
+        public override void Check(string path, JsonElement element, List<string> errors)
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                errors.Add($"{path}: Objekt erwartet.");
+                return;
+            }
+
+            if (!element.TryGetProperty(fieldName, out var flag)
+                || flag.ValueKind != JsonValueKind.String)
+            {
+                errors.Add($"{path}.{fieldName}: Zeichenkette erwartet.");
+                return;
+            }
+
+            var value = flag.GetString();
+
+            foreach (var (candidate, shape) in cases)
+            {
+                if (string.Equals(candidate, value, StringComparison.Ordinal))
+                {
+                    shape.Check(path, element, errors);
+                    return;
+                }
+            }
+
+            errors.Add($"{path}.{fieldName}: konstanter Wert [{string.Join("|", cases.Select(single => single.Value))}] erwartet.");
+        }
+    }
 
     /// <summary>Wiederholungsprotokolleintrag (Abschlussvertrag Abschnitt 8).</summary>
     private static RObj MissionRepeatEntry() => new(

@@ -13,7 +13,28 @@ internal sealed class RObj : ReportNode
 {
     private readonly (string Name, ReportNode Node)[] _fields;
 
-    public RObj(params (string Name, ReportNode Node)[] fields) => _fields = fields;
+    private readonly HashSet<string> _optionalFields;
+
+    public RObj(params (string Name, ReportNode Node)[] fields)
+        : this(Array.Empty<string>(), fields)
+    {
+    }
+
+    private RObj(string[] optionalFields, (string Name, ReportNode Node)[] fields)
+    {
+        _fields = fields;
+        _optionalFields = new HashSet<string>(optionalFields, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Geschlossene Form mit explizit optionalen Feldern (Savevertrag V2
+    /// Abschnitt 13.8: Schemaversion 6 und hoeher erzwingen keine
+    /// Schichtblockpflicht — der Block erscheint genau dann, wenn seine
+    /// Aktivierung vertraglich besteht; ist er vorhanden, gilt seine
+    /// vollstaendige gebundene Form).
+    /// </summary>
+    public static RObj WithOptionalFields(string[] optionalFields, params (string Name, ReportNode Node)[] fields) =>
+        new(optionalFields, fields);
 
     public IReadOnlyList<(string Name, ReportNode Node)> Fields => _fields;
 
@@ -43,7 +64,7 @@ internal sealed class RObj : ReportNode
 
         foreach (var (name, _) in _fields)
         {
-            if (!seen.Contains(name))
+            if (!seen.Contains(name) && !_optionalFields.Contains(name))
             {
                 errors.Add($"{path}.{name}: Pflichtfeld fehlt.");
             }
