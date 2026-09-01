@@ -464,7 +464,8 @@ internal static class CommandLoopRunner
                 RunSelfConsistencyPass: true,
                 ExplorationEnabled: explorationEnabled,
                 DecisionEnabled: decisionEnabled,
-                PressureEnabled: pressureEnabled), saveAtTick);
+                PressureEnabled: pressureEnabled,
+                MissionEnabled: missionEnabled), saveAtTick);
         }
         catch (Exception exception)
         {
