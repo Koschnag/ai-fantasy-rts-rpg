@@ -157,6 +157,11 @@ Der gatende Abschnitt 0 wurde vor der Implementierung abgeschlossen:
 - `./scripts/rift.sh build/fmt/lint/test/security/verify` laufen mit dem neuen
   Code grün; null neue Compiler-/Analyzer-Warnungen (`TreatWarningsAsErrors`
   aktiv), keine neue Abhängigkeit (BCL-only, keine csproj-Referenzänderung).
+  Testsuite 340/340 (328 Bestandsbindungen inklusive der regenerierten
+  Vertragsversionsspiegel plus 12 neue T-039-Bindungen); fmt (fantomas, 3
+  F#-Dateien der Änderung) und lint (0 Befunde) grün; die formale
+  Manifest-Schema-Validierung mit dem gepinnten JsonSchema.Net 8.0.5
+  bestätigt 22/22 Task-Manifeste unter `.ai/tasks/`.
 - Die Regressionsläufe der Bestandsbefehle (bench-sim, savecheck, Soak-Kurzlauf
   sowie kommandoschleife mit Legacy-v1-/v2-/v3-Skripten und den Erkundungs-,
   Entscheidungs-, Druck- und Fortsetzungsskripten) bleiben grün; die
