@@ -1197,6 +1197,22 @@ public static class CommandReportSchema
             : null;
         var completed = string.Equals(state, MissionContract.CompletionStateCompleted, StringComparison.Ordinal);
 
+        // Abschlussvertrag Abschnitt 8: im Offenzustand trägt der Abschluss
+        // seine Grenze nicht; eine behauptete Grenze ohne Abschluss ist eine
+        // Fabrikation. Der Fallback hält dem Formknoten die Fehlermeldung
+        // allein (der Schemaknoten meldet fehlende oder nichtganzzahlige
+        // Grenzen ohnehin).
+        var boundaryTick = completion.TryGetProperty("boundaryTick", out var boundaryElement)
+            && boundaryElement.ValueKind == JsonValueKind.Number
+            && boundaryElement.TryGetInt64(out var boundaryValue)
+                ? boundaryValue
+                : MissionTelemetry.UnsetBoundaryTick;
+
+        if (!completed && boundaryTick != MissionTelemetry.UnsetBoundaryTick)
+        {
+            errors.Add($"{missionPath}.completion.boundaryTick: im Offenzustand trägt der Abschluss seine Grenze nicht.");
+        }
+
         // Abschluss nur nach den Schichtwahrheiten der aktuellen Kette: die
         // abgeleitete Funktion muss von den bestehenden Blöcken getragen
         // werden (Druck `success`, abgeschlossene Entscheidung, abgeschlossene
