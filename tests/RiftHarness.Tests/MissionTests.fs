@@ -601,7 +601,11 @@ let legacyPressureFixtureStaysChainIdenticalWithMission () =
 // Kompatibilitaet, Aktivierungsgrenzen.
 // ---------------------------------------------------------------------------
 
-let private populatedSection () : SessionSectionState =
+let private populatedSectionWith
+    (missionActive: byte)
+    (missionChainRunCount: int64)
+    (pressureActive: byte)
+    : SessionSectionState =
     SessionSectionState(
         ActiveMode = byte SessionMode.Personal,
         PendingSwitches = [],
@@ -624,7 +628,7 @@ let private populatedSection () : SessionSectionState =
         DecisionRejectionsBeforeOffer = 0L,
         DecisionRejectionsInStrategicMode = 0L,
         DecisionRejectionsAfterDecision = 0L,
-        PressureActive = 1uy,
+        PressureActive = pressureActive,
         PressureCycleCount = 1L,
         PressureWindows = [],
         PressureLastFailureBoundaryTick = -1L,
@@ -632,14 +636,52 @@ let private populatedSection () : SessionSectionState =
         PressureLastFailureFollowUpZoneIndex = -1,
         PressureLastReopenBoundaryTick = -1L,
         PressureReopenPendingRecording = 0uy,
-        MissionActive = 1uy,
-        MissionChainRunCount = 3L
+        MissionActive = missionActive,
+        MissionChainRunCount = missionChainRunCount
     )
+
+let private populatedSection () : SessionSectionState = populatedSectionWith 1uy 3L 1uy
 
 /// Wrapper der C#-Valuetupel-Rueckgabe als F#-Optionen (lesbare Pruefung).
 let private decodeSection (bytes: byte[]) : SessionSectionRejection option * SessionSectionState option =
     let struct (rejection, state) = SessionSectionCodec.Decode(bytes)
     (Option.ofObj rejection, Option.ofObj state)
+
+/// Ehrliche Legacy-Sektionsversion 1 (Savevertrag V2, Abschnitt 13): der
+/// gebundene Leerstand ohne Missionsflaeche.
+let private legacyEmptySection () : SessionSectionState =
+    SessionSectionState(
+        ActiveMode = 0uy,
+        PendingSwitches = [],
+        ExplorationActive = 0uy,
+        ExplorationVisits = [],
+        DecisionActive = 0uy,
+        DecisionOfferOpened = 0uy,
+        DecisionOfferBoundaryTick = -1L,
+        DecisionOptionZoneA = -1,
+        DecisionOptionZoneB = -1,
+        DecisionDecided = 0uy,
+        DecisionBoundaryTick = -1L,
+        DecisionChoiceKind = SessionSectionCodec.ChoiceKindUnset,
+        DecisionModeKind = 0uy,
+        DecisionFollowUpZoneIndex = -1,
+        DecisionFollowUpCompleted = 0uy,
+        DecisionArrivalBoundaryTick = -1L,
+        DecisionRejectionsBeforeOffer = 0L,
+        DecisionRejectionsInStrategicMode = 0L,
+        DecisionRejectionsAfterDecision = 0L,
+        PressureActive = 0uy,
+        PressureCycleCount = 0L,
+        PressureWindows = [],
+        PressureLastFailureBoundaryTick = -1L,
+        PressureHasLastFailure = 0uy,
+        PressureLastFailureFollowUpZoneIndex = -1,
+        PressureLastReopenBoundaryTick = -1L,
+        PressureReopenPendingRecording = 0uy,
+        MissionActive = 0uy,
+        MissionChainRunCount = 0L,
+        SectionVersion = int SessionSectionCodec.LegacySectionVersion
+    )
 
 let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
     // Sektionsversion 2: Roundtrip mit Missionsflaeche ist byteidentisch.
@@ -652,7 +694,7 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
         v2Rejection.IsSome
         || v2Decoded.Value.MissionActive <> 1uy
         || v2Decoded.Value.MissionChainRunCount <> 3L
-        || v2Decoded.Value.SectionVersion <> SessionSectionCodec.CurrentSectionVersion
+        || v2Decoded.Value.SectionVersion <> int SessionSectionCodec.CurrentSectionVersion
     then
         failwith "Die Sektionsversion 2 trug die Missionsflaeche nicht."
 
@@ -661,11 +703,7 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
 
     // Legacy-Sektionsversion 1: ehrliche, maschinenlesbare Missionsleere
     // ohne Migrationserfindung; Re-Encoding bleibt versionsgetreu.
-    let legacyState =
-        SessionSectionState.Empty
-
-    let legacyBytes =
-        SessionSectionCodec.Encode({ legacyState with SectionVersion = SessionSectionCodec.LegacySectionVersion })
+    let legacyBytes = SessionSectionCodec.Encode(legacyEmptySection ())
 
     let (legacyRejection, legacyDecoded) = decodeSection legacyBytes
 
@@ -673,7 +711,7 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
         legacyRejection.IsSome
         || legacyDecoded.Value.MissionActive <> 0uy
         || legacyDecoded.Value.MissionChainRunCount <> 0L
-        || legacyDecoded.Value.SectionVersion <> SessionSectionCodec.LegacySectionVersion
+        || legacyDecoded.Value.SectionVersion <> int SessionSectionCodec.LegacySectionVersion
     then
         failwith "Die Legacy-Sektionsversion 1 trug nicht die ehrliche Missionsleere."
 
@@ -691,11 +729,8 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
         failwith "Die Sektionsversion 3 wurde nicht ohne Migrationserfindung abgewiesen."
 
     // Relationswahrheiten der Missionsflaeche (fail-closed).
-    let invalidState (missionActive: byte) (count: long) (pressureActive: byte) =
-        { populatedSection () with
-            MissionActive = missionActive
-            MissionChainRunCount = count
-            PressureActive = pressureActive }
+    let invalidState (missionActive: byte) (count: int64) (pressureActive: byte) =
+        populatedSectionWith missionActive count pressureActive
 
     for (active, count, pressure) in [ (0uy, 2L, 1uy); (1uy, 0L, 1uy); (1uy, 1L, 0uy) ] do
         let bytes = SessionSectionCodec.Encode(invalidState active count pressure)
@@ -858,52 +893,6 @@ let cliMissionCouplingAndExitCodesStayStable () =
 // Missionsblocks.
 // ---------------------------------------------------------------------------
 
-let missionSchemaRelationsRejectFabricationFailClosed () =
-    // Ein vollstaendiger Zwei-Ketten-Lauf traegt konsistente relationale
-    // Wahrheiten; die Fabrikationsmatrix weist Verletzungen fail-closed ab.
-    let result = runInProcess 20260826u 17500 twoChainBody true true true true
-
-    let mission = result.Mission
-
-    if
-        mission.CompletionState = MissionContract.CompletionStateCompleted
-        && mission.CompletionBoundaryTick = MissionSession.UnsetBoundaryTick
-    then
-        failwith "Ein abgeschlossener Lauf trug keinen Abschlussgrenzenausweis."
-
-    if
-        mission.CompletionState = MissionContract.CompletionStateOpen
-        && mission.CompletionStateReason <> MissionContract.OpenReasonNoCycleSuccess
-    then
-        failwith "Ein offener Lauf trug nicht den ehrlichen Grund."
-
-    // Teilmatrix: ohne Zykluserfolg ist die Ableitung nie abgeschlossen.
-    let openRun =
-        runInProcess 20260826u 9000 explorationBody true true true true
-
-    if openRun.Mission.CompletionState <> MissionContract.CompletionStateOpen then
-        failwith "Die Ableitung schloss eine Kette ohne Zykluserfolg."
-
-    // Der relationale Schema-Knoten weist Fabrikationen fail-closed ab:
-    // ein abgeschlossener Ausweis ohne Schichtkonsistenz ist unzulaessig.
-    let fabrication = goldenMissionishJsonWithCompletionState MissionContract.CompletionStateCompleted
-    let errors = CommandReportSchema.Validate(fabrication)
-    let joined = String.concat "; " errors
-
-    if
-        errors.Count = 0
-        || not (joined.Contains("ein Abschluss existiert nur nach dem Zykluserfolg der Schichten", StringComparison.Ordinal))
-    then
-        failwith "Die relationale Abschlussbindung wies die Fabrikation nicht ab."
-
-    // Kettenlaufzaehlung konsistent: eine verschobene Zaehlung ohne
-    // zugehoerige Wiederholung wird abgewiesen.
-    let drifted = goldenMissionishJsonWithCompletionState MissionContract.CompletionStateOpen
-    let driftedErrors = CommandReportSchema.Validate(drifted.Replace("\"chainRunCount\":1", "\"chainRunCount\":5"))
-
-    if driftedErrors.Count = 0 then
-        failwith "Die Kettenlaufzaehlungsbindung akzeptierte einen Drift."
-
 let private goldenMissionishJsonWithCompletionState (state: string) =
     // Vollstaendiger Schemaversion-7-Report eines Zwei-Ketten-Laufs mit
     // kontrolliert austauschbarem Abschlusszustand.
@@ -949,3 +938,49 @@ let private goldenMissionishJsonWithCompletionState (state: string) =
     + "\"profiles\":[{\"id\":\"hw-pc-min\",\"status\":\"NOT-MEASURED\",\"boundReferenceClass\":null,\"reason\":\"mandatory-profile-not-measured-no-reference-hardware\"},{\"id\":\"hw-mac-min\",\"status\":\"NOT-MEASURED\",\"boundReferenceClass\":null,\"reason\":\"mandatory-profile-not-measured-no-reference-hardware\"},{\"id\":\"hw-pc-high\",\"status\":\"NOT-MEASURED\",\"boundReferenceClass\":null,\"reason\":\"mandatory-profile-not-measured-no-reference-hardware\"}],"
     + "\"baseline\":{\"classification\":\"diagnostic-developer-workstation\",\"protocol\":\"qops001-2026-08-24\"},"
     + "\"frameEvidence\":{\"captured\":false,\"reason\":\"capture-not-requested\"},\"exitCode\":0}"
+
+let missionSchemaRelationsRejectFabricationFailClosed () =
+    // Ein vollstaendiger Zwei-Ketten-Lauf traegt konsistente relationale
+    // Wahrheiten; die Fabrikationsmatrix weist Verletzungen fail-closed ab.
+    let result = runInProcess 20260826u 17500 twoChainBody true true true true
+
+    let mission = result.Mission
+
+    if
+        mission.CompletionState = MissionContract.CompletionStateCompleted
+        && mission.CompletionBoundaryTick = MissionSession.UnsetBoundaryTick
+    then
+        failwith "Ein abgeschlossener Lauf trug keinen Abschlussgrenzenausweis."
+
+    if
+        mission.CompletionState = MissionContract.CompletionStateOpen
+        && mission.CompletionStateReason <> MissionContract.OpenReasonNoCycleSuccess
+    then
+        failwith "Ein offener Lauf trug nicht den ehrlichen Grund."
+
+    // Teilmatrix: ohne Zykluserfolg ist die Ableitung nie abgeschlossen.
+    let openRun =
+        runInProcess 20260826u 9000 explorationBody true true true true
+
+    if openRun.Mission.CompletionState <> MissionContract.CompletionStateOpen then
+        failwith "Die Ableitung schloss eine Kette ohne Zykluserfolg."
+
+    // Der relationale Schema-Knoten weist Fabrikationen fail-closed ab:
+    // ein abgeschlossener Ausweis ohne Schichtkonsistenz ist unzulaessig.
+    let fabrication = goldenMissionishJsonWithCompletionState MissionContract.CompletionStateCompleted
+    let errors = CommandReportSchema.Validate(fabrication)
+    let joined = String.concat "; " errors
+
+    if
+        errors.Count = 0
+        || not (joined.Contains("ein Abschluss existiert nur nach dem Zykluserfolg der Schichten", StringComparison.Ordinal))
+    then
+        failwith "Die relationale Abschlussbindung wies die Fabrikation nicht ab."
+
+    // Kettenlaufzaehlung konsistent: eine verschobene Zaehlung ohne
+    // zugehoerige Wiederholung wird abgewiesen.
+    let drifted = goldenMissionishJsonWithCompletionState MissionContract.CompletionStateOpen
+    let driftedErrors = CommandReportSchema.Validate(drifted.Replace("\"chainRunCount\":1", "\"chainRunCount\":5"))
+
+    if driftedErrors.Count = 0 then
+        failwith "Die Kettenlaufzaehlungsbindung akzeptierte einen Drift."
