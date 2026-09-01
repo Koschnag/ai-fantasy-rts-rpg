@@ -162,6 +162,20 @@ Der gatende Abschnitt 0 wurde vor der Implementierung abgeschlossen:
   F#-Dateien der Änderung) und lint (0 Befunde) grün; die formale
   Manifest-Schema-Validierung mit dem gepinnten JsonSchema.Net 8.0.5
   bestätigt 22/22 Task-Manifeste unter `.ai/tasks/`.
+- Das vollständige Verify-Gate (Build, Testsuite 340/340, assets-check mit
+  valid=true über 6 Manifeste im Quarantänezustand, harness verify mit
+  valid=true über 70 Runs und Indexprüfung, jq-Validierung aller
+  `.ai`-JSON-Dateien ohne Fehler) lief am eingefrorenen Arbeitsstand grün.
+- Regressionen am finalen Stand: bench-sim (p99 0,574 ms, Allokation
+  0 Bytes, gate pass), savecheck (alle Prüfklassen, gate pass) und
+  Soak-Kurzlauf (3000 Ticks, diagnostic-accelerated, gate pass).
+- Fresh-Prozess-Evidenz am finalen Build: Paar A (Seed 20260826) Endhash
+  `fca90350abb6e99b`, Paar B (Seed 7) Endhash `888c7c271341c83c`; je Paar
+  sind Ketten und Missionsausweis byteidentisch, Exitcode 0, Gate pass;
+  A und B weichen nachweislich ab (Fremdseed). Ein lasttransienter
+  Gate-Treffer (Exit 35) eines Suite-CLI-Läufs unter Host-Konkurrenz wurde
+  gemäß T-021-Präzedenz mit genau einem Wiederholversuch behandelt; die
+  Wiederholung war grün, und der finale Suite-Lauf bestand ohne Wiederholung.
 - Die Regressionsläufe der Bestandsbefehle (bench-sim, savecheck, Soak-Kurzlauf
   sowie kommandoschleife mit Legacy-v1-/v2-/v3-Skripten und den Erkundungs-,
   Entscheidungs-, Druck- und Fortsetzungsskripten) bleiben grün; die
