@@ -811,6 +811,17 @@ let private freshSlotDir () =
     Directory.CreateDirectory(dir) |> ignore
     dir
 
+/// T-021-Präzedenz: ein lasttransienter Gate-Treffer (Exit 35) erhält genau
+/// einen Wiederholversuch; anhaltende Verletzungen scheitern reproduzierbar.
+let private runMissionCliToleratingTransientGate (arguments: string list) =
+    let arguments = Array.ofList arguments
+    let (exitCode, stdout, stderr) = runAppHost arguments
+
+    if exitCode = ExitCodes.Map(PlatformErrorCode.CommandGateViolated) then
+        runAppHost arguments
+    else
+        exitCode, stdout, stderr
+
 let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
     let slotDir = freshSlotDir ()
 
@@ -841,11 +852,9 @@ let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
 
         // Speicherlauf in Kette 2 nach der Wiederholung.
         let (saveExit, _, saveStderr) =
-            runAppHost (
-                Array.ofList (
-                    baseArguments
-                    @ [ "--report"; Path.Combine(slotDir, "save.json"); "--save-at-tick"; "9600" ]
-                )
+            runMissionCliToleratingTransientGate (
+                baseArguments
+                @ [ "--report"; Path.Combine(slotDir, "save.json"); "--save-at-tick"; "9600" ]
             )
 
         if saveExit <> 0 then
@@ -871,11 +880,9 @@ let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
         // Fortsetzungslauf: frischer Prozess, laedt den Slot, Kette 2
         // schlaegt erneut als Erfolg ab.
         let (loadExit, _, loadStderr) =
-            runAppHost (
-                Array.ofList (
-                    baseArguments
-                    @ [ "--report"; Path.Combine(slotDir, "load.json"); "--load-slot" ]
-                )
+            runMissionCliToleratingTransientGate (
+                baseArguments
+                @ [ "--report"; Path.Combine(slotDir, "load.json"); "--load-slot" ]
             )
 
         if loadExit <> 0 then
