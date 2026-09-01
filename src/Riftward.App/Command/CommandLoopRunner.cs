@@ -3467,6 +3467,7 @@ internal static class CommandLoopRunner
                 ["gateCoupled"] = false,
             },
             ["chainRunCount"] = mission.ChainRunCount,
+            ["chainRunCountAtRunStart"] = mission.ChainRunCountAtRunStart,
             ["repeatProtocol"] = mission.RepeatProtocol.Select(entry => new Dictionary<string, object?>
             {
                 ["boundaryTick"] = entry.BoundaryTick,

@@ -1056,6 +1056,7 @@ public static class CommandReportSchema
                 ("gateCoupled", new RBool(false)))),
         ])),
         ("chainRunCount", new RInt(1)),
+        ("chainRunCountAtRunStart", new RInt(1)),
         ("repeatProtocol", new RArr(MissionRepeatEntry())),
         ("repeatRejectionsBeforeCompletion", new RInt(0)),
         ("persistence", new RObj(

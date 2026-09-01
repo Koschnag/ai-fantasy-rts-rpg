@@ -26,6 +26,7 @@ public sealed record MissionTelemetry(
     long CompletionBoundaryTick,
     string? CompletionStateReason,
     long ChainRunCount,
+    long ChainRunCountAtRunStart,
     IReadOnlyList<MissionRepeatEvent> RepeatProtocol,
     long RepeatRejectionsBeforeCompletion)
 {
@@ -64,11 +65,19 @@ public sealed class MissionSession
     private IReadOnlyList<MissionRepeatEvent>? _repeatEventView;
 
     private long _chainRunCount = 1;
+    private long _chainRunCountAtRunStart = 1;
     private long _completionBoundaryTick = UnsetBoundaryTick;
     private long _repeatRejectionsBeforeCompletion;
 
     /// <summary>Kettenlauf-Anzahl der aktuellen Kette; beginnt bei 1.</summary>
     public long ChainRunCount => _chainRunCount;
+
+    /// <summary>
+    /// Kettenlauf-Anzahl des Sitzungsstandes bei Laufrunde (1 im frischen
+    /// Lauf, der restaurierte Sektionswert im Fortsetzungslauf); Grundlage
+    /// der relationalen Protokollbindung.
+    /// </summary>
+    public long ChainRunCountAtRunStart => _chainRunCountAtRunStart;
 
     /// <summary>
     /// Beobachtete Abschlussgrenze der aktuellen Kette; Sentinel, solange
@@ -177,6 +186,7 @@ public sealed class MissionSession
         return new MissionSession
         {
             _chainRunCount = section.MissionChainRunCount,
+            _chainRunCountAtRunStart = section.MissionChainRunCount,
         };
     }
 
@@ -203,6 +213,7 @@ public sealed class MissionSession
                 ? null
                 : MissionContract.OpenReasonNoCycleSuccess,
             ChainRunCount: _chainRunCount,
+            ChainRunCountAtRunStart: _chainRunCountAtRunStart,
             RepeatProtocol: Array.AsReadOnly(_repeatEvents.ToArray()),
             RepeatRejectionsBeforeCompletion: _repeatRejectionsBeforeCompletion);
     }
