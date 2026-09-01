@@ -48,6 +48,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-037 | E-004 | kleinster spielbarer Fortsetzungsschritt: die Graybox-Auftragskette überlebt den Prozessneustart (Savevertrags-Erweiterung um die additive Sitzungsschicht) über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
 | T-038 | E-004 | kleinster Single-Platform-Releasepfad: versioniertes, checksumgebundenes linux-x64-Alphapaket mit Lizenz-/Attributionsmanifest und Release Notes über der Graybox-Auftragskette (G-PACKAGE) | Z-001, Z-003, Z-004, NF-003, NF-006, NF-008 | M | MUST | REVIEW |
 | T-039 | E-004 | kleinster spielbarer Abschluss- und Wiederholungsschritt: definierter Auftragsabschluss der Graybox-Kette mit ruhigem Abschlussausweis und sitzungslokalem Kettenneustart (Wiederholen) über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | REVIEW |
+| T-042 | E-004 | kleinster spielbarer Pausenschritt: sitzungsseitige Pause mit Einfrieren an der Tickgrenze, erhaltenem Auswahl-/Kontextzustand und deterministischer Kettenidentität über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
@@ -1517,3 +1518,29 @@ entfernt, verkürzt oder abgeschwächt. Evidenz dieses Laufs:
 Kandidaten-Diff-Check, lint, security und verify (Suite 341/341) grün;
 Fresh-Checkout-/Clean-Archive-Vertrag selbst auf den Kandidatenbytes im
 isolierten Temporärmaterialisat grün.
+
+T-042 wurde am 2026-09-01 vom autonomen Planungsagenten (Autorisierung der
+Projektleitung vom 2026-08-23) als neunter Slice der T-030-Zerlegung auf
+`READY` gesetzt; die vollständige Auswahlkette, Blockerbehandlung und
+Reversibilitätsbindung stehen im `releaseNote` des Manifests
+`.ai/tasks/T-042-graybox-pause-step.json` und in der Zeile zu T-042 in
+`docs/OFFENE_FRAGEN.md`. Kurz: Nach der inhaltlich vollständigen
+Graybox-Kette T-032 bis T-039 (Alpha-Loop) ist der kleinste noch fehlende,
+direkt spielbare Kettenschritt aus UF-001/VS-001 ohne Kampf-, Wirtschafts-
+oder Contentbreite die bislang von keinem Slice verantwortete Pausenregel
+der UF-001-Fehlerfallzeile („Simulation stoppt gemäß festgelegter
+Pausenregel; Auswahl und Kontext bleiben erhalten"; Q-GAM-006-Arbeitsannahme
+„Menüs dürfen sicher pausieren") als genau eine neue spielerisch prüfbare
+Hypothese über dem T-033-Laufzeitpfad — sitzungsseitiges Einfrieren an der
+Tickgrenze mit Zwillings-Kettenidentitätsnachweis, ohne Kernberührung, ohne
+Saveinhalt und ohne Verbrauch einer offenen Produktfrage (Q-GAM-006 bleibt
+`OFFEN`); die Out-of-Session-Menüsemantik bleibt gemäß Abschlussvertrag
+zurückgestellt und ist der nächste Kandidat nach diesem Schritt. Die
+reversiblen Pausendetails (Wirksamkeit/Zeitbasis, Eingabeverhalten,
+Save-/Load-Interaktion, Aktivierungsform) entstehen als vorregistrierte
+Hypothesen im gatenden Abschnitt 0 des versionierten Pausevertrags
+`docs/PAUSEVERTRAG.md` (Spike-Klausel in `docs/QUALITAET.md`).
+Implementierungsstart setzt die formale Akzeptanz von T-039 voraus. Dieser
+Freigabelauf hat keinen Produktcode implementiert und keinen Commit
+erstellt; die formale Schema-Validierung mit dem gepinnten JsonSchema.Net
+bleibt gemäß T-022-/T-031-Präzedenz Pflichtteil des Spec-Reviewlaufs.
