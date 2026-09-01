@@ -840,9 +840,13 @@ public static class CommandReportSchema
                     PressureContract.EndStatusRestartPending,
                     PressureContract.EndStatusSuccess,
                 ])))),
-        ("mission", new RObj(
-            ("active", new RBool()),
-            ("chainRunCount", new RInt(0)))));
+        ("mission", new FlagAlternative("active",
+        [
+            new RObj(
+                ("active", new RBool(true)),
+                ("chainRunCount", new RInt(0))),
+            new RObj(("active", new RBool(false))),
+        ])));
 
     /// <summary>Ganzzahlknoten, der null oder eine nichtnegative Ganzzahl akzeptiert.</summary>
     private sealed class RNullableIntNode : ReportNode

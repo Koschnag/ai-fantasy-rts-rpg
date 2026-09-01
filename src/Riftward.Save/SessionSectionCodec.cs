@@ -589,6 +589,8 @@ public static class SessionSectionCodec
 
         if (isV2)
         {
+            EnsureBytes(section, offset, MissionFieldsBytes);
+
             missionActive = ReadU8(section, ref offset);
             missionChainRunCount = ReadI64(section, ref offset);
 
