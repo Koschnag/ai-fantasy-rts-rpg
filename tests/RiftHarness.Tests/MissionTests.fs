@@ -213,9 +213,7 @@ let missionContractMirrorsDocumentedValues () =
           MissionContract.OpenReasonNoCycleSuccess
           MissionContract.RepeatDispositionApplied
           MissionContract.RepeatDispositionRejectedBeforeCompletion
-          "mission-repeat-completion-only-v1"
-          "mission-chain-run-section-fields-v3"
-          "legacy-section-v1-mission-emptiness-v3" ] do
+          "mission-repeat-completion-only-v1" ] do
         if not (document.Contains(identifier, StringComparison.Ordinal)) then
             failwith $"Abschlussvertragsdokument nennt die Kennung {identifier} nicht."
 
@@ -261,6 +259,7 @@ let missionContractMirrorsDocumentedValues () =
     if
         not (saveDocument.Contains("Autorisierte additive Missions-Sektionsfläche (V3, T-039)", StringComparison.Ordinal))
         || not (saveDocument.Contains("mission-chain-run-section-fields-v3", StringComparison.Ordinal))
+        || not (saveDocument.Contains("legacy-section-v1-mission-emptiness-v3", StringComparison.Ordinal))
     then
         failwith "Der Savevertrag traegt die autorisierte Missions-Sektionsflaeche V3 nicht."
 
@@ -312,7 +311,7 @@ let repeatBeforeCompletionIsRejectedAndChangesNothing () =
         runInProcess
             20260826u
             9000
-            (explorationBody @ [ "intent 9000 repeat" ])
+            (explorationBody @ [ "intent 8900 repeat" ])
             true
             true
             true
@@ -357,7 +356,7 @@ let repeatWithoutActivationIsRejectedDistinctly () =
         runInProcess
             20260826u
             9000
-            (explorationBody @ [ "intent 9000 repeat"; "intent 9200 repeat" ])
+            (explorationBody @ [ "intent 8900 repeat"; "intent 9200 repeat" ])
             true
             true
             true
@@ -370,7 +369,7 @@ let repeatWithoutActivationIsRejectedDistinctly () =
         runInProcess
             20260826u
             9000
-            (explorationBody @ [ "intent 9000 repeat"; "intent 9200 repeat" ])
+            (explorationBody @ [ "intent 8900 repeat"; "intent 9200 repeat" ])
             true
             true
             true
@@ -629,7 +628,7 @@ let private populatedSectionWith
         DecisionRejectionsInStrategicMode = 0L,
         DecisionRejectionsAfterDecision = 0L,
         PressureActive = pressureActive,
-        PressureCycleCount = 1L,
+        PressureCycleCount = 0L,
         PressureWindows = [],
         PressureLastFailureBoundaryTick = -1L,
         PressureHasLastFailure = 0uy,
@@ -760,7 +759,8 @@ let cliMissionFlowRunsSchema7WithSaveLoadRoundtrip () =
 
     try
         let baseArguments =
-            [ "--scenario"; "kommando-graybox"
+            [ "kommandoschleife"
+              "--scenario"; "kommando-graybox"
               "--input-script"; fixturePath
               "--seed"; "20260826"
               "--warmup-ticks"; "240"
@@ -841,7 +841,8 @@ let cliMissionCouplingAndExitCodesStayStable () =
     // --mission ohne --pressure: bestehende Usage-Bedeutung (2), keine neue.
     let (usageExit, _, _) =
         runAppHost (
-            [| "--scenario"; "kommando-graybox"
+            [| "kommandoschleife"
+               "--scenario"; "kommando-graybox"
                "--input-script"; fixturePath
                "--seed"; "20260826"
                "--report"; Path.Combine(freshSlotDir (), "unused.json")
@@ -862,7 +863,8 @@ let cliMissionCouplingAndExitCodesStayStable () =
     try
         let (legacyExit, _, legacyStderr) =
             runAppHost (
-                [| "--scenario"; "kommando-graybox"
+                [| "kommandoschleife"
+                   "--scenario"; "kommando-graybox"
                    "--input-script"; legacyFixture
                    "--seed"; "20260826"
                    "--report"; Path.Combine(legacyDir, "legacy.json")
