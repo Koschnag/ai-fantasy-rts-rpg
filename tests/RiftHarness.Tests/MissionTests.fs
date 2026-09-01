@@ -356,7 +356,7 @@ let repeatWithoutActivationIsRejectedDistinctly () =
         runInProcess
             20260826u
             9000
-            (explorationBody @ [ "intent 8900 repeat"; "intent 9200 repeat" ])
+            (explorationBody @ [ "intent 8800 repeat"; "intent 8900 repeat" ])
             true
             true
             true
@@ -369,7 +369,7 @@ let repeatWithoutActivationIsRejectedDistinctly () =
         runInProcess
             20260826u
             9000
-            (explorationBody @ [ "intent 8900 repeat"; "intent 9200 repeat" ])
+            (explorationBody @ [ "intent 8800 repeat"; "intent 8900 repeat" ])
             true
             true
             true
@@ -546,20 +546,24 @@ let foreignSeedChangesHashesButMissionStructureFollowsSession () =
     // Strukturinvarianten: gleicher Abschlusszustand, gleiche
     // Kettenlaufzaehlung, gleiche Dispositionsfolge des Wiederholungs-
     // protokolls; die Vorgrenzen folgen der sitzungsabhängigen Ankunft.
-    if
-        baseline.Mission.CompletionState <> foreign.Mission.CompletionState
-        || baseline.Mission.ChainRunCount <> foreign.Mission.ChainRunCount
-        || baseline.Mission.RepeatProtocol.Count <> foreign.Mission.RepeatProtocol.Count
-        || (baseline.Mission.RepeatProtocol,
-            foreign.Mission.RepeatProtocol)
-           ||> Seq.forall2 (fun baselineEntry foreignEntry ->
-               baselineEntry.Disposition = foreignEntry.Disposition)
-    then
-        failwith "Ein fremder Seed aenderte die Struktur der Abschluss- oder Wiederholungswahrheit."
+    let structuralTruth (run: SessionRunResult) =
+        (run.Mission.CompletionState,
+         run.Mission.ChainRunCount,
+         run.Mission.RepeatProtocol.Count,
+         run.Mission.RepeatProtocol |> Seq.map (fun entry -> entry.Disposition) |> Seq.toList)
+
+    if structuralTruth baseline <> structuralTruth foreign then
+        failwith
+            $"Ein fremder Seed aenderte die Struktur der Abschluss- oder Wiederholungswahrheit: Baseline {structuralTruth baseline}, Fremdseed {structuralTruth foreign}."
 
     // Die Landmarkenmenge bleibt seedunabhängig; die Aufsuchfolge folgt der
     // Sitzung.
-    if baseline.Exploration.Landmarks <> foreign.Exploration.Landmarks then
+    if
+        baseline.Exploration.Landmarks.Count <> foreign.Exploration.Landmarks.Count
+        || (baseline.Exploration.Landmarks, foreign.Exploration.Landmarks)
+           ||> Seq.forall2 (fun baselineLandmark foreignLandmark ->
+               baselineLandmark = foreignLandmark)
+    then
         failwith "Ein fremder Seed aenderte die Landmarkenmenge."
 
 let legacyPressureFixtureStaysChainIdenticalWithMission () =
@@ -924,6 +928,7 @@ let private goldenMissionishJsonWithCompletionState (state: string) =
         + "\"resetScope\":\"full-chain-restart-including-visit-protocol-v1\","
         + "\"completion\":" + completionBlock + ","
         + "\"chainRunCount\":1,"
+        + "\"chainRunCountAtRunStart\":1,"
         + "\"repeatProtocol\":[],"
         + "\"repeatRejectionsBeforeCompletion\":0,"
         + "\"persistence\":{\"statementId\":\"mission-chain-run-counter-persisted-v1\",\"persisted\":true,\"saveLoad\":\"continued\",\"replay\":\"not-continued\",\"completionStatePersisted\":false,\"gateCoupled\":false},"

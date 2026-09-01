@@ -1235,12 +1235,20 @@ public static class CommandReportSchema
 
         // Reset nur nach Abschluss: ein wirksamer Wiederholungseintrag setzt
         // voraus, dass zuvor ein Abschlusszustand bestand. Das Protokoll
-        // bindet die Kettenlaufstände: die Zählung beginnt bei 1, jede
+        // bindet die Kettenlaufstände relational zur Laufrunde: die
+        // Zählung der Laufrunde beginnt bei `chainRunCountAtRunStart`
+        // (frisch 1, Fortsetzung der restaurierte Sektionswert), jede
         // wirksame Wiederholung erhöht sie um genau eins, und abgewiesene
         // verändern sie nicht.
+        var startChainRun = ReadLong(mission, "chainRunCountAtRunStart") ?? 0;
+
+        if (startChainRun < 1)
+        {
+            errors.Add($"{missionPath}.chainRunCountAtRunStart: die Laufrundenzählung beginnt bei mindestens 1.");
+        }
+
         var appliedCount = 0;
         var rejectedCount = 0;
-        var lastChainRun = 1L;
         var relationViolation = false;
 
         if (mission.TryGetProperty("repeatProtocol", out var protocol)
@@ -1266,20 +1274,18 @@ public static class CommandReportSchema
                 {
                     appliedCount++;
 
-                    if (chainRunAfter != lastChainRun + 1)
+                    if (chainRunAfter != startChainRun + appliedCount)
                     {
                         relationViolation = true;
                         break;
                     }
-
-                    lastChainRun = chainRunAfter;
                 }
                 else if (string.Equals(
                     disposition, MissionContract.RepeatDispositionRejectedBeforeCompletion, StringComparison.Ordinal))
                 {
                     rejectedCount++;
 
-                    if (chainRunAfter != lastChainRun)
+                    if (chainRunAfter != startChainRun + appliedCount)
                     {
                         relationViolation = true;
                         break;
@@ -1290,12 +1296,12 @@ public static class CommandReportSchema
 
         if (relationViolation)
         {
-            errors.Add($"{missionPath}.repeatProtocol: die Kettenlaufzählung beginnt bei 1, jede wirksame Wiederholung erhöht sie um genau eins, und abgewiesene verändern sie nicht.");
+            errors.Add($"{missionPath}.repeatProtocol: jede wirksame Wiederholung erhöht die Kettenlaufzählung um genau eins, und abgewiesene verändern sie nicht.");
         }
 
-        if (chainRunCount != lastChainRun)
+        if (chainRunCount != startChainRun + appliedCount)
         {
-            errors.Add($"{missionPath}.chainRunCount: die Kettenlaufzählung entspricht der Anzahl wirksamer Wiederholungen plus 1.");
+            errors.Add($"{missionPath}.chainRunCount: die Kettenlaufzählung entspricht der Laufrundenzählung plus der Anzahl wirksamer Wiederholungen.");
         }
 
         var rejections = ReadLong(mission, "repeatRejectionsBeforeCompletion") ?? 0;

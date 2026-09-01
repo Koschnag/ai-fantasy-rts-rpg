@@ -311,7 +311,9 @@ Ausführungsarten; `gateCoupled=false` für sämtliche Mess- und Protokollfelder
 - Abschlussausweis (Zustand `completed`/`open` mit ehrlichem Grund
   `no-cycle-success-within-run` im Offenzustand, Abschlussgrenze der
   aktuellen Kette bzw. Sentinel)
-- Kettenlaufzählung (`chainRunCount`, mindestens 1)
+- Kettenlaufzählung (`chainRunCount`, mindestens 1) samt Laufrundenzählung
+  (`chainRunCountAtRunStart` — frisch 1, im Fortsetzungslauf der
+  restaurierte Sektionswert; Grundlage der relationalen Protokollbindung)
 - Wiederholungsprotokoll je Eintrag (Vorgrenze, Disposition `applied`/
   `rejected-before-completion`, Kettenlaufstand nach dem Eintrag)
 - Abweisungszähler der vor dem Abschluss abgewiesenen Wiederholen-Aktionen
@@ -329,9 +331,11 @@ existiert nur nach einem Zykluserfolg der aktuellen Kette (die drei
 Schichtwahrheiten des Abschlussblocks tragen dieselbe Aussage wie die
 bestehenden Blöcke); im Offenzustand trägt der Abschluss seine Grenze nicht;
 jede wirksame Wiederholung erhöht die Kettenlaufzählung um genau eins, und
-die Kettenlaufstände des Protokolls sind konsistent; abgewiesene
-Wiederholungen verändern die Zählung nicht; ohne Missionsaktivierung
-existiert kein Block; `gateCoupled=false` überall.
+die Kettenlaufstände des Protokolls sind relational zur Laufrundenzählung
+konsistent (Kettenlaufzählung = Laufrundenzählung plus Anzahl wirksamer
+Wiederholungen des Laufs); abgewiesene Wiederholungen verändern die Zählung
+nicht; ohne Missionsaktivierung existiert kein Block; `gateCoupled=false`
+überall.
 
 Der Headless-Abschluss- und Wiederholungsflow läuft über denselben
 öffentlichen Befehl und dasselbe v4-Skriptformat; zwei unabhängige
