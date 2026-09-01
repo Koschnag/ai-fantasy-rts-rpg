@@ -2259,8 +2259,8 @@ module Program =
               MissionTests.twoChainFlowBindsCompletionRepeatAndOptionVariance
               "T-039 mission layer never touches simulation or hash",
               MissionTests.missionLayerNeverTouchesSimulationOrHash
-              "T-039 foreign seed changes hashes not session truth",
-              MissionTests.foreignSeedChangesHashesNotSessionTruth
+              "T-039 foreign seed changes hashes but mission structure follows session",
+              MissionTests.foreignSeedChangesHashesButMissionStructureFollowsSession
               "T-039 legacy pressure fixture stays chain identical with mission",
               MissionTests.legacyPressureFixtureStaysChainIdenticalWithMission
               "T-039 session section v2 carries mission fields and legacy v1 stays empty",

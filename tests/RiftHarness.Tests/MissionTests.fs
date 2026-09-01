@@ -530,9 +530,12 @@ let missionLayerNeverTouchesSimulationOrHash () =
     if activated.KernelCommandsTotal <> twin.KernelCommandsTotal then
         failwith "Die Abschluss- und Wiederholungsschicht erzeugte einen Kernbefehl."
 
-let foreignSeedChangesHashesNotSessionTruth () =
+let foreignSeedChangesHashesButMissionStructureFollowsSession () =
+    // Fremdseed-Negativfall nach T-036-Präzedenz: Hashes weichen ab; die
+    // Strukturinvarianten der Abschlusswahrheit bleiben, die Grenzen folgen
+    // der Sitzung (die Abschlussschicht liest den Seed niemals).
     let baseline = runInProcess 20260826u 17500 twoChainBody true true true true
-    let foreign = runInProcess 42u 17500 twoChainBody true true true true
+    let foreign = runInProcess 7u 17500 twoChainBody true true true true
 
     if
         baseline.StartStateHash = foreign.StartStateHash
@@ -540,16 +543,24 @@ let foreignSeedChangesHashesNotSessionTruth () =
     then
         failwith "Ein fremder Seed aenderte Start- oder Endhash nicht nachweislich."
 
+    // Strukturinvarianten: gleicher Abschlusszustand, gleiche
+    // Kettenlaufzaehlung, gleiche Dispositionsfolge des Wiederholungs-
+    // protokolls; die Vorgrenzen folgen der sitzungsabhängigen Ankunft.
     if
         baseline.Mission.CompletionState <> foreign.Mission.CompletionState
-        || baseline.Mission.CompletionBoundaryTick <> foreign.Mission.CompletionBoundaryTick
         || baseline.Mission.ChainRunCount <> foreign.Mission.ChainRunCount
         || baseline.Mission.RepeatProtocol.Count <> foreign.Mission.RepeatProtocol.Count
+        || (baseline.Mission.RepeatProtocol,
+            foreign.Mission.RepeatProtocol)
+           ||> Seq.forall2 (fun baselineEntry foreignEntry ->
+               baselineEntry.Disposition = foreignEntry.Disposition)
     then
-        failwith "Ein fremder Seed aenderte die Sitzungs- oder Abschlusswahrheit."
+        failwith "Ein fremder Seed aenderte die Struktur der Abschluss- oder Wiederholungswahrheit."
 
-    if baseline.Exploration.VisitProtocol.Count <> foreign.Exploration.VisitProtocol.Count then
-        failwith "Ein fremder Seed aenderte die Landmarkenmenge oder das Aufsuchprotokoll."
+    // Die Landmarkenmenge bleibt seedunabhängig; die Aufsuchfolge folgt der
+    // Sitzung.
+    if baseline.Exploration.Landmarks <> foreign.Exploration.Landmarks then
+        failwith "Ein fremder Seed aenderte die Landmarkenmenge."
 
 let legacyPressureFixtureStaysChainIdenticalWithMission () =
     // Die Legacy-Kette (T-036-Fixture) bleibt mit Missionsaktivierung
