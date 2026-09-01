@@ -1463,3 +1463,40 @@ T-037 voraus. Dieser Freigabelauf hat keinen Produktcode implementiert und
 keinen Commit erstellt; die formale Schema-Validierung mit dem gepinnten
 JsonSchema.Net 8.0.5 wurde in diesem Lauf gegen alle Manifeste unter `.ai/tasks/`
 ausgeführt.
+
+Der Implementierungslauf vom 2026-09-01 hat den achte Slice der T-030-
+Zerlegung vollendet: Der gatende Abschnitt 0 (`docs/ABSCHLUSSVERTRAG.md` V1)
+und die autorisierten additiven Vertragspräzisierungen (Erkundungsvertrag V3,
+Entscheidungsvertrag V4, Druckvertrag V3, Savevertrag V3, Kommandovertrag
+Abschnitt 13) liegen vor; die sitzungslokale Abschluss- und Wiederholungsschicht
+leitet den Abschlusszustand als reine Funktion der bestehenden
+Schichtwahrheiten ab (`derived-completion-state-pure-function-v1`), setzt im
+Abschlusszustand an einer Vorgrenze die gesamte Kette ohne Welt-, Kern- oder
+Hashberührung zurück (`full-chain-restart-including-visit-protocol-v1`,
+Wiederholvarianz über die Aufsuchfolge: Optionspaar Kette 1 (0,4) → Kette 2
+(4,0)), und zählt die Kettenläufe als additive Sektionsversion 2 des
+Savevertrags V3 (Legacy-Sektionsversion 1 lädt mit ehrlicher Missionsleere).
+Report-Schemaversion 7 mit Pflichtblock `missionSession`; Skriptgrammatik
+`graybox-input-script-v4` mit parameterlosem `repeat` (unter v1/v2/v3
+`UnknownAction`) und Keymap-Aktion `repeat-mission` (Standard F7); Titel-HUD
+` — Auftrag: abgeschlossen`. Eine In-Scope-Reparatur schloss dabei einen
+Bestandsdefekt: Die Schemaversion-6-Form meldete verdeckte Schichtblöcke als
+Pflichtfeld entgegen Savevertrag V2 Abschnitt 13.8 (keine Schichtblockpflicht);
+`RObj.WithOptionalFields` macht benannte Blöcke tatsächlich optional. Suite
+341/341 (13 neue T-039-Bindungen, darunter der schichtleere
+Schemaversion-6-Speicherlauf als Reparaturbindung); fmt/lint grün; Regressionen
+bench-sim,
+savecheck und Soak-Kurzlauf grün; Fresh-Prozesspaare builderidentisch
+(Endhash `fca90350abb6e99b` bzw. `888c7c271341c83c`), Fremdseed ändert den
+Endhash nachweislich; Save-/Lade-Rundtrip in Kette 2 mit
+Fortsetzungsidentität. Interaktivsmoke, Playtestausführung und ein opt-in
+Abgriffpaar bleiben wegen der displaylosen Umgebung ausgewiesene Restpunkte
+(kontrollierter Code-19-Präzedenz); die Hauptmenü-Rückkehr von UF-001
+Schritt 9 bleibt Out-of-Session zurückgestellt. Der unabhängige Reviewlauf
+verschärfte die relationale Offenzustandsbindung des Abschlussausweises
+(Abschlussvertrag Abschnitt 8) mit Fabrikationsbindung, band den
+schichtleeren Schemaversion-6-Lauf als Suiteeintrag und korrigierte drei
+Schreibfehler in den neuen Vertragstexten. T-039 trägt den
+Manifeststatus `review`; die Promotion bleibt der separaten Promotion-
+Autorität vorbehalten; Details in
+`docs/abnahme/T-039-graybox-completion-repeat.md`.

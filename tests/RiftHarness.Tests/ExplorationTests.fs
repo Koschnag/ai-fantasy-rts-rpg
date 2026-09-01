@@ -110,8 +110,10 @@ let explorationContractMirrorsDocumentedValues () =
     if ExplorationContract.DocumentPath <> "docs/ERKUNDUNGSVERTRAG.md" then
         failwith "Erkundungsvertragspfad falsch."
 
-    if ExplorationContract.ContractVersion <> "2" then
-        failwith "Erkundungsvertragsversion falsch."
+    // V3: autorisierte additive Ketten-Praezisierung (T-039,
+    // Abschlussvertrag Abschnitt 12; Erkundungsvertrag Abschnitt 12).
+    if ExplorationContract.ContractVersion <> "3" then
+        failwith "Erkundungsvertragsversion falsch (autorisierte Ketten-Praezisierung V3 erwartet)."
 
     if
         ExplorationContract.ReportSchemaVersionWithoutExploration <> 2
@@ -416,7 +418,7 @@ let finalBoundaryHudMatchesMeasuredReportBeforeAutoExit () =
 
     let hudUpdate =
         source.IndexOf(
-            "UpdateTitleHud(window, pipeline, world, exploration, decision, pressure, ref lastTitleState);",
+            "UpdateTitleHud(window, pipeline, world, exploration, decision, pressure, mission, ref lastTitleState);",
             boundary,
             StringComparison.Ordinal
         )

@@ -2,20 +2,24 @@ namespace Riftward.Save;
 
 /// <summary>
 /// Versionierte Kennungen und fixierte Werte des Savevertrags (T-031,
-/// Abschnitt 0; V2-Erweiterung T-037, Abschnitt 13). Jede Wahl ist in
-/// <c>docs/SAVEVERTRAG.md</c> mit Alternativen, Gruenden und Rueckrollweg
-/// dokumentiert; ein Test haelt beide Seiten konsistent. Der Vertrag
-/// entscheidet Q-TEC-006 nur im Teilaspekt Save-Umschlag/Persistenzformat
-/// des Simulationszustands und der additiven Sitzungssektion; Cooked-Paket-,
-/// Definitions- und Replayformate bleiben OFFEN.
+/// Abschnitt 0; V2-Erweiterung T-037, Abschnitt 13; V3-Erweiterung T-039,
+/// Abschnitt 15). Jede Wahl ist in <c>docs/SAVEVERTRAG.md</c> mit
+/// Alternativen, Gruenden und Rueckrollweg dokumentiert; ein Test haelt
+/// beide Seiten konsistent. Der Vertrag entscheidet Q-TEC-006 nur im
+/// Teilaspekt Save-Umschlag/Persistenzformat des Simulationszustands und der
+/// additiven Sitzungssektion; Cooked-Paket-, Definitions- und Replayformate
+/// bleiben OFFEN.
 /// </summary>
 public static class SaveContract
 {
     /// <summary>Pfad des versionierenden Vertragsdokuments.</summary>
     public const string DocumentPath = "docs/SAVEVERTRAG.md";
 
-    /// <summary>Vertragsversion des Dokuments (V2: additive Sitzungssektion, T-037).</summary>
-    public const string ContractVersion = "2";
+    /// <summary>
+    /// Vertragsversion des Dokuments (V3: additive Missions-Sektionsfläche,
+    /// T-039; V2: additive Sitzungssektion, T-037).
+    /// </summary>
+    public const string ContractVersion = "3";
 
     /// <summary>Kennung der kanonischen Binärcodierung.</summary>
     public const string EncodingId = "riftward-save-canonical-binary-v1";
@@ -189,4 +193,12 @@ public static class SaveContract
 
     /// <summary>Maschinenlesbare Ablehnungskennung: Slot existiert nicht oder ist unlesbar.</summary>
     public const string RejectionSlotUnreadable = "slot-unreadable";
+
+    /* ---------------- V3-Erweiterung (T-039, Abschnitt 15) ---------------- */
+
+    /// <summary>Sektionsaufbaukennung der additiven Missionsflaeche (Abschnitt 15.1).</summary>
+    public const string MissionSectionFieldsModelId = "mission-chain-run-section-fields-v3";
+
+    /// <summary>Legacy-Kompatibilitätskennung der Sektionsversion 1 (Abschnitt 15.2).</summary>
+    public const string LegacySectionEmptinessModelId = "legacy-section-v1-mission-emptiness-v3";
 }

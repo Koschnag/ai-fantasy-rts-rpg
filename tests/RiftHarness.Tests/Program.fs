@@ -2244,7 +2244,34 @@ module Program =
               "T-038 package CLI verify rejects unreadable archive with distinguishable class",
               PackageTests.cliVerifyRejectsUnreadableArchiveWithDistinguishableClass
               "T-038 package exit code mapping binds package codes and documents",
-              PackageTests.exitCodeMappingBindsPackageCodes ]
+              PackageTests.exitCodeMappingBindsPackageCodes
+              "T-039 mission contract mirrors documented values", MissionTests.missionContractMirrorsDocumentedValues
+              "T-039 completion derivation is a pure function of layer truths",
+              MissionTests.completionDerivationIsPureFunctionOfLayerTruths
+              "T-039 repeat before completion is rejected and changes nothing",
+              MissionTests.repeatBeforeCompletionIsRejectedAndChangesNothing
+              "T-039 repeat without activation is rejected distinctly",
+              MissionTests.repeatWithoutActivationIsRejectedDistinctly
+              "T-039 repeat under legacy headers is unknown action",
+              MissionTests.repeatUnderLegacyHeadersIsUnknownAction
+              "T-039 two chain flow binds completion repeat and option variance",
+              MissionTests.twoChainFlowBindsCompletionRepeatAndOptionVariance
+              "T-039 mission layer never touches simulation or hash",
+              MissionTests.missionLayerNeverTouchesSimulationOrHash
+              "T-039 foreign seed changes hashes but mission structure follows session",
+              MissionTests.foreignSeedChangesHashesButMissionStructureFollowsSession
+              "T-039 legacy pressure fixture stays chain identical with mission",
+              MissionTests.legacyPressureFixtureStaysChainIdenticalWithMission
+              "T-039 session section v2 carries mission fields and legacy v1 stays empty",
+              MissionTests.sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty
+              "T-039 CLI mission flow runs schema 7 with save load roundtrip",
+              MissionTests.cliMissionFlowRunsSchema7WithSaveLoadRoundtrip
+              "T-039 CLI mission coupling and exit codes stay stable",
+              MissionTests.cliMissionCouplingAndExitCodesStayStable
+              "T-039 CLI save without layer activation satisfies schema 6",
+              MissionTests.cliSaveWithoutLayerActivationSatisfiesSchema6
+              "T-039 mission schema relations reject fabrication fail closed",
+              MissionTests.missionSchemaRelationsRejectFabricationFailClosed ]
 
         if arguments.Length = 2 && arguments[0] = "--t032-allocation-probe" then
             // Frisch-Prozess-Eingang der Allokationsprobe: läuft die

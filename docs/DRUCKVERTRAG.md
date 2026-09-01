@@ -1,8 +1,10 @@
 # Druckvertrag (T-036, Abschnitt 0)
 
-**Vertragsversion:** 2 (V2 ergänzt ausschließlich die autorisierte additive
-Persistenz-Präzisierung gemäß Savevertrag V2/T-037, Abschnitt 14; alle
-übrigen Abschnitte sind gegenüber V1 inhaltlich unverändert.)
+**Vertragsversion:** 3 (V3 ergänzt ausschließlich die autorisierte additive
+Ketten-Präzisierung gemäß Abschlussvertrag V1/T-039, Abschnitt 15; V2
+ergänzte die autorisierte additive Persistenz-Präzisierung gemäß
+Savevertrag V2/T-037, Abschnitt 14; alle übrigen Abschnitte sind gegenüber
+V1 inhaltlich unverändert.)
 **Status:** Durch den gatenden Vertragsspike des Auftrags
 `.ai/tasks/T-036-graybox-pressure-restart.json` vor der Implementierung
 festgelegt; die maschinenlesbaren Kennungen sind in
@@ -459,3 +461,34 @@ Druckschicht. **Fixture-Regeneration:** Tests, die
 haben, wurden im selben Kandidaten auf die V2-Präzisierung fortgeschrieben;
 Fenster-, Ketten- und Endhashbindungen der T-036-Flüsse bleiben unverändert
 gültig.
+
+## 15. Autorisierte additive Ketten-Präzisierung (V3, T-039)
+
+**Änderungsumfang (ausschließlich diese eine Wahrheitsänderung):** Die
+Zyklus- und Fensterwahrheit des Abschnitts 8 wird auf die Kettenebene
+präzisiert (`chain-scoped-cycle-counting-v3`): Der definierte Kettenneustart
+des Abschlussvertrags V1 (`docs/ABSCHLUSSVERTRAG.md`, Abschnitt 4,
+`full-chain-restart-including-visit-protocol-v1`) setzt die Druckschicht
+kontrolliert zurück — Fensterinstanzen, Zykluszählung, letzter Fehlschlag,
+Wiederauffrischungsgrenze und Wiederauffrischungspendenz enden mit der
+Kette; die Zyklusnummern beginnen je Kette erneut bei 1. Auslöseregel,
+Zeitbasis, Fehlschlags- und Neustartregel, Erfolgsregel und die
+Endstatuswahrheit gelten je Kette unverändert; die Auswertungsordnung wird
+ausschließlich am Ende um die Abschlussbeobachtung des Abschlussvertrags
+ergänzt.
+
+**Unverändert bleiben:** Auslöseregel, Zeitbasis, Fensterlänge,
+Fehlschlags- und Neustartregel, Erfolgsregel, Feedback, Aktivierungsform,
+Persistenzwahrheit und alle Exitcodes (Abschnitte 2 bis 7 und 9 bis 14).
+**Grund und Begrenzung:** Die Präzisierung ist die vom Auftrag
+`.ai/tasks/T-039-graybox-completion-repeat.json` autorisierte additive
+Voraussetzung des Abschluss- und Wiederholungsschritts (die neue Kette
+beginnt ohne Fenster, ohne Fehlschlag und ohne Zählervorbelastung) und
+antwortet auf keine offene Produktfrage; die Druckschicht bleibt rein
+sitzungsseitig und erzeugt niemals einen Kernbefehl. **Rückrollweg:** Umkehr
+auf V2 (keine Kettenebene) durch Vertragsversionswechsel mit Neubau und
+Fixture-Regeneration; die Abschlussschicht trägt dann die ehrliche
+Missionsleere. **Fixture-Regeneration:** Tests, die die Zyklus- und
+Fensterwahrheit ausschließlich über die Sitzungsebene gebunden haben,
+wurden im selben Kandidaten um die Kettenebene erweitert; Fenster-, Ketten-
+und Endhashbindungen der T-036-Flüsse bleiben unverändert gültig.

@@ -222,6 +222,22 @@ public sealed class ExplorationSession
     }
 
     /// <summary>
+    /// Definierter Kettenneustart (Abschlussvertrag V1, Abschnitt 4,
+    /// <c>full-chain-restart-including-visit-protocol-v1</c>; Erkundungs-
+    /// vertrag V3, Abschnitt 12): setzt Registrierungszustand, Aufsuch-
+    /// protokoll und Fortschritt der aktuellen Kette kontrolliert zurück,
+    /// sodass jede Landmarke in der neuen Kette erneut genau einmal
+    /// registrieren kann. Nur von der Abschluss- und Wiederholungsschicht
+    /// aufrufbar; die Beobachtungsregel selbst bleibt unverändert.
+    /// </summary>
+    public void RestartChain()
+    {
+        Array.Clear(_registered);
+        _visits.Clear();
+        _visitedCount = 0;
+    }
+
+    /// <summary>
     /// Wiederherstellung aus der Sitzungssektion (Savevertrag V2, Abschnitt
     /// 13; Erkundungsvertrag V2 Abschnitt 10): rekonstruiert Registrierungs-
     /// zustand, Protokoll und Fortschritt exakt in kanonischer

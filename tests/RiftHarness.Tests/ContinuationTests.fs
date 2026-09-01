@@ -215,7 +215,9 @@ let private populatedSection () : SessionSectionState =
         PressureHasLastFailure = 1uy,
         PressureLastFailureFollowUpZoneIndex = 0,
         PressureLastReopenBoundaryTick = 3401L,
-        PressureReopenPendingRecording = 0uy
+        PressureReopenPendingRecording = 0uy,
+        MissionActive = 0uy,
+        MissionChainRunCount = 0L
     )
 
 let sessionSectionCodecRoundtripIsByteIdenticalPerLayer () =
@@ -374,7 +376,9 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
                 PressureHasLastFailure = 0uy,
                 PressureLastFailureFollowUpZoneIndex = -1,
                 PressureLastReopenBoundaryTick = -1L,
-                PressureReopenPendingRecording = 0uy
+                PressureReopenPendingRecording = 0uy,
+                MissionActive = 0uy,
+                MissionChainRunCount = 0L
             )
         )
 
@@ -415,7 +419,9 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
                 PressureHasLastFailure = 0uy,
                 PressureLastFailureFollowUpZoneIndex = -1,
                 PressureLastReopenBoundaryTick = -1L,
-                PressureReopenPendingRecording = 0uy
+                PressureReopenPendingRecording = 0uy,
+                MissionActive = 0uy,
+                MissionChainRunCount = 0L
             )
         )
 
@@ -454,7 +460,9 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
                 PressureHasLastFailure = 0uy,
                 PressureLastFailureFollowUpZoneIndex = -1,
                 PressureLastReopenBoundaryTick = -1L,
-                PressureReopenPendingRecording = 0uy
+                PressureReopenPendingRecording = 0uy,
+                MissionActive = 0uy,
+                MissionChainRunCount = 0L
             )
         )
 
@@ -554,7 +562,9 @@ let sessionSectionCodecRejectsCorruptionMatrix () =
                 PressureHasLastFailure = 0uy,
                 PressureLastFailureFollowUpZoneIndex = -1,
                 PressureLastReopenBoundaryTick = 3401L,
-                PressureReopenPendingRecording = 0uy
+                PressureReopenPendingRecording = 0uy,
+                MissionActive = 0uy,
+                MissionChainRunCount = 0L
             )
         )
 

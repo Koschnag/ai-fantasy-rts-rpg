@@ -1,10 +1,12 @@
 namespace Riftward.Save;
 
 /// <summary>
-/// Kanonischer Sitzungszustand einer Vorgrenze (Savevertrag V2, Abschnitt 13):
-/// aktiver Sitzungsmodus samt schwebender Moduswechsel, Aufsuchprotokoll samt
-/// Erkundungsfortschritt, Entscheidungsangebot/Wahl/Folgenzustand samt
-/// Sitzungsabweisungszaehlern und Druckfensterinstanzen samt Zykluszustand.
+/// Kanonischer Sitzungszustand einer Vorgrenze (Savevertrag V2/V3,
+/// Abschnitt 13/15): aktiver Sitzungsmodus samt schwebender Moduswechsel,
+/// Aufsuchprotokoll samt Erkundungsfortschritt, Entscheidungsangebot/Wahl/
+/// Folgenzustand samt Sitzungsabweisungszaehlern, Druckfensterinstanzen samt
+/// Zykluszustand und die additive Missionsfläche der Abschluss- und
+/// Wiederholungsschicht (Sektionsversion 2; Savevertrag V3 Abschnitt 15).
 /// Die Struktur ist reine BCL-Daten ohne SDL3-, bgfx- oder
 /// Betriebssystemtypen; nicht gesetzte Grenzen und Zonen tragen die
 /// vertraglichen Negativeinsichten (−1), nicht gefallene Angaben die
@@ -13,6 +15,17 @@ namespace Riftward.Save;
 /// </summary>
 public sealed record SessionSectionState
 {
+    /// <summary>
+    /// Sektionsversion, in deren Bytelayout dieser Zustand kodiert wird
+    /// (Savevertrag V3 Abschnitt 15): 1 = Bestandslayout ohne Missionsfelder
+    /// (Legacy-Kompatibilität), 2 = Layout mit
+    /// <see cref="MissionActive"/>/<see cref="MissionChainRunCount"/>. Neue
+    /// Kodierungen schreiben die aktuelle Version; eine aus der Sektion
+    /// dekodierte Legacy-Version bleibt versionsgetreu re-enkodierbar
+    /// (Re-Encoding-Gleichheit beider Bestände).
+    /// </summary>
+    public int SectionVersion { get; init; } = SessionSectionCodec.CurrentSectionVersion;
+
     /// <summary>Aktiver Sitzungsmodus an der Vorgrenze (0 = strategisch, 1 = persoenlich).</summary>
     public required byte ActiveMode { get; init; }
 
@@ -73,6 +86,12 @@ public sealed record SessionSectionState
 
     public required byte PressureReopenPendingRecording { get; init; }
 
+    /// <summary>Aktivierungskennung der Abschluss- und Wiederholungsschicht (0/1; Savevertrag V3 Abschnitt 15).</summary>
+    public required byte MissionActive { get; init; }
+
+    /// <summary>Kettenlauf-Anzahl der aktuellen Kette; ohne Aktivierung 0, mit Aktivierung mindestens 1.</summary>
+    public required long MissionChainRunCount { get; init; }
+
     /// <summary>
     /// Ehrliche kanonische Sitzungsleere: strategischer Modus ohne schwebende
     /// Wechsel und ohne aktivierte Schichtzustand. Sie traegt die V1-Legacy-
@@ -108,6 +127,8 @@ public sealed record SessionSectionState
         PressureLastFailureFollowUpZoneIndex = -1,
         PressureLastReopenBoundaryTick = -1,
         PressureReopenPendingRecording = 0,
+        MissionActive = 0,
+        MissionChainRunCount = 0,
     };
 }
 
