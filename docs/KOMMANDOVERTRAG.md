@@ -355,3 +355,43 @@ Rückrollweg von `context-visible-rejection-v1` dokumentiert).
 Fixture-Regeneration, ohne die Abschnitte 1 bis 11 rückwirkend umzudeuten.
 Die abschließenden Wahlen der Wechsel-Detailregel bleiben Q-GAM-010
 vorbehalten (`OFFEN`).
+
+## 13. Wiederholen-Aktion der Keymap-Familie (`repeat-mission`, T-039)
+
+**Status:** Autorisierte, additive, versionierte Präzisierung dieses
+Vertrags gemäß dem gatenden Abschnitt 0 des Auftrags
+`.ai/tasks/T-039-graybox-completion-repeat.json` und dem Abschlussvertrag
+(`docs/ABSCHLUSSVERTRAG.md`, Abschnitt 3) nach der Abschnitt-12-Präzedenz
+(T-033). Sie ändert keine Festlegung der Abschnitte 1 bis 12; die
+Validierungsregeln des Abschnitts 9 gelten unverändert. Kennungen sind in
+`src/Riftward.Session/MissionContract.cs` gespiegelt.
+
+**Keymap-Erweiterung:** Die Keymapfamilie des Abschnitts 9 erhält die
+zusätzliche, frei belegbare semantische Aktion `repeat-mission` mit der
+Standardbelegung F7 (Scancode 64, im Abschnitt-9-Stand unbesetzt); die
+Maussemantik des Abschnitts 9 bleibt unverändert umbelegbar-nie. Der
+Impuls erzeugt an der laufenden Vorgrenze einen Live-`repeat`-Intent
+(Abschlussvertrag Abschnitt 3); die Wirksamkeit entscheidet ausschließlich
+der abgeleitete Abschlusszustand an dieser Vorgrenze, und eine
+kontextfalsche Abweisung erscheint sichtbar mit der Kennung
+`mission-repeat-before-completion` nach `context-visible-rejection-v1`
+(Abschnitt 12), ohne Welt-, Ketten- oder Kernänderung.
+
+**Skriptoberfläche:** Die Wiederholen-Aktion wird im Diagnoseformat
+`graybox-input-script-v4` (Abschlussvertrag Abschnitt 3) als
+parameterloses Verb `repeat` ausgedrückt; die Legacy-Grammatiken
+`graybox-input-script-v1/v2/v3` bleiben byteidentisch gültig, und `repeat`
+unter einem v1-/v2-/v3-Kopf ist `UnknownAction` mit bestehender Bedeutung.
+Kontextkorrektheit ist keine Parserfrage: der `repeat`-Intent ist
+grammatisch gültig und wird pipeline-seitig anhand des Abschlusszustands
+ausgewertet, weil dieser erst im Lauf festliegt.
+
+**Alternativen:** Keymap-Aktion ohne Skriptstufe (der headless
+Evidenzpfad wäre skriptseitig unerreichbar — abgelehnt als Empfehlung,
+Abschlussvertrag Abschnitt 3); automatische Wiederaufnahme des Angebots nach
+Erfolg (löst den definierten Abschlusszustand auf — verworfen).
+
+**Rückrollweg:** Die Präzisierung ist als Abschnitt 13 versioniert; jede
+Änderung einer Wahl erfolgt über den Abschlussvertrag als Vertragsversion 2
+mit Fixture-Regeneration, ohne die Abschnitte 1 bis 12 rückwirkend
+umzudeuten.

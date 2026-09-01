@@ -240,6 +240,27 @@ public sealed class PressureSession
     }
 
     /// <summary>
+    /// Definierter Kettenneustart (Abschlussvertrag V1, Abschnitt 4,
+    /// <c>full-chain-restart-including-visit-protocol-v1</c>; Druckvertrag
+    /// V3, Abschnitt 15): setzt Fensterprotokoll, Zykluszählung, letzten
+    /// Fehlschlag, Wiederauffrischungsgrenze und Offenzustand der aktuellen
+    /// Kette kontrolliert zurück; die Zyklusnummern beginnen je Kette
+    /// erneut bei 1. Nur von der Abschluss- und Wiederholungsschicht
+    /// aufrufbar; die Regeln des Abschnitts 4 gelten je Kette unverändert.
+    /// </summary>
+    public void RestartChain()
+    {
+        _windows.Clear();
+        OpenWindow = null;
+        _cycleCount = 0;
+        _lastFailureBoundaryTick = PressureTelemetry.UnsetBoundaryTick;
+        _lastFailureCause = null;
+        _lastFailureFollowUpZoneIndex = -1;
+        _lastReopenBoundaryTick = PressureTelemetry.UnsetBoundaryTick;
+        _reopenPendingRecording = false;
+    }
+
+    /// <summary>
     /// Wiederherstellung aus der Sitzungssektion (Savevertrag V2, Abschnitt
     /// 13; Druckvertrag V2 Abschnitt 14): rekonstruiert Fensterinstanzen,
     /// Zykluszählung, letzten Fehlschlag, Wiederauffrischung und den Offen-

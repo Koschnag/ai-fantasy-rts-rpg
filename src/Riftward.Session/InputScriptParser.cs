@@ -86,6 +86,7 @@ public static class InputScriptParser
     private const string HeaderPrefixV1 = "graybox-input-script-v1 ";
     private const string HeaderPrefixV2 = "graybox-input-script-v2 ";
     private const string HeaderPrefixV3 = "graybox-input-script-v3 ";
+    private const string HeaderPrefixV4 = "graybox-input-script-v4 ";
     private const string EndLine = "end";
 
     public static ParsedInputScript Parse(byte[] rawBytes, ScriptWindowRules rules)
@@ -130,6 +131,7 @@ public static class InputScriptParser
         string formatId;
         var allowsModeActions = false;
         var allowsDecisionActions = false;
+        var allowsRepeatAction = false;
 
         if (lines.Length > 0 && lines[0].StartsWith(HeaderPrefixV1, StringComparison.Ordinal))
         {
@@ -154,6 +156,18 @@ public static class InputScriptParser
             formatId = DecisionContract.ScriptFormatIdV3;
             allowsModeActions = true;
             allowsDecisionActions = true;
+        }
+        else if (lines.Length > 0 && lines[0].StartsWith(HeaderPrefixV4, StringComparison.Ordinal))
+        {
+            // T-039: Abschluss-Obermengengrammatik; die v1-/v2-/v3-Grammatiken
+            // bleiben byteidentisch (keine stille Formatdrift innerhalb einer
+            // Version; repeat-Aktionen unter einem v1-/v2-/v3-Kopf sind
+            // UnknownAction).
+            headerPrefix = HeaderPrefixV4;
+            formatId = MissionContract.ScriptFormatIdV4;
+            allowsModeActions = true;
+            allowsDecisionActions = true;
+            allowsRepeatAction = true;
         }
         else
         {
@@ -199,7 +213,7 @@ public static class InputScriptParser
                 throw new InputScriptException(InputScriptRejectReason.LineMalformed, lineNumber, "Leerzeile im Skriptkoerper.");
             }
 
-            intents.Add(ParseIntentLine(line, lineNumber, rules, allowsModeActions, allowsDecisionActions));
+            intents.Add(ParseIntentLine(line, lineNumber, rules, allowsModeActions, allowsDecisionActions, allowsRepeatAction));
         }
 
         if (!ended)
@@ -298,7 +312,8 @@ public static class InputScriptParser
         int lineNumber,
         ScriptWindowRules rules,
         bool allowsModeActions,
-        bool allowsDecisionActions)
+        bool allowsDecisionActions,
+        bool allowsRepeatAction)
     {
         var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -335,11 +350,23 @@ public static class InputScriptParser
             "switch" when allowsModeActions => BuildSwitch(tokens, lineNumber, tick),
             "choose-a" when allowsDecisionActions => BuildChoose(tokens, lineNumber, tick, GrayboxIntentKind.ChooseA),
             "choose-b" when allowsDecisionActions => BuildChoose(tokens, lineNumber, tick, GrayboxIntentKind.ChooseB),
+            "repeat" when allowsRepeatAction => BuildRepeat(tokens, lineNumber, tick),
             _ => throw new InputScriptException(
                 InputScriptRejectReason.UnknownAction,
                 lineNumber,
                 $"Aktion '{action}' gehoert nicht zur Vertragsverbmenge dieses Formats."),
         };
+    }
+
+    /// <summary>
+    /// Sitzungsseitige Wiederholen-Aktion ohne Parameter (T-039,
+    /// Abschlussvertrag Abschnitt 3); kontextfrei grammatisch gültig, der
+    /// abgeleitete Abschlusszustand entscheidet erst die Pipeline.
+    /// </summary>
+    private static GrayboxIntent BuildRepeat(string[] tokens, int lineNumber, int tick)
+    {
+        RequireTokenCount(tokens, 3, lineNumber);
+        return new GrayboxIntent(tick, GrayboxIntentKind.RepeatMission);
     }
 
     /// <summary>

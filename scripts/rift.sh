@@ -315,7 +315,7 @@ case "$rift_command" in
       '  asset-calibration ...  .NET-Kalibrierung prüfen, erzeugen und recovern' \
       '  blender-calibration ...  historischer Read-only-Alias für validate-spec/inspect' \
       '  security      lokalen Secret-/NuGet-/JSON-/LFS-Baseline-Gate ausführen' \
-      '  fresh-checkout-test  isolierten Bootstrap-, Build-, Lint-, Test-, RAG- und Verify-Lauf ausführen' \
+      '  fresh-checkout-test  isolierten Bootstrap-, Lint-, RAG- und Verify-Lauf ausführen' \
       '  verify        nach bootstrap Build, Tests, Harness- und JSON-Integrität prüfen' \
       '  check         noch nicht verfügbarer vollständiger Gate-Satz' \
       '' \
