@@ -989,6 +989,80 @@ let cliMissionCouplingAndExitCodesStayStable () =
         if Directory.Exists(legacyDir) then
             Directory.Delete(legacyDir, true)
 
+let cliSaveWithoutLayerActivationSatisfiesSchema6 () =
+    // Bindung der In-Scope-Reparatur (Abnahmedokument Abschnitt 3):
+    // ein Speicherlauf ohne jede Schichtaktivierung trägt die Schemaversion 6
+    // mit Fortsetzungsblock und ehrlicher Schichtleere; der geschlossene
+    // Schemaknoten meldet die Schichtblöcke nicht als Pflichtfelder
+    // (Savevertrag V2 Abschnitt 13.8: keine Schichtblockpflicht).
+    let slotDir = freshSlotDir ()
+
+    let fixturePath =
+        Path.Combine(repositoryRoot, "tests", "fixtures", "command", "t039-completion-repeat.graybox")
+
+    try
+        let reportPath = Path.Combine(slotDir, "plain-save.json")
+
+        let (saveExit, _, saveStderr) =
+            runMissionCliToleratingTransientGate [
+                "kommandoschleife"
+                "--scenario"
+                "kommando-graybox"
+                "--input-script"
+                fixturePath
+                "--seed"
+                "20260826"
+                "--report"
+                reportPath
+                "--warmup-ticks"
+                "240"
+                "--horizon-ticks"
+                "17500"
+                "--slot-dir"
+                slotDir
+                "--slot"
+                "plain.rwsaved"
+                "--save-at-tick"
+                "4800"
+            ]
+
+        if saveExit <> 0 then
+            failwith $"Schichtleerer Speicherlauf endete mit {saveExit}: {saveStderr}"
+
+        let saveJson = File.ReadAllText(reportPath)
+
+        if CommandReportSchema.Validate(saveJson).Count <> 0 then
+            failwith "Ein Speicherlauf ohne Schichtaktivierung widerspricht der Schemaversion 6 (Schichtblockpflicht)."
+
+        use document = JsonDocument.Parse(saveJson)
+        let root = document.RootElement
+
+        if root.GetProperty("schemaVersion").GetInt32() <> 6 then
+            failwith "Der schichtleere Speicherlauf trägt nicht die Schemaversion 6."
+
+        let propertyNames =
+            root.EnumerateObject() |> Seq.map (fun property -> property.Name) |> Set.ofSeq
+
+        if
+            propertyNames.Contains("explorationSession")
+            || propertyNames.Contains("decisionSession")
+            || propertyNames.Contains("pressureSession")
+            || propertyNames.Contains("missionSession")
+        then
+            failwith "Der schichtleere Speicherlauf erfand einen Schichtblock."
+
+        let continuation = root.GetProperty("continuation")
+
+        if
+            continuation.GetProperty("runKind").GetString() <> "save"
+            || not (continuation.GetProperty("slotWritten").GetBoolean())
+            || continuation.GetProperty("sessionSection").GetProperty("sectionVersion").GetInt32() <> 2
+        then
+            failwith "Der schichtleere Speicherlauf bindet nicht die ehrliche Fortsetzungswahrheit."
+    finally
+        if Directory.Exists(slotDir) then
+            Directory.Delete(slotDir, true)
+
 // ---------------------------------------------------------------------------
 // Schema-Matrix (AC-T039-02/03): relationale fail-closed Bindungen des
 // Missionsblocks.
@@ -1096,3 +1170,27 @@ let missionSchemaRelationsRejectFabricationFailClosed () =
 
     if driftedErrors.Count = 0 then
         failwith "Die Kettenlaufzaehlungsbindung akzeptierte einen Drift."
+
+    // Offenzustandsbindung (Abschlussvertrag Abschnitt 8): im Offenzustand
+    // trägt der Abschluss seine Grenze nicht; eine erfundene Grenze wird
+    // abgewiesen.
+    let ghostBoundary =
+        goldenMissionishJsonWithCompletionState MissionContract.CompletionStateOpen
+
+    let ghostErrors =
+        CommandReportSchema.Validate(
+            ghostBoundary.Replace(
+                "\"state\":\"open\",\"boundaryTick\":-1",
+                "\"state\":\"open\",\"boundaryTick\":7400"
+            )
+        )
+
+    let ghostJoined = String.concat "; " ghostErrors
+
+    if
+        ghostErrors.Count = 0
+        || not (
+            ghostJoined.Contains("trägt der Abschluss seine Grenze nicht", StringComparison.Ordinal)
+        )
+    then
+        failwith "Die Offenzustandsbindung akzeptierte eine erfundene Abschlussgrenze."

@@ -2268,6 +2268,8 @@ module Program =
               MissionTests.cliMissionFlowRunsSchema7WithSaveLoadRoundtrip
               "T-039 CLI mission coupling and exit codes stay stable",
               MissionTests.cliMissionCouplingAndExitCodesStayStable
+              "T-039 CLI save without layer activation satisfies schema 6",
+              MissionTests.cliSaveWithoutLayerActivationSatisfiesSchema6
               "T-039 mission schema relations reject fabrication fail closed",
               MissionTests.missionSchemaRelationsRejectFabricationFailClosed ]
 

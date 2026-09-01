@@ -1483,14 +1483,20 @@ Report-Schemaversion 7 mit Pflichtblock `missionSession`; Skriptgrammatik
 Bestandsdefekt: Die Schemaversion-6-Form meldete verdeckte Schichtblöcke als
 Pflichtfeld entgegen Savevertrag V2 Abschnitt 13.8 (keine Schichtblockpflicht);
 `RObj.WithOptionalFields` macht benannte Blöcke tatsächlich optional. Suite
-340/340 (12 neue T-039-Bindungen); fmt/lint grün; Regressionen bench-sim,
+341/341 (13 neue T-039-Bindungen, darunter der schichtleere
+Schemaversion-6-Speicherlauf als Reparaturbindung); fmt/lint grün; Regressionen
+bench-sim,
 savecheck und Soak-Kurzlauf grün; Fresh-Prozesspaare builderidentisch
 (Endhash `fca90350abb6e99b` bzw. `888c7c271341c83c`), Fremdseed ändert den
 Endhash nachweislich; Save-/Lade-Rundtrip in Kette 2 mit
 Fortsetzungsidentität. Interaktivsmoke, Playtestausführung und ein opt-in
 Abgriffpaar bleiben wegen der displaylosen Umgebung ausgewiesene Restpunkte
 (kontrollierter Code-19-Präzedenz); die Hauptmenü-Rückkehr von UF-001
-Schritt 9 bleibt Out-of-Session zurückgestellt. T-039 trägt den
+Schritt 9 bleibt Out-of-Session zurückgestellt. Der unabhängige Reviewlauf
+verschärfte die relationale Offenzustandsbindung des Abschlussausweises
+(Abschlussvertrag Abschnitt 8) mit Fabrikationsbindung, band den
+schichtleeren Schemaversion-6-Lauf als Suiteeintrag und korrigierte drei
+Schreibfehler in den neuen Vertragstexten. T-039 trägt den
 Manifeststatus `review`; die Promotion bleibt der separaten Promotion-
 Autorität vorbehalten; Details in
 `docs/abnahme/T-039-graybox-completion-repeat.md`.

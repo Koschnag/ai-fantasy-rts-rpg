@@ -704,7 +704,7 @@ Sektion ist die vertragliche Sitzungswahrheit).
 ### 15.2 Legacy-Kompatibilität, Guards und Reportlinie
 
 **Legacy (`legacy-section-v1-mission-emptiness-v3`):** Slots mit Sektionsversion 1
-laden unverändert mit ehrlicher, maschinenrebarer Missionsleere
+laden unverändert mit ehrlicher, maschinenlesbarer Missionsleere
 (`MissionActive = 0`, `MissionChainRunCount = 0`) ohne Migrationserfindung;
 das Re-Encoding einer dekodierten Sektion erfolgt versionsgetreu (v1-Bytes
 bleiben v1, v2-Bytes bleiben v2), sodass die Re-Encoding-Gleichheit beider

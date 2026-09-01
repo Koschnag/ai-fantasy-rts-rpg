@@ -195,7 +195,7 @@ keinen Kernbefehl durch den Reset (ADR 008).
 
 | Alternative | Bewertung |
 |---|---|
-| **A: vollständiger Kettenneustart inklusive Aufsuchprotokoll (Empfehlung)** | Wiederholvarianz ohne Content: Die Optionsableitung bleibt die reine Funktion des Aufsuchprotokolls; eine abweichende Aufsuchfolge der neuen Kette kann zu abweichenden Optionen führen, und die Erkundungsschleife bleibt der spielbare Anfang der Kette (UF-001-Kernschleife). Nachteil: die Wiederholung beginnt beim langesten Kettenglied. |
+| **A: vollständiger Kettenneustart inklusive Aufsuchprotokoll (Empfehlung)** | Wiederholvarianz ohne Content: Die Optionsableitung bleibt die reine Funktion des Aufsuchprotokolls; eine abweichende Aufsuchfolge der neuen Kette kann zu abweichenden Optionen führen, und die Erkundungsschleife bleibt der spielbare Anfang der Kette (UF-001-Kernschleife). Nachteil: die Wiederholung beginnt beim längsten Kettenglied. |
 | B: nur Entscheidungs-/Druckreset bei erhaltenem Aufsuchprotokoll | Die Optionsableitung würde aus dem unveränderten Protokoll exakt dieselben zwei Optionen erzeugen — jede Wiederholung wäre optionsidentisch, und die Erkundung als Spielanfang würde umgangen; der Wiederholbegriff von UF-001 Schritt 9 („Auftrag wiederholen") verlangt die volle Kette. Als dokumentierte Alternative mit Playtestkriterium (Wahrnehmung der Optionenvarianz) und Rückrollweg erhalten. |
 | Verworfen: jeder Welt- oder Prozessneustart aus der Schicht | Verletzt ADR 008 (kein Weltneustart aus der Simulation) und die Auftragsgrenze (Out-of-Session-Neustartsemantik ausgeschlossen); die Variante wird nicht als Hypothese geführt. |
 
@@ -239,7 +239,7 @@ Sektionsversion 2 ohne die Felder bzw. eine ehrliche Missionsleere.
 
 ## 6. Feedback in beiden Modi (`title-hud-mission-completion-v1`)
 
-**Wahl:** Ein additive, darstellseitiger Titel-HUD-Abschnitt über der
+**Wahl:** Ein additiver, darstellseitiger Titel-HUD-Abschnitt über der
 bestehenden Zweikanal-Indikator-Regel NF-005 (ANFORDERUNGEN.md), ohne
 Tastendruck in beiden Modi ablesbar, niemals Teil von Simulationszustand
 oder Hash: Die bestehende Titelzeile (inklusive der T-034- bis

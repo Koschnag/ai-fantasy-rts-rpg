@@ -91,6 +91,7 @@ Der gatende Abschnitt 0 wurde vor der Implementierung abgeschlossen:
   (Abschlussgrenze/-zustand, Kettenlaufzählung, Wiederholungsprotokoll je
   Kettenlauf), sämtliche neuen Felder `gateCoupled=false`, relational
   fail-closed gebunden (Abschluss nur nach dem Zykluserfolg der Schichten,
+  im Offenzustand trägt der Abschluss seine Grenze nicht,
   Zählkonsistenz, Abweisungszählergleichheit; Tests `mission schema relations
   reject fabrication fail closed` und Schema-Dispatch der Bestandssuite).
 - Keine neuen Exitcodebedeutungen; `--mission` ohne `--pressure` ist Usage (2).
@@ -157,8 +158,8 @@ Der gatende Abschnitt 0 wurde vor der Implementierung abgeschlossen:
 - `./scripts/rift.sh build/fmt/lint/test/security/verify` laufen mit dem neuen
   Code grün; null neue Compiler-/Analyzer-Warnungen (`TreatWarningsAsErrors`
   aktiv), keine neue Abhängigkeit (BCL-only, keine csproj-Referenzänderung).
-  Testsuite 340/340 (328 Bestandsbindungen inklusive der regenerierten
-  Vertragsversionsspiegel plus 12 neue T-039-Bindungen); fmt (fantomas, 3
+  Testsuite 341/341 (328 Bestandsbindungen inklusive der regenerierten
+  Vertragsversionsspiegel plus 13 neue T-039-Bindungen); fmt (fantomas, 3
   F#-Dateien der Änderung) und lint (0 Befunde) grün; die formale
   Manifest-Schema-Validierung mit dem gepinnten JsonSchema.Net 8.0.5
   bestätigt 22/22 Task-Manifeste unter `.ai/tasks/`.
@@ -201,11 +202,20 @@ gescheitert, obwohl Savevertrag V2 Abschnitt 13.8 ausdrücklich festlegt:
 Reparatur: `RObj.WithOptionalFields` macht benannte Felder tatsächlich
 optional; die Schemaversion-6-Form nutzt sie für die drei Schichtblöcke, die
 Schemaversion-7-Form für den optionalen Fortsetzungsblock. Die Missionsfläche
-selbst ist Pflicht (vertragliche Kopplung). Die Bestandssuite bindet die
-Reparatur über die vorhandenen Fortsetzungs-/Drucktests; ein eigener Suiteeintrag
-prüft zusätzlich, dass ein Lauf ohne Schichtaktivierung die Schemaversion 6
-erfüllt (regression: `incomplete report preserves pressure activation`-Familie
-und savecheck-Legacyflow).
+selbst ist Pflicht (vertragliche Kopplung). Der unabhängige Reviewlauf hat den
+Defekt am Bestandscode verifiziert: `FinishReport` validiert jeden Report
+selbst, sodass vor der Reparatur ein schichtleerer Speicherlauf an der
+Schemalinie mit `TelemetryInvalid` gescheitert wäre. Die Reparatur ist
+zweifach gebunden: die Bestandssuite über die vorhandenen
+Fortsetzungs-/Drucktests (`incomplete report preserves pressure
+activation`-Familie), und der neue Suiteeintrag `T-039 CLI save without layer
+activation satisfies schema 6` spielt einen echten schichtleeren
+Speicherlauf (Schemaversion 6, Fortsetzungsblock, keine Schichtblöcke,
+Validation fehlerfrei) als Fresh-Prozess. Der Reviewlauf verschärfte zudem
+die relationale Offenzustandsbindung des Abschlussausweises (Abschlussvertrag
+Abschnitt 8: im Offenzustand trägt der Abschluss seine Grenze nicht;
+Fabrikationsfall gebunden) und korrigierte drei Schreibfehler in den neuen
+Vertragstexten ohne Sinnänderung.
 
 ## 4. Restpunkte und Grenzen
 
