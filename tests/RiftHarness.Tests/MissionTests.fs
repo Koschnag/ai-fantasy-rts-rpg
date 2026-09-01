@@ -442,7 +442,7 @@ let repeatUnderLegacyHeadersIsUnknownAction () =
 let twoChainFlowBindsCompletionRepeatAndOptionVariance () =
     let result = runInProcess 20260826u 17500 twoChainBody true true true true
 
-    if result.StateChainSelfConsistent = Some false then
+    if result.StateChainSelfConsistent.HasValue && not result.StateChainSelfConsistent.Value then
         failwith "Der Zwei-Ketten-Lauf verlor seine Selbstkonsistenz."
 
     // Kette 2 Registrierung: abweichende Aufsuchfolge, jede Zone genau
@@ -585,9 +585,12 @@ let legacyPressureFixtureStaysChainIdenticalWithMission () =
 
     // Die Missionswahrheit der Legacy-Kette: Erfolg am Endstatus, Abschluss
     // abgeleitet, eine Kette, keine Wiederholung.
+    let lastWindowArrival =
+        baseline.Pressure.Windows[baseline.Pressure.Windows.Count - 1].ArrivalBoundaryTick
+
     if
         activated.Mission.CompletionState <> MissionContract.CompletionStateCompleted
-        || activated.Mission.CompletionBoundaryTick <> baseline.Pressure.Windows[^1].ArrivalBoundaryTick
+        || activated.Mission.CompletionBoundaryTick <> lastWindowArrival
         || activated.Mission.ChainRunCount <> 1L
         || activated.Mission.RepeatProtocol.Count <> 0
     then
@@ -633,12 +636,17 @@ let private populatedSection () : SessionSectionState =
         MissionChainRunCount = 3L
     )
 
+/// Wrapper der C#-Valuetupel-Rueckgabe als F#-Optionen (lesbare Pruefung).
+let private decodeSection (bytes: byte[]) : SessionSectionRejection option * SessionSectionState option =
+    let struct (rejection, state) = SessionSectionCodec.Decode(bytes)
+    (Option.ofObj rejection, Option.ofObj state)
+
 let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
     // Sektionsversion 2: Roundtrip mit Missionsflaeche ist byteidentisch.
     let v2State = populatedSection ()
     let v2Bytes = SessionSectionCodec.Encode(v2State)
 
-    let (v2Rejection, v2Decoded) = SessionSectionCodec.Decode(v2Bytes)
+    let (v2Rejection, v2Decoded) = decodeSection v2Bytes
 
     if
         v2Rejection.IsSome
@@ -659,7 +667,7 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
     let legacyBytes =
         SessionSectionCodec.Encode({ legacyState with SectionVersion = SessionSectionCodec.LegacySectionVersion })
 
-    let (legacyRejection, legacyDecoded) = SessionSectionCodec.Decode(legacyBytes)
+    let (legacyRejection, legacyDecoded) = decodeSection legacyBytes
 
     if
         legacyRejection.IsSome
@@ -677,7 +685,7 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
     let futureBytes = Array.copy v2Bytes
     futureBytes[0] <- 3uy
 
-    let (futureRejection, _) = SessionSectionCodec.Decode(futureBytes)
+    let (futureRejection, _) = decodeSection futureBytes
 
     if futureRejection.IsNone || futureRejection.Value.Class <> SessionSectionRejectionClass.Invalid then
         failwith "Die Sektionsversion 3 wurde nicht ohne Migrationserfindung abgewiesen."
@@ -690,9 +698,13 @@ let sessionSectionV2CarriesMissionFieldsAndLegacyV1StaysEmpty () =
             PressureActive = pressureActive }
 
     for (active, count, pressure) in [ (0uy, 2L, 1uy); (1uy, 0L, 1uy); (1uy, 1L, 0uy) ] do
-        let (rejection, _) = SessionSectionCodec.Encode(invalidState active count pressure) |> SessionSectionCodec.Decode
+        let bytes = SessionSectionCodec.Encode(invalidState active count pressure)
+        let struct (rejection, _) = SessionSectionCodec.Decode(bytes)
 
-        if rejection.IsNone || rejection.Value.Class <> SessionSectionRejectionClass.Invalid then
+        if
+            isNull rejection
+            || rejection.Class <> SessionSectionRejectionClass.Invalid
+        then
             failwith $"Die Missionsrelation ({active}, {count}, {pressure}) wurde nicht fail-closed abgewiesen."
 
 // ---------------------------------------------------------------------------
@@ -876,13 +888,11 @@ let missionSchemaRelationsRejectFabricationFailClosed () =
     // ein abgeschlossener Ausweis ohne Schichtkonsistenz ist unzulaessig.
     let fabrication = goldenMissionishJsonWithCompletionState MissionContract.CompletionStateCompleted
     let errors = CommandReportSchema.Validate(fabrication)
+    let joined = String.concat "; " errors
 
     if
         errors.Count = 0
-        || not (String.concat "; " errors).Contains(
-            "ein Abschluss existiert nur nach dem Zykluserfolg der Schichten",
-            StringComparison.Ordinal
-        )
+        || not (joined.Contains("ein Abschluss existiert nur nach dem Zykluserfolg der Schichten", StringComparison.Ordinal))
     then
         failwith "Die relationale Abschlussbindung wies die Fabrikation nicht ab."
 
