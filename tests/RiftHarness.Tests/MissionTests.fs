@@ -557,14 +557,16 @@ let foreignSeedChangesHashesButMissionStructureFollowsSession () =
             $"Ein fremder Seed aenderte die Struktur der Abschluss- oder Wiederholungswahrheit: Baseline {structuralTruth baseline}, Fremdseed {structuralTruth foreign}."
 
     // Die Landmarkenmenge bleibt seedunabhängig; die Aufsuchfolge folgt der
-    // Sitzung.
-    if
-        baseline.Exploration.Landmarks.Count <> foreign.Exploration.Landmarks.Count
-        || (baseline.Exploration.Landmarks, foreign.Exploration.Landmarks)
-           ||> Seq.forall2 (fun baselineLandmark foreignLandmark ->
-               baselineLandmark = foreignLandmark)
-    then
-        failwith "Ein fremder Seed aenderte die Landmarkenmenge."
+    // Sitzung. Der Vergleich läuft über die Primitivtupel, damit die
+    // Bindung nicht an einer Referenzsemantik hängt.
+    let landmarkTruth (run: SessionRunResult) =
+        run.Exploration.Landmarks
+        |> Seq.map (fun landmark -> landmark.ZoneIndex, landmark.AnchorTileX, landmark.AnchorTileY, landmark.Walkable)
+        |> Seq.toList
+
+    if landmarkTruth baseline <> landmarkTruth foreign then
+        failwith
+            $"Ein fremder Seed aenderte die Landmarkenmenge: Baseline {landmarkTruth baseline}, Fremdseed {landmarkTruth foreign}."
 
 let legacyPressureFixtureStaysChainIdenticalWithMission () =
     // Die Legacy-Kette (T-036-Fixture) bleibt mit Missionsaktivierung
