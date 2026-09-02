@@ -390,7 +390,14 @@ module ResearchActivation =
             Internal.fail "TARGET_TASK_DRIFT: taskManifestSha256 differs from the bound commit."
 
         let schemaBytes = ResearchGitImport.fileAtCommit root headCommit ".ai/schemas/task.schema.json"
-        let schema = JsonSchema.FromText(Constants.Utf8NoBom.GetString(schemaBytes))
+        // A process can validate many isolated repositories over its lifetime.
+        // Never register fixture/project schema IDs in JsonSchema.Net's global
+        // mutable registry, where a later run could collide with an earlier
+        // run or inherit its schema bytes.
+        let registry = SchemaRegistry()
+        registry.Fetch <- Func<Uri, SchemaRegistry, IBaseDocument>(fun _ _ -> null)
+        let buildOptions = BuildOptions(SchemaRegistry = registry)
+        let schema = JsonSchema.FromText(Constants.Utf8NoBom.GetString(schemaBytes), buildOptions)
         use taskDocument = JsonDocument.Parse(taskBytes)
         let evaluated =
             schema.Evaluate(
