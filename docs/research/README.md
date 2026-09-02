@@ -10,7 +10,7 @@ Der Codename und alle Bilder sind vorläufig. Der aktuelle Stand ist kein
 fertiges Spiel: Das reproduzierbare Produktionsfundament ist aufgebaut, die
 Spielruntime beginnt mit `T-010`.
 
-![CCD-Evidenzschleife](../media/ccd-evidence-loop.svg)
+![CDD-Evidenzschleife](../media/ccd-evidence-loop.svg)
 
 ## Forschungsfragen
 
@@ -47,8 +47,14 @@ Position, Hypothese und belegten Befund.
 
 ## Einstieg
 
-- [Forschungsprotokoll](PROTOCOL.md)
-- [Abbildung auf CCD](CCD_MAPPING.md)
+- [Forschungsprotokoll 2.0.0](PROTOCOL.md)
+- [Observability-Datenwoerterbuch](OBSERVABILITY_DATA_DICTIONARY.md)
+- [exakte Observability-Metriken](METRICS.md)
+- [Reproduzierbarkeitsleitfaden](REPRODUCIBILITY.md)
+- [Bedrohungen der Validitaet](THREATS_TO_VALIDITY.md)
+- [Datenschutz-, Redaktions- und Publikationsplan](PRIVACY_AND_PUBLICATION.md)
+- [Protokoll-Changelog](PROTOCOL_CHANGELOG.md)
+- [Abbildung auf CDD](CCD_MAPPING.md)
 - [laufendes Fallstudienprotokoll](CASE_STUDY_LOG.md)
 - [Kampagnen- und Veröffentlichungsplan](../communication/CAMPAIGN.md)
 - [Visual-/Media-Lab](../communication/MEDIA_LAB.md)
@@ -60,5 +66,5 @@ Die Fallstudie versteht sich als praktische Sonde für
 und die im Artikel
 [„Software Engineering im KI-Zeitalter: Gegenthese zum Hype“](https://de.linkedin.com/pulse/software-engineering-im-ki-zeitalter-gegenthese-zum-hype-nguyen-imnof)
 beschriebene Arbeit *am System* statt nur *im System*. Sie behauptet derzeit
-weder eine vollständige CCD-Konformität noch eine generalisierbare
+weder eine vollständige CDD-Konformität noch eine generalisierbare
 Überlegenheit agentischer Entwicklung.
