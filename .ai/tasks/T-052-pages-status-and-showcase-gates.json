@@ -1,0 +1,79 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-052",
+  "title": "Wahrheitstreuer Pages-Status, WIP-Abgrenzung und oeffentliche Showcase-Gates",
+  "status": "ready",
+  "releaseNote": "2026-09-02: draft -> ready aufgrund der ausdruecklichen Projektleitungsanweisung, die Riftward-GitHub-Pages-Seite getrennt vom laufenden T-042-/Autopilot-Arbeitsbaum zu ueberarbeiten. Der Auftrag basiert auf dem veroeffentlichten main-Commit a7764b8db2ddeb41eae8f93b59bdffaca8fcda1a und darf weder WIP als akzeptierten Fortschritt ausgeben noch private Betriebsdaten veroeffentlichen. Merge und Pages-Deployment bleiben an unabhaengiges Review und die bestehenden main-Gates gebunden.",
+  "objective": "Die oeffentliche Riftward-GitHub-Pages-Seite zeigt einen zugaenglichen, mobilen und nachpruefbar aus Repositorydaten erzeugten Projektstatus, trennt akzeptiertes main, Kandidaten und optionale WIP-Kontinuitaet sichtbar voneinander und faellt bei fehlenden oder ungueltigen Statusdaten ehrlich auf 'Status nicht verfuegbar' zurueck, statt veraltete Werte als aktuell darzustellen.",
+  "inScope": [
+    "Schema-versioniertes, deterministisch erzeugtes oeffentliches Statusartefakt mit Quellcommit, Quellbranch/-klasse, Erzeugungszeit, akzeptierten und bereiten Taskzaehlern sowie nachvollziehbarer Taskauswahl",
+    "Explizite Trennung von akzeptiertem main-Stand, Review-/Kandidatenstand und optionaler autopilot/live-wip-Kontinuitaet; WIP wird stets als Snapshot und niemals als akzeptierter Fortschritt bezeichnet",
+    "Nicht-stiller, barrierefrei angekuendigter Fehler- und Veraltungszustand ohne statische Scheinaktualitaet",
+    "Ueberarbeitung der bestehenden statischen Showcase-Oberflaeche fuer klare Statusprovenienz, mobile Navigation, Tastaturbedienung, reduzierte Bewegung und vorhandene wahrheitsgebundene Konzeptkennzeichnungen",
+    "Oeffentliche Metadaten fuer kanonische URL, Open Graph, Twitter Card, robots.txt, sitemap.xml und eine eng begrenzte Meta-CSP ohne neue Laufzeitabhaengigkeit",
+    "Bounded CI-/Harness-Pruefungen fuer Statusschema, Provenienz, Links, lokale Assetchecksummen, Quarantaenegrenze, Barrierefreiheitsvertraege und explizite Mediengroessenbudgets"
+  ],
+  "outOfScope": [
+    "Aenderungen an T-042, Simulation, Runtime, Spielsemantik, Autopilot-Orchestrierung, Writer-Leases, Modellrouting oder main-Promotionsregeln",
+    "Veroeffentlichung privater Hosts, Routen, Prompts, Logs, Tokens, Kosten, Zugangsdaten, personenbezogener Daten oder nicht freigegebener Forschungsrohdaten",
+    "Darstellung von WIP, laufenden Diensten, Commitanzahl, Agentenlaeufen oder offenen Terminals als akzeptierter Produktfortschritt",
+    "Neue Frontend-, Build- oder Runtimeabhaengigkeiten sowie ungepruefte externe Skripte, Tracker oder Analyseanbieter",
+    "Aenderung oder Veroeffentlichung von Quarantaeneassets und Behauptung, Konzeptmaterial sei Gameplay oder Performanceevidenz"
+  ],
+  "requirements": ["Z-004", "Z-005", "NF-008"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T052-01",
+      "statement": "Ein frischer Pages-Build erzeugt Statuswerte, Quellcommit und Provenienz exakt aus dem ausgecheckten, eingecheckten Baum; eine dirty Arbeitskopie oder ein nicht deterministisch auswaehlbarer Task wird nicht als aktueller akzeptierter Stand ausgegeben.",
+      "verification": "Positiv- und Negativfixtures fuer sauberen main-Baum, dirty T-042-aehnlichen Arbeitsbaum, mehrdeutige Taskauswahl und reproduzierbar identische Statusausgabe bei identischen Eingaben"
+    },
+    {
+      "id": "AC-T052-02",
+      "statement": "Fehlendes, veraltetes, manipuliertes oder schemaungueltiges status.json fuehrt sichtbar und per aria-live zu 'Status nicht verfuegbar'; keine hartcodierten alten Zaehler, Task-IDs oder Commitwerte erscheinen als aktuell.",
+      "verification": "Browser-/DOM-Smoke und Quelltext-Negativtests mit fehlendem JSON, falscher Schemaversion, unpassender Commitbindung und rueckwaerts liegendem Erzeugungszeitpunkt"
+    },
+    {
+      "id": "AC-T052-03",
+      "statement": "Akzeptierter main-Stand, Review-/Kandidatenstand und optionale autopilot/live-wip-Kontinuitaet sind getrennt beschriftet, zeitlich gebunden und nicht ineinander hochgerechnet; jede WIP-Anzeige enthaelt die Aussage 'Kontinuitaetssnapshot, kein akzeptierter Fortschritt'.",
+      "verification": "Vertrags- und DOM-Test der Statusfelder sowie Negativtest, der bei fehlender Nicht-Akzeptanz-Kennzeichnung oder bei T-042-as-accepted fehlschlaegt"
+    },
+    {
+      "id": "AC-T052-04",
+      "statement": "Die Seite bleibt auf schmalem Viewport, mit Tastatur und reduzierter Bewegung vollstaendig navigierbar; Tabs besitzen konsistente Auswahlsemantik, Fokus ist sichtbar und Statusfehler werden assistiven Technologien angekuendigt.",
+      "verification": "Abhaengigkeitsfreier HTML-/DOM-Vertragstest plus manueller Browser-Smoke fuer Desktop, Smartphonebreite, Tastatur und prefers-reduced-motion"
+    },
+    {
+      "id": "AC-T052-05",
+      "statement": "Alle lokalen Medien entsprechen dem versionierten Checksum- und Groessenbudget, alle internen und freigegebenen externen Links sind pruefbar, Quarantaeneinhalte gelangen nicht in den Pages-Build und Konzeptmaterial bleibt als nicht Gameplay gekennzeichnet.",
+      "verification": "Fresh-Checkout-Pages-Build mit Checksum-, Groessen-, Link-, Autoplay-, Quarantaene- und Pflichtkennzeichnungs-Negativmatrix"
+    },
+    {
+      "id": "AC-T052-06",
+      "statement": "Kanonische URL, Social-Metadaten, robots.txt, sitemap.xml und eine zum statischen Assetumfang passende Meta-CSP sind vorhanden, ohne Tracker, externe Laufzeitskripte oder private Infrastrukturinformation.",
+      "verification": "Statischer Metadaten-/CSP-Test und Suche nach externen Skript-, Tracking-, Credential-, privaten Host- und Logmustern"
+    },
+    {
+      "id": "AC-T052-07",
+      "statement": "Die Aenderung ist in einem eigenen Branch vom veroeffentlichten main-Stand implementiert, durch eine vom Builder getrennte Reviewidentitaet geprueft und kann durch Revert des isolierten Pages-Commits auf den vorherigen bekannten Stand zurueckgesetzt werden.",
+      "verification": "Branch-/Diff-Inventar, unabhaengiger Review-Receipt, bestehende Projektgates und dokumentierter Revert-/Redeploy-Pfad"
+    }
+  ],
+  "dependencies": ["T-004", "T-008"],
+  "requiredGates": ["G-SPEC", "G-HARNESS", "G-PROVENANCE", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Informationsarchitektur, Typografie, responsive Anordnung und kleine CSS-/SVG-Details innerhalb der bestehenden Art Direction",
+      "Additive oeffentliche Statusfelder, wenn sie deterministisch aus eingecheckten oeffentlichen Daten abgeleitet und mit einer klaren Aussagegrenze versehen sind",
+      "Verschaerfung von Barrierefreiheit, Fehlertransparenz, Provenienz, CSP und statischen Qualitaetspruefungen ohne neue Abhaengigkeit",
+      "Konservative Mediengroessenbudgets auf Basis des eingecheckten Ausgangsbestands mit dokumentiertem Rueckrollweg"
+    ],
+    "mustEscalate": [
+      "Veroeffentlichung privater oder personenbezogener Daten, Prompts, Agentenlogs, Kosten-/Tokenrohdaten, Zugangsdaten oder interner Infrastruktur",
+      "Shipping-, Marken-, Lizenz-, kommerzielle oder Gameplay-/Performancebehauptung ohne akzeptierte Evidenz",
+      "Neue Laufzeit-, Frontend-, Build-, Tracking- oder externe Dienstabhaengigkeit",
+      "Abschwaechung bestehender Sicherheits-, Provenienz-, Clean-Room-, main-Promotions- oder Quarantaenegates",
+      "Automatische Promotion nach main oder Neuschreiben bestehender WIP-/main-Historie"
+    ]
+  }
+}

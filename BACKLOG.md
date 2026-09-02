@@ -52,6 +52,20 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
 | T-051 | E-006 | gemessene Karten-/Quest-/Audio-Pipeline erzeugt konsistente Inhalte mit vollständiger Provenienz | Z-001, Z-004, Z-005 | XL | MUST | DRAFT |
+| T-052 | E-001 | wahrheitstreuer GitHub-Pages-Status trennt akzeptiertes main, Kandidaten und WIP-Kontinuität mit öffentlichen Showcase-Gates | Z-004, Z-005, NF-008 | M | SHOULD | READY |
+
+`T-052` wurde am 2026-09-02 durch die ausdrückliche Anweisung der
+Projektleitung auf `READY` gesetzt. Der eng begrenzte Kommunikationsauftrag
+läuft in einem getrennten Branch vom veröffentlichten `main`-Stand und berührt
+weder den T-042-Arbeitsbaum noch Runtime, Autopilot-Leases oder Promotionen.
+Er beseitigt insbesondere statische Scheinaktualität bei fehlendem
+`status.json`, trennt akzeptierten Stand, Review-Kandidaten und optionales WIP
+sichtbar und bindet die bestehende Showcase-Seite an reproduzierbare
+Provenienz-, Barrierefreiheits-, Link-, Checksum-, Größen- und
+Veröffentlichungsgrenzen. WIP bleibt ausdrücklich Kontinuitätsevidenz und ist
+kein akzeptierter Produktfortschritt. Implementierung und Pages-Deployment
+setzen die im Manifest beschriebenen Negativtests, bestehende Projektgates und
+ein unabhängiges Review voraus.
 
 `T-003`, `T-005`, `T-006` und `T-007` sind unabhängig abgenommen. `T-006` hat den
 BCL-only-.NET-in-process-Generator samt transaktionalem Quarantäne-Lifecycle
