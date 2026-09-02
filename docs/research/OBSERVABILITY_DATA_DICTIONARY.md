@@ -212,7 +212,7 @@ Eingriffe oder aktive Arbeitszeit.
 | `human.approval` | `humanActId`, `authorityClass`, `decisionActSha256`, `interventionCategory`, `counted` | Freigabe-/Promotionwirkung; regulaer `I9-review-promotion` |
 | `human.emergency` | `humanActId`, `emergencyClass`, `decisionActSha256`, `interventionCategory`, `counted` | Notstopp/-eingriff; regulaer `I10-emergency-stop` |
 | `human.observation` | `humanActId`, `observationClass`, `decisionActSha256`, `interventionCategory`, `counted` | reine Beobachtung ohne Wirkung ist `I0-observation-no-intervention` und hat `counted=false` |
-| `outcome.observed` | `taskOutcome`, `hypothesisResult`, `resultCommit`, `reasonCode` | trennt Taskoutcome von Forschungsergebnis |
+| `outcome.observed` | `taskOutcome`, `hypothesisResult`, `resultCommit`, `resultTreeId`, `reasonCode` | trennt Taskoutcome von Forschungsergebnis und bindet den beobachteten Ergebnisbaum explizit |
 | `observation.closed` | `eventCount`, `sourceManifestSha256`, `outcomeEventId`, `closedAtUtc` | schliesst die Primaerereigniskette genau einmal nach einem aufloesbaren `outcome.observed`; sein Huelle-Feld `eventHash` ist der finale Kettenhash, Exporthashes entstehen erst danach |
 
 Fuer Ereignisse mit inhaltlich nicht anwendbaren Huellenfeldern bleibt das

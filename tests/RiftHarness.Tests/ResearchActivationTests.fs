@@ -32,6 +32,18 @@ module ResearchActivationTests =
     let private sha text = Internal.sha256Text text
     let private observation = "OBS-00000000000000000000000001"
 
+    let private recordFixtureActivity root =
+        let payload =
+            ResearchRuntime.payload (fun writer ->
+                writer.WriteString("fromActivityState", "idle")
+                writer.WriteString("toActivityState", "agent-active")
+                writer.WriteString("reasonCode", "synthetic-fixture"))
+
+        match ResearchCollector.recordStructured root "activity.state.changed" [] payload id with
+        | ResearchCollectionResult.Recorded _ -> ()
+        | ResearchCollectionResult.Inactive -> failwith "Fixture observation was not active."
+        | ResearchCollectionResult.GapRecorded gapId -> failwith $"Fixture activity produced collector gap {gapId}."
+
     let private fixture action =
         let root = Path.Combine(Path.GetTempPath(), "RiftHarness.Activation-" + Guid.NewGuid().ToString("N"))
         Directory.CreateDirectory(root) |> ignore
@@ -78,6 +90,7 @@ module ResearchActivationTests =
             if Directory.Exists(root) then Directory.Delete(root, true)
 
     let private outcome root =
+        recordFixtureActivity root
         // The close receipt is external/runtime evidence, not a product-tree
         // mutation. Keep the fixture receipt under the repository's ignored
         // runtime boundary so the production clean-tree fence remains strict.
@@ -88,6 +101,7 @@ module ResearchActivationTests =
         path
 
     let private outcomeClaim root taskOutcome hypothesisResult resultCommit resultTreeId =
+        recordFixtureActivity root
         let relative = ".ai/runtime/research/test-inputs/outcome.json"
         let path = Path.Combine(root, relative)
         let sourceHash = sha "[]"
