@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "policy": "No public media file may grow above its reviewed T-052 baseline without a new review.",
+  "totalBytesMaximum": 6935492,
+  "files": {
+    "assets/concepts/after-the-shift.webp": 153294,
+    "assets/concepts/first-light-muster.webp": 187100,
+    "assets/concepts/night-supply-watch.webp": 153032,
+    "assets/concepts/sluice-defense.webp": 149644,
+    "assets/concepts/world-refuge.webp": 202530,
+    "assets/reel/atmosphere-study-001.mp4": 3996669,
+    "assets/reel/atmosphere-study-001.webm": 2093223
+  }
+}

@@ -6,10 +6,21 @@ on:
       - main
     paths:
       - .github/workflows/pages.yml
-      - .ai/tasks/T-010-native-walking-skeleton.json
+      - .ai/tasks/**
       - BACKLOG.md
       - docs/showcase/**
       - scripts/build-pages.sh
+      - scripts/pages_status.py
+      - scripts/test-pages.py
+  pull_request:
+    paths:
+      - .github/workflows/pages.yml
+      - .ai/tasks/**
+      - BACKLOG.md
+      - docs/showcase/**
+      - scripts/build-pages.sh
+      - scripts/pages_status.py
+      - scripts/test-pages.py
   workflow_dispatch:
 
 permissions:
@@ -21,7 +32,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build public status artifact
+    name: Verify reproducible public artifact
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -30,33 +41,98 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Bind checkout to triggering commit
+        shell: bash
+        env:
+          EXPECTED_CHECKOUT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_CHECKOUT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CHECKOUT_SHA"
+
+      - name: Resolve public main provenance
+        id: main
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_line=$(git ls-remote --heads origin refs/heads/main)
+          main_commit=${main_line%%[[:space:]]*}
+          [[ "$main_commit" =~ ^[0-9a-f]{40}$ ]]
+          printf 'commit=%s\n' "$main_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve optional public WIP provenance
+        id: wip
+        shell: bash
+        run: |
+          set -euo pipefail
+          wip_line=$(git ls-remote --heads origin refs/heads/autopilot/live-wip || true)
+          if [[ -z "$wip_line" ]]; then
+            exit 0
+          fi
+          wip_commit=${wip_line%%[[:space:]]*}
+          if [[ ! "$wip_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            printf '%s\n' 'Ungueltige oeffentliche WIP-Referenz.' >&2
+            exit 1
+          fi
+          git fetch --no-tags --depth=1 origin refs/heads/autopilot/live-wip:refs/remotes/origin/autopilot/live-wip
+          test "$(git rev-parse refs/remotes/origin/autopilot/live-wip)" = "$wip_commit"
+          wip_committed_at=$(git show -s --format=%cI "$wip_commit")
+          printf 'commit=%s\n' "$wip_commit" >> "$GITHUB_OUTPUT"
+          printf 'committed_at=%s\n' "$wip_committed_at" >> "$GITHUB_OUTPUT"
 
       - name: Configure Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
-      - name: Build dependency-free showcase
-        run: ./scripts/build-pages.sh _site
+      - name: Build dependency-free showcase twice
+        shell: bash
+        env:
+          PAGES_SOURCE_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          PAGES_PUBLIC_MAIN_COMMIT: ${{ steps.main.outputs.commit }}
+          PAGES_WIP_COMMIT: ${{ steps.wip.outputs.commit }}
+          PAGES_WIP_COMMITTED_AT: ${{ steps.wip.outputs.committed_at }}
+        run: |
+          set -euo pipefail
+          export PAGES_TRUSTED_BUILD_AT="$(date --utc +%Y-%m-%dT%H:%M:%SZ)"
+          printf 'PAGES_TRUSTED_BUILD_AT=%s\n' "$PAGES_TRUSTED_BUILD_AT" >> "$GITHUB_ENV"
+          pages_temp=$(mktemp -d "${RUNNER_TEMP}/riftward-pages.XXXXXX")
+          ./scripts/build-pages.sh "$pages_temp/site-a"
+          ./scripts/build-pages.sh "$pages_temp/site-b"
+          diff -ru --no-dereference "$pages_temp/site-a" "$pages_temp/site-b"
+          mv "$pages_temp/site-a" "$pages_temp/site"
+          rm -rf -- "$pages_temp/site-b"
+          printf 'PAGES_ARTIFACT_DIR=%s\n' "$pages_temp/site" >> "$GITHUB_ENV"
+
+      - name: Check public links and contracts
+        run: python3 scripts/test-pages.py --source docs/showcase --built "$PAGES_ARTIFACT_DIR" --trusted-current-time "$PAGES_TRUSTED_BUILD_AT" --external-links
 
       - name: Assert publication boundary
         shell: bash
         run: |
           set -euo pipefail
-          test -f _site/index.html
-          test -f _site/status.json
-          if find _site -type f -path '*/quarantine/*' -print -quit | grep -q .; then
+          test -n "${PAGES_ARTIFACT_DIR:-}"
+          test -f "$PAGES_ARTIFACT_DIR/index.html"
+          test -f "$PAGES_ARTIFACT_DIR/status.json"
+          if find "$PAGES_ARTIFACT_DIR" -type f -path '*/quarantine/*' -print -quit | grep -q .; then
             printf '%s\n' 'Quarantaenedatei im Pages-Artefakt.' >&2
             exit 1
           fi
-          grep -q 'CONCEPT · NOT GAMEPLAY' _site/index.html
+          grep -q 'CONCEPT · NOT GAMEPLAY' "$PAGES_ARTIFACT_DIR/index.html"
+          grep -q 'Kontinuitätssnapshot, kein akzeptierter Fortschritt' "$PAGES_ARTIFACT_DIR/index.html"
+          test -f "$PAGES_ARTIFACT_DIR/publication-hashes.sha256"
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
-          path: _site
+          path: ${{ env.PAGES_ARTIFACT_DIR }}
 
   deploy:
     name: Publish GitHub Pages
     needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
