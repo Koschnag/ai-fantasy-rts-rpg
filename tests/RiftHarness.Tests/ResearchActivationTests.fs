@@ -78,15 +78,20 @@ module ResearchActivationTests =
             if Directory.Exists(root) then Directory.Delete(root, true)
 
     let private outcome root =
-        let path = Path.Combine(root, "outcome.json")
+        // The close receipt is external/runtime evidence, not a product-tree
+        // mutation. Keep the fixture receipt under the repository's ignored
+        // runtime boundary so the production clean-tree fence remains strict.
+        let relative = ".ai/runtime/research/test-inputs/outcome.json"
+        let path = Path.Combine(root, relative)
         let sourceHash = sha "[]"
-        File.WriteAllText(path, $"{{\"hypothesisResult\":\"inconclusive\",\"observationId\":\"{observation}\",\"reasonCode\":\"fixture\",\"resultCommit\":\"unknown\",\"resultTreeId\":\"unknown\",\"sourceManifestSha256\":\"{sourceHash}\",\"targetTaskId\":\"T-042\",\"taskOutcome\":\"unknown\"}}", Constants.Utf8NoBom)
+        write root relative $"{{\"hypothesisResult\":\"inconclusive\",\"observationId\":\"{observation}\",\"reasonCode\":\"fixture\",\"resultCommit\":\"unknown\",\"resultTreeId\":\"unknown\",\"sourceManifestSha256\":\"{sourceHash}\",\"targetTaskId\":\"T-042\",\"taskOutcome\":\"unknown\"}}"
         path
 
     let private outcomeClaim root taskOutcome hypothesisResult resultCommit resultTreeId =
-        let path = Path.Combine(root, "outcome.json")
+        let relative = ".ai/runtime/research/test-inputs/outcome.json"
+        let path = Path.Combine(root, relative)
         let sourceHash = sha "[]"
-        File.WriteAllText(path, $"{{\"hypothesisResult\":\"{hypothesisResult}\",\"observationId\":\"{observation}\",\"reasonCode\":\"fixture\",\"resultCommit\":\"{resultCommit}\",\"resultTreeId\":\"{resultTreeId}\",\"sourceManifestSha256\":\"{sourceHash}\",\"targetTaskId\":\"T-042\",\"taskOutcome\":\"{taskOutcome}\"}}", Constants.Utf8NoBom)
+        write root relative $"{{\"hypothesisResult\":\"{hypothesisResult}\",\"observationId\":\"{observation}\",\"reasonCode\":\"fixture\",\"resultCommit\":\"{resultCommit}\",\"resultTreeId\":\"{resultTreeId}\",\"sourceManifestSha256\":\"{sourceHash}\",\"targetTaskId\":\"T-042\",\"taskOutcome\":\"{taskOutcome}\"}}"
         path
 
     let private runInputs taskId : Provenance.StartInputs =

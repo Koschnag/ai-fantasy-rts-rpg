@@ -296,7 +296,7 @@ module ResearchContract =
           "human.approval", [ "humanActId"; "authorityClass"; "decisionActSha256"; "interventionCategory"; "counted" ]
           "human.emergency", [ "humanActId"; "emergencyClass"; "decisionActSha256"; "interventionCategory"; "counted" ]
           "human.observation", [ "humanActId"; "observationClass"; "decisionActSha256"; "interventionCategory"; "counted" ]
-          "outcome.observed", [ "taskOutcome"; "hypothesisResult"; "resultCommit"; "reasonCode" ]
+          "outcome.observed", [ "taskOutcome"; "hypothesisResult"; "resultCommit"; "resultTreeId"; "reasonCode" ]
           "observation.closed", [ "eventCount"; "sourceManifestSha256"; "outcomeEventId"; "closedAtUtc" ] ]
         |> List.map (fun (eventType, fields) -> eventType, Set.ofList fields)
         |> Map.ofList

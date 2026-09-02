@@ -93,7 +93,7 @@ module ResearchAnalyticsTests =
         append 2 "observation.started" $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{commit 'a'}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'b'}\",\"activationGuardSha256\":\"{sha 'c'}\"}}"
         append 3 "activity.state.changed" "{\"fromActivityState\":\"idle\",\"toActivityState\":\"agent-active\",\"reasonCode\":\"test\"}"
         ResearchLedger.append root ledger (toolDraft 4 observation "synthetic-test-only") |> ignore
-        append 5 "outcome.observed" $"{{\"taskOutcome\":\"accepted\",\"hypothesisResult\":\"unknown\",\"resultCommit\":\"{commit 'd'}\",\"reasonCode\":\"test\"}}"
+        append 5 "outcome.observed" $"{{\"taskOutcome\":\"accepted\",\"hypothesisResult\":\"unknown\",\"resultCommit\":\"{commit 'd'}\",\"resultTreeId\":\"{commit 'e'}\",\"reasonCode\":\"test\"}}"
         let outcomeId = id "EV-" 5
         append 6 "observation.closed" $"{{\"eventCount\":6,\"sourceManifestSha256\":\"{sourceManifestSha}\",\"outcomeEventId\":\"{outcomeId}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
         ledger

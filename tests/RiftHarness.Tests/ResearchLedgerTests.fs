@@ -269,7 +269,7 @@ module ResearchLedgerTests =
             appendEvent 1 "protocol.frozen" $"{{\"protocolId\":\"p\",\"protocolVersion\":\"v1\",\"protocolBundleSha256\":\"{sha 'a'}\",\"freezeAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
             appendEvent 2 "observation.started" $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{String('b', 40)}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'c'}\",\"activationGuardSha256\":\"{sha 'd'}\"}}"
             appendEvent 3 "activity.state.changed" "{\"fromActivityState\":\"idle\",\"toActivityState\":\"agent-active\",\"reasonCode\":\"test\"}"
-            appendEvent 4 "outcome.observed" $"{{\"taskOutcome\":\"accepted\",\"hypothesisResult\":\"inconclusive\",\"resultCommit\":\"{String('e', 40)}\",\"reasonCode\":\"test\"}}"
+            appendEvent 4 "outcome.observed" $"{{\"taskOutcome\":\"accepted\",\"hypothesisResult\":\"inconclusive\",\"resultCommit\":\"{String('e', 40)}\",\"resultTreeId\":\"{String('f', 40)}\",\"reasonCode\":\"test\"}}"
             appendEvent 5 "observation.closed" $"{{\"eventCount\":5,\"sourceManifestSha256\":\"{sha 'f'}\",\"outcomeEventId\":\"{eventId 4}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
             expectFailure "OBSERVATION_CLOSED" (fun () -> append root ledger (synthetic 6 observation))
             let privatePaths = { synthetic 7 (observationId 16) with ChangedFiles = ResearchValue.Known 1L; ChangedPaths = ResearchValue.Known [ "/Users/alice/secret.txt" ] }
