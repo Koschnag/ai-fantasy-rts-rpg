@@ -3,8 +3,9 @@
   "schemaVersion": 1,
   "id": "T-052",
   "title": "Wahrheitstreuer Pages-Status, WIP-Abgrenzung und oeffentliche Showcase-Gates",
-  "status": "running",
+  "status": "review",
   "releaseNote": "2026-09-02: draft -> ready aufgrund der ausdruecklichen Projektleitungsanweisung, die Riftward-GitHub-Pages-Seite getrennt vom laufenden T-042-/Autopilot-Arbeitsbaum zu ueberarbeiten. Der Auftrag basiert auf dem veroeffentlichten main-Commit a7764b8db2ddeb41eae8f93b59bdffaca8fcda1a und darf weder WIP als akzeptierten Fortschritt ausgeben noch private Betriebsdaten veroeffentlichen. Merge und Pages-Deployment bleiben an unabhaengiges Review und die bestehenden main-Gates gebunden.",
+  "completionNote": "2026-09-02: Builderkandidat auf dem isolierten Branch task/t-052-pages-status implementiert (Implementierungscheckpoints 7216839 und d9a8313). Der abhaengigkeitsfreie Vertragslauf, die eingebettete Negativmatrix, zwei byteidentische Pages-Builds bei identischen Eingaben, oeffentliche Linkpruefung und lokale Browserabnahme fuer Desktop, 390-Pixel-Viewport, Tastaturtabs und fehlendes status.json waren gruen. Der beobachtete oeffentliche WIP-Ref 297ac92a72411b295162018f472916d0b3956732 vom 2026-09-01T22:03:01Z wurde ausschliesslich als Kontinuitaetssnapshot und nicht als akzeptierter Fortschritt ausgegeben. GitHub-CI, unabhaengiges Review, Merge nach main und Pages-Deployment sind zu diesem Zeitpunkt noch nicht erfolgt; der Task steht deshalb auf review.",
   "objective": "Die oeffentliche Riftward-GitHub-Pages-Seite zeigt einen zugaenglichen, mobilen und nachpruefbar aus Repositorydaten erzeugten Projektstatus, trennt akzeptiertes main, Kandidaten und optionale WIP-Kontinuitaet sichtbar voneinander und faellt bei fehlenden oder ungueltigen Statusdaten ehrlich auf 'Status nicht verfuegbar' zurueck, statt veraltete Werte als aktuell darzustellen.",
   "inScope": [
     "Schema-versioniertes, deterministisch erzeugtes oeffentliches Statusartefakt mit Quellcommit, Quellbranch/-klasse, Erzeugungszeit, akzeptierten und bereiten Taskzaehlern sowie nachvollziehbarer Taskauswahl",
