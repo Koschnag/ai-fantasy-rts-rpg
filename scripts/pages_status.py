@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 FULL_HASH = re.compile(r"^[0-9a-f]{40}$")
@@ -18,6 +18,8 @@ BRANCH = re.compile(r"^[A-Za-z0-9._/-]{1,200}$")
 TASK_ID = re.compile(r"^T-[0-9]{3,}$")
 BACKLOG_ROW = re.compile(r"^\|\s*(T-[0-9]{3,})\s*\|")
 PUBLIC_STATUSES = {"DONE", "READY", "REVIEW", "DRAFT", "BLOCKED", "CANCELLED", "RUNNING"}
+FRESHNESS_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+EARLIEST_TRUSTED_TIMESTAMP = datetime(2021, 1, 1, tzinfo=timezone.utc)
 
 
 class StatusError(RuntimeError):
@@ -38,14 +40,22 @@ def git(root: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def timestamp(value: str, field: str) -> str:
+def timestamp(value: str, field: str) -> datetime:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise StatusError(f"{field} is not an ISO-8601 timestamp") from exc
     if parsed.tzinfo is None:
         raise StatusError(f"{field} must include a timezone")
-    return value
+    parsed = parsed.astimezone(timezone.utc)
+    if parsed < EARLIEST_TRUSTED_TIMESTAMP:
+        raise StatusError(f"{field} predates the trusted public-status epoch")
+    return parsed
+
+
+def canonical_timestamp(value: str, field: str) -> str:
+    parsed = timestamp(value, field)
+    return parsed.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def parse_backlog(path: Path) -> dict[str, list[str]]:
@@ -77,7 +87,7 @@ def clean_source(root: Path) -> None:
 
 
 def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: str | None,
-             public_main_commit: str | None) -> dict[str, object]:
+             public_main_commit: str | None, trusted_build_at: str | None) -> dict[str, object]:
     if not BRANCH.fullmatch(branch) or branch.startswith("/") or ".." in branch:
         raise StatusError("invalid source branch")
     if (wip_commit is None) != (wip_committed_at is None):
@@ -86,7 +96,11 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
     clean_source(root)
     commit = git(root, "rev-parse", "HEAD")
     tree = git(root, "rev-parse", "HEAD^{tree}")
-    committed_at = timestamp(git(root, "show", "-s", "--format=%cI", "HEAD"), "source committedAt")
+    committed_at = canonical_timestamp(git(root, "show", "-s", "--format=%cI", "HEAD"), "source committedAt")
+    trusted_at = canonical_timestamp(trusted_build_at or committed_at, "trusted build time")
+    age_seconds = (timestamp(trusted_at, "trusted build time") - timestamp(committed_at, "source committedAt")).total_seconds()
+    if age_seconds < 0 or age_seconds > FRESHNESS_MAX_AGE_SECONDS:
+        raise StatusError("source commit is outside the trusted build freshness window")
     if not FULL_HASH.fullmatch(commit) or not FULL_HASH.fullmatch(tree):
         raise StatusError("invalid source Git identity")
     if branch == "main":
@@ -112,8 +126,8 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
         public_wip = git(root, "rev-parse", "refs/remotes/origin/autopilot/live-wip")
         if public_wip != wip_commit:
             raise StatusError("WIP commit does not match the fetched public branch")
-        actual_wip_time = git(root, "show", "-s", "--format=%cI", wip_commit)
-        if timestamp(wip_committed_at, "WIP committedAt") != actual_wip_time:
+        actual_wip_time = canonical_timestamp(git(root, "show", "-s", "--format=%cI", wip_commit), "WIP committedAt")
+        if canonical_timestamp(wip_committed_at, "WIP committedAt") != actual_wip_time:
             raise StatusError("WIP timestamp does not match the public commit")
         wip = {
             "state": "published",
@@ -134,7 +148,12 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
         "schemaVersion": 2,
         "statusContract": "riftward-public-status-v2",
         "generatedAt": committed_at,
-        "freshness": {"basis": "source-commit-time", "sourceCommit": commit},
+        "freshness": {
+            "basis": "source-commit-time",
+            "sourceCommit": commit,
+            "trustedBuildAt": trusted_at,
+            "maxAgeSeconds": FRESHNESS_MAX_AGE_SECONDS,
+        },
         "source": {
             "branch": branch,
             "classification": classification,
@@ -185,10 +204,11 @@ def main() -> int:
     parser.add_argument("--wip-commit")
     parser.add_argument("--wip-committed-at")
     parser.add_argument("--public-main-commit")
+    parser.add_argument("--trusted-build-at")
     args = parser.parse_args()
     try:
         root = args.root.resolve(strict=True)
-        status = generate(root, args.branch, args.wip_commit, args.wip_committed_at, args.public_main_commit)
+        status = generate(root, args.branch, args.wip_commit, args.wip_committed_at, args.public_main_commit, args.trusted_build_at)
         atomic_json(args.output.resolve(), status)
     except (OSError, StatusError) as exc:
         print(f"Pages-Status abgelehnt: {exc}", file=os.sys.stderr)

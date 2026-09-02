@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from hashlib import sha256
 from html.parser import HTMLParser
 import json
@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import stat
 import sys
+import subprocess
 import tempfile
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -28,6 +29,8 @@ PLACEHOLDERS = {
     "__RIFTWARD_SOURCE_CLASSIFICATION__",
 }
 WIP_BOUNDARY = "Kontinuitätssnapshot, kein akzeptierter Fortschritt"
+FRESHNESS_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+EARLIEST_TRUSTED_TIMESTAMP = datetime(2021, 1, 1, tzinfo=timezone.utc)
 
 
 class ContractError(RuntimeError):
@@ -106,6 +109,7 @@ def check_html(source: Path, html: str | None = None) -> set[str]:
     require(videos and all("autoplay" not in video for video in videos), "concept video autoplay is forbidden")
     require("CONCEPT · NOT GAMEPLAY" in html, "visible concept boundary is missing")
     require(WIP_BOUNDARY in html, "WIP non-acceptance boundary is missing")
+    require("ACCEPTED ON MAIN" not in html and "ACCEPTED AT SOURCE" in html and "Kandidatenbranch behauptet keine main-Akzeptanz" in html, "candidate acceptance caveat is missing")
     require("aria-live=\"polite\"" in html and "id=\"project-status-message\"" in html, "accessible status announcement is missing")
     require("T-010 · walking skeleton" not in html and "9637ec8" not in html, "stale status fallback remains")
 
@@ -229,16 +233,67 @@ def check_source(source: Path) -> set[str]:
     return external
 
 
-def aware_timestamp(value: object, field: str) -> None:
+def parsed_timestamp(value: object, field: str) -> datetime:
     require(isinstance(value, str), f"{field} is not a string")
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise ContractError(f"{field} is not ISO-8601") from exc
     require(parsed.tzinfo is not None, f"{field} has no timezone")
+    parsed = parsed.astimezone(timezone.utc)
+    require(parsed >= EARLIEST_TRUSTED_TIMESTAMP, f"{field} predates trusted public-status epoch")
+    return parsed
 
 
-def validate_status(status: object, expected_meta: dict[str, str] | None = None) -> dict[str, object]:
+def aware_timestamp(value: object, field: str) -> None:
+    parsed_timestamp(value, field)
+
+
+def schema_matches(value: object, schema: object, field: str = "$") -> bool:
+    """Small dependency-free Draft-2020 subset used by the checked-in contract."""
+    if not isinstance(schema, dict):
+        return True
+    if "not" in schema and schema_matches(value, schema["not"], field):
+        return False
+    if "const" in schema and value != schema["const"]:
+        return False
+    if "enum" in schema and value not in schema["enum"]:
+        return False
+    kind = schema.get("type")
+    if kind == "object":
+        if not isinstance(value, dict): return False
+        if any(key not in value for key in schema.get("required", [])): return False
+        properties = schema.get("properties", {})
+        if schema.get("additionalProperties") is False and any(key not in properties for key in value): return False
+        if any(key in value and not schema_matches(value[key], child, f"{field}.{key}") for key, child in properties.items()): return False
+    elif kind == "array":
+        if not isinstance(value, list): return False
+        if schema.get("uniqueItems") and len({json.dumps(item, sort_keys=True) for item in value}) != len(value): return False
+        if "items" in schema and any(not schema_matches(item, schema["items"], field) for item in value): return False
+    elif kind == "string":
+        if not isinstance(value, str): return False
+        if "minLength" in schema and len(value) < schema["minLength"]: return False
+        if "pattern" in schema and re.fullmatch(schema["pattern"], value) is None: return False
+        if schema.get("format") == "date-time":
+            try: parsed_timestamp(value, field)
+            except ContractError: return False
+    elif kind == "integer" and (not isinstance(value, int) or isinstance(value, bool) or value < schema.get("minimum", -sys.maxsize)):
+        return False
+    for condition in schema.get("allOf", []):
+        selector = condition.get("if")
+        branch = condition.get("then") if schema_matches(value, selector, field) else condition.get("else")
+        if branch is not None and not schema_matches(value, branch, field): return False
+    return True
+
+
+def validate_checked_in_schema(status: object, schema_path: Path) -> None:
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    require(schema_matches(status, schema), "status does not validate against checked-in status.schema.json")
+
+
+def validate_status(status: object, expected_meta: dict[str, str] | None = None, schema_path: Path | None = None) -> dict[str, object]:
+    if schema_path is not None:
+        validate_checked_in_schema(status, schema_path)
     require(isinstance(status, dict), "status root is not an object")
     require(set(status) == {"schemaVersion", "statusContract", "generatedAt", "freshness", "source", "workItems", "candidate", "wip", "claims"}, "status root fields mismatch")
     require(status["schemaVersion"] == 2 and status["statusContract"] == "riftward-public-status-v2", "status schema mismatch")
@@ -255,8 +310,13 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None)
     aware_timestamp(source["committedAt"], "source.committedAt")
     require(status["generatedAt"] == source["committedAt"], "generatedAt must equal source commit time")
     freshness = status["freshness"]
-    require(isinstance(freshness, dict) and set(freshness) == {"basis", "sourceCommit"}, "freshness fields mismatch")
-    require(freshness["basis"] == "source-commit-time" and freshness["sourceCommit"] == source["commit"], "freshness binding mismatch")
+    require(isinstance(freshness, dict) and set(freshness) == {"basis", "sourceCommit", "trustedBuildAt", "maxAgeSeconds"}, "freshness fields mismatch")
+    require(freshness["basis"] == "source-commit-time" and freshness["sourceCommit"] == source["commit"] and freshness["maxAgeSeconds"] == FRESHNESS_MAX_AGE_SECONDS, "freshness binding mismatch")
+    trusted_build_at = parsed_timestamp(freshness["trustedBuildAt"], "freshness.trustedBuildAt")
+    source_time = parsed_timestamp(source["committedAt"], "source.committedAt")
+    generated_time = parsed_timestamp(status["generatedAt"], "generatedAt")
+    age_seconds = (trusted_build_at - source_time).total_seconds()
+    require(generated_time == source_time and 0 <= age_seconds <= freshness["maxAgeSeconds"], "freshness age/backward/future mismatch")
 
     work = status["workItems"]
     require(isinstance(work, dict) and set(work) == {"accepted", "ready", "review", "acceptedTaskIds", "reviewTaskIds", "nextReady"}, "work item fields mismatch")
@@ -285,6 +345,7 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None)
         require(set(wip) == {"state", "classification", "branch", "commit", "committedAt", "provenance"}, "published WIP fields mismatch")
         require(wip["branch"] == "autopilot/live-wip" and isinstance(wip["commit"], str) and FULL_HASH.fullmatch(wip["commit"]) is not None, "invalid WIP identity")
         aware_timestamp(wip["committedAt"], "wip.committedAt")
+        require(wip["provenance"]["observed"] is True, "published WIP is not observed")
     else:
         require(set(wip) == {"state", "classification", "provenance"}, "unobserved WIP provenance missing")
         require(wip["provenance"]["observed"] is False, "unobserved WIP marked observed")
@@ -338,7 +399,7 @@ def check_built(source: Path, built: Path) -> set[str]:
         require(len(values) == 1, f"built source meta missing: {field}")
         expected_meta[field] = values[0]
     status_path = built / "status.json"
-    status = validate_status(json.loads(status_path.read_text(encoding="utf-8")), expected_meta)
+    status = validate_status(json.loads(status_path.read_text(encoding="utf-8")), expected_meta, source / "status.schema.json")
     canonical = json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     require(status_path.read_text(encoding="utf-8") == canonical, "status JSON is not deterministic canonical output")
     external = check_html(built, html)
@@ -361,7 +422,7 @@ def valid_status_fixture() -> dict[str, object]:
         "schemaVersion": 2,
         "statusContract": "riftward-public-status-v2",
         "generatedAt": "2026-09-02T12:00:00+00:00",
-        "freshness": {"basis": "source-commit-time", "sourceCommit": "a" * 40},
+        "freshness": {"basis": "source-commit-time", "sourceCommit": "a" * 40, "trustedBuildAt": "2026-09-02T12:00:00Z", "maxAgeSeconds": FRESHNESS_MAX_AGE_SECONDS},
         "source": {"branch": "main", "classification": "accepted-main", "commit": "a" * 40, "tree": "b" * 40, "committedAt": "2026-09-02T12:00:00+00:00", "dirty": False},
         "workItems": {"accepted": 1, "ready": 0, "review": 1, "acceptedTaskIds": ["T-001"], "reviewTaskIds": ["T-002"], "nextReady": {"state": "none", "taskIds": []}},
         "candidate": {"state": "not-observed", "reason": "not observed"},
@@ -391,6 +452,8 @@ def negative_matrix(source: Path) -> None:
     expect_failure("oversized asset", lambda: check_media(source, budget))
 
     cases: list[tuple[str, dict[str, object]]] = []
+    schema_path = source / "status.schema.json"
+    validate_checked_in_schema(valid_status_fixture(), schema_path)
     malformed = valid_status_fixture(); malformed["schemaVersion"] = 1; cases.append(("malformed status schema", malformed))
     missing_provenance = valid_status_fixture(); del missing_provenance["source"]["tree"]; cases.append(("missing provenance", missing_provenance))
     invented_active = valid_status_fixture(); invented_active["activeTask"] = {"id": "T-042", "status": "accepted"}; cases.append(("invented active T-042", invented_active))
@@ -400,8 +463,55 @@ def negative_matrix(source: Path) -> None:
     fake_time = valid_status_fixture(); fake_time["generatedAt"] = "2026-09-03T12:00:00+00:00"; cases.append(("generated time mismatch", fake_time))
     duplicate_ids = valid_status_fixture(); duplicate_ids["workItems"]["acceptedTaskIds"] = ["T-001", "T-001"]; duplicate_ids["workItems"]["accepted"] = 2; cases.append(("duplicate task IDs", duplicate_ids))
     freshness_spoof = valid_status_fixture(); freshness_spoof["freshness"]["sourceCommit"] = "c" * 40; cases.append(("freshness source spoof", freshness_spoof))
+    stale = valid_status_fixture(); stale["freshness"]["trustedBuildAt"] = "2026-09-10T12:00:01Z"; cases.append(("stale trusted build age", stale))
+    future = valid_status_fixture(); future["freshness"]["trustedBuildAt"] = "2026-09-01T12:00:00Z"; cases.append(("source commit future of trusted build", future))
+    year_2000 = valid_status_fixture(); year_2000["generatedAt"] = year_2000["source"]["committedAt"] = "2000-01-01T00:00:00Z"; cases.append(("year-2000 timestamp", year_2000))
+    wip_iff = valid_status_fixture(); wip_iff["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}; cases.append(("published WIP without observed provenance", wip_iff))
+    candidate_relation = valid_status_fixture(); candidate_relation["source"]["branch"] = "task/t-052"; candidate_relation["source"]["classification"] = "candidate-branch"; candidate_relation["candidate"]["state"] = "not-observed"; cases.append(("candidate branch relation", candidate_relation))
     for name, status in cases:
-        expect_failure(name, lambda status=status: validate_status(status))
+        expect_failure(name, lambda status=status: validate_status(status, schema_path=schema_path))
+
+
+def browser_validator(source: Path, status: dict[str, object], valid: bool) -> None:
+    """Run the shipped browser validator with a minimal DOM, not a reimplementation."""
+    script = source / "showcase.js"
+    payload = json.dumps(status)
+    js = r'''
+const fs = require("fs"), vm = require("vm");
+const status = JSON.parse(process.argv[1]);
+const message = {dataset:{}, textContent:""};
+const root = {dataset:{}};
+global.document = {
+  documentElement: root,
+  querySelectorAll: () => [],
+  querySelector: (selector) => {
+    if (selector === "#project-status-message") return message;
+    const match = selector.match(/^meta\[name="riftward-source-(.+)"\]$/);
+    if (match) return {content: status.source[match[1]]};
+    return null;
+  }
+};
+global.fetch = () => Promise.resolve({ok:true, json:() => Promise.resolve(status)});
+vm.runInThisContext(fs.readFileSync(process.argv[2], "utf8"));
+setImmediate(() => { if (root.dataset.projectStatus !== process.argv[3]) process.exit(2); });
+'''
+    result = subprocess.run(["node", "-e", js, payload, str(script), "verified" if valid else "unavailable"], check=False)
+    require(result.returncode == 0, f"browser validator did not fail closed ({'valid' if valid else 'invalid'} fixture)")
+
+
+def check_browser_validator(source: Path) -> None:
+    status = valid_status_fixture()
+    browser_validator(source, status, True)
+    duplicate_ready = deepcopy(status); duplicate_ready["workItems"]["ready"] = 2; duplicate_ready["workItems"]["nextReady"] = {"state": "multiple", "taskIds": ["T-003", "T-003"]}
+    browser_validator(source, duplicate_ready, False)
+    stale = deepcopy(status); stale["freshness"]["trustedBuildAt"] = "2026-09-10T12:00:01Z"
+    browser_validator(source, stale, False)
+    year_2000 = deepcopy(status); year_2000["generatedAt"] = year_2000["source"]["committedAt"] = "2000-01-01T00:00:00Z"
+    browser_validator(source, year_2000, False)
+    published_unobserved = deepcopy(status); published_unobserved["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}
+    browser_validator(source, published_unobserved, False)
+    candidate_mismatch = deepcopy(status); candidate_mismatch["source"]["branch"] = "task/t-052"; candidate_mismatch["source"]["classification"] = "candidate-branch"
+    browser_validator(source, candidate_mismatch, False)
 
 
 def check_external(urls: set[str]) -> None:
@@ -434,6 +544,7 @@ def main() -> int:
         source = args.source.resolve(strict=True)
         external = check_source(source)
         negative_matrix(source)
+        check_browser_validator(source)
         if args.built is not None:
             external |= check_built(source, args.built.resolve(strict=True))
         if args.external_links:

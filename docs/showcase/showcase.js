@@ -42,9 +42,17 @@ const metadata = (name) => document.querySelector(`meta[name="${name}"]`)?.conte
 const fullHash = /^[0-9a-f]{40}$/;
 const branchName = /^[A-Za-z0-9._/-]{1,200}$/;
 const isoTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const earliestTrustedTimestamp = Date.parse("2021-01-01T00:00:00Z");
+const freshnessMaxAgeSeconds = 7 * 24 * 60 * 60;
 
-function validTimestamp(value) {
-  return typeof value === "string" && isoTimestamp.test(value) && Number.isFinite(Date.parse(value));
+function exactFields(value, fields) {
+  return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === fields.length && fields.every((field) => Object.hasOwn(value, field));
+}
+
+function timestamp(value) {
+  if (typeof value !== "string" || !isoTimestamp.test(value)) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && parsed >= earliestTrustedTimestamp ? parsed : null;
 }
 
 function validCounter(value) {
@@ -52,17 +60,20 @@ function validCounter(value) {
 }
 
 function validateStatus(status) {
-  if (!status || typeof status !== "object" || Array.isArray(status)) throw new Error("invalid-root");
+  if (!exactFields(status, ["schemaVersion", "statusContract", "generatedAt", "freshness", "source", "workItems", "candidate", "wip", "claims"])) throw new Error("invalid-root");
   if (status.schemaVersion !== 2 || status.statusContract !== "riftward-public-status-v2") throw new Error("unsupported-schema");
-  if (!validTimestamp(status.generatedAt)) throw new Error("invalid-generated-at");
+  if (timestamp(status.generatedAt) === null) throw new Error("invalid-generated-at");
 
   const source = status.source;
-  if (!source || typeof source !== "object") throw new Error("missing-source");
+  if (!exactFields(source, ["branch", "classification", "commit", "tree", "committedAt", "dirty"])) throw new Error("missing-source");
   if (!fullHash.test(source.commit) || !fullHash.test(source.tree)) throw new Error("invalid-source-hash");
-  if (!branchName.test(source.branch)) throw new Error("invalid-source-branch");
+  if (!branchName.test(source.branch) || source.branch.startsWith("/") || source.branch.includes("..")) throw new Error("invalid-source-branch");
   if (!["accepted-main", "candidate-branch"].includes(source.classification)) throw new Error("invalid-source-classification");
-  if (!validTimestamp(source.committedAt) || source.dirty !== false) throw new Error("invalid-source-state");
-  if (status.generatedAt !== source.committedAt || status.freshness?.basis !== "source-commit-time" || status.freshness?.sourceCommit !== source.commit) throw new Error("invalid-freshness-binding");
+  if (timestamp(source.committedAt) === null || source.dirty !== false) throw new Error("invalid-source-state");
+  const freshness = status.freshness;
+  if (!exactFields(freshness, ["basis", "sourceCommit", "trustedBuildAt", "maxAgeSeconds"]) || freshness.basis !== "source-commit-time" || freshness.sourceCommit !== source.commit || freshness.maxAgeSeconds !== freshnessMaxAgeSeconds || timestamp(freshness.trustedBuildAt) === null) throw new Error("invalid-freshness-binding");
+  const ageSeconds = (timestamp(freshness.trustedBuildAt) - timestamp(source.committedAt)) / 1000;
+  if (status.generatedAt !== source.committedAt || ageSeconds < 0 || ageSeconds > freshness.maxAgeSeconds) throw new Error("invalid-freshness-age");
   if (source.commit !== metadata("riftward-source-commit") ||
       source.tree !== metadata("riftward-source-tree") ||
       source.branch !== metadata("riftward-source-branch") ||
@@ -71,32 +82,34 @@ function validateStatus(status) {
   }
 
   const workItems = status.workItems;
-  if (!workItems || ![workItems.accepted, workItems.ready, workItems.review].every(validCounter)) throw new Error("invalid-work-items");
+  if (!exactFields(workItems, ["accepted", "ready", "review", "acceptedTaskIds", "reviewTaskIds", "nextReady"]) || ![workItems.accepted, workItems.ready, workItems.review].every(validCounter)) throw new Error("invalid-work-items");
   for (const [name, count] of [["acceptedTaskIds", workItems.accepted], ["reviewTaskIds", workItems.review]]) {
     if (!Array.isArray(workItems[name]) || new Set(workItems[name]).size !== workItems[name].length || workItems[name].length !== count || !workItems[name].every((id) => /^T-[0-9]{3,}$/.test(id))) throw new Error(`invalid-${name}`);
   }
-  if (!workItems.nextReady || !["none", "single", "multiple"].includes(workItems.nextReady.state)) throw new Error("invalid-next-ready");
-  if (!Array.isArray(workItems.nextReady.taskIds) || !workItems.nextReady.taskIds.every((id) => /^T-[0-9]{3,}$/.test(id))) throw new Error("invalid-ready-ids");
+  if (!exactFields(workItems.nextReady, ["state", "taskIds"]) || !["none", "single", "multiple"].includes(workItems.nextReady.state)) throw new Error("invalid-next-ready");
+  if (!Array.isArray(workItems.nextReady.taskIds) || new Set(workItems.nextReady.taskIds).size !== workItems.nextReady.taskIds.length || !workItems.nextReady.taskIds.every((id) => /^T-[0-9]{3,}$/.test(id))) throw new Error("invalid-ready-ids");
   const readyCount = workItems.nextReady.taskIds.length;
-  if ((readyCount === 0 && workItems.nextReady.state !== "none") ||
+  if (workItems.ready !== readyCount || (readyCount === 0 && workItems.nextReady.state !== "none") ||
       (readyCount === 1 && workItems.nextReady.state !== "single") ||
       (readyCount > 1 && workItems.nextReady.state !== "multiple")) {
     throw new Error("inconsistent-ready-state");
   }
 
   const candidate = status.candidate;
-  if (!candidate || !["checked-out-candidate", "not-observed"].includes(candidate.state)) throw new Error("invalid-candidate-state");
+  if (!exactFields(candidate, ["state", "reason"]) || !["checked-out-candidate", "not-observed"].includes(candidate.state) || typeof candidate.reason !== "string" || !candidate.reason) throw new Error("invalid-candidate-state");
+  if ((source.branch === "main") !== (source.classification === "accepted-main")) throw new Error("invalid-source-relation");
   if (source.classification === "candidate-branch" && candidate.state !== "checked-out-candidate") throw new Error("missing-candidate-binding");
   if (source.classification === "accepted-main" && candidate.state !== "not-observed") throw new Error("invented-candidate");
 
   const wip = status.wip;
   if (!wip || !["published", "not-observed"].includes(wip.state)) throw new Error("invalid-wip-state");
   if (wip.classification !== "continuity-snapshot-not-accepted-progress") throw new Error("invalid-wip-classification");
-  if (!wip.provenance || wip.provenance.source !== "public-remote-ref" || typeof wip.provenance.reason !== "string" || typeof wip.provenance.observed !== "boolean" || !wip.provenance.reason) throw new Error("invalid-wip-provenance");
+  if (!exactFields(wip.provenance, ["observed", "source", "reason"]) || wip.provenance.source !== "public-remote-ref" || typeof wip.provenance.reason !== "string" || typeof wip.provenance.observed !== "boolean" || !wip.provenance.reason) throw new Error("invalid-wip-provenance");
   if (wip.state === "published" &&
-      (wip.branch !== "autopilot/live-wip" || !fullHash.test(wip.commit) || !validTimestamp(wip.committedAt))) {
+      (!exactFields(wip, ["state", "classification", "branch", "commit", "committedAt", "provenance"]) || wip.branch !== "autopilot/live-wip" || !fullHash.test(wip.commit) || timestamp(wip.committedAt) === null || wip.provenance.observed !== true)) {
     throw new Error("invalid-wip-provenance");
   }
+  if (wip.state === "not-observed" && (!exactFields(wip, ["state", "classification", "provenance"]) || wip.provenance.observed !== false)) throw new Error("invalid-wip-provenance");
 
   const claims = status.claims;
   if (!claims || claims.gameplay !== false || claims.targetHardwareValidated !== false || claims.physicalEdition !== false || claims.twentyFourSevenAutonomy !== false) {
