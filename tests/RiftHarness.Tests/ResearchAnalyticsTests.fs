@@ -59,6 +59,18 @@ module ResearchAnalyticsTests =
     let private metric metricId rows =
         rows |> List.find (fun row -> row.MetricId = metricId)
 
+    let private metricEvent number eventType payload monotonic result =
+        { Body =
+            { toolDraft number (id "OBS-" 90) "synthetic-test-only" with
+                EventType = eventType
+                Payload = json payload
+                MonotonicTimeNs = ResearchValue.Known monotonic
+                MonotonicClockId = ResearchValue.Known "fixture-clock"
+                Result = result }
+          Sequence = int64 number
+          PreviousEventHash = ResearchValue.Unknown
+          EventHash = sha 'f' }
+
     let private writeManifest root observation =
         let sourceInventory = ResearchCanonical.canonicalizeJson "[]"
         let sourceHash = Internal.sha256Hex sourceInventory
@@ -114,6 +126,22 @@ module ResearchAnalyticsTests =
             let rows = ResearchMetrics.calculate (ResearchLedger.readVerified root firstLedger @ ResearchLedger.readVerified root secondLedger) None None
             assertEqual ResearchContract.Unknown (metric "OBS-CHAIN-COMPLETE" rows).EvidenceClass "Mixed evidence classes were collapsed into one class")
 
+    let metricsRequireBoundFactsAndUseExactUnions () =
+        let tree = commit 'a'
+        let gateStart = metricEvent 1 "gate.started" $"{{\"attempt\":1,\"gateId\":\"G-SPEC\",\"targetTreeId\":\"{tree}\"}}" 0L ResearchValue.Unknown
+        let gateFinish = metricEvent 2 "gate.finished" $"{{\"attempt\":1,\"evidenceSha256\":\"{sha 'e'}\",\"gateId\":\"G-SPEC\",\"targetTreeId\":\"{tree}\"}}" 1_000_000L (ResearchValue.Known "fail")
+        let toolOne = metricEvent 3 "tool.finished" $"{{\"toolClass\":\"test\",\"commandDigest\":\"{sha 'b'}\",\"startedMonotonicNs\":0,\"completedMonotonicNs\":4000000,\"resultSha256\":\"{sha 'c'}\"}}" 4_000_000L ResearchValue.Unknown
+        let toolTwo = metricEvent 4 "tool.finished" $"{{\"toolClass\":\"test\",\"commandDigest\":\"{sha 'd'}\",\"startedMonotonicNs\":2000000,\"completedMonotonicNs\":6000000,\"resultSha256\":\"{sha 'e'}\"}}" 6_000_000L ResearchValue.Unknown
+        let intervention = metricEvent 5 "research.intervention.recorded" $"{{\"interventionId\":\"INT-1\",\"category\":\"I1-clarification\",\"decisionActSha256\":\"{sha 'a'}\",\"counted\":true,\"classificationReason\":\"fixture\",\"durationMs\":\"unknown\"}}" 7_000_000L ResearchValue.Unknown
+        let duplicateDecision = metricEvent 6 "research.intervention.recorded" $"{{\"interventionId\":\"INT-2\",\"category\":\"I1-clarification\",\"decisionActSha256\":\"{sha 'a'}\",\"counted\":true,\"classificationReason\":\"fixture\",\"durationMs\":\"unknown\"}}" 8_000_000L ResearchValue.Unknown
+        [ "paired gate", [ gateStart; gateFinish ], "GATE-ATTEMPTS-TOTAL", "1"
+          "orphan gate", [ gateStart ], "GATE-ATTEMPTS-TOTAL", ResearchContract.Unknown
+          "interval union", [ toolOne; toolTwo ], "TOOL-ACTIVE-MS", "6"
+          "decision dedup", [ intervention; duplicateDecision ], "INT-COUNT", "1"
+          "missing receipt identity", [ toolOne ], "USE-INPUT-TOKENS", ResearchContract.Unknown ]
+        |> List.iter (fun (name, events, metricId, expected) ->
+            assertEqual expected (metric metricId (ResearchMetrics.calculate events None None)).Value $"{name} did not follow the frozen metric contract")
+
     let exportsAreByteIdenticalAndTamperEvident () =
         withWorkspace (fun root ->
             let observation = id "OBS-" 3
@@ -127,7 +155,9 @@ module ResearchAnalyticsTests =
             let firstFiles = filesUnder (Path.Combine(root, first))
             let secondFiles = filesUnder (Path.Combine(root, second))
             assertEqual firstFiles secondFiles "Repeated export bytes differ"
-            ResearchExport.verifyExport root first |> ignore
+            let receipt = ResearchExport.verifyExport root first
+            ResearchExport.verifyExportWithExpectedReceipt root first (Some receipt) |> ignore
+            expectFailure "EXPORT_RECEIPT_MISMATCH" (fun () -> ResearchExport.verifyExportWithExpectedReceipt root first (Some(sha '0')) |> ignore)
             let summary = Path.Combine(root, first, "summary.json")
             File.AppendAllText(summary, "x", Constants.Utf8NoBom)
             expectFailure "EXPORT_HASH_INVALID" (fun () -> ResearchExport.verifyExport root first |> ignore))
@@ -207,6 +237,7 @@ module ResearchAnalyticsTests =
     let all =
         [ "research metrics preserve unknown denominators and missing usage", metricsRemainUnknownWithoutStructuredEvidence
           "research metrics keep evidence classes separated", evidenceClassesStaySeparatedInMetrics
+          "research metrics require paired facts and interval unions", metricsRequireBoundFactsAndUseExactUnions
           "research exports are deterministic and tamper-evident", exportsAreByteIdenticalAndTamperEvident
           "research git import rejects malformed and moving boundaries", gitBoundariesRejectMalformedAndMovingNames
           "research retrospective import preserves unknown usage and human duration", retrospectiveImportKeepsHumanAndUsageUnknown

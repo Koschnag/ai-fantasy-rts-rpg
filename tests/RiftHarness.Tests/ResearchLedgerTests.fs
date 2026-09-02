@@ -154,11 +154,11 @@ module ResearchLedgerTests =
         workspace (fun root ->
             let observation = observationId 8
             let ledger = ResearchLedger.ledgerPath root observation
-            let secretPayload = json $"{{\"toolClass\":\"test\",\"commandDigest\":\"{sha 'b'}\",\"startedMonotonicNs\":1,\"completedMonotonicNs\":2,\"resultSha256\":\"{sha 'c'}\",\"password\":\"hunter2\",\"contact\":\"alice@example.org\",\"localPath\":\"/Users/alice/private.txt\",\"message\":\"Bearer abc.def\"}}"
+            let secretPayload = json $"{{\"toolClass\":\"test\",\"commandDigest\":\"{sha 'b'}\",\"startedMonotonicNs\":1,\"completedMonotonicNs\":2,\"resultSha256\":\"{sha 'c'}\",\"password\":\"hunter2\",\"contact\":\"alice@example.org\",\"localPath\":\"/Users/alice/private.txt\",\"message\":\"Bearer abc.def host=terra tailnet=terra.ts.net accountId=acct-42 billing=invoice-7 ipv6=2001:db8:85a3::8a2e:370:7334\",\"providerId\":\"provider-private-42\"}}"
             let redacted, changed = ResearchCanonical.redactAndCanonicalizePayload (HarnessConfig.load (Workspace.paths root)).Redaction secretPayload
             let persisted = Constants.Utf8NoBom.GetString(redacted)
             assertTrue changed "Secret fixture was not recognized by the redaction policy."
-            for forbidden in [ "hunter2"; "alice@example.org"; "/Users/alice/private.txt"; "Bearer abc.def" ] do
+            for forbidden in [ "hunter2"; "alice@example.org"; "/Users/alice/private.txt"; "Bearer abc.def"; "terra.ts.net"; "acct-42"; "invoice-7"; "2001:db8:85a3::8a2e:370:7334"; "provider-private-42" ] do
                 assertTrue (not (persisted.Contains(forbidden, StringComparison.Ordinal))) $"Secret persisted: {forbidden}"
             assertTrue (persisted.Contains("[REDACTED:", StringComparison.Ordinal)) "Typed redaction marker is absent."
             expectFailure "RESEARCH_SCHEMA_INVALID" (fun () -> append root ledger (draft 1 observation "synthetic-test-only" "2026-09-02T10:00:00.000Z" secretPayload))
@@ -245,7 +245,9 @@ module ResearchLedgerTests =
                   "RESEARCH_SCHEMA_INVALID", gatePayload.Substring(0, gatePayload.Length - 1) + ",\"extra\":true}" ]
             gateCases
             |> List.iteri (fun index (failureCode, payload) -> expectFailure failureCode (fun () -> append root ledger (draft "gate.started" (index + 1) payload)))
-            let unknownPayload = "{\"attempt\":\"unknown\",\"gateId\":\"gate-unknown\",\"targetTreeId\":\"unknown\"}"
+            // The preregistered contract requires a positive integer attempt;
+            // only the target tree may remain explicitly unknown.
+            let unknownPayload = "{\"attempt\":1,\"gateId\":\"gate-unknown\",\"targetTreeId\":\"unknown\"}"
             append root ledger (draft "gate.started" 9 unknownPayload)
             append root ledger (draft "gate.started" 10 gatePayload)
             let failureCases =
@@ -257,6 +259,24 @@ module ResearchLedgerTests =
             |> List.iteri (fun index (_, payload) -> expectFailure "RESEARCH_SCHEMA_INVALID" (fun () -> append root ledger (draft "verify.failed" (index + 11) payload)))
             append root ledger (draft "verify.failed" 20 verificationPayload)
             assertEqual 3 (ResearchLedger.readVerified root ledger).Length "Typed gate and verification payloads were rejected.")
+
+    let closedLifecycleAndPrivacyAreFailClosed () =
+        workspace (fun root ->
+            let observation = observationId 15
+            let ledger = ResearchLedger.ledgerPath root observation
+            let appendEvent number eventType payload =
+                ResearchLedger.append root ledger (ResearchEventDraft.create (eventId number) observation "synthetic-test-only" eventType "2026-09-02T10:00:00.000Z" [ source "fixture" ] (json payload)) |> ignore
+            appendEvent 1 "protocol.frozen" $"{{\"protocolId\":\"p\",\"protocolVersion\":\"v1\",\"protocolBundleSha256\":\"{sha 'a'}\",\"freezeAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
+            appendEvent 2 "observation.started" $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{String('b', 40)}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'c'}\",\"activationGuardSha256\":\"{sha 'd'}\"}}"
+            appendEvent 3 "activity.state.changed" "{\"fromActivityState\":\"idle\",\"toActivityState\":\"agent-active\",\"reasonCode\":\"test\"}"
+            appendEvent 4 "outcome.observed" $"{{\"taskOutcome\":\"accepted\",\"hypothesisResult\":\"inconclusive\",\"resultCommit\":\"{String('e', 40)}\",\"reasonCode\":\"test\"}}"
+            appendEvent 5 "observation.closed" $"{{\"eventCount\":5,\"sourceManifestSha256\":\"{sha 'f'}\",\"outcomeEventId\":\"{eventId 4}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
+            expectFailure "OBSERVATION_CLOSED" (fun () -> append root ledger (synthetic 6 observation))
+            let privatePaths = { synthetic 7 (observationId 16) with ChangedFiles = ResearchValue.Known 1L; ChangedPaths = ResearchValue.Known [ "/Users/alice/secret.txt" ] }
+            let privateLedger = ResearchLedger.ledgerPath root (observationId 16)
+            append root privateLedger privatePaths
+            let persisted = ResearchLedger.readVerified root privateLedger |> List.head
+            assertEqual ResearchValue.Unknown persisted.Body.ChangedPaths "Unsafe changedPaths was not replaced by literal unknown.")
 
     let all =
         [ "research canonical roundtrip", canonicalRoundTrip
@@ -270,4 +290,5 @@ module ResearchLedgerTests =
           "research evidence separation", evidenceClassesStaySeparated
           "research harness event reference matrix", harnessEventReferencesAreStrictlyEarlierAndHashBound
           "research collector payload contracts", collectorPayloadContractsRejectMalformedValues
-          "research gate and verification payload contracts", gateAndVerificationPayloadContractsAreTypedAndExact ]
+          "research gate and verification payload contracts", gateAndVerificationPayloadContractsAreTypedAndExact
+          "research closed lifecycle and changed-path privacy", closedLifecycleAndPrivacyAreFailClosed ]

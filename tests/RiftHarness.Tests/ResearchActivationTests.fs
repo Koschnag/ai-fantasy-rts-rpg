@@ -78,6 +78,36 @@ module ResearchActivationTests =
         File.WriteAllText(path, $"{{\"hypothesisResult\":\"inconclusive\",\"observationId\":\"{observation}\",\"reasonCode\":\"fixture\",\"resultCommit\":\"unknown\",\"resultTreeId\":\"unknown\",\"sourceManifestSha256\":\"{sourceHash}\",\"targetTaskId\":\"T-042\",\"taskOutcome\":\"unknown\"}}", Constants.Utf8NoBom)
         path
 
+    let private outcomeClaim root taskOutcome hypothesisResult resultCommit resultTreeId =
+        let path = Path.Combine(root, "outcome.json")
+        let sourceHash = sha "[]"
+        File.WriteAllText(path, $"{{\"hypothesisResult\":\"{hypothesisResult}\",\"observationId\":\"{observation}\",\"reasonCode\":\"fixture\",\"resultCommit\":\"{resultCommit}\",\"resultTreeId\":\"{resultTreeId}\",\"sourceManifestSha256\":\"{sourceHash}\",\"targetTaskId\":\"T-042\",\"taskOutcome\":\"{taskOutcome}\"}}", Constants.Utf8NoBom)
+        path
+
+    let private runInputs taskId : Provenance.StartInputs =
+        { ActorId = "fixture-agent"
+          TaskId = taskId
+          ModelId = None
+          PromptFile = None
+          ToolchainFile = None }
+
+    let private startTarget root =
+        let inputs = runInputs (Some "T-042")
+        RunStore.startProvenanced root inputs.ActorId inputs
+
+    let private appendTargetEvent root runId eventType (payload: string) =
+        let path = Path.Combine(root, ".ai", "runtime", "research", "fixture-event.json")
+        File.WriteAllText(path, payload, Constants.Utf8NoBom)
+        let receipt = RunStore.append root runId eventType path
+        ResearchCollector.recordHarnessEvent root runId receipt.Sequence receipt.EventHash eventType |> ignore
+
+    let private observedOutcome root =
+        ResearchLedger.readVerified root (ResearchLedger.ledgerPath root observation)
+        |> List.find (fun event -> event.Body.EventType = "outcome.observed")
+        |> fun event ->
+            event.Body.Payload.GetProperty("taskOutcome").GetString(),
+            event.Body.Payload.GetProperty("hypothesisResult").GetString()
+
     let private linux action = if OperatingSystem.IsLinux() then action () else ()
 
     let crashBeforeMarkerRename () = linux (fun () -> fixture (fun root manifest ->
@@ -86,7 +116,27 @@ module ResearchActivationTests =
 
     let crashAfterMarkerRename () = linux (fun () -> fixture (fun root manifest ->
         expectFailure "INJECTED_CRASH" (fun () -> ResearchActivation.beginWithCrashPoint root manifest ResearchCrashPoint.AfterMarkerRenameBeforeDirectorySync |> ignore)
-        if ResearchActivation.tryActive root |> Option.isNone then failwith "Durable marker was not readable."))
+        if ResearchActivation.tryActive root |> Option.isSome then failwith "Unreceipted marker activated research hooks."
+        if not ((ResearchActivation.status root (Some observation)).Issues |> List.contains "ACTIVATION_RECEIPT_MISSING") then failwith "Missing activation receipt was not diagnosed."
+        let recovered = ResearchActivation.beginObservation root manifest
+        if not recovered.Idempotent || ResearchActivation.tryActive root |> Option.isNone then failwith "Validated activation recovery failed."))
+
+    let crashMarkerThenTargetStartCannotRecoverRetroactively () = linux (fun () -> fixture (fun root manifest ->
+        expectFailure "INJECTED_CRASH" (fun () -> ResearchActivation.beginWithCrashPoint root manifest ResearchCrashPoint.AfterMarkerRenameBeforeDirectorySync |> ignore)
+        startTarget root |> ignore
+        expectFailure "PROSPECTIVE_START_TOO_LATE" (fun () -> ResearchActivation.beginObservation root manifest |> ignore)
+        if ResearchActivation.tryActive root |> Option.isSome then failwith "Late recovery activated a target run retroactively."))
+
+    let sharedGuardSerializesTargetOnly () = fixture (fun root manifest ->
+        let path = Path.Combine(root, ".ai", "runtime", "research", ".prospective-start.lock")
+        Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
+
+        use guard = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None)
+        expectFailure "CONCURRENT_WRITER" (fun () -> ResearchActivation.beginObservation root manifest |> ignore)
+        expectFailure "CONCURRENT_WRITER" (fun () -> startTarget root |> ignore)
+
+        let ordinary = runInputs None
+        RunStore.startProvenanced root ordinary.ActorId ordinary |> ignore)
 
     let closeCrashBoundariesAreIdempotent () = linux (fun () -> fixture (fun root manifest ->
         ResearchActivation.beginObservation root manifest |> ignore
@@ -127,11 +177,90 @@ module ResearchActivationTests =
         let second = ResearchActivation.beginObservation root manifest
         if not second.Idempotent || first.ActivationEventHash <> second.ActivationEventHash then failwith "Duplicate begin was not idempotent."))
 
+    let selfAssertedOutcomeAndHypothesisRemainUnknown () = linux (fun () -> fixture (fun root manifest ->
+        ResearchActivation.beginObservation root manifest |> ignore
+        let identity = ResearchGitImport.currentIdentity root
+        let receipt = outcomeClaim root "accepted" "supports" identity.HeadCommit identity.HeadTreeId
+        ResearchActivation.close root observation receipt |> ignore
+        let taskOutcome, hypothesis = observedOutcome root
+        if taskOutcome <> "unknown" || hypothesis <> "unknown" then failwith "Unverified close claims were accepted."))
+
+    let selfAssertedRejectionRemainsUnknown () = linux (fun () -> fixture (fun root manifest ->
+        ResearchActivation.beginObservation root manifest |> ignore
+        let identity = ResearchGitImport.currentIdentity root
+        let receipt = outcomeClaim root "rejected" "contradicts" identity.HeadCommit identity.HeadTreeId
+        ResearchActivation.close root observation receipt |> ignore
+        let taskOutcome, hypothesis = observedOutcome root
+        if taskOutcome <> "unknown" || hypothesis <> "unknown" then failwith "Unverified rejection claim was accepted."))
+
+    let exactLifecycleGateReviewAndAuthorityResolveAcceptance () = linux (fun () -> fixture (fun root manifest ->
+        ResearchActivation.beginObservation root manifest |> ignore
+        let identity = ResearchGitImport.currentIdentity root
+        let runId = startTarget root
+        let taskHash = sha "task"
+        appendTargetEvent root runId "task.implemented" $"{{\"implementationTreeId\":\"{identity.HeadTreeId}\",\"taskManifestSha256\":\"{taskHash}\"}}"
+        appendTargetEvent root runId "task.reviewed" $"{{\"reviewId\":\"REV-001\",\"reviewedTreeId\":\"{identity.HeadTreeId}\",\"verdict\":\"pass\"}}"
+        ResearchCollector.recordVerificationStarted root "G" |> ignore
+        ResearchCollector.recordVerificationFinished root "G" true "{\"valid\":true}" |> ignore
+        appendTargetEvent root runId "task.accepted" $"{{\"acceptedCommit\":\"{identity.HeadCommit}\",\"acceptedTreeId\":\"{identity.HeadTreeId}\",\"authorityClass\":\"project-owner\"}}"
+        let receipt = outcomeClaim root "accepted" "supports" identity.HeadCommit identity.HeadTreeId
+        ResearchActivation.close root observation receipt |> ignore
+        let taskOutcome, hypothesis = observedOutcome root
+        if taskOutcome <> "accepted" || hypothesis <> "unknown" then failwith "Exact accepted lifecycle was not resolved independently of hypothesis."))
+
+    let mismatchedReviewTreeKeepsAcceptanceUnknown () = linux (fun () -> fixture (fun root manifest ->
+        ResearchActivation.beginObservation root manifest |> ignore
+        let identity = ResearchGitImport.currentIdentity root
+        let runId = startTarget root
+        let taskHash = sha "task"
+        appendTargetEvent root runId "task.implemented" $"{{\"implementationTreeId\":\"{identity.HeadTreeId}\",\"taskManifestSha256\":\"{taskHash}\"}}"
+        appendTargetEvent root runId "task.reviewed" "{\"reviewId\":\"REV-002\",\"reviewedTreeId\":\"0000000000000000000000000000000000000000\",\"verdict\":\"pass\"}"
+        ResearchCollector.recordVerificationStarted root "G" |> ignore
+        ResearchCollector.recordVerificationFinished root "G" true "{\"valid\":true}" |> ignore
+        appendTargetEvent root runId "task.accepted" $"{{\"acceptedCommit\":\"{identity.HeadCommit}\",\"acceptedTreeId\":\"{identity.HeadTreeId}\",\"authorityClass\":\"project-owner\"}}"
+        let receipt = outcomeClaim root "accepted" "unknown" identity.HeadCommit identity.HeadTreeId
+        ResearchActivation.close root observation receipt |> ignore
+        if observedOutcome root |> fst <> "unknown" then failwith "Mismatched review tree authorized acceptance."))
+
+    let unrelatedRunReceiptsCannotAuthorizeTargetAcceptance () = linux (fun () -> fixture (fun root manifest ->
+        ResearchActivation.beginObservation root manifest |> ignore
+        let identity = ResearchGitImport.currentIdentity root
+        let ordinary = runInputs None
+        let runId = RunStore.startProvenanced root ordinary.ActorId ordinary
+        let taskHash = sha "task"
+        appendTargetEvent root runId "task.implemented" $"{{\"implementationTreeId\":\"{identity.HeadTreeId}\",\"taskManifestSha256\":\"{taskHash}\"}}"
+        appendTargetEvent root runId "task.reviewed" $"{{\"reviewId\":\"REV-OTHER\",\"reviewedTreeId\":\"{identity.HeadTreeId}\",\"verdict\":\"pass\"}}"
+        ResearchCollector.recordVerificationStarted root "G" |> ignore
+        ResearchCollector.recordVerificationFinished root "G" true "{\"valid\":true}" |> ignore
+        appendTargetEvent root runId "task.accepted" $"{{\"acceptedCommit\":\"{identity.HeadCommit}\",\"acceptedTreeId\":\"{identity.HeadTreeId}\",\"authorityClass\":\"project-owner\"}}"
+        let receipt = outcomeClaim root "accepted" "unknown" identity.HeadCommit identity.HeadTreeId
+        ResearchActivation.close root observation receipt |> ignore
+        if observedOutcome root |> fst <> "unknown" then failwith "An unrelated run authorized the target outcome."))
+
+    let matchingReviewAndRejectionReceiptResolveRejection () = linux (fun () -> fixture (fun root manifest ->
+        ResearchActivation.beginObservation root manifest |> ignore
+        let identity = ResearchGitImport.currentIdentity root
+        let runId = startTarget root
+        appendTargetEvent root runId "task.reviewed" $"{{\"reviewId\":\"REV-003\",\"reviewedTreeId\":\"{identity.HeadTreeId}\",\"verdict\":\"reject\"}}"
+        appendTargetEvent root runId "task.rejected" $"{{\"reasonCode\":\"review-rejected\",\"rejectedTreeId\":\"{identity.HeadTreeId}\",\"reviewId\":\"REV-003\"}}"
+        let receipt = outcomeClaim root "rejected" "contradicts" identity.HeadCommit identity.HeadTreeId
+        ResearchActivation.close root observation receipt |> ignore
+        let taskOutcome, hypothesis = observedOutcome root
+        if taskOutcome <> "rejected" || hypothesis <> "unknown" then failwith "Exact rejected lifecycle was not resolved independently of hypothesis."))
+
     let all =
         [ "T-053 activation crash before marker rename", crashBeforeMarkerRename
           "T-053 activation crash after marker rename", crashAfterMarkerRename
+          "T-053 marker crash followed by target start cannot recover retroactively", crashMarkerThenTargetStartCannotRecoverRetroactively
+          "T-053 shared pre-start guard serializes only the target", sharedGuardSerializesTargetOnly
           "T-053 close crash boundaries are idempotent", closeCrashBoundariesAreIdempotent
           "T-053 close retry after outcome fsync does not duplicate outcome", closeAfterOutcomeCrashDoesNotDuplicateOutcome
           "T-053 close after marker unlink is idempotent", closeAfterMarkerUnlinkIsIdempotent
           "T-053 invalid IDs and source mismatch fail closed", invalidLowercaseObservationAndSourceMismatchFailClosed
-          "T-053 duplicate begin is idempotent", doubleBeginIsIdempotent ]
+          "T-053 duplicate begin is idempotent", doubleBeginIsIdempotent
+          "T-053 self-asserted outcome and hypothesis remain unknown", selfAssertedOutcomeAndHypothesisRemainUnknown
+          "T-053 self-asserted rejection remains unknown", selfAssertedRejectionRemainsUnknown
+          "T-053 exact lifecycle gate review and authority resolve acceptance", exactLifecycleGateReviewAndAuthorityResolveAcceptance
+          "T-053 mismatched review tree keeps acceptance unknown", mismatchedReviewTreeKeepsAcceptanceUnknown
+          "T-053 unrelated run receipts cannot authorize target acceptance", unrelatedRunReceiptsCannotAuthorizeTargetAcceptance
+          "T-053 matching review and rejection receipt resolve rejection", matchingReviewAndRejectionReceiptResolveRejection ]

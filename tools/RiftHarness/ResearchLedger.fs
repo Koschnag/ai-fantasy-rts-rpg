@@ -492,6 +492,92 @@ module ResearchLedger =
                     let range = if minimum = 0L then "non-negative" else "positive"
                     fail "RESEARCH_SCHEMA_INVALID" $"payload.{field} must be a {range} integer or literal 'unknown'."
 
+        let payloadBool field =
+            let value = requireProperty field body.Payload
+            if value.ValueKind <> JsonValueKind.True && value.ValueKind <> JsonValueKind.False then
+                fail "RESEARCH_SCHEMA_INVALID" $"payload.{field} must be Boolean."
+
+        let payloadEnum field allowed =
+            let value = payloadString field
+            if value <> ResearchContract.Unknown && not (Set.contains value allowed) then
+                fail "RESEARCH_SCHEMA_INVALID" $"payload.{field} has an unsupported value '{value}'."
+
+        let payloadTimestamp field =
+            let value = payloadString field
+            if value <> ResearchContract.Unknown then validateTimestamp $"payload.{field}" value |> ignore
+
+        let payloadStringArray field =
+            let value = requireProperty field body.Payload
+            if value.ValueKind <> JsonValueKind.Array then
+                fail "RESEARCH_SCHEMA_INVALID" $"payload.{field} must be an array."
+            value.EnumerateArray()
+            |> Seq.iter (fun item -> if item.ValueKind <> JsonValueKind.String then fail "RESEARCH_SCHEMA_INVALID" $"payload.{field} entries must be strings.")
+
+        // The frozen dictionary is a closed schema.  Presence-only checks made
+        // it possible for a newly-added event family to silently accept an
+        // arbitrary payload; validate the exact field set for every family
+        // before applying its field-specific rules below.
+        exactPayload (Map.find body.EventType ResearchContract.RequiredPayloadFields |> Set.toList)
+
+        let hashFields =
+            set [ "protocolBundleSha256"; "nonInterferenceSnapshotSha256"; "activationGuardSha256"; "policySha256"; "promptSha256"; "toolchainSha256"; "taskManifestSha256"; "evidenceSha256"; "originalLedgerSha256"; "verifiedPrefixSha256"; "tornTailSha256"; "beforeContextSha256"; "summarySha256"; "resumeStateSha256"; "receiptSha256"; "sourceManifestSha256"; "fileInventorySha256"; "dependencyInventorySha256"; "analyzerInventorySha256"; "testInventorySha256"; "decisionActSha256"; "commandDigest"; "resultSha256" ]
+        let objectIdFields =
+            set [ "baselineCommit"; "producedTreeId"; "implementationTreeId"; "reviewedTreeId"; "rejectedTreeId"; "acceptedCommit"; "acceptedTreeId"; "snapshotCommit"; "snapshotTreeId"; "targetTreeId"; "beforeTreeId"; "afterTreeId"; "resultCommit"; "resultTreeId"; "commitId"; "commitTreeId"; "promotedCommit"; "promotedTreeId"; "rollbackCommit"; "fromTreeId"; "toTreeId"; "supersededCommit"; "supersedingCommit"; "milestoneTreeId"; "tagObjectId"; "targetCommit"; "affectedCommit"; "affectedTreeId" ]
+        let nonNegativeFields =
+            set [ "attempt"; "pausedDurationNs"; "startedMonotonicNs"; "completedMonotonicNs"; "durationMs"; "eventCount"; "changedFiles"; "linesAdded"; "linesDeleted" ]
+        let booleanFields = set [ "continuityOnly"; "gateCoupled"; "counted" ]
+        let timestampFields = set [ "freezeAtUtc"; "commitTimeUtc"; "discoveredAtUtc"; "closedAtUtc" ]
+        let arrayFields = set [ "parentCommitIds"; "changedPaths" ]
+        for property in body.Payload.EnumerateObject() do
+            if Set.contains property.Name hashFields then payloadHash property.Name
+            elif Set.contains property.Name objectIdFields then payloadObjectId property.Name
+            elif Set.contains property.Name nonNegativeFields then payloadIntOrUnknown (if property.Name = "attempt" || property.Name = "eventCount" then 1L else 0L) property.Name
+            elif Set.contains property.Name booleanFields then payloadBool property.Name
+            elif Set.contains property.Name timestampFields then payloadTimestamp property.Name
+            elif not (Set.contains property.Name arrayFields) then payloadString property.Name |> ignore
+
+        if body.Payload.TryGetProperty("parentCommitIds") |> fst then payloadStringArray "parentCommitIds"
+
+        if body.Payload.TryGetProperty("changedPaths") |> fst then
+            let paths = parseStringListValue "changedPaths" body.Payload
+            match paths with
+            | ResearchValue.Known known ->
+                known |> List.iter (validateRelativePath "payload.changedPaths[]")
+                if known <> (known |> List.distinct |> List.sortWith (fun left right -> StringComparer.Ordinal.Compare(left, right))) then
+                    fail "RESEARCH_SCHEMA_INVALID" "payload.changedPaths must be ordinal-sorted and deduplicated."
+            | ResearchValue.Unknown -> ()
+
+        if body.Payload.TryGetProperty("parentCommitIds") |> fst then
+            body.Payload.GetProperty("parentCommitIds").EnumerateArray()
+            |> Seq.iter (fun item ->
+                let value = item.GetString()
+                if value <> ResearchContract.Unknown && not (Regex.IsMatch(value, "^[0-9a-f]{40}$|^[0-9a-f]{64}$", RegexOptions.CultureInvariant)) then
+                    fail "RESEARCH_SCHEMA_INVALID" "payload.parentCommitIds entries must be Git object IDs or unknown.")
+
+        for field in [ "triggerEventId"; "verificationEventId"; "resumeFromEventId"; "resumedEventId"; "outcomeEventId" ] do
+            if body.Payload.TryGetProperty(field) |> fst then
+                let value = payloadString field
+                if value <> ResearchContract.Unknown && not (eventIdPattern.IsMatch(value)) then
+                    fail "RESEARCH_SCHEMA_INVALID" $"payload.{field} must be an event ID or unknown."
+        for field in [ "targetTaskId"; "acceptedTaskId" ] do
+            if body.Payload.TryGetProperty(field) |> fst then
+                let value = payloadString field
+                if value <> ResearchContract.Unknown && not (taskIdPattern.IsMatch(value)) then
+                    fail "RESEARCH_SCHEMA_INVALID" $"payload.{field} must be a task ID or unknown."
+
+        if body.Payload.TryGetProperty("verdict") |> fst then
+            payloadEnum "verdict" (set [ "pass"; "needs-work"; "block"; "reject" ])
+        if body.Payload.TryGetProperty("taskOutcome") |> fst then
+            payloadEnum "taskOutcome" (set [ "accepted"; "rejected"; "blocked"; "cancelled" ])
+        if body.Payload.TryGetProperty("hypothesisResult") |> fst then
+            payloadEnum "hypothesisResult" (set [ "supports"; "contradicts"; "inconclusive" ])
+        if body.Payload.TryGetProperty("outcomeClass") |> fst then
+            payloadEnum "outcomeClass" (set [ "fixed"; "not-fixed"; "regressed"; "abandoned" ])
+        if body.Payload.TryGetProperty("fromAutonomyMode") |> fst then
+            payloadEnum "fromAutonomyMode" ResearchContract.AutonomyModes
+        if body.Payload.TryGetProperty("toAutonomyMode") |> fst then
+            payloadEnum "toAutonomyMode" ResearchContract.AutonomyModes
+
         let validateAttemptAndTargetPayload fields identityField =
             exactPayload fields
             payloadIntOrUnknown 1L "attempt"
@@ -526,18 +612,6 @@ module ResearchLedger =
         | "verify.failed" ->
             validateFailedVerificationPayload ()
         | "tool.finished" ->
-            let baseFields = [ "commandDigest"; "completedMonotonicNs"; "resultSha256"; "startedMonotonicNs"; "toolClass" ]
-            let evidenceFields = [ "criterionId"; "kind"; "spanId"; "traceId" ]
-            let actual = body.Payload.EnumerateObject() |> Seq.map (fun property -> property.Name) |> Set.ofSeq
-
-            if actual = Set.ofList baseFields then
-                exactPayload baseFields
-            elif actual = Set.ofList (baseFields @ evidenceFields) then
-                exactPayload (baseFields @ evidenceFields)
-                for field in evidenceFields do payloadString field |> ignore
-            else
-                fail "RESEARCH_SCHEMA_INVALID" "payload fields are invalid for tool.finished."
-
             payloadString "toolClass" |> ignore
             payloadHash "commandDigest"
             payloadIntOrUnknown 0L "startedMonotonicNs"
@@ -626,6 +700,102 @@ module ResearchLedger =
 
     let private shaOrEmpty (bytes: byte array) = Internal.sha256Hex bytes
 
+    /// Validates relations which cannot be decided from a single JSON record.
+    /// It intentionally reads the immutable event stream and never rewrites it.
+    let private validateLifecycle (events: ResearchEvent list) =
+        let payloadString event field =
+            let value = requireProperty field event.Body.Payload
+            if value.ValueKind <> JsonValueKind.String then fail "RESEARCH_LIFECYCLE_INVALID" $"payload.{field} must be a string."
+            value.GetString()
+        let payloadInt event field =
+            let value = requireProperty field event.Body.Payload
+            let mutable number = 0L
+            if value.ValueKind <> JsonValueKind.Number || not (value.TryGetInt64(&number)) then fail "RESEARCH_LIFECYCLE_INVALID" $"payload.{field} must be an integer."
+            number
+        let runs = HashSet<string>(StringComparer.Ordinal)
+        let openRuns = HashSet<string>(StringComparer.Ordinal)
+        let gates = HashSet<string>(StringComparer.Ordinal)
+        let openGates = HashSet<string>(StringComparer.Ordinal)
+        let blocks = HashSet<string>(StringComparer.Ordinal)
+        let openBlocks = HashSet<string>(StringComparer.Ordinal)
+        let repairs = HashSet<string>(StringComparer.Ordinal)
+        let openRepairs = HashSet<string>(StringComparer.Ordinal)
+        let mutable closed = false
+        let mutable outcomeId: string option = None
+        let mutable protocolCount = 0
+        let mutable startCount = 0
+        let mutable closeCount = 0
+        let mutable activityCount = 0
+
+        for event in events do
+            if closed then fail "OBSERVATION_CLOSED" "No event may follow observation.closed."
+            match event.Body.EventType with
+            | "protocol.frozen" -> protocolCount <- protocolCount + 1
+            | "observation.started" ->
+                startCount <- startCount + 1
+                if protocolCount <> 1 then fail "RESEARCH_LIFECYCLE_INVALID" "observation.started requires exactly one prior protocol.frozen."
+            | "activity.state.changed" -> activityCount <- activityCount + 1
+            | "agent.run.started" ->
+                match event.Body.RunId with
+                | ResearchValue.Known runId when runs.Add(runId) -> openRuns.Add(runId) |> ignore
+                | ResearchValue.Known _ -> fail "RESEARCH_LIFECYCLE_INVALID" "agent.run.started duplicates runId."
+                | ResearchValue.Unknown -> ()
+            | "agent.run.finished" ->
+                match event.Body.RunId with
+                | ResearchValue.Known runId when openRuns.Remove(runId) -> ()
+                | ResearchValue.Known _ -> fail "RESEARCH_LIFECYCLE_INVALID" "agent.run.finished has no open matching run."
+                | ResearchValue.Unknown -> ()
+            | "gate.started" ->
+                let key = payloadString event "gateId" + "\u001f" + (payloadInt event "attempt").ToString(CultureInfo.InvariantCulture)
+                if not (gates.Add(key)) || not (openGates.Add(key)) then fail "RESEARCH_LIFECYCLE_INVALID" "gate.started duplicates gateId/attempt."
+            | "gate.finished" ->
+                let key = payloadString event "gateId" + "\u001f" + (payloadInt event "attempt").ToString(CultureInfo.InvariantCulture)
+                if not (openGates.Remove(key)) then fail "RESEARCH_LIFECYCLE_INVALID" "gate.finished has no matching gate.started."
+            | "budget.blocked" | "rate.blocked" | "provider.blocked" | "infrastructure.blocked" ->
+                let blockId = payloadString event "blockId"
+                if not (blocks.Add(blockId)) || not (openBlocks.Add(blockId)) then fail "RESEARCH_LIFECYCLE_INVALID" "blockId is already open or reused."
+            | "block.resolved" ->
+                let blockId = payloadString event "blockId"
+                if not (openBlocks.Remove(blockId)) then fail "RESEARCH_LIFECYCLE_INVALID" "block.resolved has no matching open block."
+            | "repair.attempted" ->
+                let repairId = payloadString event "repairId"
+                if not (repairs.Add(repairId)) || not (openRepairs.Add(repairId)) then fail "RESEARCH_LIFECYCLE_INVALID" "repairId is already open or reused."
+            | "repair.outcome" ->
+                let repairId = payloadString event "repairId"
+                if not (openRepairs.Remove(repairId)) then fail "RESEARCH_LIFECYCLE_INVALID" "repair.outcome has no matching repair.attempted."
+            | "outcome.observed" ->
+                if Option.isSome outcomeId then fail "RESEARCH_LIFECYCLE_INVALID" "Only one outcome.observed is permitted."
+                outcomeId <- Some event.Body.EventId
+            | "observation.closed" ->
+                closeCount <- closeCount + 1
+                if closeCount <> 1 || protocolCount <> 1 || startCount <> 1 || activityCount < 1 || Option.isNone outcomeId then
+                    fail "RESEARCH_LIFECYCLE_INVALID" "Closed observation lacks its required protocol/start/activity/outcome chain."
+                if payloadString event "outcomeEventId" <> Option.get outcomeId then fail "RESEARCH_LIFECYCLE_INVALID" "observation.closed must bind the actual outcome event."
+                if payloadInt event "eventCount" <> event.Sequence then fail "RESEARCH_LIFECYCLE_INVALID" "observation.closed eventCount must equal the final sequence."
+                if openRuns.Count <> 0 || openGates.Count <> 0 || openBlocks.Count <> 0 || openRepairs.Count <> 0 then
+                    fail "RESEARCH_LIFECYCLE_INVALID" "observation.closed cannot leave a run, gate, block, or repair open."
+                closed <- true
+            | _ -> ()
+
+        if protocolCount > 1 || startCount > 1 || closeCount > 1 then fail "RESEARCH_LIFECYCLE_INVALID" "Protocol, start, and close are each singleton events."
+
+    /// A deterministic analytic view.  Superseded records remain in the
+    /// evidence ledger; this projection merely removes records replaced by a
+    /// later, schema-valid event and therefore cannot rewrite history.
+    let effectiveEvents (events: ResearchEvent list) =
+        let byId = events |> List.map (fun event -> event.Body.EventId, event) |> Map.ofList
+        let superseded =
+            events
+            |> List.choose (fun event ->
+                match event.Body.SupersedesEventId with
+                | ResearchValue.Known target ->
+                    match Map.tryFind target byId with
+                    | Some prior when prior.Sequence < event.Sequence && prior.Body.EventType = event.Body.EventType -> Some target
+                    | _ -> None
+                | ResearchValue.Unknown -> None)
+            |> Set.ofList
+        events |> List.filter (fun event -> not (Set.contains event.Body.EventId superseded))
+
     let private verifyBytes (bytes: byte array) =
         let events = ResizeArray<ResearchEvent>()
         let ids = HashSet<string>(StringComparer.Ordinal)
@@ -662,9 +832,12 @@ module ResearchLedger =
                     if not (Internal.isSha256 event.EventHash) || computeHash event <> event.EventHash then fail "RESEARCH_HASH_INVALID" "eventHash mismatch."
 
                     match event.Body.SupersedesEventId with
-                    | ResearchValue.Known superseded when not (ids.Contains(superseded)) ->
-                        fail "RESEARCH_SUPERSESSION_INVALID" "supersedesEventId must refer to an earlier event in the observation."
-                    | _ -> ()
+                    | ResearchValue.Known superseded ->
+                        match events |> Seq.tryFind (fun prior -> prior.Body.EventId = superseded) with
+                        | Some prior when prior.Body.EventType = event.Body.EventType -> ()
+                        | Some _ -> fail "RESEARCH_SUPERSESSION_INVALID" "supersedesEventId must replace the same event type."
+                        | None -> fail "RESEARCH_SUPERSESSION_INVALID" "supersedesEventId must refer to an earlier event in the observation."
+                    | ResearchValue.Unknown -> ()
 
                     if not (ids.Add(event.Body.EventId)) then fail "DUPLICATE_EVENT_ID" $"Duplicate eventId {event.Body.EventId}."
 
@@ -723,6 +896,10 @@ module ResearchLedger =
                     let isFinal = lf = bytes.Length - 1
                     let recoverableTail = isFinal && message.StartsWith("RESEARCH_HASH_INVALID:", StringComparison.Ordinal)
                     error <- Some(recoverableTail, message, offset)
+
+        if Option.isNone error then
+            try validateLifecycle (List.ofSeq events)
+            with HarnessException message -> error <- Some(false, message, verifiedLength)
 
         match error with
         | None -> ResearchLedgerStatus.Valid, [], List.ofSeq events, int64 verifiedLength, None
@@ -787,13 +964,27 @@ module ResearchLedger =
         let redactPaths value =
             match value with
             | ResearchValue.Known paths ->
-                ResearchValue.Known(
-                    paths
-                    |> List.map (fun path ->
-                        let redacted, didChange = ResearchCanonical.redactScalar policy path
-                        changed <- changed || didChange
-                        redacted)
-                )
+                let redacted = paths |> List.map (ResearchCanonical.redactScalar policy)
+                // A path which needed privacy rewriting is no longer a safely
+                // normalized repo-relative path.  The dictionary requires the
+                // whole field to be literal unknown, never a marker-bearing
+                // pseudo-path that could leak its shape or be used as input.
+                if redacted |> List.exists snd then
+                    changed <- true
+                    ResearchValue.Unknown
+                else
+                    ResearchValue.Known(redacted |> List.map fst)
+            | ResearchValue.Unknown -> ResearchValue.Unknown
+
+        let redactProviderIdentifier value =
+            match value with
+            | ResearchValue.Known _ ->
+                // A provider label is often an account, deployment, or billing
+                // handle in disguise.  The public-safe ledger keeps no raw
+                // provider identifier; aggregate provider classes belong in
+                // redacted evidence, not this envelope.
+                changed <- true
+                ResearchValue.Unknown
             | ResearchValue.Unknown -> ResearchValue.Unknown
 
         let sources =
@@ -814,7 +1005,7 @@ module ResearchLedger =
                 CycleId = redactValue draft.CycleId
                 MonotonicClockId = redactValue draft.MonotonicClockId
                 ActorId = redactValue draft.ActorId
-                ProviderId = redactValue draft.ProviderId
+                ProviderId = redactProviderIdentifier draft.ProviderId
                 ModelId = redactValue draft.ModelId
                 ModelVersion = redactValue draft.ModelVersion
                 BranchRef = redactValue draft.BranchRef
@@ -847,6 +1038,7 @@ module ResearchLedger =
         if current.Events |> List.exists (fun event -> event.Body.EventId = draft.EventId) then fail "DUPLICATE_EVENT_ID" $"Duplicate eventId {draft.EventId}."
 
         match List.tryLast current.Events with
+        | Some previous when previous.Body.EventType = "observation.closed" -> fail "OBSERVATION_CLOSED" "A closed observation is append-only complete."
         | Some previous when previous.Body.ObservationId <> body.ObservationId -> fail "RESEARCH_CHAIN_INVALID" "Observation IDs cannot mix in a ledger."
         | Some previous when previous.Body.EvidenceClass <> body.EvidenceClass -> fail "EVIDENCE_CLASS_INVALID" "Evidence classes cannot mix in a ledger."
         | _ -> ()

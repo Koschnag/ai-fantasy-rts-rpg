@@ -144,6 +144,39 @@ module ResearchCanonical =
             TimeSpan.FromMilliseconds(100.0)
         )
 
+    // These are deliberately conservative identifiers rather than network
+    // parsers: a research export must never preserve an address merely because
+    // it was embedded in prose or a URI.
+    let private ipv6Pattern =
+        Regex(
+            "(?i)(?<![A-Z0-9:])(?:[0-9A-F]{1,4}:){2,7}[0-9A-F]{0,4}(?![A-Z0-9:])",
+            // .NET's non-backtracking engine deliberately rejects lookarounds.
+            // This bounded expression keeps its explicit timeout instead.
+            RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(100.0)
+        )
+
+    let private tailnetPattern =
+        Regex(
+            "(?i)\\b[A-Z0-9][A-Z0-9-]*(?:\\.[A-Z0-9][A-Z0-9-]*)*\\.(?:ts\\.net|tailnet)\\b",
+            RegexOptions.CultureInvariant ||| RegexOptions.NonBacktracking,
+            TimeSpan.FromMilliseconds(100.0)
+        )
+
+    let private hostPattern =
+        Regex(
+            "(?i)\\b(?:host(?:name)?|machine|node|server)[=:][^\\s,;]+",
+            RegexOptions.CultureInvariant ||| RegexOptions.NonBacktracking,
+            TimeSpan.FromMilliseconds(100.0)
+        )
+
+    let private accountOrBillingPattern =
+        Regex(
+            "(?i)\\b(?:account|acct|billing|customer|tenant|subscription)[_-]?(?:id|number|token)?[=:][^\\s,;]+",
+            RegexOptions.CultureInvariant ||| RegexOptions.NonBacktracking,
+            TimeSpan.FromMilliseconds(100.0)
+        )
+
     let private absoluteUnixPathPattern =
         Regex(
             "/(?:Users|home)/[^\\s\"']+",
@@ -175,6 +208,10 @@ module ResearchCanonical =
 
         replace emailPattern "[REDACTED:email]"
         replace ipv4Pattern "[REDACTED:ip]"
+        replace ipv6Pattern "[REDACTED:ip]"
+        replace tailnetPattern "[REDACTED:tailnet]"
+        replace hostPattern "[REDACTED:host]"
+        replace accountOrBillingPattern "[REDACTED:account]"
         replace absoluteUnixPathPattern "[REDACTED:path]"
         replace absoluteWindowsPathPattern "[REDACTED:path]"
         result, changed
@@ -192,7 +229,12 @@ module ResearchCanonical =
             for property in properties do
                 writer.WritePropertyName(property.Name)
 
-                if Internal.isSensitivePropertyWithPolicy policy property.Name then
+                if Internal.isSensitivePropertyWithPolicy policy property.Name
+                   || property.Name.Contains("account", StringComparison.OrdinalIgnoreCase)
+                   || property.Name.Contains("billing", StringComparison.OrdinalIgnoreCase)
+                   || property.Name.Contains("hostname", StringComparison.OrdinalIgnoreCase)
+                   || property.Name.Contains("tailnet", StringComparison.OrdinalIgnoreCase)
+                   || String.Equals(property.Name, "providerId", StringComparison.OrdinalIgnoreCase) then
                     writer.WriteStringValue("[REDACTED:secret]")
                     changed <- true
                 else

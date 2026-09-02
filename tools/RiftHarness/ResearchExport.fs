@@ -390,6 +390,17 @@ module ResearchExport =
             Some(File.ReadAllBytes(target))
         | _ -> Internal.fail "EXPORT_SOURCE_INVALID: sourceRef is not exactly resolvable."
 
+    let verifyLedgerSources root (events: ResearchEvent list) =
+        events
+        |> List.mapi (fun index event -> index, event)
+        |> List.iter (fun (index, event) ->
+            let prior = events |> List.take index
+            event.Body.SourceRefs
+            |> List.iter (fun source ->
+                if source.SourceKind <> "fixture" && not source.Resolvable then
+                    Internal.fail "EXPORT_SOURCE_INVALID: non-fixture sourceRef must be resolvable."
+                sourceBytes root prior event.Body.RunId source |> ignore))
+
     let private requireClosedChain (manifest: ResearchStudyManifest) (events: ResearchEvent list) =
         let exactlyOne eventType = events |> List.filter (fun event -> event.Body.EventType = eventType)
         let protocol = exactlyOne "protocol.frozen"
@@ -503,6 +514,9 @@ an authorization to publish data and does not establish a task outcome.
         |> String.concat ""
         |> Constants.Utf8NoBom.GetBytes
 
+    let private publicationBlockBytes =
+        Constants.Utf8NoBom.GetBytes("RAW RESEARCH EXPORT - PUBLICATION BLOCKED\nThis private export contains non-public research evidence and cannot be published.\n")
+
     let export (root: string) (studyManifestPath: string) (outputDirectory: string) =
         let locations = Workspace.requireInitialized root
         let manifest = loadStudyManifest root studyManifestPath
@@ -514,11 +528,7 @@ an authorization to publish data and does not establish a task outcome.
 
         requireClosedChain manifest events
 
-        events
-        |> List.mapi (fun index event -> index, event)
-        |> List.iter (fun (index, event) ->
-            let prior = events |> List.take index
-            event.Body.SourceRefs |> List.iter (fun source -> sourceBytes root prior event.Body.RunId source |> ignore))
+        verifyLedgerSources root events
 
         let checkpoints = boundArchitecture root events
 
@@ -550,10 +560,15 @@ an authorization to publish data and does not establish a task outcome.
               "usage.csv", set [ "agent.run.started"; "agent.run.finished"; "tool.finished"; "model.switched" ] ]
 
         let ledgerBytes = File.ReadAllBytes(ledger)
+        let effectiveBytes =
+            ResearchLedger.effectiveEvents events
+            |> List.collect (fun event -> ResearchLedger.canonicalEventBytes event |> ResearchCanonical.appendLf |> Array.toList)
+            |> List.toArray
 
         let dataFiles: (string * byte array) list =
             [ ("study-manifest.json", manifest.CanonicalBytes)
               ("events.jsonl", ledgerBytes)
+              ("effective-events.jsonl", effectiveBytes)
               ("observations.csv", observationsCsv manifest events)
               ("architecture-trends.csv", architectureTrendsCsv manifest checkpoints)
               ("architecture-files.csv", architectureFilesCsv checkpoints)
@@ -568,7 +583,7 @@ an authorization to publish data and does not establish a task outcome.
         let summary = summaryBytes manifest events.Length evidenceHash
         let summaryHash = Internal.sha256Hex summary
         let report = reportBytes manifest events.Length evidenceHash summaryHash
-        let completeFiles = dataFiles @ [ "evidence-manifest.json", evidenceManifest; "summary.json", summary; "report.md", report ]
+        let completeFiles = dataFiles @ [ "evidence-manifest.json", evidenceManifest; "summary.json", summary; "report.md", report; "PUBLICATION.BLOCKED", publicationBlockBytes ]
         let outer = outerManifestBytes completeFiles
         let finalFiles = completeFiles @ [ "EXPORT.SHA256", outer ]
 
@@ -586,7 +601,19 @@ an authorization to publish data and does not establish a task outcome.
           OuterManifestSha256 = Internal.sha256Hex outer
           FileCount = finalFiles.Length }
 
-    let verifyExport (root: string) (outputDirectory: string) =
+    let private exactObject label fields (element: JsonElement) =
+        if element.ValueKind <> JsonValueKind.Object
+           || (element.EnumerateObject() |> Seq.map (fun property -> property.Name) |> Set.ofSeq) <> Set.ofList fields then
+            Internal.fail $"EXPORT_INVALID: {label} field set is invalid."
+
+    let private canonicalJsonMember path label =
+        let bytes = File.ReadAllBytes(path)
+        let canonical = ResearchCanonical.canonicalizeJson (Constants.Utf8NoBom.GetString(bytes))
+        if canonical <> bytes then Internal.fail $"EXPORT_INVALID: {label} is not canonical JSON."
+        use document = JsonDocument.Parse(bytes)
+        document.RootElement.Clone()
+
+    let verifyExportWithExpectedReceipt (root: string) (outputDirectory: string) (expectedOuterSha256: string option) =
         let locations = Workspace.requireInitialized root
         let output = Workspace.requireSafePath locations "Research export directory" false (workspacePath root outputDirectory)
         let outerPath = Path.Combine(output, "EXPORT.SHA256")
@@ -612,6 +639,11 @@ an authorization to publish data and does not establish a task outcome.
             if not (File.Exists(target)) || Internal.sha256File target <> expected then
                 Internal.fail $"EXPORT_HASH_INVALID: {path}."
 
+        let listedPaths = lines |> Array.map (fun line -> line.Substring(66)) |> Array.toList
+
+        if listedPaths <> (listedPaths |> List.sortWith (fun left right -> StringComparer.Ordinal.Compare(left, right))) then
+            Internal.fail "EXPORT_INVALID: EXPORT.SHA256 is not ordinal-sorted."
+
         let actualFiles =
             Directory.EnumerateFiles(output, "*", SearchOption.AllDirectories)
             |> Seq.map (fun path -> Path.GetRelativePath(output, path).Replace('\\', '/'))
@@ -622,4 +654,75 @@ an authorization to publish data and does not establish a task outcome.
         if actualFiles <> expectedFiles then
             Internal.fail "EXPORT_INVALID: exported file set differs from EXPORT.SHA256."
 
-        Internal.sha256File outerPath
+        let requiredMembers = set [ "study-manifest.json"; "events.jsonl"; "effective-events.jsonl"; "evidence-manifest.json"; "summary.json"; "report.md"; "PUBLICATION.BLOCKED" ]
+        if not (Set.isSubset requiredMembers (Set.ofSeq seen)) then Internal.fail "EXPORT_INVALID: required layered export members are missing."
+        if File.ReadAllBytes(Path.Combine(output, "PUBLICATION.BLOCKED")) <> publicationBlockBytes then
+            Internal.fail "EXPORT_INVALID: raw export publication block is missing or altered."
+
+        let manifest = loadStudyManifest root (Path.Combine(output, "study-manifest.json"))
+        let evidencePath = Path.Combine(output, "evidence-manifest.json")
+        let evidence = canonicalJsonMember evidencePath "evidence manifest"
+        exactObject "evidence manifest" [ "files"; "schemaVersion" ] evidence
+        if evidence.GetProperty("schemaVersion").GetInt32() <> 1 then Internal.fail "EXPORT_INVALID: evidence manifest schemaVersion is invalid."
+        let entries =
+            evidence.GetProperty("files").EnumerateArray()
+            |> Seq.map (fun entry ->
+                exactObject "evidence manifest entry" [ "bytes"; "path"; "sha256" ] entry
+                let path, hash, count = entry.GetProperty("path").GetString(), entry.GetProperty("sha256").GetString(), entry.GetProperty("bytes").GetInt64()
+                if not (Internal.isSha256 hash) || count < 0L then Internal.fail "EXPORT_INVALID: evidence manifest entry is malformed."
+                path, hash, count)
+            |> Seq.toList
+        if entries <> (entries |> List.sortBy (fun (path, _, _) -> path)) then Internal.fail "EXPORT_INVALID: evidence manifest is not ordered."
+        let evidencePaths = entries |> List.map (fun (path, _, _) -> path) |> Set.ofList
+        let expectedEvidencePaths =
+            seen
+            |> Set.ofSeq
+            |> Set.remove "evidence-manifest.json"
+            |> Set.remove "summary.json"
+            |> Set.remove "report.md"
+            |> Set.remove "PUBLICATION.BLOCKED"
+        if evidencePaths.Count <> entries.Length || evidencePaths <> expectedEvidencePaths then
+            Internal.fail "EXPORT_INVALID: evidence manifest member set is incomplete or duplicated."
+        for path, hash, count in entries do
+            let memberPath = Workspace.requireSafePath locations "Evidence manifest member" false (Path.Combine(output, path))
+            if not (File.Exists(memberPath)) || FileInfo(memberPath).Length <> count || Internal.sha256File memberPath <> hash then
+                Internal.fail $"EXPORT_HASH_INVALID: evidence member {path}."
+        let evidenceHash = Internal.sha256File evidencePath
+
+        let summaryPath = Path.Combine(output, "summary.json")
+        let summary = canonicalJsonMember summaryPath "summary"
+        exactObject "summary" [ "baselineCommit"; "evidenceManifestSha256"; "headCommit"; "inputTreeId"; "observationId"; "observedEventCount"; "protocolVersion"; "resultTreeId"; "studyId" ] summary
+        if summary.GetProperty("evidenceManifestSha256").GetString() <> evidenceHash
+           || summary.GetProperty("studyId").GetString() <> manifest.StudyId
+           || summary.GetProperty("observationId").GetString() <> manifest.ObservationId then
+            Internal.fail "EXPORT_INVALID: summary binding is invalid."
+
+        let ledger = ResearchLedger.ledgerPath root manifest.ObservationId
+        let eventPath = Path.Combine(output, "events.jsonl")
+        if not (File.Exists(ledger)) || File.ReadAllBytes(eventPath) <> File.ReadAllBytes(ledger) then
+            Internal.fail "EXPORT_INVALID: events.jsonl is not bound to the authoritative ledger."
+        let events = ResearchLedger.readVerified root ledger
+        requireClosedChain manifest events
+        verifyLedgerSources root events
+        if summary.GetProperty("observedEventCount").GetInt32() <> events.Length then Internal.fail "EXPORT_INVALID: summary event count is invalid."
+        let effective =
+            ResearchLedger.effectiveEvents events
+            |> List.collect (fun event -> ResearchLedger.canonicalEventBytes event |> ResearchCanonical.appendLf |> Array.toList)
+            |> List.toArray
+        if File.ReadAllBytes(Path.Combine(output, "effective-events.jsonl")) <> effective then Internal.fail "EXPORT_INVALID: effective event view is not bound to the ledger."
+        let report = Constants.Utf8NoBom.GetString(File.ReadAllBytes(Path.Combine(output, "report.md")))
+        let summaryHash = Internal.sha256File summaryPath
+        if not (report.Contains($"Study: `{manifest.StudyId}`", StringComparison.Ordinal)
+                && report.Contains($"Observation: `{manifest.ObservationId}`", StringComparison.Ordinal)
+                && report.Contains($"Evidence manifest SHA-256: `{evidenceHash}`", StringComparison.Ordinal)
+                && report.Contains($"Summary SHA-256: `{summaryHash}`", StringComparison.Ordinal)) then
+            Internal.fail "EXPORT_INVALID: report bindings are invalid."
+
+        let outerHash = Internal.sha256File outerPath
+        match expectedOuterSha256 with
+        | Some expected when not (Internal.isSha256 expected) || expected <> outerHash -> Internal.fail "EXPORT_RECEIPT_MISMATCH: independently supplied export receipt does not match."
+        | _ -> ()
+        outerHash
+
+    let verifyExport (root: string) (outputDirectory: string) =
+        verifyExportWithExpectedReceipt root outputDirectory None

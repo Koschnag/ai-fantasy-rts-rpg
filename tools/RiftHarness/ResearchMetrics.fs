@@ -108,7 +108,10 @@ module ResearchMetrics =
         if denominator = 0L then
             None
         else
-            Some((decimal numerator / decimal denominator).ToString("0.############################", CultureInfo.InvariantCulture))
+            // The frozen metric contract uses six decimal places and midpoint
+            // values must round away from zero.  Never let the host culture or
+            // Decimal's default bankers rounding leak into an export.
+            Some((Decimal.Round(decimal numerator / decimal denominator, 6, MidpointRounding.AwayFromZero)).ToString("0.000000", CultureInfo.InvariantCulture))
 
     let private payloadString (name: string) (event: ResearchEvent) =
         match event.Body.Payload.TryGetProperty(name) with
@@ -193,6 +196,18 @@ module ResearchMetrics =
             if ordered.Length % 2 = 1 then Some ordered[middle]
             else Some((ordered[middle - 1] + ordered[middle]) / 2L)
 
+    let private unionDuration (intervals: (int64 * int64) list) =
+        let rec collect currentStart currentEnd remaining total =
+            match remaining with
+            | [] -> total + currentEnd - currentStart
+            | (startNs, endNs) :: tail when startNs <= currentEnd ->
+                collect currentStart (max currentEnd endNs) tail total
+            | (startNs, endNs) :: tail ->
+                collect startNs endNs tail (total + currentEnd - currentStart)
+        match intervals |> List.sortBy fst with
+        | [] -> 0L
+        | (startNs, endNs) :: tail -> collect startNs endNs tail 0L
+
     let private pairedTaskMedian startType endType (events: ResearchEvent list) =
         let taskEvents (eventType: string) (sourceEvents: ResearchEvent list) =
             sourceEvents
@@ -211,10 +226,41 @@ module ResearchMetrics =
                 | _ -> None)
         if values.Length = starts.Count && starts.Count = ends.Count && not (List.isEmpty values) then median values else None
 
-    let private payloadInt64 name event =
-        match payloadString name event with
-        | Some text -> match Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture) with | true, value -> Some value | _ -> None
-        | None -> None
+    let private payloadInt64 (name: string) (event: ResearchEvent) =
+        match event.Body.Payload.TryGetProperty(name) with
+        | true, value when value.ValueKind = JsonValueKind.Number ->
+            match value.TryGetInt64() with | true, number -> Some number | _ -> None
+        | true, value when value.ValueKind = JsonValueKind.String ->
+            match Int64.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture) with | true, number -> Some number | _ -> None
+        | _ -> None
+
+    let private fullyBoundedToolDuration (events: ResearchEvent list) =
+        let tools = events |> List.filter (fun event -> event.Body.EventType = "tool.finished")
+        if List.isEmpty tools then None
+        else
+            let intervals = tools |> List.map (fun event ->
+                match payloadInt64 "startedMonotonicNs" event, payloadInt64 "completedMonotonicNs" event, ResearchValue.toOption event.Body.MonotonicClockId with
+                | Some startNs, Some endNs, Some clock when endNs >= startNs -> Some(clock, startNs, endNs)
+                | _ -> None)
+            if intervals |> List.exists Option.isNone then None
+            else
+                let known = intervals |> List.choose id
+                if (known |> List.map (fun (clock, _, _) -> clock) |> Set.ofList).Count <> 1 then None
+                else Some(unionDuration (known |> List.map (fun (_, startNs, endNs) -> startNs, endNs)) / 1_000_000L)
+
+    let private pairedGateAttempts (events: ResearchEvent list) =
+        let gateEvents eventType =
+            events |> List.filter (fun event -> event.Body.EventType = eventType) |> List.map (fun event ->
+                match payloadString "gateId" event, payloadInt64 "attempt" event, payloadString "targetTreeId" event with
+                | Some gateId, Some attempt, Some tree when attempt >= 1L && tree <> ResearchContract.Unknown -> Some((gateId, attempt, tree), event)
+                | _ -> None)
+        let starts, finishes = gateEvents "gate.started", gateEvents "gate.finished"
+        if starts |> List.exists Option.isNone || finishes |> List.exists Option.isNone then None
+        else
+            let startMap = starts |> List.choose id |> List.groupBy fst |> Map.ofList
+            let finishMap = finishes |> List.choose id |> List.groupBy fst |> Map.ofList
+            if startMap.Count <> finishMap.Count || startMap |> Map.exists (fun key values -> values.Length <> 1 || not (finishMap.ContainsKey key) || finishMap[key].Length <> 1) then None
+            else Some(startMap |> Map.toList |> List.map (fun (key, values) -> key, values.Head |> snd, finishMap[key].Head |> snd))
 
     let private allKnownSum selector (events: ResearchEvent list) =
         let selected = events |> List.choose selector
@@ -541,7 +587,84 @@ module ResearchMetrics =
                 setKnown "MILESTONES-PER-DAY" (milestonesPerDay.ToString("0.############################", CultureInfo.InvariantCulture)) rows
         | _ -> ()
 
-        rows["OBS-UNKNOWN-RATE"] <- known evidenceClass "OBS-UNKNOWN-RATE" "0"
+        // Conformance pass.  The compact event envelope deliberately does not
+        // carry every denominator/follow-up registry from METRICS.md.  Clear
+        // every earlier convenience result which was based on an event count
+        // rather than the contract's bound fact table, then add only facts the
+        // envelope can prove.
+        let failClosed metricId reason = rows[metricId] <- unknown evidenceClass metricId reason
+        [ "GATE-ATTEMPTS-TOTAL"; "GATE-FAILED-ATTEMPTS"; "GATE-BLOCKED-ATTEMPTS"
+          "GATE-FIRST-PASS-ATTEMPTS"; "GATE-COVERAGE"; "GATE-PASS-COVERAGE"
+          "REPAIR-CYCLES"; "REPAIR-ATTEMPTED"; "REPAIR-FIXED"; "REPAIR-SUCCESS-RATE"; "REPAIR-ATTEMPTS-PER-FIX"
+          "WIP-SNAPSHOTS"; "WIP-DISTINCT-TREES"; "WIP-SNAPSHOT-PER-ACCEPTED"
+          "GIT-COMMITS"; "GIT-DISTINCT-TREES"; "GIT-PROMOTIONS"; "GIT-ROLLBACKS"; "GIT-SUPERSESSIONS"
+          "ROUTING-DECISIONS"; "MODEL-SWITCHES"; "MODEL-SWITCHES-PER-RUN"
+          "USE-REQUESTS"; "USE-INPUT-TOKENS"; "USE-OUTPUT-TOKENS"; "USE-CACHE-READ-TOKENS"; "USE-CACHE-WRITE-TOKENS"
+          "USE-TOKENS-TOTAL"; "USE-TOKENS-PER-ACCEPTED"; "ACCEPTED-PER-1M-TOKENS"
+          "USE-COST-AMOUNT"; "USE-COST-ESTIMATED-AMOUNT"; "USE-COST-PER-ACCEPTED"; "USE-COST-PER-FIX"
+          "HUMAN-ACTIVE-MINUTES"; "HUMAN-MINUTES-PER-ACCEPTED"
+          "AUTO-INSTANCES"; "FAIL-BUILD"; "FAIL-TEST"; "FAIL-LINT"; "FAIL-SECURITY"; "FAIL-VERIFY"; "FAIL-UNIQUE-CLASSES"
+          "CONTEXT-COMPACTIONS"; "RUN-RESUMES"; "RUN-FINISH-RATE"; "TASK-READY-TO-ACCEPT-RATE"; "TASK-REJECTION-RATE"
+          "ROLLBACK-PER-PROMOTION"; "FILES-PER-ACCEPTED"; "LINES-PER-ACCEPTED"; "TASK-READY-TO-ACCEPTED-MS"
+          "REVIEW-FIRST-PASS-RATE"; "OUTCOME-MILESTONES"; "OUTCOME-TAGS"; "ACCEPTED-OUTCOMES-PER-DAY"; "MILESTONES-PER-DAY"
+          "MODE-AUTONOMOUS-MS"; "MODE-HUMAN-DIRECTED-MS"; "ACTIVITY-AGENT-ACTIVE-MS"; "ACTIVITY-IDLE-MS"
+          "ACTIVITY-SLEEPING-MS"; "ACTIVITY-BLOCKED-MS"; "ACTIVITY-OFFLINE-MS"; "ACTIVITY-AGENT-ACTIVE-RATIO"
+          "INT-OPEN"; "INT-CLOSED-ACTIVE-MS"; "INT-RATE-PER-HOUR" ]
+        |> List.iter (fun metricId -> failClosed metricId "source-unresolvable")
+
+        // A gate attempt is a pair, keyed by immutable gate, attempt and tree;
+        // neither an orphan start nor an orphan finish is an attempt.
+        match pairedGateAttempts events with
+        | Some attempts when complete || not (List.isEmpty attempts) ->
+            setKnown "GATE-ATTEMPTS-TOTAL" (attempts.Length |> int64 |> invariantInt) rows
+            let finishedWith result = attempts |> List.filter (fun (_, _, finished) -> finished.Body.Result = ResearchValue.Known result) |> List.length |> int64
+            setKnown "GATE-FAILED-ATTEMPTS" (finishedWith "fail" |> invariantInt) rows
+            setKnown "GATE-BLOCKED-ATTEMPTS" (finishedWith "blocked" |> invariantInt) rows
+        | Some _ -> ()
+        | None -> ()
+
+        // Intervention effects are deduplicated by decision act, not by the
+        // lifecycle marker.  A missing/duplicate decision binding is unknown.
+        let interventionFacts =
+            events
+            |> List.filter (fun event -> event.Body.EventType = "research.intervention.started" || event.Body.EventType = "research.intervention.recorded")
+            |> List.map (fun event ->
+                match payloadString "interventionId" event, payloadString "decisionActSha256" event, payloadString "category" event, payloadBool "counted" event with
+                | Some interventionId, Some decision, Some category, Some counted when decision <> ResearchContract.Unknown -> Some(interventionId, decision, category, counted)
+                | _ -> None)
+        if not (List.isEmpty interventionFacts) && not (interventionFacts |> List.exists Option.isNone) then
+            let facts = interventionFacts |> List.choose id
+            let decisions = facts |> List.groupBy (fun (_, decision, _, _) -> decision)
+            if decisions |> List.forall (fun (_, values) -> values |> List.forall (fun (_, _, category, counted) -> category = (values.Head |> fun (_, _, value, _) -> value) && counted = (values.Head |> fun (_, _, _, value) -> value))) then
+                let counted = decisions |> List.filter (fun (_, values) -> values.Head |> fun (_, _, _, value) -> value)
+                setKnown "INT-COUNT" (counted.Length |> int64 |> invariantInt) rows
+                let categories =
+                    [ "I1-clarification", "INT-I1-CLARIFICATION"; "I2-scope-criteria-change", "INT-I2-SCOPE-CRITERIA-CHANGE"; "I3-technical-direction", "INT-I3-TECHNICAL-DIRECTION"; "I4-domain-decision", "INT-I4-DOMAIN-DECISION"; "I5-priority-change", "INT-I5-PRIORITY-CHANGE"; "I6-defect-report", "INT-I6-DEFECT-REPORT"; "I7-technical-unblock", "INT-I7-TECHNICAL-UNBLOCK"; "I8-infrastructure", "INT-I8-INFRASTRUCTURE"; "I9-review-promotion", "INT-I9-REVIEW-PROMOTION"; "I10-emergency-stop", "INT-I10-EMERGENCY-STOP"; "I11-other", "INT-I11-OTHER" ]
+                for category, metricId in categories do
+                    setKnown metricId (counted |> List.filter (fun (_, values) -> values.Head |> fun (_, _, value, _) -> value = category) |> List.length |> int64 |> invariantInt) rows
+                setKnown "INT-UNKNOWN" (counted |> List.filter (fun (_, values) -> values.Head |> fun (_, _, value, _) -> value = ResearchContract.Unknown) |> List.length |> int64 |> invariantInt) rows
+                setKnown "INT-I0-OBSERVATION" (decisions |> List.filter (fun (_, values) -> values.Head |> fun (_, _, value, counted) -> value = "I0-observation-no-intervention" && not counted) |> List.length |> int64 |> invariantInt) rows
+            else failClosed "INT-COUNT" "invalid-input"
+
+        // Tool work is the union of independently bounded intervals.  It is
+        // never inferred from event wall clock or from an activity gap.
+        match fullyBoundedToolDuration events with
+        | Some value ->
+            setKnown "TOOL-ACTIVE-MS" (invariantInt value) rows
+            match rows["TIME-TO-OUTCOME-MS"].Value with
+            | valueText when valueText <> ResearchContract.Unknown ->
+                match Int64.TryParse(valueText, NumberStyles.Integer, CultureInfo.InvariantCulture) with
+                | true, outcomeMs when outcomeMs >= value -> setKnown "WAIT-MS" (invariantInt (outcomeMs - value)) rows
+                | _ -> failClosed "WAIT-MS" "invalid-input"
+            | _ -> ()
+        | None -> failClosed "TOOL-ACTIVE-MS" "source-unresolvable"
+
+        // Provider field semantics do not include request identities in v1's
+        // compact event envelope.  Therefore token/request/cost aggregates are
+        // intentionally unknown here; calculateWithArchitecture/export may add
+        // only independently verified receipt tables.
+
+        rows["OBS-UNKNOWN-RATE"] <- known evidenceClass "OBS-UNKNOWN-RATE" "0.000000"
         let ordered = metricIds |> List.map (fun metricId -> rows[metricId])
         let unknownCount = ordered |> List.filter (fun row -> row.Value = ResearchContract.Unknown) |> List.length |> int64
         let unknownRate = invariantRatio unknownCount (int64 ordered.Length) |> Option.defaultValue ResearchContract.Unknown
@@ -596,8 +719,47 @@ module ResearchMetrics =
         elif accepted |> List.exists (fun (task, tree) -> checkpoints |> List.filter (fun checkpoint -> checkpoint.AcceptedTaskId = task && checkpoint.AcceptedTreeId = tree && not checkpoint.GateCoupled) |> List.length <> 1) then unknown "ARCH-ACCEPTED-CHECKPOINT-COVERAGE" "source-missing"
         else set "ARCH-ACCEPTED-CHECKPOINT-COVERAGE" "1"
 
+        // Checkpoint aggregates are meaningful only for one unambiguous
+        // accepted task/tree binding.  Combining arbitrary checkpoints turns
+        // diagnostic rows into invented change facts.
+        let boundCheckpoints =
+            match accepted with
+            | [ task, tree ] ->
+                match checkpoints |> List.filter (fun checkpoint -> checkpoint.AcceptedTaskId = task && checkpoint.AcceptedTreeId = tree && not checkpoint.GateCoupled) with
+                | [ checkpoint ] -> Some [ checkpoint ]
+                | _ -> None
+            | _ -> None
+        match boundCheckpoints with
+        | None -> architectureIds |> List.iter (fun id -> if id <> "ARCH-ACCEPTED-CHECKPOINT-COVERAGE" then unknown id "source-unresolvable")
+        | Some bound ->
+            let production = bound |> List.collect (fun checkpoint -> checkpoint.FileRows |> List.filter (fun row -> row.FileClass = "production"))
+            let tests = bound |> List.collect (fun checkpoint -> checkpoint.FileRows |> List.filter (fun row -> row.FileClass = "test"))
+            let sum selector values =
+                let values = values |> List.map (selector >> integer)
+                if List.isEmpty values || values |> List.exists Option.isNone then None else Some(values |> List.choose id |> List.sum)
+            // Inventory rows do not retain an immutable changed-path marker;
+            // a line delta of zero is not proof that a file was unchanged.
+            // Do not convert inventory cardinality into change cardinality.
+            unknown "ARCH-PRODUCTION-FILES" "source-unresolvable"
+            unknown "ARCH-MODULES-TOUCHED" "source-unresolvable"
+            unknown "ARCH-CROSS-MODULE" "source-unresolvable"
+            set "ARCH-REF-EDGES-ADDED" (bound |> List.sumBy (fun checkpoint -> checkpoint.DependencyRows |> List.filter (fun row -> row.Change = "added") |> List.length) |> int64 |> invariantInt)
+            set "ARCH-REF-EDGES-REMOVED" (bound |> List.sumBy (fun checkpoint -> checkpoint.DependencyRows |> List.filter (fun row -> row.Change = "removed") |> List.length) |> int64 |> invariantInt)
+            set "ARCH-BOUNDARY-VIOLATIONS" (bound |> List.collect (fun checkpoint -> checkpoint.ConfirmedFindingIds) |> Set.ofList |> Set.count |> int64 |> invariantInt)
+            match sum (fun (row: ArchitectureFileRow) -> row.Lines) production with | Some value -> set "ARCH-PRODUCTION-LINES" (invariantInt value) | None -> unknown "ARCH-PRODUCTION-LINES" "source-unresolvable"
+            match sum (fun (row: ArchitectureFileRow) -> row.Lines) tests with | Some value -> set "ARCH-TEST-LINES" (invariantInt value) | None -> unknown "ARCH-TEST-LINES" "source-unresolvable"
+            match sum (fun (row: ArchitectureFileRow) -> row.AnalyzerWarnings) (production @ tests) with | Some value -> set "ARCH-ANALYZER-WARNINGS" (invariantInt value) | None -> unknown "ARCH-ANALYZER-WARNINGS" "source-unresolvable"
+            let deltas = production |> List.map (fun row -> integer row.LineDelta)
+            let special = production |> List.filter (fun row -> Set.contains row.Component (Set.ofList [ "CommandLoopRunner"; "CommandReportSchema"; "SessionEngine" ])) |> List.map (fun row -> integer row.LineDelta)
+            if deltas |> List.exists Option.isNone || special |> List.exists Option.isNone then unknown "ARCH-INTEGRATION-CONCENTRATION" "source-unresolvable"
+            else
+                let denominator = deltas |> List.choose id |> List.sumBy abs
+                if denominator = 0L then unknown "ARCH-INTEGRATION-CONCENTRATION" "not-applicable"
+                else set "ARCH-INTEGRATION-CONCENTRATION" ((Decimal.Round(decimal (special |> List.choose id |> List.sumBy abs) / decimal denominator, 6, MidpointRounding.AwayFromZero)).ToString("0.000000", CultureInfo.InvariantCulture))
+
         let dynamicArchitectureRows =
-            let production = checkpoints |> List.collect (fun checkpoint -> checkpoint.FileRows |> List.filter (fun row -> row.FileClass = "production"))
+            let selected = boundCheckpoints |> Option.defaultValue []
+            let production = selected |> List.collect (fun checkpoint -> checkpoint.FileRows |> List.filter (fun row -> row.FileClass = "production"))
             let components = production |> List.map (fun row -> row.Component) |> Set.ofList |> Set.toList |> List.sort
             let totalLines = production |> List.map (fun row -> integer row.Lines)
             let total = if totalLines |> List.exists Option.isNone then None else Some(totalLines |> List.choose id |> List.sum)
@@ -606,7 +768,7 @@ module ResearchMetrics =
                 let lines = production |> List.filter (fun row -> row.Component = componentId) |> List.map (fun row -> integer row.Lines)
                 let share =
                     if lines |> List.exists Option.isNone then ResearchContract.Unknown, "source-missing"
-                    else match total with | Some denominator when denominator > 0L -> (decimal (lines |> List.choose id |> List.sum) / decimal denominator).ToString("0.############################", CultureInfo.InvariantCulture), "observed" | _ -> ResearchContract.Unknown, "not-applicable"
+                    else match total with | Some denominator when denominator > 0L -> (Decimal.Round(decimal (lines |> List.choose id |> List.sum) / decimal denominator, 6, MidpointRounding.AwayFromZero)).ToString("0.000000", CultureInfo.InvariantCulture), "observed" | _ -> ResearchContract.Unknown, "not-applicable"
                 [ { MetricId = "ARCH-COMPONENT-SHARE:" + componentId; Value = fst share; Unit = "ratio"; AvailabilityReason = snd share; EvidenceClass = evidence }
                   { MetricId = "ARCH-COMPLEXITY:" + componentId; Value = ResearchContract.Unknown; Unit = "method"; AvailabilityReason = "source-missing"; EvidenceClass = evidence } ])
         rows @ dynamicArchitectureRows

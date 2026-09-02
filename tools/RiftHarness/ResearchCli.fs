@@ -183,6 +183,9 @@ module ResearchCli =
                     let draft = ResearchRuntime.createDraft manifest identity "ledger.recovery.recorded" [ source ] payload
                     ResearchLedger.recoverTo root ledger destination draft
 
+            if result.Status = ResearchLedgerStatus.Valid then
+                ResearchExport.verifyLedgerSources root result.Events
+
             let baseStatus = ResearchActivation.status root (Some manifest.ObservationId)
             let status =
                 { baseStatus with
@@ -215,6 +218,7 @@ module ResearchCli =
             0
         | "summarize" :: rest ->
             let exportManifest, rest = requireOption "--export-manifest" rest
+            let expectedReceipt, rest = takeOption "--expected-export-sha256" rest
             let output, rest = requireOption "--output" rest
             noArguments "research summarize" rest
             let locations = Workspace.requireInitialized root
@@ -224,7 +228,7 @@ module ResearchCli =
                 Internal.fail "EXPORT_INVALID: --export-manifest must name EXPORT.SHA256."
 
             let exportDirectory = Path.GetDirectoryName(manifestPath)
-            let outerHash = ResearchExport.verifyExport root exportDirectory
+            let outerHash = ResearchExport.verifyExportWithExpectedReceipt root exportDirectory expectedReceipt
             let reportPath = Path.Combine(exportDirectory, "report.md")
             let reportBytes = File.ReadAllBytes(reportPath)
             let relative, reportHash = writeFreshFile root "Research summary" output reportBytes

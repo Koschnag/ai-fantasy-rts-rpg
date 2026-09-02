@@ -50,6 +50,32 @@ type RunMetadata =
 module RunStore =
     let private terminalStatuses = set [ "succeeded"; "failed"; "cancelled" ]
 
+    [<Literal>]
+    let private prospectiveTargetTaskId = "T-042"
+
+    let private prospectiveStartGuardPath root =
+        Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", ".prospective-start.lock")
+
+    /// Serializes the pre-start decision for the preregistered prospective
+    /// target with research activation. This guard is always the outer lock;
+    /// ResearchActivation may acquire its activation/ledger locks only while
+    /// holding it. Ordinary runs deliberately never acquire this lock.
+    let withProspectiveStartGuard root action =
+        let locations = Workspace.requireInitialized root
+        let path = Workspace.requireSafePath locations "Prospective target start guard" true (prospectiveStartGuardPath root)
+        Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
+
+        let stream =
+            try
+                new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.WriteThrough)
+            with :? IOException as error ->
+                Internal.fail $"CONCURRENT_WRITER: prospective target start is already being decided: {error.Message}"
+
+        try
+            action ()
+        finally
+            stream.Dispose()
+
     let private validateObjectFields
         (description: string)
         (allowed: Set<string>)
@@ -547,7 +573,7 @@ module RunStore =
 
     /// Startet einen Lauf mit vollstaendiger Start-Provenienz (T-004):
     /// erweitertes Manifest, work-/evidence-Verzeichnisse und erstes run.started-Ereignis.
-    let startProvenancedAt root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
+    let private startProvenancedAtLocked root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
         if
             String.IsNullOrWhiteSpace(actorId)
             || actorId <> actorId.Trim()
@@ -610,6 +636,15 @@ module RunStore =
         |> ignore
 
         runId
+
+    let startProvenancedAt root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
+        match inputs.TaskId with
+        | Some taskId when String.Equals(taskId, prospectiveTargetTaskId, StringComparison.Ordinal) ->
+            withProspectiveStartGuard root (fun () -> startProvenancedAtLocked root actorId inputs nowUtc)
+        | _ ->
+            // Non-target runs remain independent of T-053 activation and can
+            // start even while the prospective guard is held.
+            startProvenancedAtLocked root actorId inputs nowUtc
 
     let startProvenanced root actorId inputs =
         startProvenancedAt root actorId inputs (DateTimeOffset.UtcNow)
