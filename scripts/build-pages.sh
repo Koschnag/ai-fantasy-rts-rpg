@@ -58,12 +58,14 @@ pages_status_args=(
   --output "$pages_status_temp"
   --branch "$pages_branch"
 )
+if [[ -z "${PAGES_TRUSTED_BUILD_AT:-}" ]]; then
+  printf 'PAGES_TRUSTED_BUILD_AT muss eine vertrauenswürdige aktuelle Zeit liefern.\n' >&2
+  exit 2
+fi
 if [[ -n "${PAGES_PUBLIC_MAIN_COMMIT:-}" ]]; then
   pages_status_args+=(--public-main-commit "$PAGES_PUBLIC_MAIN_COMMIT")
 fi
-if [[ -n "${PAGES_TRUSTED_BUILD_AT:-}" ]]; then
-  pages_status_args+=(--trusted-build-at "$PAGES_TRUSTED_BUILD_AT")
-fi
+pages_status_args+=(--trusted-build-at "$PAGES_TRUSTED_BUILD_AT")
 if [[ -n "${PAGES_WIP_COMMIT:-}" || -n "${PAGES_WIP_COMMITTED_AT:-}" ]]; then
   pages_status_args+=(--wip-commit "${PAGES_WIP_COMMIT:-}" --wip-committed-at "${PAGES_WIP_COMMITTED_AT:-}")
 fi
@@ -110,7 +112,7 @@ for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_fi
 manifest.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 PY
 
-python3 "$pages_root/scripts/test-pages.py" --source "$pages_root/docs/showcase" --built "$pages_stage"
+python3 "$pages_root/scripts/test-pages.py" --source "$pages_root/docs/showcase" --built "$pages_stage" --trusted-current-time "$PAGES_TRUSTED_BUILD_AT"
 
 if [[ -d "$pages_output" ]]; then
   rmdir -- "$pages_output"

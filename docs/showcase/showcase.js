@@ -44,6 +44,10 @@ const branchName = /^[A-Za-z0-9._/-]{1,200}$/;
 const isoTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const earliestTrustedTimestamp = Date.parse("2021-01-01T00:00:00Z");
 const freshnessMaxAgeSeconds = 7 * 24 * 60 * 60;
+const trustedCurrentTime = () => {
+  const injected = globalThis.__RIFTWARD_TRUSTED_NOW__;
+  return Number.isFinite(injected) ? injected : Date.now();
+};
 
 function exactFields(value, fields) {
   return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === fields.length && fields.every((field) => Object.hasOwn(value, field));
@@ -73,7 +77,8 @@ function validateStatus(status) {
   const freshness = status.freshness;
   if (!exactFields(freshness, ["basis", "sourceCommit", "trustedBuildAt", "maxAgeSeconds"]) || freshness.basis !== "source-commit-time" || freshness.sourceCommit !== source.commit || freshness.maxAgeSeconds !== freshnessMaxAgeSeconds || timestamp(freshness.trustedBuildAt) === null) throw new Error("invalid-freshness-binding");
   const ageSeconds = (timestamp(freshness.trustedBuildAt) - timestamp(source.committedAt)) / 1000;
-  if (status.generatedAt !== source.committedAt || ageSeconds < 0 || ageSeconds > freshness.maxAgeSeconds) throw new Error("invalid-freshness-age");
+  const currentAgeSeconds = (trustedCurrentTime() - timestamp(freshness.trustedBuildAt)) / 1000;
+  if (status.generatedAt !== source.committedAt || ageSeconds < 0 || ageSeconds > freshness.maxAgeSeconds || currentAgeSeconds < 0 || currentAgeSeconds > freshness.maxAgeSeconds) throw new Error("invalid-freshness-age");
   if (source.commit !== metadata("riftward-source-commit") ||
       source.tree !== metadata("riftward-source-tree") ||
       source.branch !== metadata("riftward-source-branch") ||

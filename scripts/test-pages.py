@@ -245,6 +245,15 @@ def parsed_timestamp(value: object, field: str) -> datetime:
     return parsed
 
 
+def current_timestamp(value: str | None) -> datetime:
+    return parsed_timestamp(value, "trusted current time") if value is not None else datetime.now(timezone.utc)
+
+
+def check_current_freshness(trusted_build_at: datetime, current: datetime) -> None:
+    age_seconds = (current - trusted_build_at).total_seconds()
+    require(0 <= age_seconds <= FRESHNESS_MAX_AGE_SECONDS, "trusted build time is outside the current freshness window")
+
+
 def aware_timestamp(value: object, field: str) -> None:
     parsed_timestamp(value, field)
 
@@ -260,13 +269,14 @@ def schema_matches(value: object, schema: object, field: str = "$") -> bool:
     if "enum" in schema and value not in schema["enum"]:
         return False
     kind = schema.get("type")
-    if kind == "object":
-        if not isinstance(value, dict): return False
+    if kind == "object" and not isinstance(value, dict):
+        return False
+    if isinstance(value, dict):
         if any(key not in value for key in schema.get("required", [])): return False
         properties = schema.get("properties", {})
         if schema.get("additionalProperties") is False and any(key not in properties for key in value): return False
         if any(key in value and not schema_matches(value[key], child, f"{field}.{key}") for key, child in properties.items()): return False
-    elif kind == "array":
+    if kind == "array":
         if not isinstance(value, list): return False
         if schema.get("uniqueItems") and len({json.dumps(item, sort_keys=True) for item in value}) != len(value): return False
         if "items" in schema and any(not schema_matches(item, schema["items"], field) for item in value): return False
@@ -280,8 +290,11 @@ def schema_matches(value: object, schema: object, field: str = "$") -> bool:
     elif kind == "integer" and (not isinstance(value, int) or isinstance(value, bool) or value < schema.get("minimum", -sys.maxsize)):
         return False
     for condition in schema.get("allOf", []):
-        selector = condition.get("if")
-        branch = condition.get("then") if schema_matches(value, selector, field) else condition.get("else")
+        if not isinstance(condition, dict): return False
+        if "if" not in condition:
+            if not schema_matches(value, condition, field): return False
+            continue
+        branch = condition.get("then") if schema_matches(value, condition["if"], field) else condition.get("else")
         if branch is not None and not schema_matches(value, branch, field): return False
     return True
 
@@ -291,7 +304,8 @@ def validate_checked_in_schema(status: object, schema_path: Path) -> None:
     require(schema_matches(status, schema), "status does not validate against checked-in status.schema.json")
 
 
-def validate_status(status: object, expected_meta: dict[str, str] | None = None, schema_path: Path | None = None) -> dict[str, object]:
+def validate_status(status: object, expected_meta: dict[str, str] | None = None, schema_path: Path | None = None,
+                    trusted_current_time: str | None = None) -> dict[str, object]:
     if schema_path is not None:
         validate_checked_in_schema(status, schema_path)
     require(isinstance(status, dict), "status root is not an object")
@@ -313,6 +327,7 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None,
     require(isinstance(freshness, dict) and set(freshness) == {"basis", "sourceCommit", "trustedBuildAt", "maxAgeSeconds"}, "freshness fields mismatch")
     require(freshness["basis"] == "source-commit-time" and freshness["sourceCommit"] == source["commit"] and freshness["maxAgeSeconds"] == FRESHNESS_MAX_AGE_SECONDS, "freshness binding mismatch")
     trusted_build_at = parsed_timestamp(freshness["trustedBuildAt"], "freshness.trustedBuildAt")
+    check_current_freshness(trusted_build_at, current_timestamp(trusted_current_time))
     source_time = parsed_timestamp(source["committedAt"], "source.committedAt")
     generated_time = parsed_timestamp(status["generatedAt"], "generatedAt")
     age_seconds = (trusted_build_at - source_time).total_seconds()
@@ -385,7 +400,7 @@ def publication_hashes(root: Path) -> dict[str, str]:
     return values
 
 
-def check_built(source: Path, built: Path) -> set[str]:
+def check_built(source: Path, built: Path, trusted_current_time: str | None) -> set[str]:
     check_tree_files(built, "Pages artifact")
     require((built / ".nojekyll").is_file() and not (built / "README.md").exists(), "Pages packaging boundary mismatch")
     for path in built.rglob("*"):
@@ -399,7 +414,7 @@ def check_built(source: Path, built: Path) -> set[str]:
         require(len(values) == 1, f"built source meta missing: {field}")
         expected_meta[field] = values[0]
     status_path = built / "status.json"
-    status = validate_status(json.loads(status_path.read_text(encoding="utf-8")), expected_meta, source / "status.schema.json")
+    status = validate_status(json.loads(status_path.read_text(encoding="utf-8")), expected_meta, source / "status.schema.json", trusted_current_time)
     canonical = json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     require(status_path.read_text(encoding="utf-8") == canonical, "status JSON is not deterministic canonical output")
     external = check_html(built, html)
@@ -463,22 +478,28 @@ def negative_matrix(source: Path) -> None:
     fake_time = valid_status_fixture(); fake_time["generatedAt"] = "2026-09-03T12:00:00+00:00"; cases.append(("generated time mismatch", fake_time))
     duplicate_ids = valid_status_fixture(); duplicate_ids["workItems"]["acceptedTaskIds"] = ["T-001", "T-001"]; duplicate_ids["workItems"]["accepted"] = 2; cases.append(("duplicate task IDs", duplicate_ids))
     freshness_spoof = valid_status_fixture(); freshness_spoof["freshness"]["sourceCommit"] = "c" * 40; cases.append(("freshness source spoof", freshness_spoof))
-    stale = valid_status_fixture(); stale["freshness"]["trustedBuildAt"] = "2026-09-10T12:00:01Z"; cases.append(("stale trusted build age", stale))
+    stale = valid_status_fixture(); stale["freshness"]["trustedBuildAt"] = "2026-08-25T11:59:59Z"; cases.append(("stale trusted build time", stale))
     future = valid_status_fixture(); future["freshness"]["trustedBuildAt"] = "2026-09-01T12:00:00Z"; cases.append(("source commit future of trusted build", future))
+    future_current = valid_status_fixture(); future_current["freshness"]["trustedBuildAt"] = "2026-09-02T12:00:01Z"; cases.append(("future trusted build time", future_current))
     year_2000 = valid_status_fixture(); year_2000["generatedAt"] = year_2000["source"]["committedAt"] = "2000-01-01T00:00:00Z"; cases.append(("year-2000 timestamp", year_2000))
     wip_iff = valid_status_fixture(); wip_iff["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}; cases.append(("published WIP without observed provenance", wip_iff))
     candidate_relation = valid_status_fixture(); candidate_relation["source"]["branch"] = "task/t-052"; candidate_relation["source"]["classification"] = "candidate-branch"; candidate_relation["candidate"]["state"] = "not-observed"; cases.append(("candidate branch relation", candidate_relation))
     for name, status in cases:
-        expect_failure(name, lambda status=status: validate_status(status, schema_path=schema_path))
+        expect_failure(name, lambda status=status: validate_status(status, schema_path=schema_path, trusted_current_time="2026-09-02T12:00:00Z"))
+    published_schema_only = valid_status_fixture(); published_schema_only["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}
+    expect_failure("schema published WIP observed relation", lambda: validate_checked_in_schema(published_schema_only, schema_path))
+    candidate_schema_only = valid_status_fixture(); candidate_schema_only["source"]["branch"] = "task/t-052"; candidate_schema_only["source"]["classification"] = "candidate-branch"
+    expect_failure("schema candidate relation", lambda: validate_checked_in_schema(candidate_schema_only, schema_path))
 
 
-def browser_validator(source: Path, status: dict[str, object], valid: bool) -> None:
+def browser_validator(source: Path, status: dict[str, object], valid: bool, trusted_now: str = "2026-09-02T12:00:00Z") -> None:
     """Run the shipped browser validator with a minimal DOM, not a reimplementation."""
     script = source / "showcase.js"
     payload = json.dumps(status)
     js = r'''
 const fs = require("fs"), vm = require("vm");
 const status = JSON.parse(process.argv[1]);
+const trustedNow = Date.parse(process.argv[4]);
 const message = {dataset:{}, textContent:""};
 const root = {dataset:{}};
 global.document = {
@@ -492,10 +513,11 @@ global.document = {
   }
 };
 global.fetch = () => Promise.resolve({ok:true, json:() => Promise.resolve(status)});
+global.__RIFTWARD_TRUSTED_NOW__ = trustedNow;
 vm.runInThisContext(fs.readFileSync(process.argv[2], "utf8"));
 setImmediate(() => { if (root.dataset.projectStatus !== process.argv[3]) process.exit(2); });
 '''
-    result = subprocess.run(["node", "-e", js, payload, str(script), "verified" if valid else "unavailable"], check=False)
+    result = subprocess.run(["node", "-e", js, payload, str(script), "verified" if valid else "unavailable", trusted_now], check=False)
     require(result.returncode == 0, f"browser validator did not fail closed ({'valid' if valid else 'invalid'} fixture)")
 
 
@@ -504,8 +526,10 @@ def check_browser_validator(source: Path) -> None:
     browser_validator(source, status, True)
     duplicate_ready = deepcopy(status); duplicate_ready["workItems"]["ready"] = 2; duplicate_ready["workItems"]["nextReady"] = {"state": "multiple", "taskIds": ["T-003", "T-003"]}
     browser_validator(source, duplicate_ready, False)
-    stale = deepcopy(status); stale["freshness"]["trustedBuildAt"] = "2026-09-10T12:00:01Z"
+    stale = deepcopy(status); stale["freshness"]["trustedBuildAt"] = "2026-08-25T11:59:59Z"
     browser_validator(source, stale, False)
+    future_clock = deepcopy(status); future_clock["freshness"]["trustedBuildAt"] = "2026-09-02T12:00:01Z"
+    browser_validator(source, future_clock, False)
     year_2000 = deepcopy(status); year_2000["generatedAt"] = year_2000["source"]["committedAt"] = "2000-01-01T00:00:00Z"
     browser_validator(source, year_2000, False)
     published_unobserved = deepcopy(status); published_unobserved["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}
@@ -539,6 +563,7 @@ def main() -> int:
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--built", type=Path)
     parser.add_argument("--external-links", action="store_true")
+    parser.add_argument("--trusted-current-time", help="inject trusted current time for deterministic built-artifact checks")
     args = parser.parse_args()
     try:
         source = args.source.resolve(strict=True)
@@ -546,7 +571,7 @@ def main() -> int:
         negative_matrix(source)
         check_browser_validator(source)
         if args.built is not None:
-            external |= check_built(source, args.built.resolve(strict=True))
+            external |= check_built(source, args.built.resolve(strict=True), args.trusted_current_time)
         if args.external_links:
             check_external(external)
     except (ContractError, OSError, ValueError, json.JSONDecodeError) as exc:

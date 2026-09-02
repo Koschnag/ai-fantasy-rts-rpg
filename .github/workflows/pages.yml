@@ -96,6 +96,7 @@ jobs:
         run: |
           set -euo pipefail
           export PAGES_TRUSTED_BUILD_AT="$(date --utc +%Y-%m-%dT%H:%M:%SZ)"
+          printf 'PAGES_TRUSTED_BUILD_AT=%s\n' "$PAGES_TRUSTED_BUILD_AT" >> "$GITHUB_ENV"
           pages_temp=$(mktemp -d "${RUNNER_TEMP}/riftward-pages.XXXXXX")
           ./scripts/build-pages.sh "$pages_temp/site-a"
           ./scripts/build-pages.sh "$pages_temp/site-b"
@@ -105,7 +106,7 @@ jobs:
           printf 'PAGES_ARTIFACT_DIR=%s\n' "$pages_temp/site" >> "$GITHUB_ENV"
 
       - name: Check public links and contracts
-        run: python3 scripts/test-pages.py --source docs/showcase --built "$PAGES_ARTIFACT_DIR" --external-links
+        run: python3 scripts/test-pages.py --source docs/showcase --built "$PAGES_ARTIFACT_DIR" --trusted-current-time "$PAGES_TRUSTED_BUILD_AT" --external-links
 
       - name: Assert publication boundary
         shell: bash

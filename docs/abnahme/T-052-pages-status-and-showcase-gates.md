@@ -36,6 +36,20 @@ nicht verändert.
 
 ## Builder-Evidenz vom 2026-09-02
 
+### Prüfprotokoll und Commitbindung
+
+Die Review-Korrektur wird gegen den isolierten Kandidatenkopf
+`6008292dabe67d18a2c34dfeac45f3b880359d4b` geprüft; sein Parent ist
+`01976dfb5efa8441d9108f61aaae432f9ac10e23`, sein eingecheckter Git-Tree
+`3dfe80bcb8f1a55dcafc9cdca7cd39598bb0cefa`. Diese drei Werte identifizieren
+die Ausgangsbasis, nicht einen behaupteten Hash für den nachfolgenden,
+uncommitteten Review-Diff. Das Prüfprotokoll bindet jeden Artefaktlauf an den
+aktuell gelesenen `HEAD`, `HEAD^{tree}`, Parent, einen sauberen Quellbaum,
+`PAGES_TRUSTED_BUILD_AT` und denselben explizit an die Built-Tests übergebenen
+Zeitwert. Eine Promotion darf erst nach einem neuen Commit erfolgen; dann sind
+Commit, Tree und Parent erneut zu lesen und als tatsächliche Artefaktprovenienz
+zu belegen.
+
 ### Korrektur-Review nach unabhängiger BLOCK-Prüfung
 
 Der erste Builderstand wurde nach unabhängiger Prüfung gezielt nachgeschärft:
@@ -43,17 +57,28 @@ Der erste Builderstand wurde nach unabhängiger Prüfung gezielt nachgeschärft:
 Workflow checkt bei Pull Requests explizit `pull_request.head.sha` aus und
 bindet diesen Commit. Die Statusdatei enthält deterministisches
 `generatedAt`/`freshness`, relationale Task-ID-Listen und explizite WIP-
-Provenienz. Der gesamte Git-Tree muss sauber sein; Symlinks und nicht reguläre
-Dateien werden im Quell- und Ausgabeumfang abgelehnt. Der Task bleibt
+Provenienz. `PAGES_TRUSTED_BUILD_AT` ist jetzt zwingend: Python und der
+Browser prüfen ihn sowohl gegen die Commitzeit als auch gegen eine aktuelle
+vertrauenswürdige Zeit (Testinjektion ist möglich); alte oder zukünftige
+konsistente Werte werden sichtbar fail-closed abgelehnt. Der Schema-Subset
+wertet `properties` und `required` in `allOf`-/`if`-/`then`-/`else`-Zweigen
+auch ohne redundantes `type: object` aus. Der gesamte Git-Tree muss sauber
+sein; Symlinks und nicht reguläre Dateien werden im Quell- und Ausgabeumfang
+abgelehnt. Der Task bleibt
 `REVIEW`: dieser Korrekturlauf ist lokal, ohne GitHub-CI, Promotion, Push oder
 Pages-Deployment.
 
 - Quellvertrag und eingebaute Negativmatrix: `PAGES_CONTRACT_PASS`.
 - Python- und JavaScript-Parser sowie `bash -n`: erfolgreich.
-- Zwei Builds des Implementierungscommits
-  `d9a8313592ce7e760d37e5851ca3f67b2e977d82` mit denselben Eingaben:
-  byteidentisch; beide `status.json` hatten SHA-256
-  `bf966b650472b11b0c6460402175ddd378e9f26f6314f0efe3a262a2ba15f152`.
+- Der nachstehende, uncommittete Korrekturlauf verwendet keine zirkuläre
+  Behauptung eines finalen Commit-Hashs. Seine zwei externen Builds werden mit
+  einem gemeinsamen expliziten `PAGES_TRUSTED_BUILD_AT`, identischen
+  Eingaben und `diff -ru --no-dereference` verglichen. Mit
+  `PAGES_TRUSTED_BUILD_AT=2026-09-02T16:46:37Z` waren beide Artefakte
+  byteidentisch; `status.json` hatte SHA-256
+  `614db6ff325db0c81f951bd188e52af37e4d3265ad7365cf30c16a45dee574ab`.
+  Diese Quittung belegt den Review-Artefaktlauf, nicht einen erfundenen
+  finalen Commit; die Promotion ergänzt die echte Commit-/Tree-Bindung erneut.
 - Externe Linkprüfung gegen die freigegebenen Hosts `github.com` und
   `koschnag.github.io`: erfolgreich.
 - Öffentlicher Live-WIP-Ref während des Laufs:

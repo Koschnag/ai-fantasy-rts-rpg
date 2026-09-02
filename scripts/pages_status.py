@@ -58,6 +58,22 @@ def canonical_timestamp(value: str, field: str) -> str:
     return parsed.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def trusted_now(value: str | None) -> datetime:
+    """Return the independently supplied test clock, or the build host clock."""
+    if value is None:
+        return datetime.now(timezone.utc)
+    return timestamp(value, "trusted current time")
+
+
+def check_trusted_build_time(value: str, current: datetime) -> str:
+    """Reject a status whose asserted trusted build time is stale or future."""
+    observed = timestamp(value, "trusted build time")
+    age_seconds = (current - observed).total_seconds()
+    if age_seconds < 0 or age_seconds > FRESHNESS_MAX_AGE_SECONDS:
+        raise StatusError("trusted build time is outside the current freshness window")
+    return observed.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
 def parse_backlog(path: Path) -> dict[str, list[str]]:
     statuses: dict[str, list[str]] = {status: [] for status in PUBLIC_STATUSES}
     seen: set[str] = set()
@@ -87,7 +103,8 @@ def clean_source(root: Path) -> None:
 
 
 def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: str | None,
-             public_main_commit: str | None, trusted_build_at: str | None) -> dict[str, object]:
+             public_main_commit: str | None, trusted_build_at: str | None,
+             trusted_current_time: str | None = None) -> dict[str, object]:
     if not BRANCH.fullmatch(branch) or branch.startswith("/") or ".." in branch:
         raise StatusError("invalid source branch")
     if (wip_commit is None) != (wip_committed_at is None):
@@ -97,7 +114,9 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
     commit = git(root, "rev-parse", "HEAD")
     tree = git(root, "rev-parse", "HEAD^{tree}")
     committed_at = canonical_timestamp(git(root, "show", "-s", "--format=%cI", "HEAD"), "source committedAt")
-    trusted_at = canonical_timestamp(trusted_build_at or committed_at, "trusted build time")
+    if trusted_build_at is None:
+        raise StatusError("trusted build time is required (PAGES_TRUSTED_BUILD_AT)")
+    trusted_at = check_trusted_build_time(trusted_build_at, trusted_now(trusted_current_time))
     age_seconds = (timestamp(trusted_at, "trusted build time") - timestamp(committed_at, "source committedAt")).total_seconds()
     if age_seconds < 0 or age_seconds > FRESHNESS_MAX_AGE_SECONDS:
         raise StatusError("source commit is outside the trusted build freshness window")
@@ -205,10 +224,11 @@ def main() -> int:
     parser.add_argument("--wip-committed-at")
     parser.add_argument("--public-main-commit")
     parser.add_argument("--trusted-build-at")
+    parser.add_argument("--trusted-current-time", help="inject a trusted current time for deterministic tests")
     args = parser.parse_args()
     try:
         root = args.root.resolve(strict=True)
-        status = generate(root, args.branch, args.wip_commit, args.wip_committed_at, args.public_main_commit, args.trusted_build_at)
+        status = generate(root, args.branch, args.wip_commit, args.wip_committed_at, args.public_main_commit, args.trusted_build_at, args.trusted_current_time)
         atomic_json(args.output.resolve(), status)
     except (OSError, StatusError) as exc:
         print(f"Pages-Status abgelehnt: {exc}", file=os.sys.stderr)
