@@ -71,25 +71,13 @@ def parse_backlog(path: Path) -> dict[str, list[str]]:
 
 
 def clean_source(root: Path) -> None:
-    observed = git(
-        root,
-        "status",
-        "--porcelain=v1",
-        "--untracked-files=all",
-        "--",
-        "BACKLOG.md",
-        ".ai/tasks",
-        "docs/showcase",
-        "scripts/build-pages.sh",
-        "scripts/pages_status.py",
-        "scripts/test-pages.py",
-        ".github/workflows/pages.yml",
-    )
+    observed = git(root, "status", "--porcelain=v1", "--untracked-files=all")
     if observed:
         raise StatusError("public status inputs are not a clean committed tree")
 
 
-def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: str | None) -> dict[str, object]:
+def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: str | None,
+             public_main_commit: str | None) -> dict[str, object]:
     if not BRANCH.fullmatch(branch) or branch.startswith("/") or ".." in branch:
         raise StatusError("invalid source branch")
     if (wip_commit is None) != (wip_committed_at is None):
@@ -101,6 +89,11 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
     committed_at = timestamp(git(root, "show", "-s", "--format=%cI", "HEAD"), "source committedAt")
     if not FULL_HASH.fullmatch(commit) or not FULL_HASH.fullmatch(tree):
         raise StatusError("invalid source Git identity")
+    if branch == "main":
+        if public_main_commit is None or not FULL_HASH.fullmatch(public_main_commit):
+            raise StatusError("public origin/main commit is required for accepted-main")
+        if commit != public_main_commit:
+            raise StatusError("HEAD does not match public origin/main")
 
     statuses = parse_backlog(root / "BACKLOG.md")
     ready_ids = sorted(statuses["READY"])
@@ -110,6 +103,7 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
     wip: dict[str, object] = {
         "state": "not-observed",
         "classification": "continuity-snapshot-not-accepted-progress",
+        "provenance": {"observed": False, "source": "public-remote-ref", "reason": "No public WIP ref was supplied."},
     }
     if wip_commit is not None and wip_committed_at is not None:
         if not FULL_HASH.fullmatch(wip_commit):
@@ -127,6 +121,7 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
             "branch": "autopilot/live-wip",
             "commit": wip_commit,
             "committedAt": actual_wip_time,
+            "provenance": {"observed": True, "source": "public-remote-ref", "reason": "Matched fetched autopilot/live-wip ref."},
         }
 
     candidate_state = "not-observed" if classification == "accepted-main" else "checked-out-candidate"
@@ -138,6 +133,8 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
     return {
         "schemaVersion": 2,
         "statusContract": "riftward-public-status-v2",
+        "generatedAt": committed_at,
+        "freshness": {"basis": "source-commit-time", "sourceCommit": commit},
         "source": {
             "branch": branch,
             "classification": classification,
@@ -150,6 +147,8 @@ def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: 
             "accepted": len(statuses["DONE"]),
             "ready": len(ready_ids),
             "review": len(statuses["REVIEW"]),
+            "acceptedTaskIds": sorted(statuses["DONE"]),
+            "reviewTaskIds": sorted(statuses["REVIEW"]),
             "nextReady": {"state": ready_state, "taskIds": ready_ids},
         },
         "candidate": {"state": candidate_state, "reason": candidate_reason},
@@ -185,10 +184,11 @@ def main() -> int:
     parser.add_argument("--branch", required=True)
     parser.add_argument("--wip-commit")
     parser.add_argument("--wip-committed-at")
+    parser.add_argument("--public-main-commit")
     args = parser.parse_args()
     try:
         root = args.root.resolve(strict=True)
-        status = generate(root, args.branch, args.wip_commit, args.wip_committed_at)
+        status = generate(root, args.branch, args.wip_commit, args.wip_committed_at, args.public_main_commit)
         atomic_json(args.output.resolve(), status)
     except (OSError, StatusError) as exc:
         print(f"Pages-Status abgelehnt: {exc}", file=os.sys.stderr)

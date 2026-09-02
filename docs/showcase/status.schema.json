@@ -4,10 +4,16 @@
   "title": "Riftward public project status",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "statusContract", "source", "workItems", "candidate", "wip", "claims"],
+  "required": ["schemaVersion", "statusContract", "generatedAt", "freshness", "source", "workItems", "candidate", "wip", "claims"],
   "properties": {
     "schemaVersion": { "const": 2 },
     "statusContract": { "const": "riftward-public-status-v2" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "freshness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["basis", "sourceCommit"],
+      "properties": { "basis": { "const": "source-commit-time" }, "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" } }
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
@@ -24,11 +30,13 @@
     "workItems": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["accepted", "ready", "review", "nextReady"],
+      "required": ["accepted", "ready", "review", "acceptedTaskIds", "reviewTaskIds", "nextReady"],
       "properties": {
         "accepted": { "type": "integer", "minimum": 0 },
         "ready": { "type": "integer", "minimum": 0 },
         "review": { "type": "integer", "minimum": 0 },
+        "acceptedTaskIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" } },
+        "reviewTaskIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" } },
         "nextReady": {
           "type": "object",
           "additionalProperties": false,
@@ -56,13 +64,18 @@
     "wip": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["state", "classification"],
+      "required": ["state", "classification", "provenance"],
       "properties": {
         "state": { "enum": ["published", "not-observed"] },
         "classification": { "const": "continuity-snapshot-not-accepted-progress" },
         "branch": { "const": "autopilot/live-wip" },
         "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
         "committedAt": { "type": "string", "format": "date-time" }
+        ,"provenance": {
+          "type": "object", "additionalProperties": false,
+          "required": ["observed", "source", "reason"],
+          "properties": { "observed": { "type": "boolean" }, "source": { "const": "public-remote-ref" }, "reason": { "type": "string", "minLength": 1 } }
+        }
       },
       "allOf": [
         {

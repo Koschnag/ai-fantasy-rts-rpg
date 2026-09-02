@@ -11,7 +11,9 @@ from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
+import stat
 import sys
+import tempfile
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -50,6 +52,15 @@ class Document(HTMLParser):
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise ContractError(message)
+
+
+def check_tree_files(root: Path, label: str) -> None:
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise ContractError(f"{label} contains symlink: {path.relative_to(root)}")
+        if not path.is_dir():
+            if not stat.S_ISREG(path.stat().st_mode):
+                raise ContractError(f"{label} contains non-regular file: {path.relative_to(root)}")
 
 
 def parse_html(text: str) -> Document:
@@ -189,6 +200,7 @@ def check_media(source: Path, budget_override: dict[str, object] | None = None) 
 
 
 def check_source(source: Path) -> set[str]:
+    check_tree_files(source, "Pages source")
     required = {
         "index.html", "showcase.css", "showcase.js", "status.schema.json",
         "robots.txt", "sitemap.xml", "assets/media-budget.json",
@@ -228,8 +240,9 @@ def aware_timestamp(value: object, field: str) -> None:
 
 def validate_status(status: object, expected_meta: dict[str, str] | None = None) -> dict[str, object]:
     require(isinstance(status, dict), "status root is not an object")
-    require(set(status) == {"schemaVersion", "statusContract", "source", "workItems", "candidate", "wip", "claims"}, "status root fields mismatch")
+    require(set(status) == {"schemaVersion", "statusContract", "generatedAt", "freshness", "source", "workItems", "candidate", "wip", "claims"}, "status root fields mismatch")
     require(status["schemaVersion"] == 2 and status["statusContract"] == "riftward-public-status-v2", "status schema mismatch")
+    aware_timestamp(status["generatedAt"], "generatedAt")
     require(not any(value is None for value in walk(status)), "status contains null instead of an explicit state")
 
     source = status["source"]
@@ -240,9 +253,13 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None)
     require(source["classification"] in {"accepted-main", "candidate-branch"} and source["dirty"] is False, "invalid source classification")
     require((source["branch"] == "main") == (source["classification"] == "accepted-main"), "main classification mismatch")
     aware_timestamp(source["committedAt"], "source.committedAt")
+    require(status["generatedAt"] == source["committedAt"], "generatedAt must equal source commit time")
+    freshness = status["freshness"]
+    require(isinstance(freshness, dict) and set(freshness) == {"basis", "sourceCommit"}, "freshness fields mismatch")
+    require(freshness["basis"] == "source-commit-time" and freshness["sourceCommit"] == source["commit"], "freshness binding mismatch")
 
     work = status["workItems"]
-    require(isinstance(work, dict) and set(work) == {"accepted", "ready", "review", "nextReady"}, "work item fields mismatch")
+    require(isinstance(work, dict) and set(work) == {"accepted", "ready", "review", "acceptedTaskIds", "reviewTaskIds", "nextReady"}, "work item fields mismatch")
     require(all(isinstance(work[name], int) and not isinstance(work[name], bool) and work[name] >= 0 for name in ("accepted", "ready", "review")), "invalid work item counter")
     next_ready = work["nextReady"]
     require(isinstance(next_ready, dict) and set(next_ready) == {"state", "taskIds"}, "next-ready fields mismatch")
@@ -250,6 +267,9 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None)
     require(isinstance(task_ids, list) and len(task_ids) == len(set(task_ids)) and all(isinstance(item, str) and TASK_ID.fullmatch(item) for item in task_ids), "invalid ready task IDs")
     expected_state = "none" if not task_ids else "single" if len(task_ids) == 1 else "multiple"
     require(next_ready["state"] == expected_state and work["ready"] == len(task_ids), "ready state/count mismatch")
+    for name, count in (("acceptedTaskIds", work["accepted"]), ("reviewTaskIds", work["review"])):
+        ids = work[name]
+        require(isinstance(ids, list) and len(ids) == len(set(ids)) and len(ids) == count and all(isinstance(item, str) and TASK_ID.fullmatch(item) for item in ids), f"invalid {name}")
 
     candidate = status["candidate"]
     require(isinstance(candidate, dict) and set(candidate) == {"state", "reason"} and isinstance(candidate["reason"], str) and candidate["reason"], "candidate fields mismatch")
@@ -259,12 +279,15 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None)
     wip = status["wip"]
     require(isinstance(wip, dict) and wip.get("state") in {"published", "not-observed"}, "invalid WIP state")
     require(wip.get("classification") == "continuity-snapshot-not-accepted-progress", "WIP acceptance boundary mismatch")
+    provenance = wip.get("provenance")
+    require(isinstance(provenance, dict) and set(provenance) == {"observed", "source", "reason"} and isinstance(provenance["observed"], bool) and provenance["source"] == "public-remote-ref" and isinstance(provenance["reason"], str) and provenance["reason"], "WIP provenance mismatch")
     if wip["state"] == "published":
-        require(set(wip) == {"state", "classification", "branch", "commit", "committedAt"}, "published WIP fields mismatch")
+        require(set(wip) == {"state", "classification", "branch", "commit", "committedAt", "provenance"}, "published WIP fields mismatch")
         require(wip["branch"] == "autopilot/live-wip" and isinstance(wip["commit"], str) and FULL_HASH.fullmatch(wip["commit"]) is not None, "invalid WIP identity")
         aware_timestamp(wip["committedAt"], "wip.committedAt")
     else:
-        require(set(wip) == {"state", "classification"}, "unobserved WIP must not contain invented provenance")
+        require(set(wip) == {"state", "classification", "provenance"}, "unobserved WIP provenance missing")
+        require(wip["provenance"]["observed"] is False, "unobserved WIP marked observed")
 
     claims = status["claims"]
     expected_claims = {"gameplay": False, "targetHardwareValidated": False, "physicalEdition": False, "twentyFourSevenAutonomy": False}
@@ -302,6 +325,7 @@ def publication_hashes(root: Path) -> dict[str, str]:
 
 
 def check_built(source: Path, built: Path) -> set[str]:
+    check_tree_files(built, "Pages artifact")
     require((built / ".nojekyll").is_file() and not (built / "README.md").exists(), "Pages packaging boundary mismatch")
     for path in built.rglob("*"):
         require("quarantine" not in path.relative_to(built).parts, f"quarantine file in Pages artifact: {path}")
@@ -336,10 +360,12 @@ def valid_status_fixture() -> dict[str, object]:
     return {
         "schemaVersion": 2,
         "statusContract": "riftward-public-status-v2",
+        "generatedAt": "2026-09-02T12:00:00+00:00",
+        "freshness": {"basis": "source-commit-time", "sourceCommit": "a" * 40},
         "source": {"branch": "main", "classification": "accepted-main", "commit": "a" * 40, "tree": "b" * 40, "committedAt": "2026-09-02T12:00:00+00:00", "dirty": False},
-        "workItems": {"accepted": 1, "ready": 0, "review": 1, "nextReady": {"state": "none", "taskIds": []}},
+        "workItems": {"accepted": 1, "ready": 0, "review": 1, "acceptedTaskIds": ["T-001"], "reviewTaskIds": ["T-002"], "nextReady": {"state": "none", "taskIds": []}},
         "candidate": {"state": "not-observed", "reason": "not observed"},
-        "wip": {"state": "not-observed", "classification": "continuity-snapshot-not-accepted-progress"},
+        "wip": {"state": "not-observed", "classification": "continuity-snapshot-not-accepted-progress", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "not supplied"}},
         "claims": {"gameplay": False, "targetHardwareValidated": False, "physicalEdition": False, "twentyFourSevenAutonomy": False},
     }
 
@@ -354,6 +380,11 @@ def negative_matrix(source: Path) -> None:
     expect_failure("missing WIP boundary", lambda: check_html(source, html.replace(WIP_BOUNDARY, "WIP snapshot", 1)))
     expect_failure("weak CSP", lambda: check_html(source, html.replace("object-src 'none'; ", "", 1)))
 
+    with tempfile.TemporaryDirectory() as temp:
+        temp_root = Path(temp)
+        (temp_root / "link").symlink_to(source / "index.html")
+        expect_failure("source symlink", lambda: check_tree_files(temp_root, "Pages source"))
+
     budget = json.loads((source / "assets/media-budget.json").read_text(encoding="utf-8"))
     first = next(iter(budget["files"]))
     budget["files"][first] = (source / first).stat().st_size - 1
@@ -366,6 +397,9 @@ def negative_matrix(source: Path) -> None:
     accepted_wip = valid_status_fixture(); accepted_wip["wip"]["classification"] = "accepted-progress"; cases.append(("WIP counted as acceptance", accepted_wip))
     unsupported_claim = valid_status_fixture(); unsupported_claim["claims"]["twentyFourSevenAutonomy"] = True; cases.append(("unsupported 24/7 claim", unsupported_claim))
     null_cost = valid_status_fixture(); null_cost["candidate"]["reason"] = None; cases.append(("null unknown", null_cost))
+    fake_time = valid_status_fixture(); fake_time["generatedAt"] = "2026-09-03T12:00:00+00:00"; cases.append(("generated time mismatch", fake_time))
+    duplicate_ids = valid_status_fixture(); duplicate_ids["workItems"]["acceptedTaskIds"] = ["T-001", "T-001"]; duplicate_ids["workItems"]["accepted"] = 2; cases.append(("duplicate task IDs", duplicate_ids))
+    freshness_spoof = valid_status_fixture(); freshness_spoof["freshness"]["sourceCommit"] = "c" * 40; cases.append(("freshness source spoof", freshness_spoof))
     for name, status in cases:
         expect_failure(name, lambda status=status: validate_status(status))
 

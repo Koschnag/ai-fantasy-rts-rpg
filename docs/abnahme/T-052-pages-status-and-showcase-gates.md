@@ -36,6 +36,18 @@ nicht verändert.
 
 ## Builder-Evidenz vom 2026-09-02
 
+### Korrektur-Review nach unabhängiger BLOCK-Prüfung
+
+Der erste Builderstand wurde nach unabhängiger Prüfung gezielt nachgeschärft:
+`accepted-main` ist nun nur bei `HEAD == public origin/main` zulässig; der
+Workflow checkt bei Pull Requests explizit `pull_request.head.sha` aus und
+bindet diesen Commit. Die Statusdatei enthält deterministisches
+`generatedAt`/`freshness`, relationale Task-ID-Listen und explizite WIP-
+Provenienz. Der gesamte Git-Tree muss sauber sein; Symlinks und nicht reguläre
+Dateien werden im Quell- und Ausgabeumfang abgelehnt. Der Task bleibt
+`REVIEW`: dieser Korrekturlauf ist lokal, ohne GitHub-CI, Promotion, Push oder
+Pages-Deployment.
+
 - Quellvertrag und eingebaute Negativmatrix: `PAGES_CONTRACT_PASS`.
 - Python- und JavaScript-Parser sowie `bash -n`: erfolgreich.
 - Zwei Builds des Implementierungscommits

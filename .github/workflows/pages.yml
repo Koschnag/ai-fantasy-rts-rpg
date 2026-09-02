@@ -41,6 +41,26 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Bind checkout to triggering commit
+        shell: bash
+        env:
+          EXPECTED_CHECKOUT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_CHECKOUT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CHECKOUT_SHA"
+
+      - name: Resolve public main provenance
+        id: main
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_line=$(git ls-remote --heads origin refs/heads/main)
+          main_commit=${main_line%%[[:space:]]*}
+          [[ "$main_commit" =~ ^[0-9a-f]{40}$ ]]
+          printf 'commit=%s\n' "$main_commit" >> "$GITHUB_OUTPUT"
 
       - name: Resolve optional public WIP provenance
         id: wip
@@ -70,6 +90,7 @@ jobs:
         shell: bash
         env:
           PAGES_SOURCE_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          PAGES_PUBLIC_MAIN_COMMIT: ${{ steps.main.outputs.commit }}
           PAGES_WIP_COMMIT: ${{ steps.wip.outputs.commit }}
           PAGES_WIP_COMMITTED_AT: ${{ steps.wip.outputs.committed_at }}
         run: |

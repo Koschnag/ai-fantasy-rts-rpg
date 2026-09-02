@@ -58,6 +58,9 @@ pages_status_args=(
   --output "$pages_status_temp"
   --branch "$pages_branch"
 )
+if [[ -n "${PAGES_PUBLIC_MAIN_COMMIT:-}" ]]; then
+  pages_status_args+=(--public-main-commit "$PAGES_PUBLIC_MAIN_COMMIT")
+fi
 if [[ -n "${PAGES_WIP_COMMIT:-}" || -n "${PAGES_WIP_COMMITTED_AT:-}" ]]; then
   pages_status_args+=(--wip-commit "${PAGES_WIP_COMMIT:-}" --wip-committed-at "${PAGES_WIP_COMMITTED_AT:-}")
 fi

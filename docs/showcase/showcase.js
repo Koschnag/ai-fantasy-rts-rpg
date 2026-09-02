@@ -54,6 +54,7 @@ function validCounter(value) {
 function validateStatus(status) {
   if (!status || typeof status !== "object" || Array.isArray(status)) throw new Error("invalid-root");
   if (status.schemaVersion !== 2 || status.statusContract !== "riftward-public-status-v2") throw new Error("unsupported-schema");
+  if (!validTimestamp(status.generatedAt)) throw new Error("invalid-generated-at");
 
   const source = status.source;
   if (!source || typeof source !== "object") throw new Error("missing-source");
@@ -61,6 +62,7 @@ function validateStatus(status) {
   if (!branchName.test(source.branch)) throw new Error("invalid-source-branch");
   if (!["accepted-main", "candidate-branch"].includes(source.classification)) throw new Error("invalid-source-classification");
   if (!validTimestamp(source.committedAt) || source.dirty !== false) throw new Error("invalid-source-state");
+  if (status.generatedAt !== source.committedAt || status.freshness?.basis !== "source-commit-time" || status.freshness?.sourceCommit !== source.commit) throw new Error("invalid-freshness-binding");
   if (source.commit !== metadata("riftward-source-commit") ||
       source.tree !== metadata("riftward-source-tree") ||
       source.branch !== metadata("riftward-source-branch") ||
@@ -70,6 +72,9 @@ function validateStatus(status) {
 
   const workItems = status.workItems;
   if (!workItems || ![workItems.accepted, workItems.ready, workItems.review].every(validCounter)) throw new Error("invalid-work-items");
+  for (const [name, count] of [["acceptedTaskIds", workItems.accepted], ["reviewTaskIds", workItems.review]]) {
+    if (!Array.isArray(workItems[name]) || new Set(workItems[name]).size !== workItems[name].length || workItems[name].length !== count || !workItems[name].every((id) => /^T-[0-9]{3,}$/.test(id))) throw new Error(`invalid-${name}`);
+  }
   if (!workItems.nextReady || !["none", "single", "multiple"].includes(workItems.nextReady.state)) throw new Error("invalid-next-ready");
   if (!Array.isArray(workItems.nextReady.taskIds) || !workItems.nextReady.taskIds.every((id) => /^T-[0-9]{3,}$/.test(id))) throw new Error("invalid-ready-ids");
   const readyCount = workItems.nextReady.taskIds.length;
@@ -87,6 +92,7 @@ function validateStatus(status) {
   const wip = status.wip;
   if (!wip || !["published", "not-observed"].includes(wip.state)) throw new Error("invalid-wip-state");
   if (wip.classification !== "continuity-snapshot-not-accepted-progress") throw new Error("invalid-wip-classification");
+  if (!wip.provenance || wip.provenance.source !== "public-remote-ref" || typeof wip.provenance.reason !== "string" || typeof wip.provenance.observed !== "boolean" || !wip.provenance.reason) throw new Error("invalid-wip-provenance");
   if (wip.state === "published" &&
       (wip.branch !== "autopilot/live-wip" || !fullHash.test(wip.commit) || !validTimestamp(wip.committedAt))) {
     throw new Error("invalid-wip-provenance");
