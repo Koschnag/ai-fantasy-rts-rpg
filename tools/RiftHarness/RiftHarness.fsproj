@@ -14,6 +14,17 @@
     <Compile Include="Retrieval.fs" />
     <Compile Include="Provenance.fs" />
     <Compile Include="Runs.fs" />
+    <Compile Include="ResearchModel.fs" />
+    <Compile Include="ResearchCanonical.fs" />
+    <Compile Include="ResearchArchitecture.fs" />
+    <Compile Include="ResearchLedger.fs" />
+    <Compile Include="ResearchGitImport.fs" />
+    <Compile Include="ResearchMetrics.fs" />
+    <Compile Include="ResearchExport.fs" />
+    <Compile Include="ResearchRuntime.fs" />
+    <Compile Include="ResearchActivation.fs" />
+    <Compile Include="ResearchCollector.fs" />
+    <Compile Include="ResearchCli.fs" />
     <Compile Include="Retention.fs" />
     <Compile Include="Assets.fs" />
     <Compile Include="BlenderCalibration.fs" />

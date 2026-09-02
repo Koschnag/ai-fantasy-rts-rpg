@@ -509,6 +509,42 @@ module RunStore =
 
         loadMetadata runPath
 
+    /// Loads the authoritative event ledger for a run and verifies its complete
+    /// sequence, timestamp, redaction, and SHA-256 chain before returning any
+    /// event to an observer. Research instrumentation must use this boundary
+    /// instead of reparsing mutable command inputs or scanning for a hash-like
+    /// string in events.jsonl.
+    let eventsStrict root runId =
+        let locations = Workspace.requireInitialized root
+        let config = HarnessConfig.load locations
+        let runPath = runDirectory locations runId
+
+        if not (Directory.Exists(runPath)) then
+            Internal.fail $"Run nicht gefunden: {runId}"
+
+        loadEventsStrict config.Redaction (Path.Combine(runPath, "events.jsonl")) runId
+
+    /// Resolves one exact receipt only after verifying the complete authoritative
+    /// ledger. Sequence, type, and hash are all part of the lookup contract so a
+    /// valid row of the wrong semantic kind cannot be rebound as research data.
+    let eventByReceipt root runId sequence eventType eventHash =
+        if sequence < 1L then
+            Internal.fail "Event-Sequenz muss mindestens 1 sein."
+
+        validateEventType eventType
+
+        if not (Internal.isSha256 eventHash) then
+            Internal.fail "Event-Hash muss ein kleingeschriebener SHA-256-Wert sein."
+
+        eventsStrict root runId
+        |> List.tryFind (fun event ->
+            event.Sequence = sequence
+            && event.EventType = eventType
+            && String.Equals(event.EventHash, eventHash, StringComparison.Ordinal))
+        |> Option.defaultWith (fun () ->
+            Internal.fail
+                $"Autoritatives Run-Ereignis fehlt oder stimmt nicht mit Receipt ueberein: {runId}/{sequence}/{eventType}/{eventHash}.")
+
     /// Startet einen Lauf mit vollstaendiger Start-Provenienz (T-004):
     /// erweitertes Manifest, work-/evidence-Verzeichnisse und erstes run.started-Ereignis.
     let startProvenancedAt root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
