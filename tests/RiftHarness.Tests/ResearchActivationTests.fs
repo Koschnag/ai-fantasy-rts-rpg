@@ -33,13 +33,17 @@ module ResearchActivationTests =
     let private observation = "OBS-00000000000000000000000001"
 
     let private recordFixtureActivity root =
+        let identity = ResearchGitImport.currentIdentity root
+        let taskPath = ".ai/tasks/T-042-fixture.json"
+        let taskHash = Internal.sha256File(Path.Combine(root, taskPath))
+        let source = ResearchRuntime.gitBlobSource root identity.HeadCommit taskPath taskHash
         let payload =
             ResearchRuntime.payload (fun writer ->
                 writer.WriteString("fromActivityState", "idle")
                 writer.WriteString("toActivityState", "agent-active")
                 writer.WriteString("reasonCode", "synthetic-fixture"))
 
-        match ResearchCollector.recordStructured root "activity.state.changed" [] payload id with
+        match ResearchCollector.recordStructured root "activity.state.changed" [ source ] payload id with
         | ResearchCollectionResult.Recorded _ -> ()
         | ResearchCollectionResult.Inactive -> failwith "Fixture observation was not active."
         | ResearchCollectionResult.GapRecorded gapId -> failwith $"Fixture activity produced collector gap {gapId}."
