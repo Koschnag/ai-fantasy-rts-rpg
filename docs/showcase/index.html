@@ -3,8 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; img-src 'self'; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'">
   <meta name="description" content="Project Riftward: öffentliches FOSS-Forschungsprojekt für eine agentische SDLC und ein modernes Low-Spec-Fantasy-RTS/RPG.">
   <meta name="theme-color" content="#111716">
+  <meta name="referrer" content="no-referrer">
+  <meta name="riftward-source-commit" content="__RIFTWARD_SOURCE_COMMIT__">
+  <meta name="riftward-source-tree" content="__RIFTWARD_SOURCE_TREE__">
+  <meta name="riftward-source-branch" content="__RIFTWARD_SOURCE_BRANCH__">
+  <meta name="riftward-source-classification" content="__RIFTWARD_SOURCE_CLASSIFICATION__">
+  <link rel="canonical" href="https://koschnag.github.io/ai-fantasy-rts-rpg/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Project Riftward">
+  <meta property="og:title" content="Project Riftward · Open Game Research">
+  <meta property="og:description" content="Ein öffentlich nachvollziehbares Experiment für kontinuierliche agentische Softwareentwicklung und Low-Spec-Game-Engineering.">
+  <meta property="og:url" content="https://koschnag.github.io/ai-fantasy-rts-rpg/">
+  <meta property="og:image" content="https://koschnag.github.io/ai-fantasy-rts-rpg/assets/concepts/first-light-muster.webp">
+  <meta property="og:image:alt" content="Offen als Konzept gekennzeichnete Riftward-Atmosphärenstudie eines bewohnten Steinbruchs">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Project Riftward · Open Game Research">
+  <meta name="twitter:description" content="Commitgebundene Evidenz statt Autonomie- oder Gameplay-Hype.">
+  <meta name="twitter:image" content="https://koschnag.github.io/ai-fantasy-rts-rpg/assets/concepts/first-light-muster.webp">
   <title>Project Riftward · Open Game Research</title>
   <link rel="stylesheet" href="showcase.css">
   <script src="showcase.js" defer></script>
@@ -16,7 +34,7 @@
     <nav aria-label="Hauptnavigation">
       <a href="#atmosphere">Atmosphäre</a><a href="#artifact">Edition</a><a href="#status">Status</a><a href="#research">Forschung</a><a href="#evidence">Evidence</a>
     </nav>
-    <span class="build-mark">OPEN BUILD <b data-bind="shortCommit">9637ec8</b></span>
+    <span class="build-mark">PUBLIC SOURCE <b data-bind="shortCommit">—</b></span>
   </header>
 
   <main id="content">
@@ -29,7 +47,7 @@
           <a class="button primary" href="#artifact">Digitale Edition öffnen</a>
           <a class="button" href="https://github.com/Koschnag/ai-fantasy-rts-rpg">Quellstand auf GitHub ↗</a>
         </div>
-        <p class="truth-line"><span>CONCEPT · NOT GAMEPLAY</span> Runtime und repräsentatives Gameplay sind noch nicht fertig.</p>
+        <p class="truth-line"><span>CONCEPT · NOT GAMEPLAY</span> Die gezeigten Medien sind Konzeptstudien. Der reale Runtime-Stand steht commitgebunden im Status, nicht in diesen Motiven.</p>
       </div>
 
       <figure class="hero-plate">
@@ -40,7 +58,7 @@
     </section>
 
     <section class="ticker" aria-label="Projektprinzipien">
-      <div>BUILD THE SYSTEM</div><i>◆</i><div>MEASURE THE OUTCOME</div><i>◆</i><div>PUBLISH THE FAILURES</div><i>◆</i><div>KEEP OLD HARDWARE USEFUL</div>
+      <div>BUILD THE SYSTEM</div><span aria-hidden="true">◆</span><div>MEASURE THE OUTCOME</div><span aria-hidden="true">◆</span><div>PUBLISH THE FAILURES</div><span aria-hidden="true">◆</span><div>KEEP OLD HARDWARE USEFUL</div>
     </section>
 
     <section class="atmosphere-section" id="atmosphere">
@@ -98,7 +116,7 @@
         <p>Keine physische Ware. Eine interaktive digitale Sammlung, die das Ritual klassischer PC-Veröffentlichungen zurückholt und jeden Claim an den echten Projektstand bindet.</p>
       </header>
 
-      <div class="artifact-tabs" role="tablist" aria-label="Digitale Artefakte">
+      <div class="artifact-tabs" role="tablist" aria-label="Digitale Artefakte" aria-orientation="horizontal">
         <button role="tab" aria-selected="true" aria-controls="panel-manual" id="tab-manual" data-panel="manual">Handbuch</button>
         <button role="tab" aria-selected="false" aria-controls="panel-disc" id="tab-disc" data-panel="disc" tabindex="-1">Datenträger</button>
         <button role="tab" aria-selected="false" aria-controls="panel-ad" id="tab-ad" data-panel="ad" tabindex="-1">Magazinseite</button>
@@ -128,7 +146,7 @@
           <div class="contact-sheet">
             <figure><img src="assets/concepts/night-supply-watch.webp" width="1600" height="900" alt="Nächtliche Konzeptstudie des Steinbruch-Schutzraums" loading="lazy" decoding="async"><figcaption><b>FRAME 01 · ATMOSPHERE</b><span>Concept · not gameplay · quarantined source</span></figcaption></figure>
             <figure class="diagram-frame"><div class="loop-diagram"><i>INTENT</i><span>→</span><i>AGENT</i><span>→</span><i>GATES</i><span>→</span><i>EVIDENCE</i></div><figcaption><b>FRAME 02 · SYSTEM</b><span>Implemented research contract</span></figcaption></figure>
-            <figure class="empty-frame"><div><span>RUNTIME CAPTURE</span><b>RESERVED</b><small>T-010 evidence required</small></div><figcaption><b>FRAME 03 · IN-ENGINE</b><span>Intentionally not fabricated</span></figcaption></figure>
+            <figure class="empty-frame"><div><span>RUNTIME CAPTURE</span><b>RESERVED</b><small>commit-bound evidence required</small></div><figcaption><b>FRAME 03 · IN-ENGINE</b><span>Intentionally not fabricated</span></figcaption></figure>
           </div>
           <div class="artifact-caption"><b>Bildstrecke</b><span>Echte Screenshots erscheinen hier erst mit Commit, Szene, Preset und reproduzierbarem Evidence Pack.</span></div>
         </article>
@@ -138,18 +156,21 @@
     <section class="status-section" id="status">
       <header class="section-head inverse">
         <div><p class="folio">03 / PUBLIC PROJECT STATUS</p><h2>Was heute wirklich existiert.</h2></div>
-        <p>Diese Werte werden beim Pages-Deployment direkt aus dem Repository erzeugt. Terminal-Uptime ist keine Autonomie und Konzeptgrafik kein Gameplay.</p>
+        <p>Diese Werte werden beim Pages-Deployment aus dem eingecheckten Baum erzeugt und gegen diese HTML-Ausgabe gebunden. Terminal-Uptime ist keine Autonomie, WIP kein akzeptierter Fortschritt und Konzeptgrafik kein Gameplay.</p>
       </header>
+      <p class="status-notice" id="project-status-message" role="status" aria-live="polite" data-state="loading">Projektstatus wird geprüft. Bis zur erfolgreichen Provenienzprüfung gelten alle dynamischen Werte als nicht verfügbar.</p>
+      <noscript><p class="status-notice" data-state="unavailable">Status nicht verfügbar: Für die lokale Prüfung der commitgebundenen Statusdatei ist JavaScript erforderlich. Der Quellstand bleibt über das öffentliche Repository prüfbar.</p></noscript>
       <div class="status-grid">
-        <article><span>ACCEPTED TASKS</span><b data-bind="accepted">7</b><small>Harness & asset foundation</small></article>
-        <article><span>READY TASKS</span><b data-bind="ready">1</b><small>Implementable missions</small></article>
-        <article><span>RUNTIME</span><b class="status-word" data-bind="runtime">READY</b><small data-bind="runtimeTask">T-010 · walking skeleton</small></article>
-        <article><span>LAST COMMIT</span><b class="commit" data-bind="shortCommit">9637ec8</b><small data-bind="generatedAt">Repository snapshot</small></article>
+        <article><span>ACCEPTED ON MAIN</span><b data-bind="accepted">—</b><small>Nur BACKLOG-Einträge mit Status DONE</small></article>
+        <article><span>REVIEW-MARKIERT</span><b data-bind="review">—</b><small>Im Quellbaum, aber nicht als DONE gezählt</small></article>
+        <article><span>READY TASKS</span><b data-bind="ready">—</b><small data-bind="nextReady">Nicht geladen</small></article>
+        <article><span>SOURCE COMMIT</span><b class="commit" data-bind="shortCommit">—</b><small data-bind="committedAt">Nicht geladen</small></article>
       </div>
-      <div class="status-ledger">
-        <div><i class="lamp green"></i><b>Produktionsfundament</b><span>Run-Ledger, RAG, Evidenz, Quarantäne, deterministischer 3D-Spike</span></div>
-        <div><i class="lamp amber"></i><b>Spielruntime</b><span>Walking Skeleton ist als READY-Auftrag spezifiziert; noch kein akzeptiertes repräsentatives Gameplay</span></div>
-        <div><i class="lamp dark"></i><b>30/60 FPS auf Zielhardware</b><span>Noch nicht belegt; Messszene folgt nach Runtime-Grundlage</span></div>
+      <div class="status-ledger" aria-label="Provenienz des öffentlichen Projektstands">
+        <div><i class="lamp dark" data-lamp="source"></i><b>Veröffentlichter Quellstand</b><span data-bind="sourceProvenance">Nicht geladen</span></div>
+        <div><i class="lamp dark" data-lamp="candidate"></i><b>Review-/Kandidatenstand</b><span data-bind="candidateState">Nicht beobachtet. Pages erfindet keinen Kandidaten aus offenen Dateien.</span></div>
+        <div><i class="lamp dark" data-lamp="wip"></i><b>Autopilot Live-WIP</b><span data-bind="wipState">Nicht beobachtet. Falls veröffentlicht: Kontinuitätssnapshot, kein akzeptierter Fortschritt.</span></div>
+        <div><i class="lamp dark"></i><b>Gameplay- und Hardwareclaims</b><span>Konzeptmaterial ist kein Gameplay. Zielhardware gilt nur mit commitgebundenem Evidence Pack als belegt.</span></div>
       </div>
     </section>
 

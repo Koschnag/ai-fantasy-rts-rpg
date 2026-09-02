@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koschnag.github.io/ai-fantasy-rts-rpg/status.schema.json",
+  "title": "Riftward public project status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "statusContract", "source", "workItems", "candidate", "wip", "claims"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "statusContract": { "const": "riftward-public-status-v2" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "classification", "commit", "tree", "committedAt", "dirty"],
+      "properties": {
+        "branch": { "type": "string", "pattern": "^[A-Za-z0-9._/-]{1,200}$" },
+        "classification": { "enum": ["accepted-main", "candidate-branch"] },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "committedAt": { "type": "string", "format": "date-time" },
+        "dirty": { "const": false }
+      }
+    },
+    "workItems": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accepted", "ready", "review", "nextReady"],
+      "properties": {
+        "accepted": { "type": "integer", "minimum": 0 },
+        "ready": { "type": "integer", "minimum": 0 },
+        "review": { "type": "integer", "minimum": 0 },
+        "nextReady": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "taskIds"],
+          "properties": {
+            "state": { "enum": ["none", "single", "multiple"] },
+            "taskIds": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" }
+            }
+          }
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reason"],
+      "properties": {
+        "state": { "enum": ["checked-out-candidate", "not-observed"] },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "wip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "classification"],
+      "properties": {
+        "state": { "enum": ["published", "not-observed"] },
+        "classification": { "const": "continuity-snapshot-not-accepted-progress" },
+        "branch": { "const": "autopilot/live-wip" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "committedAt": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "published" } } },
+          "then": { "required": ["branch", "commit", "committedAt"] }
+        }
+      ]
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gameplay", "targetHardwareValidated", "physicalEdition", "twentyFourSevenAutonomy"],
+      "properties": {
+        "gameplay": { "const": false },
+        "targetHardwareValidated": { "const": false },
+        "physicalEdition": { "const": false },
+        "twentyFourSevenAutonomy": { "const": false }
+      }
+    }
+  }
+}

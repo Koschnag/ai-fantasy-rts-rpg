@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://koschnag.github.io/ai-fantasy-rts-rpg/sitemap.xml
