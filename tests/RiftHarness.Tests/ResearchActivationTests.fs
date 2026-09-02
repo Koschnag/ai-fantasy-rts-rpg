@@ -38,7 +38,12 @@ module ResearchActivationTests =
         try
             Workspace.initialize root |> ignore
             let schema = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, ".ai/schemas/task.schema.json"))
+            let gitignore = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, ".gitignore"))
             write root ".ai/schemas/task.schema.json" schema
+            // Prospective runtime receipts are deliberately outside the Git
+            // input tree.  Mirror the repository ignore contract in the
+            // fixture so the clean-tree gate measures product inputs only.
+            write root ".gitignore" gitignore
             let task = "{\"schemaVersion\":1,\"id\":\"T-042\",\"title\":\"Fixture target\",\"status\":\"ready\",\"objective\":\"A valid prospective fixture target\",\"inScope\":[\"fixture\"],\"outOfScope\":[],\"requirements\":[\"fixture\"],\"acceptanceCriteria\":[{\"id\":\"A\",\"statement\":\"fixture\",\"verification\":\"test\"}],\"dependencies\":[\"T-041\"],\"requiredGates\":[\"G\"],\"decisionPolicy\":{\"mayDecide\":[],\"mustEscalate\":[]}}"
             let dependency = "{\"schemaVersion\":1,\"id\":\"T-041\",\"title\":\"Fixture dependency\",\"status\":\"accepted\",\"objective\":\"An accepted fixture dependency\",\"inScope\":[\"fixture\"],\"outOfScope\":[],\"requirements\":[\"fixture\"],\"acceptanceCriteria\":[{\"id\":\"A\",\"statement\":\"fixture\",\"verification\":\"test\"}],\"requiredGates\":[\"G\"],\"decisionPolicy\":{\"mayDecide\":[],\"mustEscalate\":[]}}"
             let protocolPaths =
