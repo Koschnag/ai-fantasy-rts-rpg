@@ -245,7 +245,8 @@ module ResearchContract =
             "baselineCommit"
             "collectorVersion"
             "nonInterferenceSnapshotSha256"
-            "activationGuardSha256" ]
+            "activationGuardSha256"
+            "studyManifestSha256" ]
           "autopilot.started", [ "autopilotInstanceId"; "triggerClass"; "policySha256" ]
           "autopilot.paused", [ "autopilotInstanceId"; "reasonCode" ]
           "autopilot.resumed", [ "autopilotInstanceId"; "pausedDurationNs" ]
@@ -373,7 +374,12 @@ module ResearchContract =
             "resultCommit"
             "resultTreeId"
             "reasonCode" ]
-          "observation.closed", [ "eventCount"; "sourceManifestSha256"; "outcomeEventId"; "closedAtUtc" ] ]
+          "observation.closed",
+          [ "eventCount"
+            "sourceManifestSha256"
+            "studyManifestSha256"
+            "outcomeEventId"
+            "closedAtUtc" ] ]
         |> List.map (fun (eventType, fields) -> eventType, Set.ofList fields)
         |> Map.ofList
 

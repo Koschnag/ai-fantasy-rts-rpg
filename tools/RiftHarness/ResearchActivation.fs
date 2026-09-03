@@ -626,6 +626,8 @@ module ResearchActivation =
             || events[0].Body.EventType <> "protocol.frozen"
             || events[1].Body.EventType <> "observation.started"
             || events[1].EventHash <> marker.ActivationEventHash
+            || requiredString "studyManifestSha256" events[1].Body.Payload
+               <> marker.StudyManifestSha256
         then
             Internal.fail "RESEARCH_MARKER_INVALID: marker does not bind the required start chain."
 
@@ -641,8 +643,8 @@ module ResearchActivation =
         if manifest.EvidenceClass <> "prospective-observed" then
             Internal.fail "RESEARCH_BEGIN_INVALID: begin is reserved for prospective-observed studies."
 
-        if manifest.ProtocolVersion <> "2.0.0" then
-            Internal.fail "PROTOCOL_VERSION_INVALID: prospective P-001 requires protocol 2.0.0."
+        if manifest.ProtocolVersion <> "2.0.1" then
+            Internal.fail "PROTOCOL_VERSION_INVALID: prospective P-001 requires protocol 2.0.1."
 
         if manifest.TargetTaskId <> "T-042" then
             Internal.fail "TARGET_TASK_INVALID: the preregistered first prospective target is T-042."
@@ -790,6 +792,7 @@ module ResearchActivation =
                     writer.WriteString("baselineCommit", manifest.BaselineCommit)
                     writer.WriteString("collectorVersion", manifest.CollectorVersion)
                     writer.WriteString("nonInterferenceSnapshotSha256", manifest.SourceManifestSha256)
+                    writer.WriteString("studyManifestSha256", manifest.ManifestSha256)
                     writer.WriteString("targetTaskId", manifest.TargetTaskId))
 
             let taskSource =
@@ -1358,15 +1361,19 @@ module ResearchActivation =
         if File.Exists(receiptPath) then
             Internal.fail "DURABILITY_FAILED: activation receipt remains after unlink and directory fsync."
 
-    let private validateFinalClosure expectedSourceManifest (events: ResearchEvent list) =
+    let private validateFinalClosure expectedStudyManifest expectedSourceManifest (events: ResearchEvent list) =
+        let starts =
+            events
+            |> List.filter (fun event -> event.Body.EventType = "observation.started")
+
         let outcomes =
             events |> List.filter (fun event -> event.Body.EventType = "outcome.observed")
 
         let closes =
             events |> List.filter (fun event -> event.Body.EventType = "observation.closed")
 
-        match outcomes, closes with
-        | [ outcome ], [ closed ] when List.last events = closed ->
+        match starts, outcomes, closes with
+        | [ started ], [ outcome ], [ closed ] when List.last events = closed ->
             let closePayload = closed.Body.Payload
             let mutable eventCount = 0L
 
@@ -1384,6 +1391,16 @@ module ResearchActivation =
 
             if closeString "outcomeEventId" <> outcome.Body.EventId then
                 Internal.fail "RESEARCH_CLOSE_INVALID: closure does not bind the unique outcome event."
+
+            let startedStudyManifest = requiredString "studyManifestSha256" started.Body.Payload
+
+            if closeString "studyManifestSha256" <> startedStudyManifest then
+                Internal.fail "RESEARCH_CLOSE_INVALID: closure study manifest differs from the start event."
+
+            match expectedStudyManifest with
+            | Some expected when startedStudyManifest <> expected ->
+                Internal.fail "RESEARCH_CLOSE_INVALID: start event study manifest differs."
+            | _ -> ()
 
             match expectedSourceManifest with
             | Some expected when closeString "sourceManifestSha256" <> expected ->
@@ -1404,7 +1421,7 @@ module ResearchActivation =
                 let events = ResearchLedger.readVerified root ledger
 
                 if events |> List.exists (fun event -> event.Body.EventType = "observation.closed") then
-                    let finalEvent = validateFinalClosure None events
+                    let finalEvent = validateFinalClosure None None events
 
                     match activationReceiptObservation root with
                     | Some receiptObservation when receiptObservation = observationId ->
@@ -1447,7 +1464,9 @@ module ResearchActivation =
 
             match closed with
             | [ _ ] ->
-                let closeEvent = validateFinalClosure (Some manifest.SourceManifestSha256) existing
+                let closeEvent =
+                    validateFinalClosure (Some manifest.ManifestSha256) (Some manifest.SourceManifestSha256) existing
+
                 removeMarkerDurably root crashPoint
 
                 { ObservationId = observationId
@@ -1562,7 +1581,8 @@ module ResearchActivation =
                         writer.WriteString("closedAtUtc", closedAt)
                         writer.WriteNumber("eventCount", eventCount)
                         writer.WriteString("outcomeEventId", outcomeEventId)
-                        writer.WriteString("sourceManifestSha256", sourceManifestSha))
+                        writer.WriteString("sourceManifestSha256", sourceManifestSha)
+                        writer.WriteString("studyManifestSha256", manifest.ManifestSha256))
 
                 let closeSource = ResearchRuntime.harnessEventSource outcomeEventId outcomeEventHash
 
@@ -1575,7 +1595,8 @@ module ResearchActivation =
                 if finalEvents.Length <> eventCount then
                     Internal.fail "RESEARCH_CLOSE_INVALID: final event count differs."
 
-                validateFinalClosure (Some sourceManifestSha) finalEvents |> ignore
+                validateFinalClosure (Some manifest.ManifestSha256) (Some sourceManifestSha) finalEvents
+                |> ignore
 
                 if crashPoint = Some ResearchCrashPoint.AfterCloseSyncBeforeMarkerUnlink then
                     Internal.fail "INJECTED_CRASH: after close fsync before marker unlink."

@@ -2,7 +2,7 @@
 
 **Vertrag:** `riftward-observability-data-v1`
 
-**Protokoll:** `riftward-research-observability` 2.0.0
+**Protokoll:** `riftward-research-observability` 2.0.1
 
 ## Globale Konventionen
 
@@ -40,6 +40,18 @@
 
 Eine Beobachtung besitzt genau eine Klasse. Ein Export mit Daten mehrerer
 Klassen enthaelt getrennte Beobachtungszeilen und aggregiert sie nicht.
+
+## Study-Manifest
+
+Das kanonische Study-Manifest ist ein geschlossenes Objekt. Pflichtfelder sind
+exakt `studyId`, `observationId`, `evidenceClass`, `targetTaskId`,
+`actorIdentityRule`, `protocolVersion`, `protocolBundleSha256`,
+`baselineCommit`, `headCommit`, `baselineTreeId`, `resultTreeId`, `inputTreeId`,
+`taskManifestSha256`, `collectorVersion`, `exporterVersion`, `toolchainSha256`,
+`timezone`, `locale`, `pathMapVersion`, `sourceInventory`,
+`sourceInventorySha256`, `redactionPolicyVersion` und `generatedAtUtc`. Nur
+`windowStartUtc` und `windowEndUtc` sind optionale Felder. Jeder weitere
+Schluessel ist ungueltig und wird weder persistiert noch exportiert.
 
 ## Ereignishuelse
 
@@ -157,7 +169,7 @@ Eingriffe oder aktive Arbeitszeit.
 | `eventType` | erforderliche Payloadfelder | Bedeutung |
 |---|---|---|
 | `protocol.frozen` | `protocolId`, `protocolVersion`, `protocolBundleSha256`, `freezeAtUtc` | bindet die vor Beobachtungsstart eingefrorene Fassung |
-| `observation.started` | `targetTaskId`, `baselineCommit`, `collectorVersion`, `nonInterferenceSnapshotSha256`, `activationGuardSha256` | beginnt genau eine Beobachtung erst nach einem belegten Guard ohne bereits gestarteten Zielpfad |
+| `observation.started` | `targetTaskId`, `baselineCommit`, `collectorVersion`, `nonInterferenceSnapshotSha256`, `activationGuardSha256`, `studyManifestSha256` | beginnt genau eine Beobachtung erst nach einem belegten Guard ohne bereits gestarteten Zielpfad und bindet die kanonischen Study-Manifestbytes dauerhaft in die Kette |
 | `autopilot.started` | `autopilotInstanceId`, `triggerClass`, `policySha256` | Beginn einer beobachteten Autopilotinstanz |
 | `autopilot.paused` | `autopilotInstanceId`, `reasonCode` | explizite Lifecyclepause; weder Autonomiemodus noch Aktivitaetszustand |
 | `autopilot.resumed` | `autopilotInstanceId`, `pausedDurationNs` | Fortsetzung derselben Instanz |
@@ -213,7 +225,7 @@ Eingriffe oder aktive Arbeitszeit.
 | `human.emergency` | `humanActId`, `emergencyClass`, `decisionActSha256`, `interventionCategory`, `counted` | Notstopp/-eingriff; regulaer `I10-emergency-stop` |
 | `human.observation` | `humanActId`, `observationClass`, `decisionActSha256`, `interventionCategory`, `counted` | reine Beobachtung ohne Wirkung ist `I0-observation-no-intervention` und hat `counted=false` |
 | `outcome.observed` | `taskOutcome`, `hypothesisResult`, `resultCommit`, `resultTreeId`, `reasonCode` | trennt Taskoutcome von Forschungsergebnis und bindet den beobachteten Ergebnisbaum explizit |
-| `observation.closed` | `eventCount`, `sourceManifestSha256`, `outcomeEventId`, `closedAtUtc` | schliesst die Primaerereigniskette genau einmal nach einem aufloesbaren `outcome.observed`; sein Huelle-Feld `eventHash` ist der finale Kettenhash, Exporthashes entstehen erst danach |
+| `observation.closed` | `eventCount`, `sourceManifestSha256`, `studyManifestSha256`, `outcomeEventId`, `closedAtUtc` | schliesst die Primaerereigniskette genau einmal nach einem aufloesbaren `outcome.observed`; `studyManifestSha256` muss dem Startwert entsprechen, sein Huelle-Feld `eventHash` ist der finale Kettenhash, Exporthashes entstehen erst danach |
 
 Fuer Ereignisse mit inhaltlich nicht anwendbaren Huellenfeldern bleibt das
 Feld literal `unknown`. Ein `task.planned` ohne Prozessende hat beispielsweise
@@ -290,7 +302,8 @@ nicht prospektiv verwendbar. Ein zweites Begin, ein beweglicher oder
 abweichender Gitstand und jeder bereits belegte Start des Zielpfads scheitern
 fail-closed. `research close` akzeptiert nur einen aufloesbaren strukturierten
 Outcome-Receipt, bindet dessen Hash an `outcome.observed`/
-`observation.closed`, fsynct die finale Kette, validiert Kette und Marker,
+`observation.closed`, wiederholt dort den in `observation.started` gebundenen
+kanonischen Study-Manifest-Hash, fsynct die finale Kette, validiert Kette und Marker,
 entfernt den Marker und fsynct dessen Parent-Verzeichnis. Eine geschlossene
 Kette mit verbliebenem Marker ist `STALE_ACTIVE_MARKER`: Hooks sind inaktiv,
 und ein Close-Retry entfernt ihn ohne doppeltes Ereignis idempotent. Weder

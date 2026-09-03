@@ -2,7 +2,7 @@
 
 **Vertrag:** `riftward-observability-metrics-v1`
 
-**Protokoll:** `riftward-research-observability` 2.0.0
+**Protokoll:** `riftward-research-observability` 2.0.1
 
 ## Berechnungsregeln
 

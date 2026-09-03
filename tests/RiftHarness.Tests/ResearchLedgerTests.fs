@@ -496,7 +496,7 @@ module ResearchLedgerTests =
             appendEvent
                 2
                 "observation.started"
-                $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{String('b', 40)}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'c'}\",\"activationGuardSha256\":\"{sha 'd'}\"}}"
+                $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{String('b', 40)}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'c'}\",\"activationGuardSha256\":\"{sha 'd'}\",\"studyManifestSha256\":\"{sha 'e'}\"}}"
 
             appendEvent
                 3
@@ -511,7 +511,7 @@ module ResearchLedgerTests =
             appendEvent
                 5
                 "observation.closed"
-                $"{{\"eventCount\":5,\"sourceManifestSha256\":\"{sha 'f'}\",\"outcomeEventId\":\"{eventId 4}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
+                $"{{\"eventCount\":5,\"sourceManifestSha256\":\"{sha 'f'}\",\"studyManifestSha256\":\"{sha 'e'}\",\"outcomeEventId\":\"{eventId 4}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
 
             expectFailure "OBSERVATION_CLOSED" (fun () -> append root ledger (synthetic 6 observation))
 
@@ -529,6 +529,50 @@ module ResearchLedgerTests =
                 persisted.Body.ChangedPaths
                 "Unsafe changedPaths was not replaced by literal unknown.")
 
+    let studyManifestBindingIsFailClosed () =
+        workspace (fun root ->
+            let observation = observationId 17
+            let ledger = ResearchLedger.ledgerPath root observation
+
+            let appendEvent number eventType payload =
+                append
+                    root
+                    ledger
+                    (ResearchEventDraft.create
+                        (eventId number)
+                        observation
+                        "synthetic-test-only"
+                        eventType
+                        "2026-09-02T10:00:00.000Z"
+                        [ source "fixture" ]
+                        (json payload))
+
+            appendEvent
+                1
+                "protocol.frozen"
+                $"{{\"protocolId\":\"p\",\"protocolVersion\":\"v1\",\"protocolBundleSha256\":\"{sha 'a'}\",\"freezeAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
+
+            appendEvent
+                2
+                "observation.started"
+                $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{String('b', 40)}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'c'}\",\"activationGuardSha256\":\"{sha 'd'}\",\"studyManifestSha256\":\"{sha 'e'}\"}}"
+
+            appendEvent
+                3
+                "activity.state.changed"
+                "{\"fromActivityState\":\"idle\",\"toActivityState\":\"agent-active\",\"reasonCode\":\"test\"}"
+
+            appendEvent
+                4
+                "outcome.observed"
+                $"{{\"taskOutcome\":\"accepted\",\"hypothesisResult\":\"unknown\",\"resultCommit\":\"{String('e', 40)}\",\"resultTreeId\":\"{String('f', 40)}\",\"reasonCode\":\"test\"}}"
+
+            expectFailure "RESEARCH_LIFECYCLE_INVALID" (fun () ->
+                appendEvent
+                    5
+                    "observation.closed"
+                    $"{{\"eventCount\":5,\"sourceManifestSha256\":\"{sha 'f'}\",\"studyManifestSha256\":\"{sha '0'}\",\"outcomeEventId\":\"{eventId 4}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"))
+
     let all =
         [ "research canonical roundtrip", canonicalRoundTrip
           "research tamper detection", tamperIsNotRecoverableTail
@@ -542,4 +586,5 @@ module ResearchLedgerTests =
           "research harness event reference matrix", harnessEventReferencesAreStrictlyEarlierAndHashBound
           "research collector payload contracts", collectorPayloadContractsRejectMalformedValues
           "research gate and verification payload contracts", gateAndVerificationPayloadContractsAreTypedAndExact
-          "research closed lifecycle and changed-path privacy", closedLifecycleAndPrivacyAreFailClosed ]
+          "research closed lifecycle and changed-path privacy", closedLifecycleAndPrivacyAreFailClosed
+          "research study manifest binding is fail closed", studyManifestBindingIsFailClosed ]

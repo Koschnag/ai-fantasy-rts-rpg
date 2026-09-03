@@ -231,6 +231,7 @@ module ResearchCli =
                     ResearchLedger.recoverTo root ledger destination draft
 
             if result.Status = ResearchLedgerStatus.Valid then
+                ResearchExport.requireStudyManifestBinding manifest result.Events
                 ResearchExport.verifyLedgerSources root result.Events
 
             let baseStatus = ResearchActivation.status root (Some manifest.ObservationId)

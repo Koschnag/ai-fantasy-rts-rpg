@@ -728,6 +728,7 @@ module ResearchLedger =
                   "promptSha256"
                   "toolchainSha256"
                   "taskManifestSha256"
+                  "studyManifestSha256"
                   "evidenceSha256"
                   "originalLedgerSha256"
                   "verifiedPrefixSha256"
@@ -1105,6 +1106,7 @@ module ResearchLedger =
         let mutable startCount = 0
         let mutable closeCount = 0
         let mutable activityCount = 0
+        let mutable startedStudyManifestSha256: string option = None
 
         for event in events do
             if closed then
@@ -1114,6 +1116,10 @@ module ResearchLedger =
             | "protocol.frozen" -> protocolCount <- protocolCount + 1
             | "observation.started" ->
                 startCount <- startCount + 1
+
+                match startedStudyManifestSha256 with
+                | None -> startedStudyManifestSha256 <- Some(payloadString event "studyManifestSha256")
+                | Some _ -> ()
 
                 if protocolCount <> 1 then
                     fail "RESEARCH_LIFECYCLE_INVALID" "observation.started requires exactly one prior protocol.frozen."
@@ -1192,6 +1198,13 @@ module ResearchLedger =
 
                 if payloadInt event "eventCount" <> event.Sequence then
                     fail "RESEARCH_LIFECYCLE_INVALID" "observation.closed eventCount must equal the final sequence."
+
+                match startedStudyManifestSha256 with
+                | Some expected when payloadString event "studyManifestSha256" = expected -> ()
+                | _ ->
+                    fail
+                        "RESEARCH_LIFECYCLE_INVALID"
+                        "observation.closed must bind the study manifest from observation.started."
 
                 if
                     openRuns.Count <> 0

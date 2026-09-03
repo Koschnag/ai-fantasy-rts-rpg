@@ -2,13 +2,14 @@
 
 **Protokoll-ID:** `riftward-research-observability`
 
-**Version:** 2.0.0
+**Version:** 2.0.1
 
-**Stand:** 2026-09-02
+**Stand:** 2026-09-03
 
 **Status:** praeregistriert fuer T-053; noch kein prospektives Ereignis erhoben
 
-Version 2.0.0 ersetzt den explorativen Messplan 0.1 vom 2026-08-23. Die
+Version 2.0.1 ist das vor P-001 beschlossene Integrity-/Privacy-Amendment zu
+2.0.0; 2.0.0 ersetzte den explorativen Messplan 0.1 vom 2026-08-23. Die
 inhaltliche Aenderungshistorie steht im
 [Protokoll-Changelog](PROTOCOL_CHANGELOG.md). Der Hash der eingefrorenen
 Protokollfassung wird vor dem ersten prospektiven Ereignis nach dem Verfahren

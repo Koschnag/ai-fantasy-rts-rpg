@@ -2,7 +2,7 @@
 
 **Policy:** `riftward-observability-publication-v1`
 
-**Protokoll:** `riftward-research-observability` 2.0.0
+**Protokoll:** `riftward-research-observability` 2.0.1
 
 ## Datenminimierung
 

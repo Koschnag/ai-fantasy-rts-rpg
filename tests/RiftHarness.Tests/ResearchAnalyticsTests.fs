@@ -101,7 +101,7 @@ module ResearchAnalyticsTests =
 
         ledger
 
-    let private appendClosedFixture root observation sourceManifestSha =
+    let private appendClosedFixture root observation sourceManifestSha studyManifestSha =
         let ledger = ResearchLedger.ledgerPath root observation
 
         let append number eventType payload =
@@ -126,7 +126,7 @@ module ResearchAnalyticsTests =
         append
             2
             "observation.started"
-            $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{commit 'a'}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'b'}\",\"activationGuardSha256\":\"{sha 'c'}\"}}"
+            $"{{\"targetTaskId\":\"T-053\",\"baselineCommit\":\"{commit 'a'}\",\"collectorVersion\":\"test\",\"nonInterferenceSnapshotSha256\":\"{sha 'b'}\",\"activationGuardSha256\":\"{sha 'c'}\",\"studyManifestSha256\":\"{studyManifestSha}\"}}"
 
         append
             3
@@ -146,7 +146,7 @@ module ResearchAnalyticsTests =
         append
             6
             "observation.closed"
-            $"{{\"eventCount\":6,\"sourceManifestSha256\":\"{sourceManifestSha}\",\"outcomeEventId\":\"{outcomeId}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
+            $"{{\"eventCount\":6,\"sourceManifestSha256\":\"{sourceManifestSha}\",\"studyManifestSha256\":\"{studyManifestSha}\",\"outcomeEventId\":\"{outcomeId}\",\"closedAtUtc\":\"2026-09-02T10:00:00.000Z\"}}"
 
         ledger
 
@@ -276,7 +276,8 @@ module ResearchAnalyticsTests =
             let observation = id "OBS-" 3
             let manifest = writeManifest root observation
             let sourceHash = Internal.sha256Hex (ResearchCanonical.canonicalizeJson "[]")
-            appendClosedFixture root observation sourceHash |> ignore
+            let studyHash = (ResearchExport.loadStudyManifest root manifest).ManifestSha256
+            appendClosedFixture root observation sourceHash studyHash |> ignore
             let first = ".ai/runtime/research/exports/first"
             let second = ".ai/runtime/research/exports/second"
             ResearchExport.export root manifest first |> ignore
@@ -293,9 +294,71 @@ module ResearchAnalyticsTests =
                 ResearchExport.verifyExportWithExpectedReceipt root first (Some(sha '0'))
                 |> ignore)
 
+            let originalManifest = File.ReadAllText(manifest, Constants.Utf8NoBom)
+
+            File.WriteAllText(
+                manifest,
+                originalManifest.Replace(
+                    "\"actorIdentityRule\":\"test\"",
+                    "\"actorIdentityRule\":\"changed-after-close\"",
+                    StringComparison.Ordinal
+                ),
+                Constants.Utf8NoBom
+            )
+
+            let changedOutput = ".ai/runtime/research/exports/changed-manifest"
+
+            expectFailure "STUDY_MANIFEST_BINDING_INVALID" (fun () ->
+                ResearchExport.export root manifest changedOutput |> ignore)
+
+            assertTrue
+                (not (Directory.Exists(Path.Combine(root, changedOutput))))
+                "A changed post-closure manifest created an export directory"
+
+            expectFailure "STUDY_MANIFEST_BINDING_INVALID" (fun () ->
+                ResearchCli.execute root [ "verify"; "--study-manifest"; manifest ] |> ignore)
+
             let summary = Path.Combine(root, first, "summary.json")
             File.AppendAllText(summary, "x", Constants.Utf8NoBom)
             expectFailure "EXPORT_HASH_INVALID" (fun () -> ResearchExport.verifyExport root first |> ignore))
+
+    let studyManifestRejectsUndocumentedSensitiveFields () =
+        withWorkspace (fun root ->
+            let observation = id "OBS-" 4
+            let manifest = writeManifest root observation
+            let original = File.ReadAllText(manifest, Constants.Utf8NoBom)
+
+            for field, value in
+                [ "apiToken", "sk-private-value"
+                  "userEmail", "alice@example.invalid"
+                  "privateNotes", "/Users/alice/secret.txt" ] do
+                File.WriteAllText(
+                    manifest,
+                    original.Substring(0, original.Length - 1) + $",\"{field}\":\"{value}\"}}",
+                    Constants.Utf8NoBom
+                )
+
+                expectFailure "RESEARCH_MANIFEST_INVALID" (fun () ->
+                    ResearchExport.loadStudyManifest root manifest |> ignore)
+
+                let output = $".ai/runtime/research/exports/privacy-{field}"
+
+                expectFailure "RESEARCH_MANIFEST_INVALID" (fun () ->
+                    ResearchExport.export root manifest output |> ignore)
+
+                assertTrue
+                    (not (Directory.Exists(Path.Combine(root, output))))
+                    $"Sensitive unknown field {field} reached an export directory"
+
+            let longitudinal =
+                original.Substring(0, original.Length - 1)
+                + ",\"windowEndUtc\":\"2026-09-03T10:00:00.000Z\",\"windowStartUtc\":\"2026-09-02T10:00:00.000Z\"}"
+
+            File.WriteAllText(manifest, longitudinal, Constants.Utf8NoBom)
+
+            let accepted = ResearchExport.loadStudyManifest root manifest
+            assertTrue accepted.WindowStartUtc.IsSome "Documented windowStartUtc was rejected"
+            assertTrue accepted.WindowEndUtc.IsSome "Documented windowEndUtc was rejected")
 
     let private git root arguments =
         let info = ProcessStartInfo("git")
@@ -426,6 +489,8 @@ module ResearchAnalyticsTests =
           "research metrics keep evidence classes separated", evidenceClassesStaySeparatedInMetrics
           "research metrics require paired facts and interval unions", metricsRequireBoundFactsAndUseExactUnions
           "research exports are deterministic and tamper-evident", exportsAreByteIdenticalAndTamperEvident
+          "research study manifest rejects undocumented sensitive fields",
+          studyManifestRejectsUndocumentedSensitiveFields
           "research git import rejects malformed and moving boundaries", gitBoundariesRejectMalformedAndMovingNames
           "research retrospective import preserves unknown usage and human duration",
           retrospectiveImportKeepsHumanAndUsageUnknown

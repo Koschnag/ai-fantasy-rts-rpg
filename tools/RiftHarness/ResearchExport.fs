@@ -70,6 +70,11 @@ module ResearchExport =
           "redactionPolicyVersion"
           "generatedAtUtc" ]
 
+    let private optionalStudyFields = set [ "windowStartUtc"; "windowEndUtc" ]
+
+    let private allowedStudyFields =
+        Set.union (Set.ofList requiredStudyFields) optionalStudyFields
+
     let private workspacePath (root: string) (path: string) =
         if Path.IsPathFullyQualified(path) then
             path
@@ -130,6 +135,15 @@ module ResearchExport =
         for field in requiredStudyFields do
             if not (element.TryGetProperty(field) |> fst) then
                 Internal.fail $"RESEARCH_MANIFEST_INVALID: required field {field} is missing."
+
+        let manifestFields = HashSet<string>(StringComparer.Ordinal)
+
+        for property in element.EnumerateObject() do
+            if not (manifestFields.Add(property.Name)) then
+                Internal.fail $"RESEARCH_MANIFEST_INVALID: duplicate field {property.Name}."
+
+        if not (Set.isSubset (Set.ofSeq manifestFields) allowedStudyFields) then
+            Internal.fail "RESEARCH_MANIFEST_INVALID: study manifest field set is invalid."
 
         let studyId = requiredString "studyId" element
         let observationId = requiredString "observationId" element
@@ -603,7 +617,26 @@ module ResearchExport =
 
                 sourceBytes root prior event.Body.RunId source |> ignore))
 
+    let requireStudyManifestBinding (manifest: ResearchStudyManifest) (events: ResearchEvent list) =
+        let starts =
+            events
+            |> List.filter (fun event -> event.Body.EventType = "observation.started")
+
+        let closes =
+            events |> List.filter (fun event -> event.Body.EventType = "observation.closed")
+
+        match starts with
+        | [ started ] when payloadValue "studyManifestSha256" started = manifest.ManifestSha256 -> ()
+        | _ -> Internal.fail "STUDY_MANIFEST_BINDING_INVALID: observation.started does not bind the supplied manifest."
+
+        match closes with
+        | [] -> ()
+        | [ closed ] when payloadValue "studyManifestSha256" closed = manifest.ManifestSha256 -> ()
+        | _ -> Internal.fail "STUDY_MANIFEST_BINDING_INVALID: observation.closed does not bind the supplied manifest."
+
     let private requireClosedChain (manifest: ResearchStudyManifest) (events: ResearchEvent list) =
+        requireStudyManifestBinding manifest events
+
         let exactlyOne eventType =
             events |> List.filter (fun event -> event.Body.EventType = eventType)
 
