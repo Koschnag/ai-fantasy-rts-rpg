@@ -33,6 +33,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
 | T-008 | E-001 | überprüfbarer Retail-Era-Forschungs-Showcase mit Press-Kit-Prototyp, Quarantäne-Key-Art und wahrheitsgebundenen Exportregeln | Z-004, Z-005 | M | SHOULD | REVIEW |
 | T-053 | E-001 | praeregistrierte wissenschaftliche Observability mit getrennten Evidenzklassen, exakten Metriken, reproduzierbaren Exporten und fail-closed Privacy-/Publikationsgrenzen | Z-004, NF-003, NF-008 | M | SHOULD | READY |
+| T-054 | E-001 | aktuelles öffentliches Projektcockpit verbindet README, Pages, Task-/Gate-Status und pseudonyme Autopilot-Provenienz ohne WIP als Fortschritt umzudeuten | Z-004, Z-005, NF-003, NF-008 | M | SHOULD | READY |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
@@ -70,6 +71,23 @@ ein unabhängiges Review voraus. Der isolierte Builderkandidat wurde am
 2026-09-02 nach grüner Vertrags-, Doppelbuild-, Link- und lokaler
 Browserprüfung auf `REVIEW` gesetzt; GitHub-CI, unabhängige Abnahme, Merge und
 öffentliches Pages-Deployment bleiben getrennte, noch offene Schritte.
+
+`T-054` wurde am 2026-09-03 durch die ausdrückliche Anweisung der
+Projektleitung auf `READY` gesetzt. Der Auftrag baut auf dem veröffentlichten
+T-052-Stand auf und macht README sowie Pages zu einem sicheren öffentlichen
+Projektcockpit: akzeptiertes `main`, geprüfte Kandidaten, freigegebene nächste
+Aufgaben, WIP-Kontinuität, beobachtete Aktivität und Claims bleiben getrennte
+Zustände. Der Aktualisierungspfad läuft bei jedem `main`-Push, regelmäßig und
+manuell ausschließlich aus exakt gebundenem `origin/main`; PR-/Fork-/WIP-Refs
+sind nur streng allowgelistete Daten und werden niemals ausgeführt. Fehlende
+Signale bleiben `unknown`, WIP bleibt kein akzeptierter Fortschritt, und die
+README aktualisiert ihre Statusprojektion ohne selbstschreibende Commit-
+Schleife. T-054 reconciliert außerdem die bereits nachweislich auf `main`
+promoteten T-034 bis T-039 und T-052 gegen gebundene Review-/CI-Receipts und
+führt stabile Planner-/Builder-/Reviewer-/Repair-/WIP-Identitäten für künftige
+Commits ein, ohne bestehende Historie umzuschreiben. Implementierung, Merge und
+Deployment erfordern die im Manifest festgelegten Negativtests, alle
+bestehenden Pflichtgates und ein buildergetrenntes unabhängiges Review.
 
 `T-003`, `T-005`, `T-006` und `T-007` sind unabhängig abgenommen. `T-006` hat den
 BCL-only-.NET-in-process-Generator samt transaktionalem Quarantäne-Lifecycle

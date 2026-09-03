@@ -1,0 +1,112 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-054",
+  "title": "Aktuelles oeffentliches Projektcockpit, README-Wahrheit und Autopilot-Provenienz",
+  "status": "ready",
+  "releaseNote": "2026-09-03: draft -> ready aufgrund der ausdruecklichen Projektleitungsanweisung, Riftward-Website, README und Statusdokumentation umfassend zu aktualisieren, den jeweils neuesten akzeptierten Stand sowie laufende Aufgaben sichtbar zu machen, Branches ohne Historienrewrite zu konsolidieren und kuenftige Agentencommits mit stabilen Rollenidentitaeten zu versehen. Der Auftrag startet am veroeffentlichten main-Commit d7d5f949758a3a38ca4238ceadfbbd83965eb71d. Er fuehrt keine ungeprueften WIP-/PR-Inhalte aus, behauptet aus Aktivitaet keinen Fortschritt und veroeffentlicht keine privaten Betriebs- oder Forschungsrohdaten.",
+  "objective": "README und GitHub Pages bilden jederzeit den zuletzt beobachteten oeffentlichen Riftward-Zustand als pruefbares Projektcockpit ab: akzeptierte Ergebnisse, Review-Kandidaten, naechste freigegebene Aufgaben, WIP-Kontinuitaet, beobachtete Autopilotaktivitaet und Claim-Grenzen bleiben strikt getrennt, waehrend Dokumentation, Taskstatus und kuenftige Commitidentitaeten nachvollziehbar und widerspruchsfrei werden.",
+  "inScope": [
+    "Statusvertrag v3 mit getrennten Bereichen observation, accepted, candidates, continuity, activity und claims; geschlossene Enums, exakte relationale Validierung, sichtbare unknown-/stale-/offline-Zustaende und Beobachtungszeit getrennt von Commitzeit",
+    "Sicherer Pages-Aktualisierungspfad auf jedem Push nach main, regelmaessigem begrenztem Zeitplan und manueller Ausloesung; ausgefuehrt wird ausschliesslich der exakt gebundene origin/main-Code, waehrend Pull-Request- und WIP-Referenzen nur als untrusted Daten mit strikter Feldallowlist gelesen und niemals ausgecheckt oder ausgefuehrt werden",
+    "Oeffentliche Darstellung von akzeptiertem main-Commit und Tree, geprueften offenen Kandidaten, READY-Auftraegen, WIP-Snapshotalter sowie nur bei frischem maschinenlesbar gebundenem Signal von Task, Phase, Agentenrolle, Run, Parent-Run, letztem Gate, Failure-Class und Autonomy-State; fehlende Signale bleiben unknown und WIP bleibt kein akzeptierter Fortschritt",
+    "Dynamische, lokal auf GitHub Pages gehostete Status-Badges oder gleichwertige Projektionen fuer die Repository-README ohne automatische README-Selbstcommits; statische README-Aussagen werden auf den tatsaechlich akzeptierten Graybox-, Runtime-, Forschungs- und Hardwareevidenzstand korrigiert",
+    "Komplette responsive und barrierearme Ueberarbeitung der bestehenden GitHub-Pages-Informationsarchitektur mit klarer Startuebersicht, aktuellem Task-/Gate-/Blockerbereich, Fortschrittschronik, Forschungsgrenzen und direkten Beleglinks; vorhandene freigegebene Medien werden bevorzugt, neue Projekt-SVGs bleiben deterministisch und provenienzgebunden",
+    "Evidenzbasierte Statusreconciliation fuer T-034 bis T-039 und T-052 anhand ihrer bereits auf main gemergten unabhaengig geprueften Promotionscommits und GitHub-Checks; keine Aufgabe wird allein aufgrund lokaler Dateien oder Commitmenge akzeptiert und T-053 bleibt bis P-001 bewusst unfertig",
+    "Stabile pseudonyme Git-Rollen fuer kuenftige Planner-, Builder-, Reviewer-, Repair- und WIP-Commits sowie gebundene Commit-Trailer; Projektleitungs-Promotionen duerfen weiterhin Koschnags verifizierte GitHub-No-Reply-Identitaet tragen, bestehende Historie bleibt unveraendert",
+    "Aktualisierung der zentralen README-, Showcase-, Automation-, Harness- und Statusdokumentation sowie eines kurzen Branch-/Rollbacks-Runbooks ohne zweite Produktwahrheit",
+    "Erweiterte hermetische Status-, Workflow-, Datenschutz-, Barrierefreiheits-, Mobile-, Reduced-Motion-, Link-, Asset-, Provenienz- und Manipulationsnegativtests ohne neue Laufzeitabhaengigkeit"
+  ],
+  "outOfScope": [
+    "Ausfuehrung von Code, Actions oder Skripten aus Pull-Request-, Fork- oder autopilot/live-wip-Referenzen; WIP und Kandidaten erhalten keine Schreib-, Deploy- oder main-Promotionsrechte",
+    "Automatische Promotion nach main, Abschwaechung bestehender Pflichtgates, Umdeutung von WIP/Agentenaktivitaet/Commitzahl als produktiver Fortschritt oder Aenderung der T-042-/P-001-Startbedingungen",
+    "Veroeffentlichung von Prompts, Logs, Tokens, Kostenrohdaten, Modell-/Providerkonten, Personen, E-Mail-Adressen, lokalen Pfaden, Hosts, Routen, Secrets, Zugangsdaten oder privaten Forschungs-/Betriebsdaten",
+    "Historienrewrite, nachtraegliche Aenderung bestehender Commitautoren, Zusammenfuehrung des WIP-Branches mit main oder Loeschung nicht nachweislich gemergter Branches",
+    "Neue Analyse-, Tracking-, Telemetrie-, Frontend-, Build- oder externe Laufzeitdienste sowie externe Assetgenerierung ohne separaten Provenienz-/Lizenzprozess",
+    "Gameplay-, Zielhardware-, 24/7-Autonomie-, Kosten-, Nachhaltigkeits-, Release- oder Fertigstellungsclaims ohne ihre jeweils akzeptierte Evidenz"
+  ],
+  "requirements": [
+    "Z-004",
+    "Z-005",
+    "NF-003",
+    "NF-008"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T054-01",
+      "statement": "Der geschlossene Statusvertrag v3 trennt Beobachtung, akzeptierten main-Stand, Kandidaten, Kontinuitaet, Aktivitaet und Claims relational; Erzeugungs-/Beobachtungszeit ist keine Commitzeit, und fehlende, unbekannte, veraltete, zukunftsdatierte oder widerspruechliche Eingaben werden sichtbar abgewertet statt als aktuell oder erfolgreich ausgegeben.",
+      "verification": "Schema-, Generator- und DOM-Negativmatrix fuer unbekannte Zusatzfelder, null, falsche Hash-/Tree-/Zeitbindung, Clock-Skew, stale/offline, ungueltige Enums, fehlende Checks und widerspruechliche Statusrelationen"
+    },
+    {
+      "id": "AC-T054-02",
+      "statement": "Jeder main-Push, ein begrenzter regelmaessiger Zeitplan und workflow_dispatch koennen den Status aktualisieren; nur exakt origin/main-gebundener Code wird ausgefuehrt, PR-/Fork-/WIP-Daten bleiben nicht ausfuehrbare Allowlist-Eingaben, und ausschliesslich der Deploy-Job besitzt Pages-/OIDC-Schreibrechte.",
+      "verification": "Statischer Workflowvertrag plus Fixtures fuer Ref-Race, fremden PR-Head, WIP-Workflowaenderung, fehlende Checks und unzulaessige Jobberechtigungen; Nachweis, dass WIP/PR nie ausgecheckt oder ausgefuehrt werden"
+    },
+    {
+      "id": "AC-T054-03",
+      "statement": "Das Cockpit zeigt aktuell beobachteten main-Stand, offene gepruefte Kandidaten, READY-Auftraege und WIP-Kontinuitaet; Task/Phase/Gate/Blocker/Autonomy-State erscheinen nur aus einem frischen, commit- und treegebundenen, streng allowgelisteten Signal, andernfalls literal unknown oder nicht beobachtet.",
+      "verification": "Positivfixture fuer gueltige Sidecar-/Trailerprojektion und Negativfixtures fuer freie Committexte, HTML/Control-Zeichen, E-Mail/Pfad/Host/Token/Prompt/Modellfelder, stale WIP, falschen Tree, unbekannte Phase und Aktivitaet ohne frisches Signal"
+    },
+    {
+      "id": "AC-T054-04",
+      "statement": "Die Repository-README enthaelt keine veraltete Datums- oder Gameplayaussage mehr, beschreibt den akzeptierten interaktiven Graybox- und Forschungsstand wahrheitsgetreu und bindet live aktualisierte Pages-Statusprojektionen ein, ohne bei Statusupdates selbst Commits zu erzeugen.",
+      "verification": "README-Vertragstest gegen verbotene Altclaims, lokale Status-Badge-/Dashboardlinks, fehlende Auto-Commit-Schreibrechte und sichtbare Real-/Noch-nicht-real-Grenzen"
+    },
+    {
+      "id": "AC-T054-05",
+      "statement": "Die ueberarbeitete Seite ist auf Desktop und Smartphonebreite, per Tastatur, Screenreaderstruktur und prefers-reduced-motion voll nutzbar; Stale-/Offline-/Fehlerzustaende bleiben ohne Farbe verstaendlich und die wichtigsten aktuellen Fakten stehen vor Konzept- und Langformmaterial.",
+      "verification": "Hermetischer HTML-/CSS-/DOM-Vertrag, Browser-Smoke in breitem und schmalem Viewport, Tastaturreihenfolge, aria-live, Kontrast-/Formkennzeichnung und Reduced-Motion-Pruefung"
+    },
+    {
+      "id": "AC-T054-06",
+      "statement": "T-034 bis T-039 und T-052 werden nur dann auf accepted/DONE reconciliert, wenn das eingecheckte Receipt ihren exakten gemergten Promotionscommit, gruenen Pflichtcheck und unabhaengige Reviewevidenz bindet; T-053 bleibt ready, bis sein prospektiver Abschlussvertrag erfuellt ist.",
+      "verification": "Maschinenlesbares Reconciliation-Manifest, Git-/PR-Receiptpruefung, Task-Schema-, BACKLOG-/Manifest-Konsistenztest und Negativfixture fuer fehlenden oder fremden Promotionsbeleg"
+    },
+    {
+      "id": "AC-T054-07",
+      "statement": "Die kuenftige Git-Provenienzpolicy definiert stabile Planner-, Builder-, Reviewer-, Repair- und WIP-Autopilotidentitaeten samt erlaubten Trailern, verhindert private Firmenadressen und schreibt bestehende Historie nicht um.",
+      "verification": "Policy-/Dokumenttest, erlaubte/verbotene Identitaetsfixtures und Git-Historienvergleich vor/nach der Aenderung; der T-054-Buildercommit nutzt die Builderrolle, der getrennte Reviewreceipt die Reviewerrolle"
+    },
+    {
+      "id": "AC-T054-08",
+      "statement": "Pages und README geben keinen Kandidaten als DONE, kein WIP als Produktfortschritt, kein Konzept als Gameplay, keinen fehlenden Check als PASS und keine blosse Orchestratorverfuegbarkeit als aktive oder produktive 24/7-Autonomie aus.",
+      "verification": "Adversariale Generator-/DOM-/Textfixtures fuer Candidate-plus-DONE, WIP-plus-Accept, Concept-plus-Gameplay, Missing-plus-PASS und Verfuegbarkeit-plus-Autonomie"
+    },
+    {
+      "id": "AC-T054-09",
+      "statement": "Alle zentralen Status- und Automationsdokumente erklaeren dieselbe Quelle, Aktualisierungsfrequenz, Vertrauensgrenze, Rollenidentitaet und den Rollbackpfad; interne Links und freigegebene Assets sind pruefbar, hashgebunden und frei von privaten Daten.",
+      "verification": "Dokument-/Link-/Assetmanifest-/Secret-/Private-Data-Pruefung sowie Fresh-Checkout-Doppelbuild mit identischem Artefakt bei identischen eingefrorenen Eingaben"
+    },
+    {
+      "id": "AC-T054-10",
+      "statement": "Spezifikation und Implementierung bleiben auf isolierten Branches, durchlaufen bestehende Projektgates und eine vom Builder getrennte unabhaengige Reviewidentitaet; Merge und Deployment erfolgen nur als squashbarer, revertierbarer PR nach main.",
+      "verification": "Branch-/Diff-Inventar, gruene G-SPEC/G-FORMAT/G-STATIC/G-TEST/G-HARNESS/G-DATA/G-SECURITY- und Pages-Gates, unabhaengiger PASS auf dem exakten Tree sowie dokumentierter Revert-/Redeploypfad"
+    }
+  ],
+  "dependencies": [
+    "T-004"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-DATA",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Informationsarchitektur, responsive Anordnung, Typografie und kleine deterministische SVG-/CSS-Details innerhalb der bestehenden Art Direction und der freigegebenen Medienprovenienz",
+      "Konkrete geschlossene Status-v3-Feldnamen, Refreshintervalle zwischen 10 und 30 Minuten und lokale Badge-/JSON-/SVG-Projektionen, solange Vertrauens-, Unknown- und Nichtakzeptanzgrenzen unveraendert bleiben",
+      "Additive streng allowgelistete oeffentliche Metadaten aus GitHub-Refs und Pull-Request-Checks, wenn weder freie Texte noch private oder personenbezogene Daten publiziert werden",
+      "Verschaerfung von Datenschutz, CSP, Barrierefreiheit, Provenienz, Freshness und Tests ohne neue Abhaengigkeit oder Abschwaechung bestehender Gates"
+    ],
+    "mustEscalate": [
+      "Oeffentliche Publikation von Forschungsrohdaten, Prompts, Logs, Tokens, Kosten, Modellen/Providern, Personen, E-Mail-Adressen, lokaler oder privater Infrastruktur und Zugangsdaten",
+      "Historienrewrite, Loeschung nicht sicher gemergter Branches, automatische main-Promotion oder Ausfuehrung nicht vertrauenswuerdiger PR-/WIP-Inhalte",
+      "Neue Abhaengigkeit, externer Tracking-/Analyse-/Telemetrie-/Assetdienst oder Aenderung an Lizenz-, Marken-, Shipping-, Gameplay-, Performance-, Nachhaltigkeits- oder 24/7-Claims",
+      "Aenderung der T-042-/P-001-Praeregistrierung, T-053-Abschlussbedingung, Single-Mutator-Regel oder bestehender Sicherheits-, Clean-Room-, Evidence- und Promotionsgates"
+    ]
+  }
+}
