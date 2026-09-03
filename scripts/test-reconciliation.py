@@ -392,6 +392,13 @@ def test_passed_audit(manifest: dict[str, object]) -> None:
     validate_live(passed, valid)
     assert validate_audit(passed, valid, valid.main, valid.main_tree, valid.reconciliation_oid) == valid.evidence_oid
 
+    # GitHub may clear the optional workflow-run/PR convenience relation after
+    # the exact PR closes. All independent PR, workflow, suite, job and check
+    # bindings remain mandatory in this accepted lifecycle state.
+    closed = AuditFixture(passed)
+    closed.responses[f"actions/runs?head_sha={closed.reviewer}&event=pull_request&per_page=100"]["workflow_runs"][0]["pull_requests"] = []
+    assert validate_audit(closed.manifest, closed, closed.main, closed.main_tree, closed.reconciliation_oid) == closed.evidence_oid
+
     # Zero repairs is a valid candidate chain when the reviewer directly follows the builder.
     zero = AuditFixture(passed)
     zero.bind_chain("repairChain", [])
@@ -431,6 +438,7 @@ def test_passed_audit(manifest: dict[str, object]) -> None:
     audit_rejected(passed, lambda f: f.responses["check-runs/901"].__setitem__("conclusion", "failure"))
     audit_rejected(passed, lambda f: f.responses["check-suites/902"]["app"].__setitem__("id", 1))
     audit_rejected(passed, lambda f: f.responses[f"actions/runs?head_sha={f.reviewer}&event=pull_request&per_page=100"]["workflow_runs"][0].__setitem__("conclusion", "failure"))
+    audit_rejected(passed, lambda f: f.responses[f"actions/runs?head_sha={f.reviewer}&event=pull_request&per_page=100"]["workflow_runs"][0].__setitem__("pull_requests", [{"number": 90, "base": {"sha": f.parent}, "head": {"sha": f.reviewer}}, {"number": 90, "base": {"sha": f.parent}, "head": {"sha": f.reviewer}}]))
     audit_rejected(passed, lambda f: f.responses["actions/runs/903/attempts/1/jobs?per_page=100"]["jobs"][0].__setitem__("status", "in_progress"))
     audit_rejected(passed, lambda f: f.responses["actions/runs/903/attempts/1/jobs?per_page=100"]["jobs"][0].__setitem__("run_attempt", 2))
     audit_rejected(passed, lambda f: f.responses[f"git/commits/{f.result}"]["tree"].__setitem__("sha", "0" * 40))
@@ -462,6 +470,65 @@ def test_hermetic_manifest_does_not_require_local_history(manifest: dict[str, ob
         assert validation["historicalProjectionSha256"] == EXPECTED_HISTORICAL_SHA256
         assert validation["auditState"] == "pending"
         assert validation["doneEligibleTaskIds"] == []
+    finally:
+        reconciliation.git = original_git
+
+
+def test_live_invocation_does_not_require_unreachable_pr_git_objects(manifest: dict[str, object]) -> None:
+    original_git = reconciliation.git
+    receipts = {item["resultSha"]: item for item in manifest["receipts"]}
+    head_shas = {item["headSha"] for item in manifest["receipts"]}
+
+    def main_history_git(root: Path, *args: str, fault: str | None = None) -> str:
+        del root
+        if args[:2] == ("cat-file", "-p") and args[2] in receipts:
+            item = receipts[args[2]]
+            tree = "0" * 40 if fault == "result-tree" and item["taskId"] == "T-034" else item["resultTree"]
+            parent = "0" * 40 if fault == "result-parent" and item["taskId"] == "T-034" else item["baseSha"]
+            return f"tree {tree}\nparent {parent}\n"
+        if args[0] == "ls-tree":
+            commit, path = args[1], args[3]
+            if commit in head_shas:
+                raise ReconciliationError("historical PR head is absent from main-only checkout")
+            for item in manifest["receipts"]:
+                expected = {
+                    (item["resultSha"], item["taskManifestPath"]): item["taskManifestBlobOid"],
+                    (item["resultSha"], item["reviewEvidencePath"]): item["reviewEvidenceBlobOid"],
+                    (item["baseSha"], WORKFLOW["path"]): WORKFLOW["trustedBlobOid"],
+                    (item["resultSha"], WORKFLOW["path"]): WORKFLOW["trustedBlobOid"],
+                }.get((commit, path))
+                if expected is not None:
+                    return f"100644 blob {expected}\t{path}"
+            raise AssertionError(f"unexpected synthetic ls-tree request: {args}")
+        if args[:2] == ("merge-base", "--is-ancestor"):
+            if fault == "diverged" and args[2] == manifest["receipts"][0]["resultSha"]:
+                raise ReconciliationError("synthetic result is not accepted on HEAD")
+            return ""
+        raise AssertionError(f"unexpected synthetic Git request: {args}")
+
+    try:
+        synthetic_root = Path("/synthetic-main-only-checkout")
+        reconciliation.git = main_history_git
+        validation = reconciliation.validate_for_invocation(manifest, synthetic_root, True)
+        assert validation["historicalProjectionSha256"] == EXPECTED_HISTORICAL_SHA256
+        assert validation["recordedTaskIds"] == AUDIT_TASKS
+
+        # Offline --root must continue to require the historical PR-head blobs.
+        try:
+            reconciliation.validate_for_invocation(manifest, synthetic_root, False)
+        except ReconciliationError:
+            pass
+        else:
+            raise AssertionError("offline root validation stopped requiring PR-head history")
+
+        for fault in ("result-tree", "result-parent", "diverged"):
+            reconciliation.git = lambda root, *args, selected=fault: main_history_git(root, *args, fault=selected)
+            try:
+                reconciliation.validate_for_invocation(manifest, synthetic_root, True)
+            except ReconciliationError:
+                pass
+            else:
+                raise AssertionError(f"live main-history validation accepted {fault}")
     finally:
         reconciliation.git = original_git
 
@@ -505,6 +572,7 @@ def main() -> int:
     # today's pending candidate and the later, evidence-bound passed receipt.
     test_passed_audit(pending)
     test_hermetic_manifest_does_not_require_local_history(pending)
+    test_live_invocation_does_not_require_unreachable_pr_git_objects(pending)
     test_pending_builder_eligibility(pending_validation)
     test_main_gate()
     test_stale_wip_does_not_claim_offline()

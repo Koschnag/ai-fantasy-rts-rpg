@@ -91,6 +91,28 @@ Messung wird weder gelöscht noch als Erfolg umgedeutet.
 - Squash-Merge, post-merge Live-Reconciliation und GitHub-Pages-Deployment;
 - reale Browserabnahme der veröffentlichten Desktop- und Smartphoneansicht.
 
+Der erste echte `main`-Deploy nach der Promotion wurde am 2026-09-03 im
+fail-closed Reconciliation-Schritt abgebrochen (GitHub-Actions-Run
+`33767113139`). Der saubere `main`-Checkout enthielt erwartungsgemäß nicht alle
+durch Squash-Merges historisch gewordenen PR-Headobjekte; der CLI-Einstieg
+forderte diese Objekte trotzdem zusätzlich zur bereits gebundenen Live-API-
+Prüfung lokal an. Der Reparaturkandidat trennt deshalb nur die Quellenwahl:
+Offline-`--root` behält die vollständige lokale Historienprüfung. Der
+Live-Modus überspringt lokal ausschließlich die nach einem Squash-Merge nicht
+notwendig erreichbaren PR-Heads; Result-Tree, Squash-Parent, Main-Ancestry sowie
+Base-/Result-Blobs bleiben lokale Pflicht. PR-Heads und die vollständige
+Auditkette werden zusätzlich fail-closed über die gebundene GitHub-API geprüft,
+der aktuelle `main`-Commit, Tree und Manifestblob lokal und per API gebunden.
+Ein anschließender realer Vorabtest erreichte damit das Review-Gate und zeigte
+einen zweiten Lifecycle-Fall: GitHub lieferte für den geschlossenen PR im
+historischen Workflow-Run ein leeres optionales `pull_requests`-Array. Der
+Reparaturkandidat behandelt dieses leere Array nun wie bereits die sieben
+historischen Receipts, bindet aber weiterhin den exakten PR samt Base/Head,
+Workflow, Run-Attempt, Suite, Job und Check; mehrere oder widersprüchliche
+Relationen bleiben abgelehnt.
+Bis ein neuer exakter CI- und Pages-Lauf bestanden hat, ist dies kein
+Deployment- oder Abnahmebeleg und T-054 bleibt `REVIEW`.
+
 T-054 selbst wird in dieser Kandidatenkette nicht `DONE`: Sein eigener Merge
 und post-merge Deploy können nicht aus dem vorangehenden Kandidatenbaum bewiesen
 werden.
