@@ -289,7 +289,7 @@ def validate_live(manifest: object, client: object) -> None:
             raise ReconciliationError(f"{task_id} live review blob mismatch")
 
 
-def validate(manifest: object, root: Path | None) -> dict[str, object]:
+def validate(manifest: object, root: Path | None, require_local_pr_heads: bool = True) -> dict[str, object]:
     top = exact(manifest, {"schemaVersion", "contract", "repository", "workflow", "check", "receipts", "disclosures", "historicalProjectionSha256", "audit"}, "manifest")
     if top["schemaVersion"] != 2 or top["contract"] != "riftward-promotion-reconciliation-v2":
         raise ReconciliationError("unsupported reconciliation contract")
@@ -341,12 +341,16 @@ def validate(manifest: object, root: Path | None) -> dict[str, object]:
                 raise ReconciliationError(f"{task_id} task blob mismatch")
             if blob_at(root, str(item["resultSha"]), str(item["reviewEvidencePath"])) != item["reviewEvidenceBlobOid"]:
                 raise ReconciliationError(f"{task_id} review blob mismatch")
-            for commit in (str(item["baseSha"]), str(item["headSha"]), str(item["resultSha"])):
+            local_workflow_commits = [str(item["baseSha"]), str(item["resultSha"])]
+            if require_local_pr_heads:
+                local_workflow_commits.insert(1, str(item["headSha"]))
+            for commit in local_workflow_commits:
                 if blob_at(root, commit, WORKFLOW["path"]) != WORKFLOW["trustedBlobOid"]:
                     raise ReconciliationError(f"{task_id} trusted workflow blob mismatch")
-            relation = subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", str(item["resultSha"]), "HEAD"], check=False)
-            if relation.returncode != 0:
-                raise ReconciliationError(f"{task_id} result is not accepted on HEAD")
+            try:
+                git(root, "merge-base", "--is-ancestor", str(item["resultSha"]), "HEAD")
+            except ReconciliationError as exc:
+                raise ReconciliationError(f"{task_id} result is not accepted on HEAD") from exc
     if seen != EXPECTED_TASKS:
         raise ReconciliationError("reconciled task set mismatch")
     disclosures = top["disclosures"]
@@ -406,8 +410,20 @@ def validate_review_gate(client: object, head_sha: str, base_sha: str, pull_numb
         if not isinstance(run, dict) or str(run.get("workflow_id")) != WORKFLOW["id"] or run.get("path") != WORKFLOW["path"] or str(run.get("check_suite_id")) != str(suite_id) or run.get("event") != "pull_request" or run.get("head_sha") != head_sha or run.get("status") != "completed" or run.get("conclusion") != "success" or not repository_matches(run.get("repository")) or not isinstance(run.get("id"), int) or not isinstance(run.get("run_attempt"), int):
             continue
         prs = run.get("pull_requests")
-        if not isinstance(prs, list) or len(prs) != 1 or not isinstance(prs[0], dict) or prs[0].get("number") != pull_number or not isinstance(prs[0].get("base"), dict) or not isinstance(prs[0].get("head"), dict) or prs[0]["base"].get("sha") != base_sha or prs[0]["head"].get("sha") != head_sha:
+        if not isinstance(prs, list) or len(prs) > 1:
             continue
+        # GitHub can clear this convenience relation after a PR is closed.
+        # The exact PR endpoint, head/base commits, workflow, suite, job and
+        # check remain mandatory. If the optional relation is present, bind it
+        # strictly and never accept multiple candidates.
+        if prs:
+            relation = prs[0]
+            if (not isinstance(relation, dict) or relation.get("number") != pull_number
+                    or not isinstance(relation.get("base"), dict)
+                    or not isinstance(relation.get("head"), dict)
+                    or relation["base"].get("sha") != base_sha
+                    or relation["head"].get("sha") != head_sha):
+                continue
         jobs_response = record(client.get(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100"), "audit jobs")
         jobs = jobs_response.get("jobs")
         if not isinstance(jobs, list) or jobs_response.get("total_count") != len(jobs):
@@ -596,6 +612,19 @@ def atomic_json(path: Path, value: object) -> None:
     os.replace(temporary, path)
 
 
+def validate_for_invocation(manifest: object, root: Path | None, live_github: bool) -> dict[str, object]:
+    """Select the evidence source without making live Pages depend on PR Git objects.
+
+    An explicit offline ``--root`` invocation retains the complete local-history
+    check. Live mode still checks every reachable result tree, squash parent,
+    accepted-main ancestry and Base-/Result-Blob locally. Only historical PR
+    heads, which a complete main checkout need not contain after a squash
+    merge, are delegated to the bounded GitHub API verification below. ``root``
+    remains mandatory for binding the current main checkout and manifest blob.
+    """
+    return validate(manifest, root, require_local_pr_heads=not live_github)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, required=True)
@@ -609,7 +638,7 @@ def main() -> int:
     try:
         manifest = load_json(args.manifest.resolve(strict=True))
         root = args.root.resolve(strict=True) if args.root else None
-        validation = validate(manifest, root)
+        validation = validate_for_invocation(manifest, root, args.live_github)
         if args.live_github:
             if root is None or not isinstance(args.main_sha, str) or not SHA.fullmatch(args.main_sha) or not isinstance(args.main_tree, str) or not SHA.fullmatch(args.main_tree) or args.verdict_out is None:
                 raise ReconciliationError("live verdict requires root, main SHA/tree and verdict output")
