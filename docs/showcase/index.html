@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; img-src 'self'; media-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'">
-  <meta name="description" content="Project Riftward: öffentliches FOSS-Forschungsprojekt für eine agentische SDLC und ein modernes Low-Spec-Fantasy-RTS/RPG.">
-  <meta name="theme-color" content="#111716">
+  <meta name="description" content="Project Riftward: öffentlicher, fail-closed Status und Forschungsprojekt für agentische Softwareentwicklung und Low-Spec-Game-Engineering.">
+  <meta name="theme-color" content="#101615">
   <meta name="referrer" content="no-referrer">
   <meta name="riftward-source-commit" content="__RIFTWARD_SOURCE_COMMIT__">
   <meta name="riftward-source-tree" content="__RIFTWARD_SOURCE_TREE__">
@@ -14,16 +14,13 @@
   <link rel="canonical" href="https://koschnag.github.io/ai-fantasy-rts-rpg/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Project Riftward">
-  <meta property="og:title" content="Project Riftward · Open Game Research">
-  <meta property="og:description" content="Ein öffentlich nachvollziehbares Experiment für kontinuierliche agentische Softwareentwicklung und Low-Spec-Game-Engineering.">
+  <meta property="og:title" content="Project Riftward · Öffentlicher Forschungsstatus">
+  <meta property="og:description" content="Akzeptierter Quellstand, beobachtete Kontinuität und klar begrenzte Claims statt Fortschritts-Hype.">
   <meta property="og:url" content="https://koschnag.github.io/ai-fantasy-rts-rpg/">
   <meta property="og:image" content="https://koschnag.github.io/ai-fantasy-rts-rpg/assets/concepts/first-light-muster.webp">
-  <meta property="og:image:alt" content="Offen als Konzept gekennzeichnete Riftward-Atmosphärenstudie eines bewohnten Steinbruchs">
+  <meta property="og:image:alt" content="Als Konzept gekennzeichnete Riftward-Atmosphärenstudie; kein Gameplay">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Project Riftward · Open Game Research">
-  <meta name="twitter:description" content="Commitgebundene Evidenz statt Autonomie- oder Gameplay-Hype.">
-  <meta name="twitter:image" content="https://koschnag.github.io/ai-fantasy-rts-rpg/assets/concepts/first-light-muster.webp">
-  <title>Project Riftward · Open Game Research</title>
+  <title>Project Riftward · Öffentlicher Forschungsstatus</title>
   <link rel="stylesheet" href="showcase.css">
   <script src="showcase.js" defer></script>
 </head>
@@ -31,165 +28,69 @@
   <a class="skip-link" href="#content">Zum Inhalt</a>
   <header class="masthead">
     <a class="wordmark" href="#top" aria-label="Project Riftward Startseite"><span>PROJECT</span> RIFTWARD</a>
-    <nav aria-label="Hauptnavigation">
-      <a href="#atmosphere">Atmosphäre</a><a href="#artifact">Edition</a><a href="#status">Status</a><a href="#research">Forschung</a><a href="#evidence">Evidence</a>
-    </nav>
-    <span class="build-mark">PUBLIC SOURCE <b data-bind="shortCommit">—</b></span>
+    <nav aria-label="Hauptnavigation"><a href="#status">Status</a><a href="#concept">Konzept</a><a href="#method">Methode</a><a href="#evidence">Belege</a></nav>
+    <span class="build-mark">ACCEPTED MAIN <b data-bind="main-short-commit">UNVERFÜGBAR</b></span>
   </header>
 
   <main id="content">
-    <section class="hero" id="top">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero-art" aria-hidden="true"></div>
       <div class="hero-copy">
-        <p class="eyebrow">FOSS · AGENTIC SDLC · LOW-SPEC BY DESIGN</p>
-        <h1 aria-label="Eine alte Art von Vorfreude. Ein neues Experiment.">Eine alte Art<br>von <em>Vorfreude.</em><br>Ein neues Experiment.</h1>
-        <p class="lede">Eine vollständig digitale Erinnerung an Box, Disc, Handbuch und Magazinseite – für ein offenes Forschungsprojekt darüber, wie weit KI ein echtes Spielsystem bauen kann und wie wenig Hardware gutes Gaming wirklich braucht.</p>
-        <div class="hero-actions">
-          <a class="button primary" href="#artifact">Digitale Edition öffnen</a>
-          <a class="button" href="https://github.com/Koschnag/ai-fantasy-rts-rpg">Quellstand auf GitHub ↗</a>
+        <p class="eyebrow">OPEN RESEARCH · LOW-SPEC · EVIDENCE FIRST</p>
+        <h1 id="hero-title">Ein Spielversuch.<br><em>Kein Fortschritts&shy;märchen.</em></h1>
+        <p class="lede">Riftward untersucht eine agentische Produktionskette und ein eigenes Fantasy-RTS/RPG für alte Hardware. Das öffentliche Cockpit zeigt nur belegten Stand — und macht fehlende Belege sichtbar.</p>
+        <p class="truth-line"><span>CONCEPT · NOT GAMEPLAY</span> Die Bildsprache dieser Seite ist Forschungskonzept, kein Runtime-Capture und kein Spielversprechen.</p>
+      </div>
+
+      <aside class="status-deck" id="status" aria-labelledby="status-title">
+        <div class="deck-head"><p class="folio">PUBLIC PROJECT COCKPIT / STATUS-V3</p><h2 id="status-title">Der beobachtete Stand</h2><p id="project-status-message" class="status-notice" role="status" aria-live="polite" data-state="loading">Status wird fail-closed geprüft. Bis dahin: nicht verfügbar.</p></div>
+        <div class="front-status" role="list" aria-label="Öffentliche Statusfelder">
+          <div role="listitem"><p class="status-term">Akzeptiertes main</p><p class="status-value commit" data-bind="main-commit">UNVERFÜGBAR</p><small data-bind="main-committed-at">Öffentliche Commitzeit: unbekannt</small></div>
+          <div role="listitem"><p class="status-term">Akzeptierter Tree</p><p class="status-value commit" data-bind="main-tree">UNVERFÜGBAR</p><small>Exakter Baum, keine Kandidatenreferenz</small></div>
+          <div role="listitem"><p class="status-term">Beobachtungsfenster</p><p class="status-value" data-bind="observation">UNVERFÜGBAR</p><small>Aktuell bis 30 Minuten, offline ab 6 Stunden; kein Autonomieclaim</small></div>
+          <div role="listitem"><p class="status-term">Aktuelle Aufgabe</p><p class="status-value" data-bind="current-task">UNBEKANNT</p><small data-bind="effective-eligibility">Effektiver Start: unbekannt</small></div>
+          <div role="listitem"><p class="status-term">Gate / Blocker</p><p class="status-value" data-bind="current-gate">UNBEKANNT</p><small data-bind="current-blocker">Blocker: unbekannt</small></div>
+          <div role="listitem"><p class="status-term">Autonomie</p><p class="status-value" data-bind="autonomy">UNBEKANNT</p><small>Nur frische, begrenzte Beobachtung zählt</small></div>
+          <div role="listitem"><p class="status-term">Offene Kandidaten</p><p class="status-value" data-bind="candidate-summary">UNVERFÜGBAR</p><small>Beobachtet, nie als main-Akzeptanz gezählt</small></div>
+          <div role="listitem"><p class="status-term">WIP-Kontinuität</p><p class="status-value" data-bind="wip-summary">UNVERFÜGBAR</p><small>Kontinuität, nie akzeptierter Fortschritt</small></div>
         </div>
-        <p class="truth-line"><span>CONCEPT · NOT GAMEPLAY</span> Die gezeigten Medien sind Konzeptstudien. Der reale Runtime-Stand steht commitgebunden im Status, nicht in diesen Motiven.</p>
-      </div>
-
-      <figure class="hero-plate">
-        <div class="concept-label">QUARANTINE CONCEPT · NOT GAMEPLAY</div>
-        <img src="assets/concepts/first-light-muster.webp" width="1600" height="900" alt="Arbeiter, Kundschafter und Packtiere bereiten im ersten Morgenlicht eine Expedition in einem bewohnten Steinbruch vor" fetchpriority="high">
-        <figcaption><b>FIRST LIGHT MUSTER</b><span>Atmosphärenstudie 04/05 · KI-generiertes Clean-Room-Konzept · kein Runtime-Capture</span></figcaption>
-      </figure>
+        <noscript><p class="status-notice" data-state="unavailable">Status nicht verfügbar: JavaScript prüft die öffentliche Statusdatei. Der Quellstand bleibt über GitHub einsehbar.</p></noscript>
+      </aside>
     </section>
 
-    <section class="ticker" aria-label="Projektprinzipien">
-      <div>BUILD THE SYSTEM</div><span aria-hidden="true">◆</span><div>MEASURE THE OUTCOME</div><span aria-hidden="true">◆</span><div>PUBLISH THE FAILURES</div><span aria-hidden="true">◆</span><div>KEEP OLD HARDWARE USEFUL</div>
-    </section>
-
-    <section class="atmosphere-section" id="atmosphere">
-      <header class="section-head">
-        <div><p class="folio">01 / ATMOSPHERE DOSSIER</p><h2>Nicht episch.<br>Bewohnt.</h2></div>
-        <p>Die Bildsprache sucht Nässe, Arbeit, Materialverschleiß und Gemeinschaft – nicht Hochglanzhelden. Alle Motive sind offen gekennzeichnete Art-Direction-Hypothesen aus der Quarantäne, keine Screenshots und keine Aussage über den aktuellen Runtime-Stand.</p>
-      </header>
-
-      <div class="dossier-grid">
-        <figure class="dossier-frame frame-wide">
-          <div class="frame-image"><span class="concept-label">CONCEPT · NOT GAMEPLAY</span><img src="assets/concepts/world-refuge.webp" width="1600" height="900" alt="Terrassierter Steinbruch-Schutzraum mit Holzstegen, Werkstätten und kleinen Arbeitsgruppen" loading="lazy" decoding="async"></div>
-          <figcaption><b>01 · THE REFUGE</b><span>Maßstab, Wege und ein Schutzraum, der wie ein Arbeitsort funktioniert.</span></figcaption>
-        </figure>
-        <figure class="dossier-frame">
-          <div class="frame-image"><span class="concept-label">CONCEPT · NOT GAMEPLAY</span><img src="assets/concepts/sluice-defense.webp" width="1600" height="900" alt="Verteidiger und Zivilisten an einem hölzernen Schleusentor zwischen Felswänden" loading="lazy" decoding="async"></div>
-          <figcaption><b>02 · WATER AS TERRAIN</b><span>Geländehebel statt Effektgewitter.</span></figcaption>
-        </figure>
-        <figure class="dossier-frame">
-          <div class="frame-image"><span class="concept-label">CONCEPT · NOT GAMEPLAY</span><img src="assets/concepts/night-supply-watch.webp" width="1600" height="900" alt="Versorgungskonvoi erreicht bei nächtlichem Regen einen von Laternen beleuchteten Steinbruch-Schutzraum" loading="lazy" decoding="async"></div>
-          <figcaption><b>03 · NIGHT SUPPLY WATCH</b><span>Kalte Nacht, wenige warme Lichtinseln, leise Wachsamkeit.</span></figcaption>
-        </figure>
-        <figure class="dossier-frame frame-tall">
-          <div class="frame-image"><span class="concept-label">CONCEPT · NOT GAMEPLAY</span><img src="assets/concepts/after-the-shift.webp" width="1600" height="900" alt="Fünf Menschen reparieren bei Lampenlicht ein Wasserrad und geflickte Kleidung in einer offenen Werkstatt" loading="lazy" decoding="async"></div>
-          <figcaption><b>04 · AFTER THE SHIFT</b><span>Werkzeug, Erschöpfung und Sicherheit als Charakterstudie.</span></figcaption>
-        </figure>
-        <aside class="dossier-note">
-          <span>ART DIRECTION / 001</span>
-          <blockquote>„Heimat ist eine Tätigkeit, keine Herkunft.“</blockquote>
-          <p>Das visuelle Ziel ist kein fotorealistischer Trailer. Es ist eine glaubwürdige, technisch erreichbare Welt mit klaren Wegen, wiederverwendbaren Materialien und wenigen gezielten Effekten.</p>
-          <a href="assets/media-manifest.json">Quellen- und Hashmanifest ↗</a>
-        </aside>
-      </div>
-
-      <div class="reel-layout">
-        <div class="reel-copy">
-          <p class="folio">MOTION STUDY / 21 SECONDS</p>
-          <h3>Ein Arbeitstag,<br>fünf Zustände.</h3>
-          <p>Die reproduzierbare Filmrolle verbindet fünf Konzeptframes nur durch ruhige Überblendungen. Sie startet nie automatisch, enthält keinen Ton und behauptet weder Animation noch Gameplay.</p>
-          <details><summary>Bildfolge als Text</summary><p id="reel-description">Morgendliche Vorbereitung im unteren Hof; der bewohnte Steinbruch bei Tag; Verteidigung am Schleusentor; Reparaturen nach Schichtende; nächtliche Versorgung im Regen.</p></details>
-        </div>
-        <div class="reel-player">
-          <span class="concept-label">CONCEPT REEL · NOT GAMEPLAY</span>
-          <video controls preload="metadata" playsinline poster="assets/concepts/first-light-muster.webp" aria-describedby="reel-description" width="1280" height="720">
-            <source src="assets/reel/atmosphere-study-001.webm" type="video/webm">
-            <source src="assets/reel/atmosphere-study-001.mp4" type="video/mp4">
-            Ihr Browser unterstützt das Video nicht. Die Bildfolge ist daneben als Text beschrieben.
-          </video>
-        </div>
+    <section class="ledger-section" aria-labelledby="ledger-title">
+      <header class="section-head"><div><p class="folio">01 / FÜNF GETRENNTE AUSSAGEN</p><h2 id="ledger-title">Nicht alles, was läuft, gilt.</h2></div><p>Akzeptanz, Kandidaten, WIP und beobachtete Aktivität sind verschiedene Zustände. Ein READY-Task ist nicht automatisch effektiv startberechtigt; ein WIP ist kein Fortschritt auf <code>main</code>.</p></header>
+      <div class="ledger-grid">
+        <article class="state-card"><p class="state-label">ACCEPTED</p><h3 data-bind="accepted-summary">UNVERFÜGBAR</h3><p>Nur der exakte, verifizierte <code>main</code>-Baum zählt als akzeptierter Stand.</p></article>
+        <article class="state-card"><p class="state-label">CANDIDATES</p><h3 data-bind="candidate-summary">UNVERFÜGBAR</h3><ul class="compact-list" data-bind="candidates"><li>Keine Kandidaten beobachtet.</li></ul></article>
+        <article class="state-card"><p class="state-label">WIP CONTINUITY</p><h3 data-bind="wip-summary">UNVERFÜGBAR</h3><p data-bind="wip-detail">WIP kann Kontinuität dokumentieren, nie Akzeptanz ersetzen.</p></article>
+        <article class="state-card"><p class="state-label">OBSERVED ACTIVITY</p><h3 data-bind="activity-summary">UNVERFÜGBAR</h3><p data-bind="activity-detail">Ohne frisches, begrenztes Signal wird keine Aktivität behauptet.</p></article>
+        <article class="state-card claim-card"><p class="state-label">CLAIM BOUNDARY</p><h3>Forschungsstand, nicht Release.</h3><ul class="claim-list" data-bind="claims"><li>Claims werden erst nach Statusprüfung angezeigt.</li></ul></article>
       </div>
     </section>
 
-    <section class="artifact-section" id="artifact">
-      <header class="section-head">
-        <div><p class="folio">02 / THE DIGITAL EDITION</p><h2>Das Drumherum ist Teil der Welt.</h2></div>
-        <p>Keine physische Ware. Eine interaktive digitale Sammlung, die das Ritual klassischer PC-Veröffentlichungen zurückholt und jeden Claim an den echten Projektstand bindet.</p>
-      </header>
-
-      <div class="artifact-tabs" role="tablist" aria-label="Digitale Artefakte" aria-orientation="horizontal">
-        <button role="tab" aria-selected="true" aria-controls="panel-manual" id="tab-manual" data-panel="manual">Handbuch</button>
-        <button role="tab" aria-selected="false" aria-controls="panel-disc" id="tab-disc" data-panel="disc" tabindex="-1">Datenträger</button>
-        <button role="tab" aria-selected="false" aria-controls="panel-ad" id="tab-ad" data-panel="ad" tabindex="-1">Magazinseite</button>
-        <button role="tab" aria-selected="false" aria-controls="panel-frames" id="tab-frames" data-panel="frames" tabindex="-1">Bildstrecke</button>
+    <section class="concept-section" id="concept" aria-labelledby="concept-title">
+      <header class="section-head inverse"><div><p class="folio">02 / ATMOSPHERE DOSSIER</p><h2 id="concept-title">Bewohnt, nicht bombastisch.</h2></div><p>Material, Arbeit und Schutz statt Hochglanzhelden. Jedes Motiv bleibt sichtbar als Konzept markiert — diese Bilder belegen weder Gameplay noch Hardwareleistung.</p></header>
+      <div class="concept-grid">
+        <figure class="concept-frame wide"><span class="concept-label">CONCEPT · NOT GAMEPLAY</span><img src="assets/concepts/first-light-muster.webp" width="1600" height="900" alt="Konzeptstudie: Menschen und Packtiere bereiten im Morgenlicht eine Expedition in einem bewohnten Steinbruch vor" fetchpriority="high"><figcaption><b>FIRST LIGHT MUSTER</b><span>Atmosphärenstudie, kein Runtime-Capture</span></figcaption></figure>
+        <figure class="concept-frame"><span class="concept-label">CONCEPT · NOT GAMEPLAY</span><img src="assets/concepts/sluice-defense.webp" width="1600" height="900" alt="Konzeptstudie: Verteidiger und Zivilisten an einem hölzernen Schleusentor zwischen Felswänden" loading="lazy" decoding="async"><figcaption><b>WATER AS TERRAIN</b><span>Gelände als Hypothese, nicht als Featurebeleg</span></figcaption></figure>
+        <figure class="concept-frame"><span class="concept-label">CONCEPT · NOT GAMEPLAY</span><img src="assets/concepts/night-supply-watch.webp" width="1600" height="900" alt="Konzeptstudie: ein Versorgungskonvoi erreicht bei Regen einen beleuchteten Steinbruch-Schutzraum" loading="lazy" decoding="async"><figcaption><b>NIGHT SUPPLY WATCH</b><span>Clean-Room-Konzept, kein Spielbild</span></figcaption></figure>
       </div>
+      <p class="concept-footnote">Die zugelassenen Webableitungen sind im <a href="assets/media-manifest.json">öffentlichen Medienmanifest</a> gebunden. Originale und lokale Quarantäne bleiben außerhalb des Pages-Artefakts.</p>
+    </section>
 
-      <div class="artifact-panels">
-        <article class="artifact-panel manual-panel active" id="panel-manual" role="tabpanel" aria-labelledby="tab-manual">
-          <div class="manual-spread">
-            <section class="paper left-page"><span class="page-no">04</span><p class="kicker">FIELD NOTES</p><h3>Der Wanderbruch</h3><p class="dropcap">Die Welt erinnert sich an Zustände, die vielleicht nie waren. Wasser, Stein und Schatten folgen Regeln – nur nicht immer denselben.</p><blockquote>Heimat ist eine Tätigkeit, keine Herkunft.</blockquote><p>Du beginnst als Kartografin. Was du verstehst, wird zur Route. Was du rettest, wird zur Gemeinschaft. Was du aufbaust, verändert das Land.</p></section>
-            <section class="paper right-page"><span class="page-no">05</span><p class="kicker">THREE SCALES</p><ol class="scale-list"><li><b>Persönlich</b><span>Werkzeug, Erinnerung, Verlust.</span></li><li><b>Gemeinschaftlich</b><span>Werkstatt, Versorgung, Schutz.</span></li><li><b>Strategisch</b><span>Gelände, Armee, Konsequenz.</span></li></ol><div class="margin-note">DIGITAL MANUAL<br>Living document<br>Commit-bound</div></section>
-          </div>
-          <div class="artifact-caption"><b>Digitales Handbuch</b><span>Später direkt aus akzeptierten Welt-, Bedienungs- und Buildverträgen erzeugt.</span></div>
-        </article>
-
-        <article class="artifact-panel disc-panel" id="panel-disc" role="tabpanel" aria-labelledby="tab-disc" hidden>
-          <div class="disc-wrap"><div class="disc"><div class="disc-copy"><small>PROJECT</small><b>RIFTWARD</b><span>RESEARCH BUILD<br>NO. 0008</span></div></div><div class="disc-sleeve"><span>ARCHIVE COPY</span><b>CODE · EVIDENCE · FAILURES</b><small>Das Symbol eines Builds – nicht die Ankündigung eines physischen Datenträgers.</small></div></div>
-          <div class="artifact-caption"><b>Virtueller Datenträger</b><span>Seine spätere „Master-ID“ verweist auf reproduzierbare Build- und Evidence-Manifeste.</span></div>
-        </article>
-
-        <article class="artifact-panel ad-panel" id="panel-ad" role="tabpanel" aria-labelledby="tab-ad" hidden>
-          <div class="magazine-ad"><div class="ad-number">01</div><p>HOW FAR CAN AN AGENTIC SDLC REALLY GO?</p><h3>Lieber einmal<br>hart optimieren<br>als überall<br>mehr Hardware.</h3><div class="ad-grid"><span>ORIGINAL FANTASY RTS/RPG</span><span>GTX 660 CLASS TARGET</span><span>OPEN METHODS</span><span>FAILURES INCLUDED</span></div><small>Eine Forschungshypothese. Noch kein Leistungs- oder Nachhaltigkeitsbeweis.</small></div>
-          <div class="artifact-caption"><b>Digitale Magazinseite</b><span>Editorialer Auftakt für einen belegbaren Meilenstein, nicht für Hype.</span></div>
-        </article>
-
-        <article class="artifact-panel frames-panel" id="panel-frames" role="tabpanel" aria-labelledby="tab-frames" hidden>
-          <div class="contact-sheet">
-            <figure><img src="assets/concepts/night-supply-watch.webp" width="1600" height="900" alt="Nächtliche Konzeptstudie des Steinbruch-Schutzraums" loading="lazy" decoding="async"><figcaption><b>FRAME 01 · ATMOSPHERE</b><span>Concept · not gameplay · quarantined source</span></figcaption></figure>
-            <figure class="diagram-frame"><div class="loop-diagram"><i>INTENT</i><span>→</span><i>AGENT</i><span>→</span><i>GATES</i><span>→</span><i>EVIDENCE</i></div><figcaption><b>FRAME 02 · SYSTEM</b><span>Implemented research contract</span></figcaption></figure>
-            <figure class="empty-frame"><div><span>RUNTIME CAPTURE</span><b>RESERVED</b><small>commit-bound evidence required</small></div><figcaption><b>FRAME 03 · IN-ENGINE</b><span>Intentionally not fabricated</span></figcaption></figure>
-          </div>
-          <div class="artifact-caption"><b>Bildstrecke</b><span>Echte Screenshots erscheinen hier erst mit Commit, Szene, Preset und reproduzierbarem Evidence Pack.</span></div>
-        </article>
+    <section class="method-section" id="method" aria-labelledby="method-title">
+      <header class="section-head"><div><p class="folio">03 / METHODENKARTE</p><h2 id="method-title">Eine Regel für jeden Zustand.</h2></div><p>Das Projekt ist eine praktische Fallstudie für Cong-Driven Development (CDD), keine Behauptung vollständiger CDD-Konformität.</p></header>
+      <div class="method-tabs" role="tablist" aria-label="Riftward-Methodenkarte" aria-orientation="horizontal"><button role="tab" aria-selected="true" aria-controls="panel-loop" id="tab-loop" data-panel="loop">Graybox</button><button role="tab" aria-selected="false" aria-controls="panel-cdd" id="tab-cdd" data-panel="cdd" tabindex="-1">CDD &amp; Evidenz</button><button role="tab" aria-selected="false" aria-controls="panel-limits" id="tab-limits" data-panel="limits" tabindex="-1">Grenzen</button></div>
+      <div class="method-panels">
+        <article id="panel-loop" class="method-panel active" role="tabpanel" aria-labelledby="tab-loop"><p class="panel-kicker">AKZEPTIERTE GRAYBOX-SCHLEIFE</p><h3>Interaktion ist real. Repräsentativität nicht.</h3><p>Die akzeptierte Schleife ist ein eng begrenzter, überprüfter Projektstand. Sie belegt weder fertiges Gameplay noch eine vertikale Slice-Qualität.</p><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/tree/main/docs/abnahme">Abnahmebelege auf main ↗</a></article>
+        <article id="panel-cdd" class="method-panel" role="tabpanel" aria-labelledby="tab-cdd" hidden><p class="panel-kicker">PRAKTISCHE CDD-FALLSTUDIE</p><h3>Kandidaten werden erst durch Evidenz belastbar.</h3><p>Versionierte Absicht, überprüfbare Ausführung und prüfbare Belege sind getrennt. Das Cockpit stellt sie dar, es erzeugt oder akzeptiert sie nicht.</p><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/research/CCD_MAPPING.md">CDD-Mapping auf main ↗</a></article>
+        <article id="panel-limits" class="method-panel" role="tabpanel" aria-labelledby="tab-limits" hidden><p class="panel-kicker">NICHT BELEGT</p><h3>Keine Ersatzbehauptung aus Bewegung.</h3><p>Keine validierte Zielhardware, keine erwiesene 24/7-Autonomie, kein fertiges Spiel. Fehlende oder alte Beobachtungen erscheinen als unbekannt oder nicht verfügbar.</p><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/research/PROTOCOL.md">Forschungsprotokoll auf main ↗</a></article>
       </div>
     </section>
 
-    <section class="status-section" id="status">
-      <header class="section-head inverse">
-        <div><p class="folio">03 / PUBLIC PROJECT STATUS</p><h2>Was heute wirklich existiert.</h2></div>
-        <p>Diese Werte werden beim Pages-Deployment aus dem eingecheckten Baum erzeugt und gegen diese HTML-Ausgabe gebunden. Terminal-Uptime ist keine Autonomie, WIP kein akzeptierter Fortschritt und Konzeptgrafik kein Gameplay.</p>
-      </header>
-      <p class="status-notice" id="project-status-message" role="status" aria-live="polite" data-state="loading">Projektstatus wird geprüft. Bis zur erfolgreichen Provenienzprüfung gelten alle dynamischen Werte als nicht verfügbar.</p>
-      <noscript><p class="status-notice" data-state="unavailable">Status nicht verfügbar: Für die lokale Prüfung der commitgebundenen Statusdatei ist JavaScript erforderlich. Der Quellstand bleibt über das öffentliche Repository prüfbar.</p></noscript>
-      <div class="status-grid">
-        <article><span>ACCEPTED AT SOURCE</span><b data-bind="accepted">—</b><small>DONE im geprüften Quellbaum; ein Kandidatenbranch behauptet keine main-Akzeptanz.</small></article>
-        <article><span>REVIEW-MARKIERT</span><b data-bind="review">—</b><small>Im Quellbaum, aber nicht als DONE gezählt</small></article>
-        <article><span>READY TASKS</span><b data-bind="ready">—</b><small data-bind="nextReady">Nicht geladen</small></article>
-        <article><span>SOURCE COMMIT</span><b class="commit" data-bind="shortCommit">—</b><small data-bind="committedAt">Nicht geladen</small></article>
-      </div>
-      <div class="status-ledger" aria-label="Provenienz des öffentlichen Projektstands">
-        <div><i class="lamp dark" data-lamp="source"></i><b>Veröffentlichter Quellstand</b><span data-bind="sourceProvenance">Nicht geladen</span></div>
-        <div><i class="lamp dark" data-lamp="candidate"></i><b>Review-/Kandidatenstand</b><span data-bind="candidateState">Nicht beobachtet. Pages erfindet keinen Kandidaten aus offenen Dateien.</span></div>
-        <div><i class="lamp dark" data-lamp="wip"></i><b>Autopilot Live-WIP</b><span data-bind="wipState">Nicht beobachtet. Falls veröffentlicht: Kontinuitätssnapshot, kein akzeptierter Fortschritt.</span></div>
-        <div><i class="lamp dark"></i><b>Gameplay- und Hardwareclaims</b><span>Konzeptmaterial ist kein Gameplay. Zielhardware gilt nur mit commitgebundenem Evidence Pack als belegt.</span></div>
-      </div>
-    </section>
-
-    <section class="research-section" id="research">
-      <div class="research-title"><p class="folio">04 / FOUR QUESTIONS</p><h2>Mehr Rechenzentrum heute.<br>Weniger Hardwarezwang morgen?</h2><p>Effizienz ist hier Produktqualität und politische Position. Ob harte Optimierung und KI-Aufwand wirklich längere Hardware-Nutzung ermöglichen, bleibt eine zu prüfende Hypothese – kein grünes Versprechen.</p></div>
-      <div class="hypotheses">
-        <article><span>RQ–01</span><h3>Agentic SDLC</h3><p>Wie lange konvergiert ein System aus Mission, Kontext, Werkzeugen und unabhängigen Gates ohne menschlichen Eingriff?</p><small>Misst produktive Outcomes, nicht offene Terminals.</small></article>
-        <article><span>RQ–03</span><h3>Low-spec by design</h3><p>Wie viel Atmosphäre, taktische Lesbarkeit und Systemtiefe passen in feste CPU-, GPU- und Speicherbudgets?</p><small>Ziel: i7-3770 / GTX-660-Klasse · 1080p / 30 FPS.</small></article>
-        <article><span>RQ–04</span><h3>Compute amortization</h3><p>Kann zusätzlicher einmaliger Optimierungsaufwand über viele Spielsitzungen niedrigere Endgeräteanforderungen aufwiegen?</p><small>Unentscheidbar ohne offene Messdaten und Gegenfaktum.</small></article>
-        <article><span>RQ–06</span><h3>Efficiency is a feature</h3><p>Brauchen bessere Spiele wirklich stärkere Hardware – oder zuerst bessere Datenwege, kleinere Laufzeitschichten und härtere Budgets?</p><small>DDR3 · Linux · M1/8 GB · gleiche Szene, gleiche Spielsysteme, offene A/B-Messung.</small></article>
-      </div>
-    </section>
-
-    <section class="evidence-section" id="evidence">
-      <p class="folio">05 / THE RULE</p><blockquote>Ein Modelloutput ist ein Kandidat.<br><em>Nur gemessene Evidenz bewegt das Projekt.</em></blockquote>
-      <div class="evidence-links"><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/research/PROTOCOL.md">Forschungsprotokoll</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/research/CASE_STUDY_LOG.md">Fallstudienlog</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/communication/CAMPAIGN.md">Claim-Regeln</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/BACKLOG.md">Backlog</a></div>
-    </section>
+    <section class="evidence-section" id="evidence" aria-labelledby="evidence-title"><p class="folio">04 / DIREKTE BELEGE</p><h2 id="evidence-title">Evidenz vor Erzählung.</h2><p>Der öffentliche Status bindet ausschließlich den akzeptierten <code>main</code>-Stand. Bitte prüfe die Primärartefakte, nicht eine Aktivitätsanzeige.</p><div class="evidence-links"><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/showcase/README.md">Statusvertrag ↗</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/tree/main/docs/abnahme">Abnahmebelege ↗</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/HARNESS.md">Harness &amp; Ledger ↗</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/QUALITAET.md">Qualitätsgates ↗</a><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/blob/main/docs/research/README.md">Forschungsfallstudie ↗</a></div></section>
   </main>
-
-  <footer><div class="wordmark"><span>PROJECT</span> RIFTWARD</div><p>Open FOSS game-engineering research · digital retail-era showcase</p><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg">GitHub Repository ↗</a></footer>
+  <footer><div class="wordmark"><span>PROJECT</span> RIFTWARD</div><p>Öffentliche Forschung · kein Release- oder Autonomieversprechen</p><a href="https://github.com/Koschnag/ai-fantasy-rts-rpg">Repository auf GitHub ↗</a></footer>
 </body>
 </html>

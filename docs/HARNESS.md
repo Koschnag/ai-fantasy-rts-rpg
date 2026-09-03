@@ -141,6 +141,22 @@ T-004 implementiert Trace-/Span-IDs für Arbeitsschritte mit mehreren Tools; ein
 
 Token- oder API-Kosten werden nur erfasst, wenn der jeweilige Anbieter sie zuverlässig meldet. Geschätzte Werte werden als Schätzung markiert.
 
+### Öffentliche Statusprojektion
+
+Das öffentliche Projektcockpit ist eine redigierte Projektion und kein Export
+des Run-Ledgers. Es darf Task-, Phasen-, Rollen-, Gate-, Blocker- und grobe
+Autonomielabel nur aus einem frischen, commit- und treegebundenen Sidecar
+übernehmen. Private Run-, Parent-Run-, Observation- oder Session-IDs, genaue
+interne Laufzeiten, Modell-/Providerkonten, Prompts, Tokens, Kosten und lokale
+Infrastruktur bleiben außerhalb von README und Pages.
+
+Akzeptierter Produktfortschritt wird aus `main` plus einem live geprüften
+Reconciliation-Verdict abgeleitet, niemals aus der Zahl der Runs oder
+WIP-Snapshots. Retrospektiv aus Git/GitHub abgeleitete Promotionsdaten,
+prospektiv beobachtete Harnessdaten und synthetische Testfixtures bleiben
+getrennte Evidenzklassen. Fehlt eine Trennung oder ein Messwert, ist
+`unknown` das gültige Ergebnis.
+
 ## Sicherung und Retention
 
 - Die Policy fordert 180 Tage lokale Roh-Run-Retention. Seit T-004 ist der Lebenszyklus implementiert: `retention-plan` erzeugt eine read-only, hashverankerte Vorschau (`planSha256`), die pro Lauf Frist, Abschlussprüfung und den akzeptierten bereinigten History-Bericht auswertet. `retention-execute --confirm-plan-sha256 …` entfernt ausschließlich Kandidaten dieses Plans, die zum Ausführungszeitpunkt erneut alle Bedingungen erfüllen (transaktional, Symlink-fail-closed) und verankert jede Löschung in `.ai/runtime/retention-log.jsonl`.

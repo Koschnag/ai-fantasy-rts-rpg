@@ -1,0 +1,18 @@
+{
+  "activity": {
+    "autonomy": "human-gated",
+    "blocker": "awaiting-review",
+    "lastGate": "waiting",
+    "parentClass": "child",
+    "phase": "reviewing",
+    "role": "reviewer",
+    "state": "waiting",
+    "taskId": "T-054"
+  },
+  "candidate": {
+    "blocker": "awaiting-review",
+    "lifecycleStatus": "REVIEW",
+    "taskId": "T-054"
+  },
+  "schemaVersion": 1
+}

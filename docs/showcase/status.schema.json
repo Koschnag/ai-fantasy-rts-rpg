@@ -1,20 +1,163 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://koschnag.github.io/ai-fantasy-rts-rpg/status.schema.json",
-  "title": "Riftward public project status",
-  "type": "object", "additionalProperties": false,
-  "required": ["schemaVersion", "statusContract", "generatedAt", "freshness", "source", "workItems", "candidate", "wip", "claims"],
+  "title": "Riftward public project status v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "statusContract", "observation", "accepted", "candidates", "continuity", "activity", "tasks", "claims"],
   "properties": {
-    "schemaVersion": { "const": 2 }, "statusContract": { "const": "riftward-public-status-v2" }, "generatedAt": { "type": "string", "format": "date-time" },
-    "freshness": { "type": "object", "additionalProperties": false, "required": ["basis", "sourceCommit", "trustedBuildAt", "maxAgeSeconds"], "properties": { "basis": { "const": "source-commit-time" }, "sourceCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }, "trustedBuildAt": { "type": "string", "format": "date-time" }, "maxAgeSeconds": { "const": 604800 } } },
-    "source": { "type": "object", "additionalProperties": false, "required": ["branch", "classification", "commit", "tree", "committedAt", "dirty"], "properties": { "branch": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]{1,200}$" }, "classification": { "enum": ["accepted-main", "candidate-branch"] }, "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }, "tree": { "type": "string", "pattern": "^[0-9a-f]{40}$" }, "committedAt": { "type": "string", "format": "date-time" }, "dirty": { "const": false } } },
-    "workItems": { "type": "object", "additionalProperties": false, "required": ["accepted", "ready", "review", "acceptedTaskIds", "reviewTaskIds", "nextReady"], "properties": { "accepted": { "type": "integer", "minimum": 0 }, "ready": { "type": "integer", "minimum": 0 }, "review": { "type": "integer", "minimum": 0 }, "acceptedTaskIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" } }, "reviewTaskIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" } }, "nextReady": { "type": "object", "additionalProperties": false, "required": ["state", "taskIds"], "properties": { "state": { "enum": ["none", "single", "multiple"] }, "taskIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" } } } } } },
-    "candidate": { "type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": { "state": { "enum": ["checked-out-candidate", "not-observed"] }, "reason": { "type": "string", "minLength": 1 } } },
-    "wip": { "type": "object", "additionalProperties": false, "required": ["state", "classification", "provenance"], "properties": { "state": { "enum": ["published", "not-observed"] }, "classification": { "const": "continuity-snapshot-not-accepted-progress" }, "branch": { "const": "autopilot/live-wip" }, "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }, "committedAt": { "type": "string", "format": "date-time" }, "provenance": { "type": "object", "additionalProperties": false, "required": ["observed", "source", "reason"], "properties": { "observed": { "type": "boolean" }, "source": { "const": "public-remote-ref" }, "reason": { "type": "string", "minLength": 1 } } } } },
-    "claims": { "type": "object", "additionalProperties": false, "required": ["gameplay", "targetHardwareValidated", "physicalEdition", "twentyFourSevenAutonomy"], "properties": { "gameplay": { "const": false }, "targetHardwareValidated": { "const": false }, "physicalEdition": { "const": false }, "twentyFourSevenAutonomy": { "const": false } } }
+    "schemaVersion": { "const": 3 },
+    "statusContract": { "const": "riftward-public-status-v3" },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "basis", "observedAtUtc", "freshForSeconds", "offlineAfterSeconds", "sourceCommit", "sourceTree"],
+      "properties": {
+        "state": { "enum": ["current", "stale", "offline", "unknown"] },
+        "basis": { "const": "trusted-main-and-allowlisted-inputs-v1" },
+        "observedAtUtc": { "type": "string", "format": "date-time" },
+        "freshForSeconds": { "const": 1800 },
+        "offlineAfterSeconds": { "const": 21600 },
+        "sourceCommit": { "$ref": "#/$defs/sha" },
+        "sourceTree": { "$ref": "#/$defs/sha" }
+      }
+    },
+    "accepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["main", "tasks"],
+      "properties": {
+        "main": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["branch", "classification", "commit", "tree", "committedAt", "gates"],
+          "properties": {
+            "branch": { "const": "main" },
+            "classification": { "const": "accepted-main" },
+            "commit": { "$ref": "#/$defs/sha" },
+            "tree": { "$ref": "#/$defs/sha" },
+            "committedAt": { "type": "string", "format": "date-time" },
+            "gates": { "enum": ["passed", "blocked", "unknown"] }
+          }
+        },
+        "tasks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count", "ids"],
+          "properties": {
+            "count": { "type": "integer", "minimum": 0 },
+            "ids": { "$ref": "#/$defs/taskList" }
+          }
+        }
+      }
+    },
+    "candidates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "items"],
+      "properties": {
+        "state": { "enum": ["observed", "not-observed", "unavailable"] },
+        "items": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["taskId", "lifecycleStatus", "gate", "blocker"],
+            "properties": {
+              "taskId": { "$ref": "#/$defs/task" },
+              "lifecycleStatus": { "$ref": "#/$defs/lifecycle" },
+              "gate": { "$ref": "#/$defs/gate" },
+              "blocker": { "$ref": "#/$defs/blocker" }
+            }
+          }
+        }
+      }
+    },
+    "continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "classification"],
+      "properties": {
+        "state": { "enum": ["published", "not-observed", "stale", "unavailable"] },
+        "classification": { "const": "continuity-not-accepted-progress" },
+        "commit": { "$ref": "#/$defs/sha" },
+        "committedAt": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [{
+        "if": { "properties": { "state": { "const": "published" } }, "required": ["state"] },
+        "then": { "required": ["commit", "committedAt"] },
+        "else": { "not": { "anyOf": [{ "required": ["commit"] }, { "required": ["committedAt"] }] } }
+      }]
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": { "enum": ["active", "waiting", "blocked", "idle", "offline", "unknown"] },
+        "taskId": { "$ref": "#/$defs/task" },
+        "phase": { "enum": ["planning", "building", "reviewing", "repairing", "waiting", "unknown"] },
+        "role": { "enum": ["planner", "builder", "reviewer", "repair", "wip", "unknown"] },
+        "lastGate": { "$ref": "#/$defs/gate" },
+        "blocker": { "$ref": "#/$defs/blocker" },
+        "autonomy": { "enum": ["human-gated", "bounded-autopilot", "unknown"] },
+        "parentClass": { "enum": ["root", "child", "unknown"] }
+      },
+      "allOf": [{
+        "if": { "properties": { "state": { "enum": ["active", "waiting", "blocked", "idle"] } }, "required": ["state"] },
+        "then": { "required": ["taskId", "phase", "role", "lastGate", "blocker", "autonomy", "parentClass"] },
+        "else": { "not": { "anyOf": [{ "required": ["taskId"] }, { "required": ["phase"] }, { "required": ["role"] }, { "required": ["lastGate"] }, { "required": ["blocker"] }, { "required": ["autonomy"] }, { "required": ["parentClass"] }] } }
+      }]
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "ready"],
+      "properties": {
+        "current": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["taskId", "lifecycleStatus", "effectiveStartEligibility", "waitingReason", "selectorEnforcement"],
+          "properties": {
+            "taskId": { "$ref": "#/$defs/task" },
+            "lifecycleStatus": { "$ref": "#/$defs/lifecycle" },
+            "effectiveStartEligibility": { "enum": ["eligible", "waiting", "blocked", "unknown"] },
+            "waitingReason": { "$ref": "#/$defs/blocker" },
+            "selectorEnforcement": { "const": "pending" }
+          }
+        },
+        "ready": { "$ref": "#/$defs/taskList" }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gameplay", "targetHardware", "physicalEdition", "twentyFourSevenAutonomy", "concepts"],
+      "properties": {
+        "gameplay": { "const": "graybox-only" },
+        "targetHardware": { "const": "not-validated" },
+        "physicalEdition": { "const": "not-produced" },
+        "twentyFourSevenAutonomy": { "const": "not-demonstrated" },
+        "concepts": { "const": "not-gameplay" }
+      }
+    }
   },
-  "allOf": [
-    { "if": { "properties": { "source": { "properties": { "branch": { "const": "main" } }, "required": ["branch"] } } }, "then": { "properties": { "source": { "properties": { "classification": { "const": "accepted-main" } } }, "candidate": { "properties": { "state": { "const": "not-observed" } } } } }, "else": { "properties": { "source": { "properties": { "classification": { "const": "candidate-branch" } } }, "candidate": { "properties": { "state": { "const": "checked-out-candidate" } } } } } },
-    { "if": { "properties": { "wip": { "properties": { "state": { "const": "published" } }, "required": ["state"] } } }, "then": { "properties": { "wip": { "required": ["branch", "commit", "committedAt"], "properties": { "provenance": { "properties": { "observed": { "const": true } } } } } } }, "else": { "properties": { "wip": { "allOf": [{ "properties": { "provenance": { "properties": { "observed": { "const": false } } } } }, { "not": { "required": ["branch"] } }, { "not": { "required": ["commit"] } }, { "not": { "required": ["committedAt"] } }] } } } }
-  ]
+  "allOf": [{
+    "if": {
+      "properties": { "observation": { "properties": { "state": { "not": { "const": "current" } } }, "required": ["state"] } },
+      "required": ["observation"]
+    },
+    "then": {
+      "properties": { "activity": { "properties": { "state": { "enum": ["offline", "unknown"] } }, "required": ["state"] } }
+    }
+  }],
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "task": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "taskList": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/task" } },
+    "lifecycle": { "enum": ["DRAFT", "READY", "IN_PROGRESS", "REVIEW", "BLOCKED", "DONE", "UNKNOWN"] },
+    "gate": { "enum": ["passed", "failed", "waiting", "blocked", "unknown"] },
+    "blocker": { "enum": ["none", "awaiting-review", "awaiting-preregistered-t042-start-eligibility", "blocked", "unknown"] }
+  }
 }

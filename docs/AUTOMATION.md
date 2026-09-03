@@ -40,6 +40,71 @@ flowchart LR
 Der Integrator verwaltet keine anderen Repositories und erweitert weder
 Agentenrechte noch Modellzugriffe. Details und Begründung stehen in ADR 006.
 
+## Öffentliches Projektcockpit
+
+README und GitHub Pages sind Projektionen derselben eingecheckten Wahrheit,
+kein zweites Backlog. Der Pages-Workflow läuft bei jedem `main`-Push, per
+manueller Auslösung und planmäßig alle 15 Minuten. Er löst `origin/main`
+zunächst über die GitHub-API auf, checkt ausschließlich diesen exakten Commit
+aus und prüft Commit, Tree und Ref unmittelbar vor der Veröffentlichung erneut.
+PR-, Fork- und `autopilot/live-wip`-Inhalte werden nie ausgeführt. Sie dürfen
+nur als streng geschlossene öffentliche Daten erscheinen.
+
+Der öffentliche Status trennt sechs Aussagen:
+
+- `observation`: Zeitpunkt und Altersklasse der öffentlichen Beobachtung;
+- `accepted`: der exakte `main`-Commit/Tree und wirklich akzeptierte Tasks;
+- `candidates`: offene, schema- und gategebundene Kandidaten;
+- `continuity`: ein WIP-Snapshot, ausdrücklich kein akzeptierter Fortschritt;
+- `activity`: nur ein frisches, allowgelistetes Betriebssignal;
+- `claims`: enge Aussagen darüber, was das Projekt bereits und noch nicht
+  belegt.
+
+Eine Beobachtung ist bis 30 Minuten `current`, danach `stale` und ab sechs
+Stunden `offline`. Der Browser darf einen Zustand nur anhand der
+gleichoriginären HTTP-Zeit abwerten, nie anhand einer frei verstellbaren
+Client-Uhr aufwerten. Fehlende API-, HTTP-, Gate-, Provenienz- oder
+Reconciliation-Evidenz führt zu `unknown` beziehungsweise verhindert ein
+neues Deployment. WIP, Agentenaktivität, Commitzahl und Orchestratorverfügbarkeit
+werden niemals automatisch als produktiver Fortschritt gezählt.
+
+Historische Promotionsbelege und ihre heutige unabhängige Nachprüfung bleiben
+getrennte Evidenzklassen. Ein vorhandener PR-/CI-Receipt allein setzt keinen
+Task auf `DONE`. Dafür müssen Backlog, Taskmanifest und ein live an den
+aktuellen Main-Baum gebundener Reconciliation-Verdict exakt übereinstimmen.
+Historisch nicht öffentlich nachweisbare Rollentrennung bleibt auch nach einer
+retrospektiven Prüfung ausdrücklich unbekannt.
+
+## Stabile Autopilot-Identitäten
+
+Neue Agentencommits verwenden die eingecheckte Rollenpolicy unter
+`.ai/policies/commit-role-policy.json`: `Riftward Planner Autopilot`,
+`Riftward Builder Autopilot`, `Riftward Reviewer Autopilot`,
+`Riftward Repair Autopilot` oder `Riftward WIP Autopilot`. Pflichttrailer
+binden Rolle, Task, Ausgangscommit und Ausgangstree. Reviewer ergänzen den
+exakt geprüften Commit/Tree und `Independent-Review`.
+
+Auf Pull Requests prüft `./scripts/rift.sh verify` diese Policy zusätzlich
+gegen den tatsächlichen, aus dem GitHub-Ereignis gelesenen Base-/Head-Bereich:
+jeder neue Checkpoint muss genau einen Parent besitzen und seine
+`Source-Commit`-/`Source-Tree`-Trailer daran binden; ein Reviewer muss exakt
+den letzten Kandidatencommit und dessen Tree prüfen. Der von GitHub erzeugte
+Squash-/Promotionscommit bleibt davon getrennt und wird über PR-, Tree-,
+Pflichtcheck- und Reconciliation-Evidenz nachgewiesen.
+
+Ändert ein Commit `.ai/public-status-v3.json`, muss er zusätzlich
+`Public-Status-Blob: <Git-Blob-OID>` tragen. Der öffentliche Beobachter liest
+die Datei aus genau diesem Commit und akzeptiert sie nur, wenn Trailer,
+GitHub-Content-SHA und lokal berechneter Blob-OID identisch sind. Ein
+unveränderter, weitergetragener oder generischer WIP-Snapshot kann damit kein
+frisches Aktivitätssignal vortäuschen.
+
+Die Projektleitung darf Promotionscommits weiterhin mit der verifizierten
+Koschnag-No-Reply-Identität ausführen. Eine andere Zeichenkette im Autor-Feld
+beweist keine andere Person oder einen anderen Prozess; sie ist öffentliche
+Rollenprovenienz. Bestehende Historie wird nicht umgeschrieben. Die Policy gilt
+nur für neue Commits ab der jeweiligen Task-Baseline.
+
 ## Einheitlicher Befehlsvertrag
 
 Diese Aufgaben werden früh im Repository bereitgestellt und bleiben die einzige öffentliche Automationsschnittstelle:

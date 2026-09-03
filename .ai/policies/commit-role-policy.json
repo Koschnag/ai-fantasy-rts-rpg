@@ -1,0 +1,14 @@
+{
+  "$schema": "../schemas/commit-role-policy.schema.json",
+  "history": "validate-new-commits-only-no-rewrite",
+  "policy": "riftward-commit-roles-v1",
+  "roles": {
+    "builder": { "email": "riftward-builder-autopilot@users.noreply.github.com", "name": "Riftward Builder Autopilot", "requiredTrailers": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] },
+    "planner": { "email": "riftward-planner-autopilot@users.noreply.github.com", "name": "Riftward Planner Autopilot", "requiredTrailers": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] },
+    "project-lead": { "email": "35305653+Koschnag@users.noreply.github.com", "name": "Koschnag", "requiredTrailers": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] },
+    "repair": { "email": "riftward-repair-autopilot@users.noreply.github.com", "name": "Riftward Repair Autopilot", "requiredTrailers": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] },
+    "reviewer": { "email": "riftward-reviewer-autopilot@users.noreply.github.com", "name": "Riftward Reviewer Autopilot", "requiredTrailers": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] },
+    "wip": { "email": "riftward-wip-autopilot@users.noreply.github.com", "name": "Riftward WIP Autopilot", "requiredTrailers": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] }
+  },
+  "schemaVersion": 1
+}

@@ -5,9 +5,8 @@
 <p align="center">
   <a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/verify.yml"><img src="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/verify.yml/badge.svg" alt="Verify"></a>
   <a href="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/dotnet-asset-calibration.yml"><img src="https://github.com/Koschnag/ai-fantasy-rts-rpg/actions/workflows/dotnet-asset-calibration.yml/badge.svg" alt="Asset calibration"></a>
-  <a href="https://koschnag.github.io/ai-fantasy-rts-rpg/"><img src="https://img.shields.io/badge/live-research%20showcase-c48a46" alt="Live research showcase"></a>
-  <img src="https://img.shields.io/badge/status-research%20preproduction-c48a46" alt="Research preproduction">
-  <img src="https://img.shields.io/badge/runtime-not%20yet%20gameplay-526779" alt="Runtime not yet gameplay">
+  <a href="https://koschnag.github.io/ai-fantasy-rts-rpg/"><img src="https://koschnag.github.io/ai-fantasy-rts-rpg/status.svg" alt="Öffentlicher Riftward-Status"></a>
+  <a href="https://koschnag.github.io/ai-fantasy-rts-rpg/"><img src="https://koschnag.github.io/ai-fantasy-rts-rpg/task.svg" alt="Aktuelle Riftward-Aufgabe"></a>
 </p>
 
 # Project Riftward
@@ -33,10 +32,21 @@ agent missions, local retrieval and memory, hard gates, recovery, provenance
 and independently reviewable evidence. A model response is a candidate; only a
 measured outcome advances the project.
 
-> **Honest status (2026-08-24):** the reproducible production foundation and
-> the native Linux SDL3/bgfx walking skeleton (`T-010`) are accepted; gameplay
-> does not exist yet. The retail-era research showcase (`T-008`) is in review,
-> and the cross-platform build matrix (`T-011`) remains a draft.
+> **Öffentlicher Status:** Die Pages-Badges und das
+> [Projektcockpit](https://koschnag.github.io/ai-fantasy-rts-rpg/) zeigen eine
+> beobachtete, fail-closed Momentaufnahme. Sie erzeugen keine Commits und
+> ersetzen keine Abnahme. Akzeptiert ist eine interaktive Graybox-Schleife;
+> kein fertiges oder repräsentatives Spiel, keine validierte Zielhardware und
+> keine nachgewiesene 24/7-Autonomie.
+
+Direkte Belege: [Cockpit-Vertrag](docs/showcase/README.md),
+[Abnahme-Index](docs/abnahme/README.md), [Harness und Ledger](docs/HARNESS.md),
+[Qualitätsgates](docs/QUALITAET.md) und
+[Kommunikationssystem](docs/communication/SHOWCASE_SYSTEM.md). Das Cockpit
+trennt akzeptiertes `main`, Kandidaten, WIP-Kontinuität, beobachtete Aktivität
+und Forschungsclaims sichtbar voneinander. Die gleiche Momentaufnahme ist als
+[maschinenlesbares `status.json`](https://koschnag.github.io/ai-fantasy-rts-rpg/status.json)
+öffentlich prüfbar.
 
 ## Project documents
 
@@ -85,6 +95,8 @@ hardware cost, adoption and rebound effects. See the
 
 ## What is real today
 
+- an accepted interactive graybox loop, evidenced separately from game-complete
+  or representative-play claims
 - a local F#/.NET harness with tamper-evident run ledger, curated memory,
   deterministic BM25 retrieval, evidence binding and retention controls
 - a fail-closed clean-room and asset-provenance gate
@@ -111,7 +123,7 @@ hardware cost, adoption and rebound effects. See the
 
 ## What is not real yet
 
-- no playable game or representative gameplay loop
+- no finished game or representative gameplay loop
 - no proven 30/60 FPS result on the target hardware
 - no evidence that the system can productively run for several days without
   intervention

@@ -1,0 +1,79 @@
+{
+  "check": {
+    "appId": "15368",
+    "appSlug": "github-actions",
+    "name": "Repository gates"
+  },
+  "contract": "riftward-promotion-reconciliation-v2",
+  "disclosures": [
+    {
+      "outcome": "failure",
+      "relation": "subsequent-main-push-not-promotion-evidence",
+      "runId": "33283226720",
+      "taskId": "T-037"
+    }
+  ],
+  "receipts": [
+    {
+      "baseRef": "main", "baseRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "baseSha": "6061cd8e3b6b6e7a36fac589e4ac47a9292c3167", "checkRunId": "98885739757", "checkSuiteId": "89926684295", "event": "pull_request", "headRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "headSha": "913d2cacdf9be5fda2245e500c6ea7f21af11e48", "mergeSha": "d92201e7ee35cc7fc91b01ea369aa71af86af2af", "outcome": "success", "pullRequestNumber": 19, "resultSha": "d92201e7ee35cc7fc91b01ea369aa71af86af2af", "resultTree": "8f9e0c9b68c4e8191652f0351cf3e1cdafbdcad0", "reviewEvidenceBlobOid": "031d5008f67c1638d5f44bac0e8dedfee607d2be", "reviewEvidenceClass": "retrospective-public-record", "reviewEvidencePath": "docs/abnahme/T-034-graybox-exploration-loop.md", "roleSeparation": "not-publicly-proven", "runAttempt": 1, "runId": "33182130380", "taskId": "T-034", "taskManifestBlobOid": "3af4aeb9ab78231a1e6da6bd7cf7425eecb5dc4c", "taskManifestPath": ".ai/tasks/T-034-graybox-exploration-loop.json"
+    },
+    {
+      "baseRef": "main", "baseRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "baseSha": "c6251d0a1f72a001d0ecbf2e5392fec78e5f6a7e", "checkRunId": "98974241144", "checkSuiteId": "90003685202", "event": "pull_request", "headRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "headSha": "a720b6d5e5447b2d8a43eabad565e36f3085e479", "mergeSha": "9c2c16787076074cb3030c73e963b71817a77a6c", "outcome": "success", "pullRequestNumber": 21, "resultSha": "9c2c16787076074cb3030c73e963b71817a77a6c", "resultTree": "f3bc51696aa8d4aa1e104dbeafeddfc6fc530e6b", "reviewEvidenceBlobOid": "a389c402827c57f5ba566da501dadd13534fd037", "reviewEvidenceClass": "retrospective-public-record", "reviewEvidencePath": "docs/abnahme/T-035-graybox-decision-step.md", "roleSeparation": "not-publicly-proven", "runAttempt": 1, "runId": "33208098696", "taskId": "T-035", "taskManifestBlobOid": "4839becfe86d7789dbb2a774af64122cab7c3b50", "taskManifestPath": ".ai/tasks/T-035-graybox-decision-step.json"
+    },
+    {
+      "baseRef": "main", "baseRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "baseSha": "459d361ab794ca1af5e86c690c50d2c5147d0705", "checkRunId": "99054945780", "checkSuiteId": "90074962156", "event": "pull_request", "headRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "headSha": "c2b63d140ea26a0ddb986b7b5bf2c78fce524f4e", "mergeSha": "4e13d68b8aa17dbed16bb39837eeaa91c107898e", "outcome": "success", "pullRequestNumber": 23, "resultSha": "4e13d68b8aa17dbed16bb39837eeaa91c107898e", "resultTree": "7243eaa0d40bd0c04916ce648403c18cfd9db91f", "reviewEvidenceBlobOid": "4006a31adac6692a38d5b34b31b7b2856020262e", "reviewEvidenceClass": "retrospective-public-record", "reviewEvidencePath": "docs/abnahme/T-036-graybox-pressure-restart.md", "roleSeparation": "not-publicly-proven", "runAttempt": 1, "runId": "33235231883", "taskId": "T-036", "taskManifestBlobOid": "ec5329077dee25311de16792817d2d0e89ec4c38", "taskManifestPath": ".ai/tasks/T-036-graybox-pressure-restart.json"
+    },
+    {
+      "baseRef": "main", "baseRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "baseSha": "66051d78b6986522ac10125a12ce744e87c8f89f", "checkRunId": "99180476954", "checkSuiteId": "90196450730", "event": "pull_request", "headRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "headSha": "1186a41c53d2ebbdf5fff70c715cfcfa126149b2", "mergeSha": "bbedc09f85e885bfe6b9f618aac42c7e61eced02", "outcome": "success", "pullRequestNumber": 26, "resultSha": "bbedc09f85e885bfe6b9f618aac42c7e61eced02", "resultTree": "14b30db93f00fd3b412530827fa4dbb421c874e7", "reviewEvidenceBlobOid": "cefdbcfe654ba8a21b2879a26ac8e1eeb5b8857a", "reviewEvidenceClass": "retrospective-public-record", "reviewEvidencePath": "docs/abnahme/T-037-graybox-continuation-restart.md", "roleSeparation": "not-publicly-proven", "runAttempt": 1, "runId": "33282712365", "taskId": "T-037", "taskManifestBlobOid": "2cf0f578a28645cfb005bcc0a997ab6bcc5467e4", "taskManifestPath": ".ai/tasks/T-037-graybox-continuation-restart.json"
+    },
+    {
+      "baseRef": "main", "baseRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "baseSha": "46d02e51ff16b7cc121638c55cec30083bd43710", "checkRunId": "99626085800", "checkSuiteId": "90597098517", "event": "pull_request", "headRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "headSha": "2b7c2274a9ba4fa45cebfa127ad3bcec9cc3be6e", "mergeSha": "0a7a9e8fb7a6670da3bec162e1756a9b9ab104be", "outcome": "success", "pullRequestNumber": 28, "resultSha": "0a7a9e8fb7a6670da3bec162e1756a9b9ab104be", "resultTree": "1005c42e5b2fdf18747e3ff75872109ad75f42a0", "reviewEvidenceBlobOid": "386a979b96c5958cbb31f7d18e3adf4268b3efd6", "reviewEvidenceClass": "retrospective-public-record", "reviewEvidencePath": "docs/abnahme/T-038-single-platform-release-package.md", "roleSeparation": "not-publicly-proven", "runAttempt": 1, "runId": "33434050066", "taskId": "T-038", "taskManifestBlobOid": "e5d881b9115b1369a7874f5da725300c837b6061", "taskManifestPath": ".ai/tasks/T-038-single-platform-release-package.json"
+    },
+    {
+      "baseRef": "main", "baseRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "baseSha": "68d8771bf46fce573045ae79dae4fc88a6e03d4f", "checkRunId": "99962863818", "checkSuiteId": "90887579423", "event": "pull_request", "headRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "headSha": "db97a7dbecb27f4bda850e74213bbd4e7f733cea", "mergeSha": "6fb17fbcf0893190294566129633f262651caa6e", "outcome": "success", "pullRequestNumber": 30, "resultSha": "6fb17fbcf0893190294566129633f262651caa6e", "resultTree": "0da54e971258d40e6390c3ad71da2babba727819", "reviewEvidenceBlobOid": "7ee73063b91ff5b76bf5ffdbd0e825b27d4131e9", "reviewEvidenceClass": "retrospective-public-record", "reviewEvidencePath": "docs/abnahme/T-039-graybox-completion-repeat.md", "roleSeparation": "not-publicly-proven", "runAttempt": 1, "runId": "33539776151", "taskId": "T-039", "taskManifestBlobOid": "fe86041fea4417e29192bf8694f563a9efe28cf9", "taskManifestPath": ".ai/tasks/T-039-graybox-completion-repeat.json"
+    },
+    {
+      "baseRef": "main", "baseRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "baseSha": "a7764b8db2ddeb41eae8f93b59bdffaca8fcda1a", "checkRunId": "100342429385", "checkSuiteId": "91212709859", "event": "pull_request", "headRepository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" }, "headSha": "ba3aa166b7a474fc7581fc0f65ab792ba24a97e1", "mergeSha": "1dd5428df029fab96358d18ac844ede224ec37d6", "outcome": "success", "pullRequestNumber": 32, "resultSha": "1dd5428df029fab96358d18ac844ede224ec37d6", "resultTree": "69ddf9e634715cdf5e1f072cf320cdc65d29a49f", "reviewEvidenceBlobOid": "3ced74667e6ec6dafa5061142db03eb079c3c8e1", "reviewEvidenceClass": "retrospective-public-record", "reviewEvidencePath": "docs/abnahme/T-052-pages-status-and-showcase-gates.md", "roleSeparation": "not-publicly-proven", "runAttempt": 1, "runId": "33658340175", "taskId": "T-052", "taskManifestBlobOid": "214132e92fc50f14f80b1b5a8ddb0d8217e6bf39", "taskManifestPath": ".ai/tasks/T-052-pages-status-and-showcase-gates.json"
+    }
+  ],
+  "repository": { "id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg" },
+  "historicalProjectionSha256": "2486631c7448933fe24294638dae55c5de781623345a6d28172ea2549e222a12",
+  "audit": {
+    "builderCommit": "e16358a32ada404c544c7940ca4fa0e221a33ed5",
+    "builderTree": "ef97c98f58040eb4315d1edfa03e4460a5ef04f5",
+    "candidateBaseCommit": "577e7c43c1782795f3af85d0322c4975cc8f8ddf",
+    "candidateBaseTree": "25df0a74a3d23fb7617ab9d2712737ebc572f8b8",
+    "doneEligibleTaskIds": [
+      "T-034",
+      "T-035",
+      "T-036",
+      "T-037",
+      "T-038",
+      "T-039",
+      "T-052"
+    ],
+    "evidenceBlobOid": "ccd4613405e6398428d97035bd7b938163b424cd",
+    "evidenceContract": "riftward-historical-reconciliation-audit-v2",
+    "evidencePath": ".ai/audits/T-054-historical-reconciliation-audit.json",
+    "pullRequestNumber": 36,
+    "repairChain": [
+      {
+        "commit": "15682c27e958328fb214da4a264f63b091ff9ed1",
+        "tree": "42ab67a1c77cf9c398d675deedd2daeaa2d7616d"
+      },
+      {
+        "commit": "4f7a2e3874ab38eaa3d992cbdeba90be2548bb94",
+        "tree": "994b257fe14ab8e730cd387164dde04b21068ffa"
+      },
+      {
+        "commit": "d084c5bca3481f48d2843b7c6babac4c90b1d258",
+        "tree": "ed1e32422535345b1b6a37b0859f4509e65b8e71"
+      }
+    ],
+    "reviewedCandidateCommit": "d084c5bca3481f48d2843b7c6babac4c90b1d258",
+    "reviewedCandidateTree": "ed1e32422535345b1b6a37b0859f4509e65b8e71",
+    "state": "passed"
+  },
+  "schemaVersion": 2,
+  "workflow": { "id": "333602498", "path": ".github/workflows/verify.yml", "trustedBlobOid": "43f93d02014752b6162a923215ff7634905db165" }
+}

@@ -1,25 +1,36 @@
 #!/usr/bin/env python3
-"""Generate the public Riftward status from a clean, committed Git tree."""
+"""Build deterministic public status JSON and dependency-free SVG badges."""
 
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
+from html import escape
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
-from datetime import datetime, timezone
+
+from task_eligibility import EligibilityError, evaluate
+from validate_reconciliation import RECONCILIATION_PATH, ReconciliationError, load_json as load_reconciliation, validate as validate_reconciliation
 
 
-FULL_HASH = re.compile(r"^[0-9a-f]{40}$")
-BRANCH = re.compile(r"^[A-Za-z0-9._/-]{1,200}$")
-TASK_ID = re.compile(r"^T-[0-9]{3,}$")
-BACKLOG_ROW = re.compile(r"^\|\s*(T-[0-9]{3,})\s*\|")
+SHA = re.compile(r"^[0-9a-f]{40}$")
+TASK = re.compile(r"^T-[0-9]{3}$")
+BACKLOG_ROW = re.compile(r"^\|\s*(T-[0-9]{3})\s*\|")
 PUBLIC_STATUSES = {"DONE", "READY", "REVIEW", "DRAFT", "BLOCKED", "CANCELLED", "RUNNING"}
-FRESHNESS_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
-EARLIEST_TRUSTED_TIMESTAMP = datetime(2021, 1, 1, tzinfo=timezone.utc)
+LIFECYCLE = {"DRAFT", "READY", "IN_PROGRESS", "REVIEW", "BLOCKED", "DONE", "UNKNOWN"}
+GATES = {"passed", "failed", "waiting", "blocked", "unknown"}
+BLOCKERS = {"none", "awaiting-review", "awaiting-preregistered-t042-start-eligibility", "blocked", "unknown"}
+PHASES = {"planning", "building", "reviewing", "repairing", "waiting", "unknown"}
+ROLES = {"planner", "builder", "reviewer", "repair", "wip", "unknown"}
+AUTONOMY = {"human-gated", "bounded-autopilot", "unknown"}
+PARENTS = {"root", "child", "unknown"}
+EARLIEST = datetime(2021, 1, 1, tzinfo=timezone.utc)
+ROOT_FIELDS = {"schemaVersion", "repository", "main", "candidates", "continuity", "activity"}
 
 
 class StatusError(RuntimeError):
@@ -27,182 +38,141 @@ class StatusError(RuntimeError):
 
 
 def git(root: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(root), *args],
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-    )
+    result = subprocess.run(["git", "-C", str(root), *args], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
     if result.returncode != 0:
         raise StatusError(f"git {' '.join(args)} failed")
     return result.stdout.strip()
 
 
-def timestamp(value: str, field: str) -> datetime:
+def canonical_time(value: str, label: str) -> str:
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
-        raise StatusError(f"{field} is not an ISO-8601 timestamp") from exc
+        raise StatusError(f"invalid {label}") from exc
     if parsed.tzinfo is None:
-        raise StatusError(f"{field} must include a timezone")
+        raise StatusError(f"{label} has no timezone")
     parsed = parsed.astimezone(timezone.utc)
-    if parsed < EARLIEST_TRUSTED_TIMESTAMP:
-        raise StatusError(f"{field} predates the trusted public-status epoch")
-    return parsed
-
-
-def canonical_timestamp(value: str, field: str) -> str:
-    parsed = timestamp(value, field)
+    if parsed < EARLIEST:
+        raise StatusError(f"{label} predates public epoch")
     return parsed.isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def trusted_now(value: str | None) -> datetime:
-    """Return the independently supplied test clock, or the build host clock."""
-    if value is None:
-        return datetime.now(timezone.utc)
-    return timestamp(value, "trusted current time")
-
-
-def check_trusted_build_time(value: str, current: datetime) -> str:
-    """Reject a status whose asserted trusted build time is stale or future."""
-    observed = timestamp(value, "trusted build time")
-    age_seconds = (current - observed).total_seconds()
-    if age_seconds < 0 or age_seconds > FRESHNESS_MAX_AGE_SECONDS:
-        raise StatusError("trusted build time is outside the current freshness window")
-    return observed.isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
 def parse_backlog(path: Path) -> dict[str, list[str]]:
-    statuses: dict[str, list[str]] = {status: [] for status in PUBLIC_STATUSES}
+    statuses = {name: [] for name in PUBLIC_STATUSES}
     seen: set[str] = set()
     for line in path.read_text(encoding="utf-8").splitlines():
         match = BACKLOG_ROW.match(line)
         if not match:
             continue
         columns = [column.strip() for column in line.strip().strip("|").split("|")]
-        if len(columns) != 7:
-            raise StatusError(f"malformed BACKLOG row for {match.group(1)}")
-        task_id, status = columns[0], columns[6]
-        if not TASK_ID.fullmatch(task_id) or status not in PUBLIC_STATUSES:
-            raise StatusError(f"unsupported BACKLOG row for {task_id}")
-        if task_id in seen:
-            raise StatusError(f"duplicate BACKLOG task {task_id}")
-        seen.add(task_id)
-        statuses[status].append(task_id)
+        if len(columns) != 7 or columns[0] in seen or columns[6] not in PUBLIC_STATUSES:
+            raise StatusError("malformed or duplicate BACKLOG row")
+        seen.add(columns[0])
+        statuses[columns[6]].append(columns[0])
     if not seen:
         raise StatusError("BACKLOG contains no task rows")
     return statuses
 
 
 def clean_source(root: Path) -> None:
-    observed = git(root, "status", "--porcelain=v1", "--untracked-files=all")
-    if observed:
+    if git(root, "status", "--porcelain=v1", "--untracked-files=all"):
         raise StatusError("public status inputs are not a clean committed tree")
 
 
-def generate(root: Path, branch: str, wip_commit: str | None, wip_committed_at: str | None,
-             public_main_commit: str | None, trusted_build_at: str | None,
-             trusted_current_time: str | None = None) -> dict[str, object]:
-    if not BRANCH.fullmatch(branch) or branch.startswith("/") or ".." in branch:
-        raise StatusError("invalid source branch")
-    if (wip_commit is None) != (wip_committed_at is None):
-        raise StatusError("WIP commit and timestamp must be supplied together")
+def validate_verdict(root: Path, value: object, reconciliation: dict[str, object], commit: str, tree: str) -> tuple[set[str], set[str]]:
+    fields = {"schemaVersion", "contract", "mainCommit", "mainTree", "reconciliationBlobOid", "historicalProjectionSha256", "audit", "recordedTaskIds", "doneEligibleTaskIds"}
+    if not isinstance(value, dict) or set(value) != fields or value.get("schemaVersion") != 1 or value.get("contract") != "riftward-reconciliation-verdict-v1" or value.get("mainCommit") != commit or value.get("mainTree") != tree:
+        raise StatusError("invalid reconciliation verdict identity")
+    if value.get("reconciliationBlobOid") != git(root, "rev-parse", f"HEAD:{RECONCILIATION_PATH}") or value.get("historicalProjectionSha256") != reconciliation["historicalProjectionSha256"]:
+        raise StatusError("reconciliation verdict blob/digest mismatch")
+    recorded = value.get("recordedTaskIds")
+    eligible = value.get("doneEligibleTaskIds")
+    if not isinstance(recorded, list) or not isinstance(eligible, list) or recorded != reconciliation["recordedTaskIds"] or eligible != reconciliation["doneEligibleTaskIds"] or len(recorded) != len(set(recorded)) or len(eligible) != len(set(eligible)):
+        raise StatusError("reconciliation verdict task set mismatch")
+    audit = value.get("audit")
+    if reconciliation["auditState"] == "pending":
+        if audit != {"state": "pending"} or eligible:
+            raise StatusError("pending reconciliation verdict grants DONE eligibility")
+    else:
+        manifest_audit = reconciliation["manifestAudit"]
+        if not isinstance(manifest_audit, dict) or audit != {"state": "passed", "evidenceBlobOid": manifest_audit.get("evidenceBlobOid")}:
+            raise StatusError("passed reconciliation verdict lacks audit binding")
+    return set(recorded), set(eligible)
 
-    clean_source(root)
-    commit = git(root, "rev-parse", "HEAD")
-    tree = git(root, "rev-parse", "HEAD^{tree}")
-    committed_at = canonical_timestamp(git(root, "show", "-s", "--format=%cI", "HEAD"), "source committedAt")
-    if trusted_build_at is None:
-        raise StatusError("trusted build time is required (PAGES_TRUSTED_BUILD_AT)")
-    trusted_at = check_trusted_build_time(trusted_build_at, trusted_now(trusted_current_time))
-    age_seconds = (timestamp(trusted_at, "trusted build time") - timestamp(committed_at, "source committedAt")).total_seconds()
-    if age_seconds < 0 or age_seconds > FRESHNESS_MAX_AGE_SECONDS:
-        raise StatusError("source commit is outside the trusted build freshness window")
-    if not FULL_HASH.fullmatch(commit) or not FULL_HASH.fullmatch(tree):
-        raise StatusError("invalid source Git identity")
-    if branch == "main":
-        if public_main_commit is None or not FULL_HASH.fullmatch(public_main_commit):
-            raise StatusError("public origin/main commit is required for accepted-main")
-        if commit != public_main_commit:
-            raise StatusError("HEAD does not match public origin/main")
 
-    statuses = parse_backlog(root / "BACKLOG.md")
-    ready_ids = sorted(statuses["READY"])
-    ready_state = "none" if not ready_ids else "single" if len(ready_ids) == 1 else "multiple"
-    classification = "accepted-main" if branch == "main" else "candidate-branch"
+def task_manifest_status(root: Path, task_id: str) -> str:
+    matches = list((root / ".ai/tasks").glob(f"{task_id}-*.json"))
+    if len(matches) != 1:
+        raise StatusError(f"task manifest cardinality mismatch for {task_id}")
+    value = json.loads(matches[0].read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or value.get("id") != task_id or not isinstance(value.get("status"), str):
+        raise StatusError(f"task manifest identity mismatch for {task_id}")
+    return str(value["status"])
 
-    wip: dict[str, object] = {
-        "state": "not-observed",
-        "classification": "continuity-snapshot-not-accepted-progress",
-        "provenance": {"observed": False, "source": "public-remote-ref", "reason": "No public WIP ref was supplied."},
-    }
-    if wip_commit is not None and wip_committed_at is not None:
-        if not FULL_HASH.fullmatch(wip_commit):
-            raise StatusError("invalid WIP commit")
-        git(root, "cat-file", "-e", f"{wip_commit}^{{commit}}")
-        public_wip = git(root, "rev-parse", "refs/remotes/origin/autopilot/live-wip")
-        if public_wip != wip_commit:
-            raise StatusError("WIP commit does not match the fetched public branch")
-        actual_wip_time = canonical_timestamp(git(root, "show", "-s", "--format=%cI", wip_commit), "WIP committedAt")
-        if canonical_timestamp(wip_committed_at, "WIP committedAt") != actual_wip_time:
-            raise StatusError("WIP timestamp does not match the public commit")
-        wip = {
-            "state": "published",
-            "classification": "continuity-snapshot-not-accepted-progress",
-            "branch": "autopilot/live-wip",
-            "commit": wip_commit,
-            "committedAt": actual_wip_time,
-            "provenance": {"observed": True, "source": "public-remote-ref", "reason": "Matched fetched autopilot/live-wip ref."},
-        }
 
-    candidate_state = "not-observed" if classification == "accepted-main" else "checked-out-candidate"
-    candidate_reason = (
-        "The Pages build has no authoritative public candidate receipt."
-        if candidate_state == "not-observed"
-        else "The checked-out branch is a candidate and is not counted as accepted main."
+def accepted_task_ids(root: Path, done: set[str], recorded: set[str], eligible: set[str]) -> list[str]:
+    if (done & recorded) != eligible or any(task_manifest_status(root, task_id) != "accepted" for task_id in eligible):
+        raise StatusError("historical DONE state is not backed by the live audit verdict")
+    return sorted((done - recorded) | eligible)
+
+
+def validate_observation(value: object, commit: str, tree: str) -> dict[str, object]:
+    if not isinstance(value, dict) or set(value) != ROOT_FIELDS or value.get("schemaVersion") != 1:
+        raise StatusError("invalid normalized GitHub observation")
+    main = value.get("main")
+    if value.get("repository") != {"id": "1333151301", "name": "Koschnag/ai-fantasy-rts-rpg"} or not isinstance(main, dict) or set(main) != {"commit", "tree", "gates"} or main.get("commit") != commit or main.get("tree") != tree or main.get("gates") not in {"passed", "blocked", "unknown"}:
+        raise StatusError("GitHub observation identity mismatch")
+    candidates = value.get("candidates")
+    if not isinstance(candidates, dict) or set(candidates) != {"state", "items"} or candidates.get("state") not in {"observed", "not-observed", "unavailable"} or not isinstance(candidates.get("items"), list):
+        raise StatusError("invalid candidate observation")
+    candidate_fields = {"taskId", "lifecycleStatus", "gate", "blocker"}
+    for item in candidates["items"]:
+        if not isinstance(item, dict) or set(item) != candidate_fields or not isinstance(item.get("taskId"), str) or not TASK.fullmatch(item["taskId"]):
+            raise StatusError("invalid candidate item")
+        if item["lifecycleStatus"] not in LIFECYCLE or item["gate"] not in GATES or item["blocker"] not in BLOCKERS:
+            raise StatusError("invalid candidate item enum")
+    if (candidates["state"] == "observed") != bool(candidates["items"]):
+        raise StatusError("candidate state/items relation mismatch")
+    continuity = value.get("continuity")
+    if not isinstance(continuity, dict) or continuity.get("state") not in {"published", "not-observed", "stale", "unavailable"} or continuity.get("classification") != "continuity-not-accepted-progress":
+        raise StatusError("invalid continuity observation")
+    if continuity["state"] == "published":
+        if set(continuity) != {"state", "classification", "commit", "committedAt"} or not isinstance(continuity["commit"], str) or not SHA.fullmatch(continuity["commit"]):
+            raise StatusError("invalid published continuity")
+        canonical_time(str(continuity["committedAt"]), "continuity commit time")
+    elif set(continuity) != {"state", "classification"}:
+        raise StatusError("unpublished continuity contains details")
+    activity = value.get("activity")
+    if not isinstance(activity, dict) or activity.get("state") not in {"active", "waiting", "blocked", "idle", "offline", "unknown"}:
+        raise StatusError("invalid activity observation")
+    activity_fields = {"state", "taskId", "phase", "role", "lastGate", "blocker", "autonomy", "parentClass"}
+    if activity["state"] in {"active", "waiting", "blocked", "idle"}:
+        if set(activity) != activity_fields or not isinstance(activity["taskId"], str) or not TASK.fullmatch(activity["taskId"]):
+            raise StatusError("invalid activity details")
+        if activity["phase"] not in PHASES or activity["role"] not in ROLES or activity["lastGate"] not in GATES or activity["blocker"] not in BLOCKERS or activity["autonomy"] not in AUTONOMY or activity["parentClass"] not in PARENTS:
+            raise StatusError("invalid activity enum")
+    elif set(activity) != {"state"}:
+        raise StatusError("offline/unknown activity contains details")
+    return value
+
+
+def badge(label: str, value: str, color: str) -> str:
+    label_text, value_text = escape(label), escape(value)
+    left, right = 78, 158
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'
+        + escape(f"{label}: {value}", quote=True)
+        + f'" width="{left + right}" height="20" viewBox="0 0 {left + right} 20">'
+        + '<rect width="236" height="20" rx="3" fill="#252b36"/>'
+        + f'<rect x="{left}" width="{right}" height="20" rx="3" fill="{color}"/>'
+        + f'<path d="M{left} 0h4v20h-4z" fill="{color}"/>'
+        + '<g fill="#fff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">'
+        + f'<text x="{left / 2}" y="14">{label_text}</text><text x="{left + right / 2}" y="14">{value_text}</text></g></svg>\n'
     )
-    return {
-        "schemaVersion": 2,
-        "statusContract": "riftward-public-status-v2",
-        "generatedAt": committed_at,
-        "freshness": {
-            "basis": "source-commit-time",
-            "sourceCommit": commit,
-            "trustedBuildAt": trusted_at,
-            "maxAgeSeconds": FRESHNESS_MAX_AGE_SECONDS,
-        },
-        "source": {
-            "branch": branch,
-            "classification": classification,
-            "commit": commit,
-            "tree": tree,
-            "committedAt": committed_at,
-            "dirty": False,
-        },
-        "workItems": {
-            "accepted": len(statuses["DONE"]),
-            "ready": len(ready_ids),
-            "review": len(statuses["REVIEW"]),
-            "acceptedTaskIds": sorted(statuses["DONE"]),
-            "reviewTaskIds": sorted(statuses["REVIEW"]),
-            "nextReady": {"state": ready_state, "taskIds": ready_ids},
-        },
-        "candidate": {"state": candidate_state, "reason": candidate_reason},
-        "wip": wip,
-        "claims": {
-            "gameplay": False,
-            "targetHardwareValidated": False,
-            "physicalEdition": False,
-            "twentyFourSevenAutonomy": False,
-        },
-    }
 
 
-def atomic_json(path: Path, value: dict[str, object]) -> None:
+def atomic_text(path: Path, payload: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     handle, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
@@ -215,23 +185,58 @@ def atomic_json(path: Path, value: dict[str, object]) -> None:
             os.unlink(temporary)
 
 
+def generate(root: Path, observed_at: str, observation_file: Path, reconciliation_file: Path, verdict_file: Path) -> dict[str, object]:
+    clean_source(root)
+    commit = git(root, "rev-parse", "HEAD")
+    tree = git(root, "rev-parse", "HEAD^{tree}")
+    if not SHA.fullmatch(commit) or not SHA.fullmatch(tree):
+        raise StatusError("invalid main identity")
+    observed = canonical_time(observed_at, "public observation time")
+    normalized = validate_observation(json.loads(observation_file.read_text(encoding="utf-8")), commit, tree)
+    reconciliation_manifest = load_reconciliation(reconciliation_file)
+    reconciled = validate_reconciliation(reconciliation_manifest, root)
+    recorded, eligible = validate_verdict(root, load_reconciliation(verdict_file), reconciled, commit, tree)
+    statuses = parse_backlog(root / "BACKLOG.md")
+    done = set(statuses["DONE"])
+    accepted_ids = accepted_task_ids(root, done, recorded, eligible)
+    ready_ids = sorted(statuses["READY"])
+    current = evaluate(root, "T-053")
+    committed_at = canonical_time(git(root, "show", "-s", "--format=%cI", "HEAD"), "public commit time")
+    return {
+        "schemaVersion": 3,
+        "statusContract": "riftward-public-status-v3",
+        "observation": {"state": "current", "basis": "trusted-main-and-allowlisted-inputs-v1", "observedAtUtc": observed, "freshForSeconds": 1800, "offlineAfterSeconds": 21600, "sourceCommit": commit, "sourceTree": tree},
+        "accepted": {"main": {"branch": "main", "classification": "accepted-main", "commit": commit, "tree": tree, "committedAt": committed_at, "gates": normalized["main"]["gates"]}, "tasks": {"count": len(accepted_ids), "ids": accepted_ids}},
+        "candidates": normalized["candidates"],
+        "continuity": normalized["continuity"],
+        "activity": normalized["activity"],
+        "tasks": {"current": current, "ready": ready_ids},
+        "claims": {"gameplay": "graybox-only", "targetHardware": "not-validated", "physicalEdition": "not-produced", "twentyFourSevenAutonomy": "not-demonstrated", "concepts": "not-gameplay"},
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--branch", required=True)
-    parser.add_argument("--wip-commit")
-    parser.add_argument("--wip-committed-at")
-    parser.add_argument("--public-main-commit")
-    parser.add_argument("--trusted-build-at")
-    parser.add_argument("--trusted-current-time", help="inject a trusted current time for deterministic tests")
+    parser.add_argument("--status-svg", type=Path, required=True)
+    parser.add_argument("--task-svg", type=Path, required=True)
+    parser.add_argument("--observed-at", required=True)
+    parser.add_argument("--github-observation", type=Path, required=True)
+    parser.add_argument("--reconciliation", type=Path, required=True)
+    parser.add_argument("--reconciliation-verdict", type=Path, required=True)
     args = parser.parse_args()
     try:
-        root = args.root.resolve(strict=True)
-        status = generate(root, args.branch, args.wip_commit, args.wip_committed_at, args.public_main_commit, args.trusted_build_at, args.trusted_current_time)
-        atomic_json(args.output.resolve(), status)
-    except (OSError, StatusError) as exc:
-        print(f"Pages-Status abgelehnt: {exc}", file=os.sys.stderr)
+        status = generate(args.root.resolve(strict=True), args.observed_at, args.github_observation.resolve(strict=True), args.reconciliation.resolve(strict=True), args.reconciliation_verdict.resolve(strict=True))
+        payload = json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        state = status["observation"]["state"]
+        colors = {"current": "#16794b", "stale": "#9a6700", "offline": "#b42318", "unknown": "#57606a"}
+        current = status["tasks"]["current"]
+        atomic_text(args.output.resolve(), payload)
+        atomic_text(args.status_svg.resolve(), badge("Riftward", f"{state} · {len(status['accepted']['tasks']['ids'])} accepted", colors[state]))
+        atomic_text(args.task_svg.resolve(), badge(current["taskId"], f"{current['lifecycleStatus']} · {current['effectiveStartEligibility']}", "#9a6700" if current["effectiveStartEligibility"] == "waiting" else "#16794b"))
+    except (OSError, ValueError, json.JSONDecodeError, StatusError, EligibilityError, ReconciliationError) as exc:
+        print(f"Pages-Status abgelehnt: {exc}", file=sys.stderr)
         return 2
     return 0
 

@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "T-052",
   "title": "Wahrheitstreuer Pages-Status, WIP-Abgrenzung und oeffentliche Showcase-Gates",
-  "status": "review",
+  "status": "accepted",
   "releaseNote": "2026-09-02: draft -> ready aufgrund der ausdruecklichen Projektleitungsanweisung, die Riftward-GitHub-Pages-Seite getrennt vom laufenden T-042-/Autopilot-Arbeitsbaum zu ueberarbeiten. Der Auftrag basiert auf dem veroeffentlichten main-Commit a7764b8db2ddeb41eae8f93b59bdffaca8fcda1a und darf weder WIP als akzeptierten Fortschritt ausgeben noch private Betriebsdaten veroeffentlichen. Merge und Pages-Deployment bleiben an unabhaengiges Review und die bestehenden main-Gates gebunden.",
   "completionNote": "2026-09-02: Builderkandidat auf dem isolierten Branch task/t-052-pages-status implementiert; nach unabhaengiger BLOCK-Pruefung wurden accepted-main an den oeffentlichen origin/main-Commit, PR-Checkout an pull_request.head.sha, vollstaendige Dirty-/Pfadtyppruefung, deterministische generatedAt-/Freshness-Bindung, relationale Task-ID-Listen und WIP-Provenienz nachgeschaerft. Vertragslauf, Negativmatrix, Doppelbuild, Syntax und Linkpruefung waren lokal gruen. GitHub-CI, unabhaengiges finales Review, Merge nach main und Pages-Deployment sind noch nicht erfolgt; der Task bleibt review.",
   "objective": "Die oeffentliche Riftward-GitHub-Pages-Seite zeigt einen zugaenglichen, mobilen und nachpruefbar aus Repositorydaten erzeugten Projektstatus, trennt akzeptiertes main, Kandidaten und optionale WIP-Kontinuitaet sichtbar voneinander und faellt bei fehlenden oder ungueltigen Statusdaten ehrlich auf 'Status nicht verfuegbar' zurueck, statt veraltete Werte als aktuell darzustellen.",

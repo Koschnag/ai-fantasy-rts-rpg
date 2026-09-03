@@ -1,95 +1,93 @@
-# Retail-Era-Showcase-System
+# Riftward Showcase-System
 
-## Zweck
+## Zweck und Wahrheitsebene
 
-Der rein digitale Showcase übersetzt ADR 005 in eine wiederholbare
-Kommunikationsschicht.
-Er ist kein separater Markenbaukasten und keine zweite Produktwahrheit. Inhalt,
-Status und Claims stammen aus versionierten Riftward-Artefakten; ein Renderer
-setzt sie für Web, Druck oder Film um.
+Der Showcase ist eine statische, öffentliche Leseschicht für den belegten
+Projektstand. Er ist kein zweites Backlog, kein Run-Monitor und keine
+Autonomiebehauptung. Er trennt fünf Aussagen sichtbar:
 
 ```text
-Task + Commit + Evidence + Media-Manifest
-                 |
-                 v
-          Showcase-View-Model
-             /    |    \
-          Web    Print   Motion
+accepted main | open candidates | WIP continuity | observed activity | claims
 ```
 
-## Artefaktfamilie
+Nur der exakte, verifizierte `main`-Commit mit Tree ist akzeptierter Fortschritt.
+Kandidaten sind nicht akzeptiert; WIP dokumentiert höchstens Kontinuität;
+Aktivität ist ohne frisches, begrenztes Signal unbekannt. Eine `READY`-Aufgabe
+ist nicht automatisch effektiv startberechtigt.
 
-| Artefakt | Vorproduktionsinhalt | spätere Evidence-gebundene Ablösung |
-|---|---|---|
-| virtuelle große Box / Boxfront | deterministische Weltgrafik oder freigegebenes Key-Art | final freigegebenes Covermotiv |
-| virtueller optischer Datenträger | typografische Projektgrafik ohne Releaseclaim | reproduzierbares Master-/Build-Manifest |
-| digitales Handbuch | Weltprämisse, Steuerungsprinzip, Hardware- und Forschungsziel | getestete Bedienung, echte Karten und Regeln |
-| Magazinanzeige | Forschungsfrage, ehrlicher Stand und Repository-Link | validierte Meilensteinbotschaft |
-| Bildstrecke | klar bezeichnete Konzepte und Pipelinegrafiken | echte In-Engine-Screenshots mit Commit/Seed/Preset |
-| Film | Storyboard/Animatic | commitgebundener Build, Shot- und Quellenmanifest |
+Die verwendeten Konzepte bleiben unmittelbar als `CONCEPT · NOT GAMEPLAY`
+markiert. Sie sind weder Runtime-Capture noch Gameplay-, Hardware-, Release-
+oder Lizenzbeleg. Die Lizenzentscheidung für Repository, Code und Medien bleibt
+offen; FOSS-first beschreibt nur Werkzeuge und Abhängigkeiten.
 
-## Pflichtfelder jedes Exports
+## Statusquelle und Ausführung
 
-- Export-ID, Erzeugungszeit, Quellcommit und Renderer-Version;
-- Medien-ID, Status und sichtbare Aussagegrenze;
-- `CONCEPT – NOT GAMEPLAY`, solange mindestens ein gezeigtes Motiv Konzept ist;
-- bei Runtimebildern Build, Szene, Seed, Preset und Evidence-Pack;
-- bei Kennzahlen Messumgebung, Metrik, Unsicherheit und Link zum Rohbeleg;
-- maschinenlesbare Quellenliste ohne Secrets oder lokale Hostpfade.
+- Der Pages-Job führt ausschließlich den exakten `origin/main`-Baum aus.
+  Er bindet dessen Commit und Tree in HTML sowie `status.json`.
+- Pull Requests, Forks und WIP werden niemals als Code ausgeführt. Sie können
+  nur als explizit allowlistete, öffentliche, schema-geprüfte Dateneingabe
+  erscheinen. Alles andere ist `not-observed` oder `unavailable`.
+- Kandidaten- und Aktivitätsdaten stammen aus der geschlossenen Datei
+  `.ai/public-status-v3.json` des beobachteten Commits. Deren Git-Blob-OID muss
+  zugleich im Commit-Trailer `Public-Status-Blob` und in der GitHub-Content-
+  Antwort stehen; Autor-/Committerrolle, Task, Parent, Ausgangscommit und
+  Ausgangstree werden ebenfalls geprüft. Eine bloß geerbte Sidecar-Datei gilt
+  deshalb nicht als neue Aktivität.
+- Der Workflow versucht alle 15 Minuten eine Aktualisierung. Eine Beobachtung
+  ist bis 1800 Sekunden (30 Minuten) `current`, danach `stale` und ab 21600
+  Sekunden (6 Stunden) `offline`. Diese Klassen sind kein Heartbeat und kein
+  Autonomienachweis.
+- Der Browser ist fail-closed: Er akzeptiert nur `riftward-public-status-v3`,
+  exakte Feldmengen, geschlossene Enums und einen mit HTML identischen Main-
+  Commit/Tree. Die Altersberechnung verwendet den gleichoriginären HTTP-
+  `Date`-Header und gegebenenfalls dessen gültigen `Age`-Wert, nie die lokale
+  Browseruhr als Aufwertungsbeleg. Fehlende/ungültige HTTP-Zeit oder eine
+  Beobachtung in der Zukunft führt zu `UNVERFÜGBAR`; bei `stale`/`offline`
+  werden insbesondere keine Activity-Details weiter angezeigt.
+- Öffentlich darstellbar sind Main- und veröffentlichte WIP-Commitzeiten sowie
+  `observation.observedAtUtc` als öffentliche GitHub-Actions-Beobachtungszeit.
+  Private Runtime-Zeitpunkte, Sitzungs-/Elternlauf-/Maschinen-/Modell-IDs und
+  sonstige interne Kennungen gehören weder ins Statusmodell noch in das DOM.
 
-## Meilenstein-Regel
+Der geschlossene Vertrag verwendet `observation.state = current|stale|offline|
+unknown`, `basis = trusted-main-and-allowlisted-inputs-v1`,
+`freshForSeconds = 1800` und `offlineAfterSeconds = 21600`. Operative
+`activity.state`-Werte sind `active|waiting|blocked|idle|offline|unknown`.
+`tasks.current.selectorEnforcement` bleibt ehrlich `pending`. Claims sind keine
+Booleans, sondern exakt `graybox-only`, `not-validated`, `not-produced`,
+`not-demonstrated` und `not-gameplay` in ihren dokumentierten Feldern.
 
-Der Showcase exportiert nicht bei jeder Agentenantwort. Ein neues öffentliches
-Paket entsteht nur nach einem akzeptierten Meilenstein oder einem ausdrücklich
-als Failure Note veröffentlichten Nullresultat. GitHub erhält grüne,
-nachvollziehbare Checkpoints; lokaler Dirty State ist kein Fortschrittsclaim.
+Die vollständige Feldmatrix und enumgenaue Generator-Schnittstelle steht in
+[`docs/showcase/README.md`](../showcase/README.md).
 
-## Aktueller Prototyp
+## Personen- und Rollenkommunikation
 
-`docs/showcase/index.html` bildet Atmosphärendossier, Filmrolle, Box,
-Datenträger, Handbuch, Anzeige und Bildstrecke als digitale Interaktion ab. Er
-benötigt kein Framework und zur Laufzeit kein Netzwerk. Im öffentlichen
-Checkout nutzt er deterministische SVG-/CSS-Medien sowie explizit
-autorisierte, hashgebundene Ableitungen geprüfter Quarantänekonzepte. Die
-Originale bleiben lokal; das öffentliche Manifest legt Generatorlücken,
-Transformationen und Aussagegrenze offen. Der Showcase kündigt weder
-Herstellung noch Versand einer physischen Ausgabe an.
+Öffentliche Agentenrollen sind stabil und pseudonym: `Planner`, `Builder`,
+`Reviewer`, `Repair`, `WIP`. Sie dürfen als Rolle, nie als Identitätsersatz,
+für frische Aktivität erscheinen. Die Promotionsidentität des Projektleads ist
+`Koschnag`; sie ersetzt weder unabhängige Prüfung noch erforderliche Gates.
 
-Die GitHub-Pages-Pipeline baut daraus bei jedem relevanten Checkpoint ein
-minimales statisches Artefakt. `status.json` entsteht aus Commit, Backlog und
-T-010-Taskstatus; lokale Prozessdaten und Quarantäneoriginale werden nicht
-publiziert. Die Seite dokumentiert damit den versionierten öffentlichen Stand,
-nicht die bloße Aktivität eines Terminals.
+Ein Modelloutput, ein offener Branch oder ein aktives Terminal wird nie als
+akzeptierter Fortschritt formuliert. Die zulässige Form lautet beispielsweise:
+„Kandidat beobachtet“, „WIP-Kontinuität veröffentlicht“ oder „Aktivität nicht
+beobachtet“ — nicht „läuft autonom“ oder „fertig“.
 
-## UI-/UX-Begründung
+## Export, Rollback und Redeploy
 
-Der Showcase verwendet keine beliebige Sammlung moderner Karten, weicher
-Verläufe und Glassmorphism. Seine visuelle Grammatik stammt aus einem digitalen
-Redaktionsdossier: Folios, Kontaktbögen, harte Linien, begrenzte Satzbreiten,
-große Bildstrecken und klar getrennte Fakt-/Konzeptzustände. Ein kleines Set
-von Design-Tokens hält Farbe, Typografie, Abstand und Bewegungsregeln konsistent.
+Der Showcase exportiert nur einen berechenbaren, commitgebundenen öffentlichen
+View. Lokale Originale unter Quarantäne werden nicht kopiert; zugelassene
+Webableitungen müssen im öffentlichen Medienmanifest gebunden bleiben.
 
-Die konkrete Umsetzung folgt folgenden öffentlichen Leitlinien:
+Es gibt keine History-Rewrites als Betriebsmaßnahme. Ein Rollback redeployt
+einen zuvor akzeptierten `main`-Commit, erzeugt daraus einen neuen Status und
+prüft den Deploy erneut. Ein Redeploy ist kein neuer Taskabschluss, keine neue
+Messung und kein neuer Claim. Eine nicht reproduzierbare oder nicht
+provenienzgebundene Statusdatei wird verworfen, nicht redaktionell repariert.
 
-- [USWDS Design Principles](https://designsystem.digital.gov/design-principles/):
-  echte Nutzerbedürfnisse, zugängliche und nachvollziehbare Information;
-- [GOV.UK Layout](https://design-system.service.gov.uk/styles/layout/):
-  mobile-first, einfache Hierarchie und ungefähr 75 Zeichen maximale
-  Fließtextbreite;
-- [W3C WAI Designing Tips](https://www.w3.org/WAI/tips/designing/) und
-  [Audio/Video Content](https://www.w3.org/WAI/media/av/av-content/):
-  Kontrast, semantische Alternativen, sichtbare Mediensteuerung und eine
-  Textbeschreibung der stummen Filmrolle;
-- [web.dev zu Layout Shifts](https://web.dev/articles/optimize-cls) und
-  [nativem Lazy Loading](https://web.dev/articles/browser-level-image-lazy-loading):
-  feste Medienmaße, eager nur für das Hero-Motiv, lazy für Offscreen-Bilder;
-- [Atlassian Design Tokens](https://atlassian.design/foundations/tokens/design-tokens/)
-  und [Motion](https://atlassian.design/foundations/motion): konsistente Tokens
-  und Bewegung nur zur Zustandsklärung;
-- [WCAG 2.2: Animation from Interactions](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions)
-  sowie [`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion):
-  kein Autoplay und abschaltbare Panelbewegung.
+## Redaktionelle Form
 
-Die Leitlinien definieren keine Marke. Sie begrenzen die gestalterische
-Willkür; die eigenständige Riftward-Sprache entsteht aus Inhalt, Satz und
-Materialwelt.
+Die Oberfläche ist mobil zuerst, semantisch gegliedert, über Tabs mit Tastatur
+bedienbar und aktualisiert die Statusmeldung über `aria-live`. Farbe verstärkt
+Zustände, ist aber nie ihr einziges Signal. `prefers-reduced-motion` entfernt
+Bewegung. CSP erlaubt kein externes Runtime-Script, kein externes Bildladen und
+keine API außer der gleich-originären statischen `status.json`.

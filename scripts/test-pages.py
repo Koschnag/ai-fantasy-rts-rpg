@@ -28,8 +28,9 @@ PLACEHOLDERS = {
     "__RIFTWARD_SOURCE_BRANCH__",
     "__RIFTWARD_SOURCE_CLASSIFICATION__",
 }
-WIP_BOUNDARY = "Kontinuitätssnapshot, kein akzeptierter Fortschritt"
-FRESHNESS_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+WIP_BOUNDARY = "Kontinuität, nie akzeptierter Fortschritt"
+FRESH_FOR_SECONDS = 1800
+OFFLINE_AFTER_SECONDS = 21600
 EARLIEST_TRUSTED_TIMESTAMP = datetime(2021, 1, 1, tzinfo=timezone.utc)
 
 
@@ -106,20 +107,25 @@ def check_html(source: Path, html: str | None = None) -> set[str]:
     tags = document.tags
 
     videos = [attrs for tag, attrs in tags if tag == "video"]
-    require(videos and all("autoplay" not in video for video in videos), "concept video autoplay is forbidden")
+    require(all("autoplay" not in video for video in videos), "concept video autoplay is forbidden")
     require("CONCEPT · NOT GAMEPLAY" in html, "visible concept boundary is missing")
     require(WIP_BOUNDARY in html, "WIP non-acceptance boundary is missing")
-    require("ACCEPTED ON MAIN" not in html and "ACCEPTED AT SOURCE" in html and "Kandidatenbranch behauptet keine main-Akzeptanz" in html, "candidate acceptance caveat is missing")
+    require("nie als main-Akzeptanz gezählt" in html and "Nur der exakte, verifizierte" in html, "candidate acceptance caveat is missing")
     require("aria-live=\"polite\"" in html and "id=\"project-status-message\"" in html, "accessible status announcement is missing")
     require("T-010 · walking skeleton" not in html and "9637ec8" not in html, "stale status fallback remains")
 
     fallback_expectations = {
-        "accepted": "—",
-        "review": "—",
-        "ready": "—",
-        "shortCommit": "—",
-        "nextReady": "Nicht geladen",
-        "committedAt": "Nicht geladen",
+        "main-short-commit": "UNVERFÜGBAR",
+        "main-commit": "UNVERFÜGBAR",
+        "main-tree": "UNVERFÜGBAR",
+        "observation": "UNVERFÜGBAR",
+        "current-task": "UNBEKANNT",
+        "current-gate": "UNBEKANNT",
+        "autonomy": "UNBEKANNT",
+        "accepted-summary": "UNVERFÜGBAR",
+        "candidate-summary": "UNVERFÜGBAR",
+        "wip-summary": "UNVERFÜGBAR",
+        "activity-summary": "UNVERFÜGBAR",
     }
     for binding, expected in fallback_expectations.items():
         values = re.findall(rf'<[^>]+data-bind="{re.escape(binding)}"[^>]*>([^<]*)</[^>]+>', html)
@@ -139,7 +145,7 @@ def check_html(source: Path, html: str | None = None) -> set[str]:
 
     names = {attrs.get("name") for tag, attrs in tags if tag == "meta"}
     properties = {attrs.get("property") for tag, attrs in tags if tag == "meta"}
-    for name in ("description", "referrer", "twitter:card", "twitter:title", "twitter:description", "twitter:image", *[f"riftward-source-{field}" for field in ("commit", "tree", "branch", "classification")]):
+    for name in ("description", "referrer", "twitter:card", *[f"riftward-source-{field}" for field in ("commit", "tree", "branch", "classification")]):
         require(name in names, f"metadata missing: {name}")
     for prop in ("og:type", "og:title", "og:description", "og:url", "og:image", "og:image:alt"):
         require(prop in properties, f"Open Graph metadata missing: {prop}")
@@ -155,9 +161,9 @@ def check_css(source: Path, css: str | None = None) -> None:
     css = css if css is not None else (source / "showcase.css").read_text(encoding="utf-8")
     compact = re.sub(r"\s+", "", css)
     require("@media(prefers-reduced-motion:reduce)" in compact, "reduced-motion contract missing")
-    require(".artifact-panel{animation:none}" in compact, "reduced-motion animation override missing")
+    require("animation-duration:.001ms!important" in compact and "transition-duration:.001ms!important" in compact, "reduced-motion override missing")
     require(".mastheadnav{display:none}" not in compact, "mobile navigation is hidden")
-    require("@media(max-width:980px)" in compact and ".mastheadnav{display:flex" in compact, "mobile navigation contract missing")
+    require("@media(max-width:620px)" in compact and ".mastheadnav{justify-content:flex-start" in compact, "mobile navigation contract missing")
     require(":focus-visible" in css, "visible keyboard focus contract missing")
 
 
@@ -207,6 +213,7 @@ def check_source(source: Path) -> set[str]:
     check_tree_files(source, "Pages source")
     required = {
         "index.html", "showcase.css", "showcase.js", "status.schema.json",
+        "reconciliation.schema.json", "reconciliation.json",
         "robots.txt", "sitemap.xml", "assets/media-budget.json",
         "assets/media-manifest.json", "assets/media-checksums.sha256",
     }
@@ -219,8 +226,8 @@ def check_source(source: Path) -> set[str]:
     check_css(source)
     check_media(source)
     script = (source / "showcase.js").read_text(encoding="utf-8")
-    require(".catch(setUnavailable)" in script and "Status nicht verfügbar" in script, "status fetch does not fail visibly")
-    require(WIP_BOUNDARY in script, "dynamic WIP boundary is missing")
+    require(".catch(" in script and "Status nicht verfügbar" in script, "status fetch does not fail visibly")
+    require("continuity-not-accepted-progress" in script, "dynamic WIP boundary is missing")
     require("activeTask" not in script and "walking skeleton" not in script, "hardcoded active task remains")
     require("Sitemap: https://koschnag.github.io/ai-fantasy-rts-rpg/sitemap.xml" in (source / "robots.txt").read_text(encoding="utf-8"), "robots sitemap mismatch")
     require("<loc>https://koschnag.github.io/ai-fantasy-rts-rpg/</loc>" in (source / "sitemap.xml").read_text(encoding="utf-8"), "sitemap canonical mismatch")
@@ -249,20 +256,28 @@ def current_timestamp(value: str | None) -> datetime:
     return parsed_timestamp(value, "trusted current time") if value is not None else datetime.now(timezone.utc)
 
 
-def check_current_freshness(trusted_build_at: datetime, current: datetime) -> None:
-    age_seconds = (current - trusted_build_at).total_seconds()
-    require(0 <= age_seconds <= FRESHNESS_MAX_AGE_SECONDS, "trusted build time is outside the current freshness window")
-
-
 def aware_timestamp(value: object, field: str) -> None:
     parsed_timestamp(value, field)
 
 
-def schema_matches(value: object, schema: object, field: str = "$") -> bool:
+def schema_matches(value: object, schema: object, field: str = "$", root_schema: dict[str, object] | None = None) -> bool:
     """Small dependency-free Draft-2020 subset used by the checked-in contract."""
     if not isinstance(schema, dict):
         return True
-    if "not" in schema and schema_matches(value, schema["not"], field):
+    root_schema = root_schema or schema
+    if "$ref" in schema:
+        reference = schema["$ref"]
+        if not isinstance(reference, str) or not reference.startswith("#/"):
+            return False
+        target: object = root_schema
+        for part in reference[2:].split("/"):
+            if not isinstance(target, dict) or part not in target:
+                return False
+            target = target[part]
+        return schema_matches(value, target, field, root_schema)
+    if "not" in schema and schema_matches(value, schema["not"], field, root_schema):
+        return False
+    if "anyOf" in schema and not any(schema_matches(value, child, field, root_schema) for child in schema["anyOf"]):
         return False
     if "const" in schema and value != schema["const"]:
         return False
@@ -275,11 +290,13 @@ def schema_matches(value: object, schema: object, field: str = "$") -> bool:
         if any(key not in value for key in schema.get("required", [])): return False
         properties = schema.get("properties", {})
         if schema.get("additionalProperties") is False and any(key not in properties for key in value): return False
-        if any(key in value and not schema_matches(value[key], child, f"{field}.{key}") for key, child in properties.items()): return False
+        if any(key in value and not schema_matches(value[key], child, f"{field}.{key}", root_schema) for key, child in properties.items()): return False
     if kind == "array":
         if not isinstance(value, list): return False
         if schema.get("uniqueItems") and len({json.dumps(item, sort_keys=True) for item in value}) != len(value): return False
-        if "items" in schema and any(not schema_matches(item, schema["items"], field) for item in value): return False
+        if len(value) < schema.get("minItems", 0): return False
+        if len(value) > schema.get("maxItems", sys.maxsize): return False
+        if "items" in schema and any(not schema_matches(item, schema["items"], field, root_schema) for item in value): return False
     elif kind == "string":
         if not isinstance(value, str): return False
         if "minLength" in schema and len(value) < schema["minLength"]: return False
@@ -292,10 +309,10 @@ def schema_matches(value: object, schema: object, field: str = "$") -> bool:
     for condition in schema.get("allOf", []):
         if not isinstance(condition, dict): return False
         if "if" not in condition:
-            if not schema_matches(value, condition, field): return False
+            if not schema_matches(value, condition, field, root_schema): return False
             continue
-        branch = condition.get("then") if schema_matches(value, condition["if"], field) else condition.get("else")
-        if branch is not None and not schema_matches(value, branch, field): return False
+        branch = condition.get("then") if schema_matches(value, condition["if"], field, root_schema) else condition.get("else")
+        if branch is not None and not schema_matches(value, branch, field, root_schema): return False
     return True
 
 
@@ -309,64 +326,74 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None,
     if schema_path is not None:
         validate_checked_in_schema(status, schema_path)
     require(isinstance(status, dict), "status root is not an object")
-    require(set(status) == {"schemaVersion", "statusContract", "generatedAt", "freshness", "source", "workItems", "candidate", "wip", "claims"}, "status root fields mismatch")
-    require(status["schemaVersion"] == 2 and status["statusContract"] == "riftward-public-status-v2", "status schema mismatch")
-    aware_timestamp(status["generatedAt"], "generatedAt")
+    require(set(status) == {"schemaVersion", "statusContract", "observation", "accepted", "candidates", "continuity", "activity", "tasks", "claims"}, "status root fields mismatch")
+    require(status["schemaVersion"] == 3 and status["statusContract"] == "riftward-public-status-v3", "status schema mismatch")
     require(not any(value is None for value in walk(status)), "status contains null instead of an explicit state")
 
-    source = status["source"]
-    require(isinstance(source, dict) and set(source) == {"branch", "classification", "commit", "tree", "committedAt", "dirty"}, "source fields mismatch")
+    observation = status["observation"]
+    require(isinstance(observation, dict) and set(observation) == {"state", "basis", "observedAtUtc", "freshForSeconds", "offlineAfterSeconds", "sourceCommit", "sourceTree"}, "observation fields mismatch")
+    require(observation["state"] in {"current", "stale", "offline", "unknown"} and observation["basis"] == "trusted-main-and-allowlisted-inputs-v1", "observation state/basis mismatch")
+    require(observation["freshForSeconds"] == FRESH_FOR_SECONDS and observation["offlineAfterSeconds"] == OFFLINE_AFTER_SECONDS, "observation freshness thresholds mismatch")
+    observed_at = parsed_timestamp(observation["observedAtUtc"], "observation.observedAtUtc")
+    current = current_timestamp(trusted_current_time)
+    age = (current - observed_at).total_seconds()
+    require(age >= 0, "observation time is in the future")
+    expected_observation = "current" if age <= FRESH_FOR_SECONDS else "stale" if age <= OFFLINE_AFTER_SECONDS else "offline"
+    require(observation["state"] == expected_observation, "observation state does not match trusted age")
+
+    accepted = status["accepted"]
+    require(isinstance(accepted, dict) and set(accepted) == {"main", "tasks"}, "accepted fields mismatch")
+    source = accepted["main"]
+    require(isinstance(source, dict) and set(source) == {"branch", "classification", "commit", "tree", "committedAt", "gates"}, "accepted main fields mismatch")
     require(isinstance(source["commit"], str) and FULL_HASH.fullmatch(source["commit"]) is not None, "invalid source commit")
     require(isinstance(source["tree"], str) and FULL_HASH.fullmatch(source["tree"]) is not None, "invalid source tree")
-    require(isinstance(source["branch"], str) and re.fullmatch(r"[A-Za-z0-9._/-]{1,200}", source["branch"]) is not None, "invalid source branch")
-    require(source["classification"] in {"accepted-main", "candidate-branch"} and source["dirty"] is False, "invalid source classification")
-    require((source["branch"] == "main") == (source["classification"] == "accepted-main"), "main classification mismatch")
+    require(source["branch"] == "main" and source["classification"] == "accepted-main" and source["gates"] in {"passed", "blocked", "unknown"}, "invalid accepted main classification")
     aware_timestamp(source["committedAt"], "source.committedAt")
-    require(status["generatedAt"] == source["committedAt"], "generatedAt must equal source commit time")
-    freshness = status["freshness"]
-    require(isinstance(freshness, dict) and set(freshness) == {"basis", "sourceCommit", "trustedBuildAt", "maxAgeSeconds"}, "freshness fields mismatch")
-    require(freshness["basis"] == "source-commit-time" and freshness["sourceCommit"] == source["commit"] and freshness["maxAgeSeconds"] == FRESHNESS_MAX_AGE_SECONDS, "freshness binding mismatch")
-    trusted_build_at = parsed_timestamp(freshness["trustedBuildAt"], "freshness.trustedBuildAt")
-    check_current_freshness(trusted_build_at, current_timestamp(trusted_current_time))
-    source_time = parsed_timestamp(source["committedAt"], "source.committedAt")
-    generated_time = parsed_timestamp(status["generatedAt"], "generatedAt")
-    age_seconds = (trusted_build_at - source_time).total_seconds()
-    require(generated_time == source_time and 0 <= age_seconds <= freshness["maxAgeSeconds"], "freshness age/backward/future mismatch")
+    require(observation["sourceCommit"] == source["commit"] and observation["sourceTree"] == source["tree"], "observation/source identity mismatch")
+    accepted_tasks = accepted["tasks"]
+    require(isinstance(accepted_tasks, dict) and set(accepted_tasks) == {"count", "ids"}, "accepted tasks fields mismatch")
+    accepted_ids = accepted_tasks["ids"]
+    require(isinstance(accepted_ids, list) and len(accepted_ids) == len(set(accepted_ids)) and all(isinstance(item, str) and TASK_ID.fullmatch(item) for item in accepted_ids), "invalid accepted task IDs")
+    require(accepted_tasks["count"] == len(accepted_ids), "accepted task count mismatch")
 
-    work = status["workItems"]
-    require(isinstance(work, dict) and set(work) == {"accepted", "ready", "review", "acceptedTaskIds", "reviewTaskIds", "nextReady"}, "work item fields mismatch")
-    require(all(isinstance(work[name], int) and not isinstance(work[name], bool) and work[name] >= 0 for name in ("accepted", "ready", "review")), "invalid work item counter")
-    next_ready = work["nextReady"]
-    require(isinstance(next_ready, dict) and set(next_ready) == {"state", "taskIds"}, "next-ready fields mismatch")
-    task_ids = next_ready["taskIds"]
-    require(isinstance(task_ids, list) and len(task_ids) == len(set(task_ids)) and all(isinstance(item, str) and TASK_ID.fullmatch(item) for item in task_ids), "invalid ready task IDs")
-    expected_state = "none" if not task_ids else "single" if len(task_ids) == 1 else "multiple"
-    require(next_ready["state"] == expected_state and work["ready"] == len(task_ids), "ready state/count mismatch")
-    for name, count in (("acceptedTaskIds", work["accepted"]), ("reviewTaskIds", work["review"])):
-        ids = work[name]
-        require(isinstance(ids, list) and len(ids) == len(set(ids)) and len(ids) == count and all(isinstance(item, str) and TASK_ID.fullmatch(item) for item in ids), f"invalid {name}")
+    candidates = status["candidates"]
+    require(isinstance(candidates, dict) and set(candidates) == {"state", "items"} and candidates["state"] in {"observed", "not-observed", "unavailable"}, "candidate fields mismatch")
+    items = candidates["items"]
+    require(isinstance(items, list) and len(items) <= 32, "candidate items mismatch")
+    require((candidates["state"] == "observed") == bool(items), "candidate observation/items relation mismatch")
+    for item in items:
+        require(isinstance(item, dict) and set(item) == {"taskId", "lifecycleStatus", "gate", "blocker"}, "candidate item fields mismatch")
+        require(isinstance(item["taskId"], str) and TASK_ID.fullmatch(item["taskId"]) is not None, "candidate task ID mismatch")
 
-    candidate = status["candidate"]
-    require(isinstance(candidate, dict) and set(candidate) == {"state", "reason"} and isinstance(candidate["reason"], str) and candidate["reason"], "candidate fields mismatch")
-    expected_candidate = "not-observed" if source["classification"] == "accepted-main" else "checked-out-candidate"
-    require(candidate["state"] == expected_candidate, "candidate state mismatch")
-
-    wip = status["wip"]
-    require(isinstance(wip, dict) and wip.get("state") in {"published", "not-observed"}, "invalid WIP state")
-    require(wip.get("classification") == "continuity-snapshot-not-accepted-progress", "WIP acceptance boundary mismatch")
-    provenance = wip.get("provenance")
-    require(isinstance(provenance, dict) and set(provenance) == {"observed", "source", "reason"} and isinstance(provenance["observed"], bool) and provenance["source"] == "public-remote-ref" and isinstance(provenance["reason"], str) and provenance["reason"], "WIP provenance mismatch")
-    if wip["state"] == "published":
-        require(set(wip) == {"state", "classification", "branch", "commit", "committedAt", "provenance"}, "published WIP fields mismatch")
-        require(wip["branch"] == "autopilot/live-wip" and isinstance(wip["commit"], str) and FULL_HASH.fullmatch(wip["commit"]) is not None, "invalid WIP identity")
-        aware_timestamp(wip["committedAt"], "wip.committedAt")
-        require(wip["provenance"]["observed"] is True, "published WIP is not observed")
+    continuity = status["continuity"]
+    require(isinstance(continuity, dict) and continuity.get("state") in {"published", "not-observed", "stale", "unavailable"} and continuity.get("classification") == "continuity-not-accepted-progress", "continuity fields mismatch")
+    if continuity["state"] == "published":
+        require(set(continuity) == {"state", "classification", "commit", "committedAt"} and isinstance(continuity["commit"], str) and FULL_HASH.fullmatch(continuity["commit"]) is not None, "published continuity identity mismatch")
+        aware_timestamp(continuity["committedAt"], "continuity.committedAt")
     else:
-        require(set(wip) == {"state", "classification", "provenance"}, "unobserved WIP provenance missing")
-        require(wip["provenance"]["observed"] is False, "unobserved WIP marked observed")
+        require(set(continuity) == {"state", "classification"}, "unpublished continuity leaks details")
+
+    activity = status["activity"]
+    detailed_states = {"active", "waiting", "blocked", "idle"}
+    details = {"taskId", "phase", "role", "lastGate", "blocker", "autonomy", "parentClass"}
+    require(isinstance(activity, dict) and activity.get("state") in detailed_states | {"offline", "unknown"}, "activity state mismatch")
+    if activity["state"] in detailed_states:
+        require(observation["state"] == "current" and set(activity) == details | {"state"}, "activity details outside current observation")
+    else:
+        require(set(activity) == {"state"}, "offline/unknown activity leaks details")
+
+    tasks = status["tasks"]
+    require(isinstance(tasks, dict) and set(tasks) == {"current", "ready"}, "task fields mismatch")
+    ready = tasks["ready"]
+    require(isinstance(ready, list) and len(ready) == len(set(ready)) and all(isinstance(item, str) and TASK_ID.fullmatch(item) for item in ready), "invalid ready task IDs")
+    current_task = tasks["current"]
+    require(isinstance(current_task, dict) and set(current_task) == {"taskId", "lifecycleStatus", "effectiveStartEligibility", "waitingReason", "selectorEnforcement"}, "current task fields mismatch")
+    require(current_task["taskId"] == "T-053" and current_task["lifecycleStatus"] == "READY", "frozen T-053 lifecycle changed")
+    require(current_task["effectiveStartEligibility"] == "waiting" and current_task["waitingReason"] == "awaiting-preregistered-t042-start-eligibility", "T-053 fail-closed eligibility mismatch")
+    require(current_task["selectorEnforcement"] == "pending", "selector enforcement is overstated")
 
     claims = status["claims"]
-    expected_claims = {"gameplay": False, "targetHardwareValidated": False, "physicalEdition": False, "twentyFourSevenAutonomy": False}
+    expected_claims = {"gameplay": "graybox-only", "targetHardware": "not-validated", "physicalEdition": "not-produced", "twentyFourSevenAutonomy": "not-demonstrated", "concepts": "not-gameplay"}
     require(claims == expected_claims, "unsupported public claim")
     if expected_meta is not None:
         for field in ("commit", "tree", "branch", "classification"):
@@ -414,6 +441,7 @@ def check_built(source: Path, built: Path, trusted_current_time: str | None) -> 
         require(len(values) == 1, f"built source meta missing: {field}")
         expected_meta[field] = values[0]
     status_path = built / "status.json"
+    require((built / "status.svg").is_file() and (built / "task.svg").is_file(), "dynamic status badges are missing")
     status = validate_status(json.loads(status_path.read_text(encoding="utf-8")), expected_meta, source / "status.schema.json", trusted_current_time)
     canonical = json.dumps(status, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     require(status_path.read_text(encoding="utf-8") == canonical, "status JSON is not deterministic canonical output")
@@ -434,22 +462,23 @@ def expect_failure(name: str, callback) -> None:
 
 def valid_status_fixture() -> dict[str, object]:
     return {
-        "schemaVersion": 2,
-        "statusContract": "riftward-public-status-v2",
-        "generatedAt": "2026-09-02T12:00:00+00:00",
-        "freshness": {"basis": "source-commit-time", "sourceCommit": "a" * 40, "trustedBuildAt": "2026-09-02T12:00:00Z", "maxAgeSeconds": FRESHNESS_MAX_AGE_SECONDS},
-        "source": {"branch": "main", "classification": "accepted-main", "commit": "a" * 40, "tree": "b" * 40, "committedAt": "2026-09-02T12:00:00+00:00", "dirty": False},
-        "workItems": {"accepted": 1, "ready": 0, "review": 1, "acceptedTaskIds": ["T-001"], "reviewTaskIds": ["T-002"], "nextReady": {"state": "none", "taskIds": []}},
-        "candidate": {"state": "not-observed", "reason": "not observed"},
-        "wip": {"state": "not-observed", "classification": "continuity-snapshot-not-accepted-progress", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "not supplied"}},
-        "claims": {"gameplay": False, "targetHardwareValidated": False, "physicalEdition": False, "twentyFourSevenAutonomy": False},
+        "schemaVersion": 3,
+        "statusContract": "riftward-public-status-v3",
+        "observation": {"state": "current", "basis": "trusted-main-and-allowlisted-inputs-v1", "observedAtUtc": "2026-09-02T12:00:00Z", "freshForSeconds": FRESH_FOR_SECONDS, "offlineAfterSeconds": OFFLINE_AFTER_SECONDS, "sourceCommit": "a" * 40, "sourceTree": "b" * 40},
+        "accepted": {"main": {"branch": "main", "classification": "accepted-main", "commit": "a" * 40, "tree": "b" * 40, "committedAt": "2026-01-02T12:00:00Z", "gates": "passed"}, "tasks": {"count": 1, "ids": ["T-001"]}},
+        "candidates": {"state": "not-observed", "items": []},
+        "continuity": {"state": "not-observed", "classification": "continuity-not-accepted-progress"},
+        "activity": {"state": "waiting", "taskId": "T-053", "phase": "waiting", "role": "unknown", "lastGate": "waiting", "blocker": "awaiting-preregistered-t042-start-eligibility", "autonomy": "unknown", "parentClass": "unknown"},
+        "tasks": {"current": {"taskId": "T-053", "lifecycleStatus": "READY", "effectiveStartEligibility": "waiting", "waitingReason": "awaiting-preregistered-t042-start-eligibility", "selectorEnforcement": "pending"}, "ready": ["T-053"]},
+        "claims": {"gameplay": "graybox-only", "targetHardware": "not-validated", "physicalEdition": "not-produced", "twentyFourSevenAutonomy": "not-demonstrated", "concepts": "not-gameplay"},
     }
 
 
 def negative_matrix(source: Path) -> None:
     html = (source / "index.html").read_text(encoding="utf-8")
-    expect_failure("autoplay", lambda: check_html(source, html.replace("<video controls", "<video autoplay controls", 1)))
-    expect_failure("stale fallback", lambda: check_html(source, html.replace('data-bind="accepted">—', 'data-bind="accepted">7', 1)))
+    if "<video " in html:
+        expect_failure("autoplay", lambda: check_html(source, html.replace("<video ", "<video autoplay ", 1)))
+    expect_failure("stale fallback", lambda: check_html(source, html.replace('data-bind="main-commit">UNVERFÜGBAR', 'data-bind="main-commit">' + "a" * 40, 1)))
     expect_failure("broken local link", lambda: check_html(source, html.replace("</footer>", '<a href="missing.html">x</a></footer>', 1)))
     expect_failure("quarantine reference", lambda: check_html(source, html.replace("showcase.css", "assets/quarantine/private.css", 1)))
     expect_failure("missing status announcement", lambda: check_html(source, html.replace(' aria-live="polite"', "", 1)))
@@ -470,72 +499,89 @@ def negative_matrix(source: Path) -> None:
     schema_path = source / "status.schema.json"
     validate_checked_in_schema(valid_status_fixture(), schema_path)
     malformed = valid_status_fixture(); malformed["schemaVersion"] = 1; cases.append(("malformed status schema", malformed))
-    missing_provenance = valid_status_fixture(); del missing_provenance["source"]["tree"]; cases.append(("missing provenance", missing_provenance))
+    missing_provenance = valid_status_fixture(); del missing_provenance["accepted"]["main"]["tree"]; cases.append(("missing provenance", missing_provenance))
     invented_active = valid_status_fixture(); invented_active["activeTask"] = {"id": "T-042", "status": "accepted"}; cases.append(("invented active T-042", invented_active))
-    accepted_wip = valid_status_fixture(); accepted_wip["wip"]["classification"] = "accepted-progress"; cases.append(("WIP counted as acceptance", accepted_wip))
-    unsupported_claim = valid_status_fixture(); unsupported_claim["claims"]["twentyFourSevenAutonomy"] = True; cases.append(("unsupported 24/7 claim", unsupported_claim))
-    null_cost = valid_status_fixture(); null_cost["candidate"]["reason"] = None; cases.append(("null unknown", null_cost))
-    fake_time = valid_status_fixture(); fake_time["generatedAt"] = "2026-09-03T12:00:00+00:00"; cases.append(("generated time mismatch", fake_time))
-    duplicate_ids = valid_status_fixture(); duplicate_ids["workItems"]["acceptedTaskIds"] = ["T-001", "T-001"]; duplicate_ids["workItems"]["accepted"] = 2; cases.append(("duplicate task IDs", duplicate_ids))
-    freshness_spoof = valid_status_fixture(); freshness_spoof["freshness"]["sourceCommit"] = "c" * 40; cases.append(("freshness source spoof", freshness_spoof))
-    stale = valid_status_fixture(); stale["freshness"]["trustedBuildAt"] = "2026-08-25T11:59:59Z"; cases.append(("stale trusted build time", stale))
-    future = valid_status_fixture(); future["freshness"]["trustedBuildAt"] = "2026-09-01T12:00:00Z"; cases.append(("source commit future of trusted build", future))
-    future_current = valid_status_fixture(); future_current["freshness"]["trustedBuildAt"] = "2026-09-02T12:00:01Z"; cases.append(("future trusted build time", future_current))
-    year_2000 = valid_status_fixture(); year_2000["generatedAt"] = year_2000["source"]["committedAt"] = "2000-01-01T00:00:00Z"; cases.append(("year-2000 timestamp", year_2000))
-    wip_iff = valid_status_fixture(); wip_iff["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}; cases.append(("published WIP without observed provenance", wip_iff))
-    candidate_relation = valid_status_fixture(); candidate_relation["source"]["branch"] = "task/t-052"; candidate_relation["source"]["classification"] = "candidate-branch"; candidate_relation["candidate"]["state"] = "not-observed"; cases.append(("candidate branch relation", candidate_relation))
+    accepted_wip = valid_status_fixture(); accepted_wip["continuity"]["classification"] = "accepted-progress"; cases.append(("WIP counted as acceptance", accepted_wip))
+    unsupported_claim = valid_status_fixture(); unsupported_claim["claims"]["twentyFourSevenAutonomy"] = "demonstrated"; cases.append(("unsupported 24/7 claim", unsupported_claim))
+    null_cost = valid_status_fixture(); null_cost["activity"]["blocker"] = None; cases.append(("null unknown", null_cost))
+    duplicate_ids = valid_status_fixture(); duplicate_ids["accepted"]["tasks"] = {"count": 2, "ids": ["T-001", "T-001"]}; cases.append(("duplicate task IDs", duplicate_ids))
+    freshness_spoof = valid_status_fixture(); freshness_spoof["observation"]["sourceCommit"] = "c" * 40; cases.append(("freshness source spoof", freshness_spoof))
+    stale = valid_status_fixture(); stale["observation"]["observedAtUtc"] = "2026-09-02T11:29:59Z"; cases.append(("stale observation labeled current", stale))
+    offline = valid_status_fixture(); offline["observation"]["observedAtUtc"] = "2026-09-02T05:59:59Z"; cases.append(("offline observation labeled current", offline))
+    future_current = valid_status_fixture(); future_current["observation"]["observedAtUtc"] = "2026-09-02T12:00:01Z"; cases.append(("future observation time", future_current))
+    year_2000 = valid_status_fixture(); year_2000["accepted"]["main"]["committedAt"] = "2000-01-01T00:00:00Z"; cases.append(("year-2000 timestamp", year_2000))
+    wip_iff = valid_status_fixture(); wip_iff["continuity"] = {"state": "published", "classification": "continuity-not-accepted-progress"}; cases.append(("published WIP without identity", wip_iff))
+    stale_activity = valid_status_fixture(); stale_activity["observation"]["state"] = "stale"; stale_activity["observation"]["observedAtUtc"] = "2026-09-02T11:00:00Z"; cases.append(("stale observation with activity details", stale_activity))
+    t053_fail_open = valid_status_fixture(); t053_fail_open["tasks"]["current"]["effectiveStartEligibility"] = "eligible"; t053_fail_open["tasks"]["current"]["waitingReason"] = "none"; cases.append(("T-053 fail-open eligibility", t053_fail_open))
     for name, status in cases:
         expect_failure(name, lambda status=status: validate_status(status, schema_path=schema_path, trusted_current_time="2026-09-02T12:00:00Z"))
-    published_schema_only = valid_status_fixture(); published_schema_only["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}
-    expect_failure("schema published WIP observed relation", lambda: validate_checked_in_schema(published_schema_only, schema_path))
-    candidate_schema_only = valid_status_fixture(); candidate_schema_only["source"]["branch"] = "task/t-052"; candidate_schema_only["source"]["classification"] = "candidate-branch"
-    expect_failure("schema candidate relation", lambda: validate_checked_in_schema(candidate_schema_only, schema_path))
+    published_schema_only = valid_status_fixture(); published_schema_only["continuity"] = {"state": "published", "classification": "continuity-not-accepted-progress"}
+    expect_failure("schema published continuity identity relation", lambda: validate_checked_in_schema(published_schema_only, schema_path))
 
 
-def browser_validator(source: Path, status: dict[str, object], valid: bool, trusted_now: str = "2026-09-02T12:00:00Z") -> None:
+def browser_validator(source: Path, status: dict[str, object], expected_state: str, trusted_now: str | None = "2026-09-02T12:00:00Z",
+                      expected_activity: str = "hidden", age_header: str | None = None) -> None:
     """Run the shipped browser validator with a minimal DOM, not a reimplementation."""
     script = source / "showcase.js"
     payload = json.dumps(status)
     js = r'''
 const fs = require("fs"), vm = require("vm");
 const status = JSON.parse(process.argv[1]);
-const trustedNow = Date.parse(process.argv[4]);
 const message = {dataset:{}, textContent:""};
 const root = {dataset:{}};
+const bindings = {};
+const nodeFor = (name) => bindings[name] ||= {textContent:"", replaceChildren:()=>{}};
+const dateHeader = process.argv[4] === "MISSING" ? null : new Date(process.argv[4]).toUTCString();
+const ageHeader = process.argv[6] === "MISSING" ? null : process.argv[6];
+global.location = {origin:"https://example.test", href:"https://example.test/index.html"};
 global.document = {
   documentElement: root,
-  querySelectorAll: () => [],
+  getElementById: (id) => id === "project-status-message" ? message : null,
+  createElement: () => ({textContent:""}),
+  querySelectorAll: (selector) => {
+    const match = selector.match(/^\[data-bind="(.+)"\]$/);
+    return match ? [nodeFor(match[1])] : [];
+  },
   querySelector: (selector) => {
     if (selector === "#project-status-message") return message;
     const match = selector.match(/^meta\[name="riftward-source-(.+)"\]$/);
-    if (match) return {content: status.source[match[1]]};
+    if (match) return {getAttribute: () => status.accepted.main[match[1]]};
     return null;
   }
 };
-global.fetch = () => Promise.resolve({ok:true, json:() => Promise.resolve(status)});
-global.__RIFTWARD_TRUSTED_NOW__ = trustedNow;
+global.fetch = () => Promise.resolve({ok:true, url:"https://example.test/status.json", headers:{get:(name) => name === "Date" ? dateHeader : name === "Age" ? ageHeader : null}, json:() => Promise.resolve(status)});
 vm.runInThisContext(fs.readFileSync(process.argv[2], "utf8"));
-setImmediate(() => { if (root.dataset.projectStatus !== process.argv[3]) process.exit(2); });
+setImmediate(() => {
+  if (message.dataset.state !== process.argv[3]) { console.error(`state=${message.dataset.state || "unset"} date=${dateHeader} observed=${status.observation.observedAtUtc} age=${ageHeader}`); process.exit(2); }
+  const detail = nodeFor("activity-detail").textContent;
+  if (process.argv[5] === "visible" ? !detail.includes("T-053") : detail !== "Aktivität: nicht verfügbar.") process.exit(3);
+});
 '''
-    result = subprocess.run(["node", "-e", js, payload, str(script), "verified" if valid else "unavailable", trusted_now], check=False)
-    require(result.returncode == 0, f"browser validator did not fail closed ({'valid' if valid else 'invalid'} fixture)")
+    result = subprocess.run(["node", "-e", js, payload, str(script), expected_state, trusted_now or "MISSING", expected_activity, age_header or "MISSING"], check=False)
+    require(result.returncode == 0, f"browser validator state/detail mismatch (expected {expected_state}, exit {result.returncode})")
 
 
 def check_browser_validator(source: Path) -> None:
     status = valid_status_fixture()
-    browser_validator(source, status, True)
-    duplicate_ready = deepcopy(status); duplicate_ready["workItems"]["ready"] = 2; duplicate_ready["workItems"]["nextReady"] = {"state": "multiple", "taskIds": ["T-003", "T-003"]}
-    browser_validator(source, duplicate_ready, False)
-    stale = deepcopy(status); stale["freshness"]["trustedBuildAt"] = "2026-08-25T11:59:59Z"
-    browser_validator(source, stale, False)
-    future_clock = deepcopy(status); future_clock["freshness"]["trustedBuildAt"] = "2026-09-02T12:00:01Z"
-    browser_validator(source, future_clock, False)
-    year_2000 = deepcopy(status); year_2000["generatedAt"] = year_2000["source"]["committedAt"] = "2000-01-01T00:00:00Z"
-    browser_validator(source, year_2000, False)
-    published_unobserved = deepcopy(status); published_unobserved["wip"] = {"state": "published", "classification": "continuity-snapshot-not-accepted-progress", "branch": "autopilot/live-wip", "commit": "c" * 40, "committedAt": "2026-09-02T12:00:00Z", "provenance": {"observed": False, "source": "public-remote-ref", "reason": "contradiction"}}
-    browser_validator(source, published_unobserved, False)
-    candidate_mismatch = deepcopy(status); candidate_mismatch["source"]["branch"] = "task/t-052"; candidate_mismatch["source"]["classification"] = "candidate-branch"
-    browser_validator(source, candidate_mismatch, False)
+    browser_validator(source, status, "current", expected_activity="visible")
+    duplicate_ready = deepcopy(status); duplicate_ready["tasks"]["ready"] = ["T-053", "T-053"]
+    browser_validator(source, duplicate_ready, "unavailable")
+    stale = deepcopy(status); stale["observation"]["observedAtUtc"] = "2026-09-02T11:29:59Z"
+    browser_validator(source, stale, "stale")
+    offline = deepcopy(status); offline["observation"]["observedAtUtc"] = "2026-09-02T05:59:59Z"
+    browser_validator(source, offline, "offline")
+    future_clock = deepcopy(status); future_clock["observation"]["observedAtUtc"] = "2026-09-02T12:00:01Z"
+    browser_validator(source, future_clock, "unavailable")
+    published_unobserved = deepcopy(status); published_unobserved["continuity"] = {"state": "published", "classification": "continuity-not-accepted-progress"}
+    browser_validator(source, published_unobserved, "unavailable")
+    selector_overclaim = deepcopy(status); selector_overclaim["tasks"]["current"]["selectorEnforcement"] = "enforced"
+    browser_validator(source, selector_overclaim, "unavailable")
+    browser_validator(source, status, "unavailable", trusted_now=None)
+    unknown = deepcopy(status); unknown["observation"]["state"] = "unknown"; unknown["activity"] = {"state": "unknown"}
+    browser_validator(source, unknown, "unknown")
+    malformed_date = deepcopy(status); browser_validator(source, malformed_date, "unavailable", trusted_now="invalid-date")
+    cached = deepcopy(status); cached["observation"]["observedAtUtc"] = "2026-09-02T11:00:00Z"
+    browser_validator(source, cached, "stale", trusted_now="2026-09-02T11:29:01Z", age_header="120")
 
 
 def check_external(urls: set[str]) -> None:

@@ -2,137 +2,143 @@ name: Deploy research showcase
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/pages.yml
-      - .ai/tasks/**
-      - BACKLOG.md
-      - docs/showcase/**
-      - scripts/build-pages.sh
-      - scripts/pages_status.py
-      - scripts/test-pages.py
-  pull_request:
-    paths:
-      - .github/workflows/pages.yml
-      - .ai/tasks/**
-      - BACKLOG.md
-      - docs/showcase/**
-      - scripts/build-pages.sh
-      - scripts/pages_status.py
-      - scripts/test-pages.py
+    branches: [main]
+  schedule:
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
+  checks: read
+  pull-requests: read
 
 concurrency:
-  group: github-pages
-  cancel-in-progress: false
+  group: riftward-pages-trusted-main
+  cancel-in-progress: true
 
 jobs:
   build:
-    name: Verify reproducible public artifact
+    name: Build trusted public observation
+    if: github.repository_id == '1333151301' && github.repository == 'Koschnag/ai-fantasy-rts-rpg' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    permissions:
+      actions: read
+      contents: read
+      checks: read
+      pull-requests: read
     steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-
-      - name: Bind checkout to triggering commit
-        shell: bash
-        env:
-          EXPECTED_CHECKOUT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          [[ "$EXPECTED_CHECKOUT_SHA" =~ ^[0-9a-f]{40}$ ]]
-          test "$(git rev-parse HEAD)" = "$EXPECTED_CHECKOUT_SHA"
-
-      - name: Resolve public main provenance
+      - name: Resolve exact public main
         id: main
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          main_line=$(git ls-remote --heads origin refs/heads/main)
-          main_commit=${main_line%%[[:space:]]*}
-          [[ "$main_commit" =~ ^[0-9a-f]{40}$ ]]
-          printf 'commit=%s\n' "$main_commit" >> "$GITHUB_OUTPUT"
+          repository=$(gh api "repos/${GITHUB_REPOSITORY}" --jq '[.id,.full_name,.default_branch] | @tsv')
+          test "$repository" = $'1333151301\tKoschnag/ai-fantasy-rts-rpg\tmain'
+          main_sha=$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq '.commit.sha')
+          [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]]
+          main_tree=$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${main_sha}" --jq '.tree.sha')
+          [[ "$main_tree" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$EVENT_NAME" == push ]]; then
+            test "$EVENT_SHA" = "$main_sha"
+          fi
+          printf 'sha=%s\ntree=%s\n' "$main_sha" "$main_tree" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve optional public WIP provenance
-        id: wip
+      - name: Check out exact trusted main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.main.outputs.sha }}
+
+      - name: Bind checkout and workflow to main
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.main.outputs.sha }}
+          EXPECTED_TREE: ${{ steps.main.outputs.tree }}
         run: |
           set -euo pipefail
-          wip_line=$(git ls-remote --heads origin refs/heads/autopilot/live-wip || true)
-          if [[ -z "$wip_line" ]]; then
-            exit 0
-          fi
-          wip_commit=${wip_line%%[[:space:]]*}
-          if [[ ! "$wip_commit" =~ ^[0-9a-f]{40}$ ]]; then
-            printf '%s\n' 'Ungueltige oeffentliche WIP-Referenz.' >&2
-            exit 1
-          fi
-          git fetch --no-tags --depth=1 origin refs/heads/autopilot/live-wip:refs/remotes/origin/autopilot/live-wip
-          test "$(git rev-parse refs/remotes/origin/autopilot/live-wip)" = "$wip_commit"
-          wip_committed_at=$(git show -s --format=%cI "$wip_commit")
-          printf 'commit=%s\n' "$wip_commit" >> "$GITHUB_OUTPUT"
-          printf 'committed_at=%s\n' "$wip_committed_at" >> "$GITHUB_OUTPUT"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD^{tree})" = "$EXPECTED_TREE"
+          remote_main=$(git ls-remote --heads origin refs/heads/main)
+          test "${remote_main%%[[:space:]]*}" = "$EXPECTED_SHA"
+          workflow_blob=$(git rev-parse "HEAD:.github/workflows/pages.yml")
+          [[ "$workflow_blob" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Reconcile historical promotion evidence
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MAIN_SHA: ${{ steps.main.outputs.sha }}
+          MAIN_TREE: ${{ steps.main.outputs.tree }}
+        run: |
+          set -euo pipefail
+          pages_temp=$(mktemp -d "${RUNNER_TEMP}/riftward-pages.XXXXXX")
+          verdict="$pages_temp/reconciliation-verdict.json"
+          python3 scripts/validate_reconciliation.py --manifest docs/showcase/reconciliation.json --root . --live-github --main-sha "$MAIN_SHA" --main-tree "$MAIN_TREE" --verdict-out "$verdict"
+          printf 'PAGES_TEMP=%s\nPAGES_RECONCILIATION_VERDICT=%s\n' "$pages_temp" "$verdict" >> "$GITHUB_ENV"
+
+      - name: Observe allowlisted GitHub data
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MAIN_SHA: ${{ steps.main.outputs.sha }}
+          MAIN_TREE: ${{ steps.main.outputs.tree }}
+        run: |
+          set -euo pipefail
+          observed_at=$(date --utc +%Y-%m-%dT%H:%M:%SZ)
+          observation="$PAGES_TEMP/github-observation.json"
+          python3 scripts/pages_github_observation.py --main-sha "$MAIN_SHA" --main-tree "$MAIN_TREE" --observed-at "$observed_at" --output "$observation"
+          printf 'PAGES_OBSERVED_AT=%s\nPAGES_GITHUB_OBSERVATION=%s\n' "$observed_at" "$observation" >> "$GITHUB_ENV"
 
       - name: Configure Pages
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
       - name: Build dependency-free showcase twice
         shell: bash
         env:
-          PAGES_SOURCE_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-          PAGES_PUBLIC_MAIN_COMMIT: ${{ steps.main.outputs.commit }}
-          PAGES_WIP_COMMIT: ${{ steps.wip.outputs.commit }}
-          PAGES_WIP_COMMITTED_AT: ${{ steps.wip.outputs.committed_at }}
+          PAGES_SOURCE_BRANCH: main
         run: |
           set -euo pipefail
-          export PAGES_TRUSTED_BUILD_AT="$(date --utc +%Y-%m-%dT%H:%M:%SZ)"
-          printf 'PAGES_TRUSTED_BUILD_AT=%s\n' "$PAGES_TRUSTED_BUILD_AT" >> "$GITHUB_ENV"
-          pages_temp=$(mktemp -d "${RUNNER_TEMP}/riftward-pages.XXXXXX")
-          ./scripts/build-pages.sh "$pages_temp/site-a"
-          ./scripts/build-pages.sh "$pages_temp/site-b"
-          diff -ru --no-dereference "$pages_temp/site-a" "$pages_temp/site-b"
-          mv "$pages_temp/site-a" "$pages_temp/site"
-          rm -rf -- "$pages_temp/site-b"
-          printf 'PAGES_ARTIFACT_DIR=%s\n' "$pages_temp/site" >> "$GITHUB_ENV"
+          ./scripts/build-pages.sh "$PAGES_TEMP/site-a"
+          ./scripts/build-pages.sh "$PAGES_TEMP/site-b"
+          diff -ru --no-dereference "$PAGES_TEMP/site-a" "$PAGES_TEMP/site-b"
 
-      - name: Check public links and contracts
-        run: python3 scripts/test-pages.py --source docs/showcase --built "$PAGES_ARTIFACT_DIR" --trusted-current-time "$PAGES_TRUSTED_BUILD_AT" --external-links
+      - name: Check public contracts
+        run: |
+          python3 scripts/test-reconciliation.py
+          python3 scripts/test-pages.py --source docs/showcase --built "$PAGES_TEMP/site-a" --trusted-current-time "$PAGES_OBSERVED_AT" --external-links
 
-      - name: Assert publication boundary
+      - name: Recheck main ref before publication
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.main.outputs.sha }}
         run: |
           set -euo pipefail
-          test -n "${PAGES_ARTIFACT_DIR:-}"
-          test -f "$PAGES_ARTIFACT_DIR/index.html"
-          test -f "$PAGES_ARTIFACT_DIR/status.json"
-          if find "$PAGES_ARTIFACT_DIR" -type f -path '*/quarantine/*' -print -quit | grep -q .; then
-            printf '%s\n' 'Quarantaenedatei im Pages-Artefakt.' >&2
-            exit 1
-          fi
-          grep -q 'CONCEPT · NOT GAMEPLAY' "$PAGES_ARTIFACT_DIR/index.html"
-          grep -q 'Kontinuitätssnapshot, kein akzeptierter Fortschritt' "$PAGES_ARTIFACT_DIR/index.html"
-          test -f "$PAGES_ARTIFACT_DIR/publication-hashes.sha256"
+          current_sha=$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq '.commit.sha')
+          test "$current_sha" = "$EXPECTED_SHA"
+          test -f "$PAGES_TEMP/site-a/status.json"
+          test -f "$PAGES_TEMP/site-a/status.svg"
+          test -f "$PAGES_TEMP/site-a/task.svg"
+          test -f "$PAGES_TEMP/site-a/publication-hashes.sha256"
 
       - name: Upload Pages artifact
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
-          path: ${{ env.PAGES_ARTIFACT_DIR }}
+          path: ${{ env.PAGES_TEMP }}/site-a
 
   deploy:
     name: Publish GitHub Pages
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.repository_id == '1333151301' && github.repository == 'Koschnag/ai-fantasy-rts-rpg' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
