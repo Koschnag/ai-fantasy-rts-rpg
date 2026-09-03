@@ -1680,7 +1680,12 @@ module Program =
     [<EntryPoint>]
     let main arguments =
         let tests =
-            [ "Blender calibration schemas are offline, strict and accept the reference",
+            [ yield! ResearchLedgerTests.all
+              yield! ResearchActivationTests.all
+              yield! ResearchCollectorTests.all
+              "Research architecture snapshots are deterministic and diagnostic only", ResearchArchitectureTests.all
+              yield! ResearchAnalyticsTests.all
+              "Blender calibration schemas are offline, strict and accept the reference",
               BlenderCalibrationSpecTests.schemasAreOfflineStrictAndReferenceValid
               "Blender calibration canonical reference spec is accepted",
               BlenderCalibrationSpecTests.canonicalReferenceSpecIsAccepted

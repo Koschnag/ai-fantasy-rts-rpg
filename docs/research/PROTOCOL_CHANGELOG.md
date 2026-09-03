@@ -4,6 +4,29 @@ Alle Protokollaenderungen werden vor dem naechsten prospektiven Ereignis
 versioniert. Bereits erfasste Beobachtungen behalten ihre urspruengliche
 Version und ihren Bundle-Hash.
 
+## 2.0.1 - 2026-09-03
+
+**Status:** praeregistriertes Amendment vor P-001; weiterhin kein
+prospektives Ereignis erhoben.
+
+- den kanonischen `studyManifestSha256` als Pflichtpayload sowohl in
+  `observation.started` als auch in `observation.closed` aufgenommen,
+- Ledgerpruefung, Export und Exportpruefung auf identische Start-/Closure-/
+  Eingabemanifestbindung fail-closed verschaerft, damit eine nach dem Close
+  geaenderte, weiterhin feldgueltige Manifestkopie keinen Export erzeugt,
+- das Study-Manifest auf seine dokumentierten Pflichtfelder sowie die beiden
+  optionalen longitudinalen Felder `windowStartUtc` und `windowEndUtc`
+  geschlossen; unbekannte Felder werden vor Persistierung oder Export
+  abgelehnt,
+- adversariale Secret-/PII-/Absolutpfad-Felder und Manifestdrift nach Closure
+  als Negativtests aufgenommen.
+
+Das Amendment aendert keine Forschungsfrage, Hypothese, Primaermetrik,
+Evidenzklasse, T-042-Startbedingung oder Ergebnisregel. Da P-001 noch nicht
+begonnen hat, existiert keine prospektive 2.0.0-Beobachtung, die umgedeutet
+werden koennte. 2.0.0 bleibt als historischer Section-0-Freeze erhalten; der
+erste zulaessige P-001-Start muss 2.0.1 und dessen neuen Bundle-Hash binden.
+
 ## 2.0.0 - 2026-09-02
 
 **Status:** praeregistriert; noch kein prospektives Ereignis erhoben.

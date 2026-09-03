@@ -2,7 +2,7 @@
 
 **Vertrag:** `riftward-observability-reproduction-v1`
 
-**Protokoll:** `riftward-research-observability` 2.0.0
+**Protokoll:** `riftward-research-observability` 2.0.1
 
 ## Protokoll-Freeze
 
@@ -54,9 +54,11 @@ Pflichtfeldern eingefroren:
 - Zeitzone `UTC`, Locale `C`,
 - Pfadkarten-Version fuer Architekturmetriken,
 - Quellinventar mit Pfad/Adresse, Bytegroesse und SHA-256,
-- Redaktionspolicy-Version,
-- bei Ablationen genau eine Ablation-ID und der unveraenderte
-  Kontroll-Eingabehash.
+- Redaktionspolicy-Version.
+
+Nur `windowStartUtc` und `windowEndUtc` sind optionale Study-Manifestfelder.
+Die Ablation-ID und der Kontroll-Eingabehash gehoeren in das getrennte,
+hashgebundene Transformmanifest des Abschnitts "Isolierte Ablationen".
 
 Fehlt ein Pflichtfeld, beginnt keine prospektive Beobachtung. Bei
 retrospektiver Ableitung wird der fehlende Wert `unknown`; die Ableitung darf
@@ -139,7 +141,9 @@ prospektiv beobachteten Lauf.
   Eingabemanifests. Es bindet mindestens Study/Observation, Evidenzklasse,
   Protokollbundle, Collector-/Exporter-/Toolchainversion, Baseline-/Head-Commit,
   Baseline-/Ergebnis-/Input-Tree, Quellinventarhash, Redaktionspolicy,
-  eingefrorenes `generatedAtUtc` und erwartete Exportpfade.
+  eingefrorenes `generatedAtUtc` und optional die beiden longitudinalen
+  Fenstergrenzen. Die Exportpfade sind durch diesen Vertrag festgelegt und
+  keine frei erweiterbaren Manifestfelder.
 - `evidence-manifest.json` enthaelt Pfad, Bytegroesse und SHA-256 von
   `study-manifest.json` und allen kanonischen JSONL-/CSV-Datenexporten, niemals
   seiner selbst, `summary.json`, `report.md` oder `EXPORT.SHA256`.
@@ -154,8 +158,11 @@ prospektiv beobachteten Lauf.
   `study-manifest.json`, `evidence-manifest.json`, `summary.json` und
   `report.md`, in Unicode-Codepoint-Reihenfolge. Keine innere Datei hasht
   `EXPORT.SHA256`; dadurch ist der Export vollstaendig und kreisfrei.
-- `observation.closed` bindet das eingefrorene Quellmanifest, weil Exporte erst
-  danach entstehen. Keine Exportdatei wird in die Primaerkette zurueckgeschrieben.
+- `observation.started` und `observation.closed` binden denselben kanonischen
+  Study-Manifest-Hash; `observation.closed` bindet zusaetzlich das eingefrorene
+  Quellmanifest. Export und Exportpruefung vergleichen diese dauerhaften
+  Bindungen fail-closed mit `study-manifest.json`. Keine Exportdatei wird in die
+  Primaerkette zurueckgeschrieben.
 
 ## Exportpruefung
 

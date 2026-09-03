@@ -1,6 +1,6 @@
 # T-053 Bedrohungen der Validitaet
 
-**Protokoll:** `riftward-research-observability` 2.0.0
+**Protokoll:** `riftward-research-observability` 2.0.1
 
 Die Fallstudie ist eine eingebettete Einzelprojektbeobachtung. Ihre Daten
 koennen Prozessverlaeufe in Riftward beschreiben; sie beweisen keine allgemeine

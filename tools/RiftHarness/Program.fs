@@ -283,6 +283,7 @@ Aufruf:
   riftharness retention-plan [--now UTC] [--workspace PATH]
   riftharness retention-execute --plan-file FILE --confirm-plan-sha256 SHA256 [--now UTC] [--workspace PATH]
   riftharness verify [--run RUN_ID] [--workspace PATH]
+  riftharness research begin|status|verify|export|summarize|intervention|close|import-git-history ... [--workspace PATH]
 """
 
     let private executeStandard arguments =
@@ -313,6 +314,19 @@ Aufruf:
             with _ ->
                 ()
 
+        // Research hooks are deliberately output-silent. A collector failure is
+        // persisted as a gap receipt and exposed by `research status`; it must
+        // never change the target command's stdout, stderr, or exit code.
+        let collectSilently (hookName: string) (collect: unit -> ResearchCollectionResult) =
+            try
+                collect () |> ignore
+            with error ->
+                try
+                    ResearchCollector.recordHealthFailure root hookName (error.GetType().Name)
+                    |> ignore
+                with _ ->
+                    ()
+
 
         match withoutWorkspace with
         | []
@@ -329,6 +343,7 @@ Aufruf:
             |> Console.Out.WriteLine
 
             0
+        | command :: rest when command = "research" -> ResearchCli.execute root rest
         | command :: rest when command = "start-run" ->
             let actorId, rest = takeOption "--actor" rest
             let taskId, rest = takeOption "--task" rest
@@ -344,7 +359,9 @@ Aufruf:
                   PromptFile = promptFile
                   ToolchainFile = toolchainFile }
 
-            RunStore.startProvenanced root inputs.ActorId inputs |> Console.Out.WriteLine
+            let runId = RunStore.startProvenanced root inputs.ActorId inputs
+            runId |> Console.Out.WriteLine
+            collectSilently "run-started" (fun () -> ResearchCollector.recordRunStarted root runId inputs.ActorId)
 
             0
         | command :: runId :: rest when command = "append-event" ->
@@ -352,6 +369,9 @@ Aufruf:
             let payloadFile, rest = requireOption "--payload-file" rest
             noArguments command rest
             let receipt = RunStore.append root runId eventType payloadFile
+
+            collectSilently "append-event" (fun () ->
+                ResearchCollector.recordHarnessEvent root runId receipt.Sequence receipt.EventHash eventType)
 
             jsonResult (fun writer ->
                 writer.WriteString("runId", receipt.RunId)
@@ -457,6 +477,9 @@ Aufruf:
             try
                 let receipt = RunStore.append root runId "evidence.recorded" tempPayloadPath
 
+                collectSilently "append-evidence" (fun () ->
+                    ResearchCollector.recordHarnessEvidence root runId receipt.Sequence receipt.EventHash)
+
                 jsonResult (fun writer ->
                     writer.WriteString("criterionId", criterionId)
                     writer.WriteString("eventHash", receipt.EventHash)
@@ -476,6 +499,9 @@ Aufruf:
 
             let receipt =
                 RunStore.finish root runId (status |> Option.defaultValue "succeeded") summaryFile
+
+            collectSilently "run-finished" (fun () ->
+                ResearchCollector.recordRunFinished root runId receipt.EventCount receipt.FinalEventHash)
 
             jsonResult (fun writer ->
                 writer.WriteString("runId", receipt.RunId)
@@ -725,9 +751,23 @@ Aufruf:
         | command :: rest when command = "verify" ->
             let requestedRun, rest = takeOption "--run" rest
             noArguments command rest
-            let report = Verification.verify root requestedRun
-            report |> Verification.reportJson |> Console.Out.WriteLine
-            if report.Valid then 0 else 2
+            let gateId = "G-HARNESS"
+            collectSilently "verify-started" (fun () -> ResearchCollector.recordVerificationStarted root gateId)
+
+            try
+                let report = Verification.verify root requestedRun
+                let reportText = report |> Verification.reportJson
+                reportText |> Console.Out.WriteLine
+
+                collectSilently "verify-finished" (fun () ->
+                    ResearchCollector.recordVerificationFinished root gateId report.Valid reportText)
+
+                if report.Valid then 0 else 2
+            with error ->
+                collectSilently "verify-exception" (fun () ->
+                    ResearchCollector.recordVerificationException root gateId (error.GetType().Name))
+
+                reraise ()
         | command :: rest when command = "retention-plan" ->
             let nowText, rest = takeOption "--now" rest
             noArguments command rest

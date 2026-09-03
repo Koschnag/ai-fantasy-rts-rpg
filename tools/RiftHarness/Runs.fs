@@ -50,6 +50,42 @@ type RunMetadata =
 module RunStore =
     let private terminalStatuses = set [ "succeeded"; "failed"; "cancelled" ]
 
+    [<Literal>]
+    let private prospectiveTargetTaskId = "T-042"
+
+    let private prospectiveStartGuardPath root =
+        Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", ".prospective-start.lock")
+
+    /// Serializes the pre-start decision for the preregistered prospective
+    /// target with research activation. This guard is always the outer lock;
+    /// ResearchActivation may acquire its activation/ledger locks only while
+    /// holding it. Ordinary runs deliberately never acquire this lock.
+    let withProspectiveStartGuard root action =
+        let locations = Workspace.requireInitialized root
+
+        let path =
+            Workspace.requireSafePath locations "Prospective target start guard" true (prospectiveStartGuardPath root)
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
+
+        let stream =
+            try
+                new FileStream(
+                    path,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    1,
+                    FileOptions.WriteThrough
+                )
+            with :? IOException as error ->
+                Internal.fail $"CONCURRENT_WRITER: prospective target start is already being decided: {error.Message}"
+
+        try
+            action ()
+        finally
+            stream.Dispose()
+
     let private validateObjectFields
         (description: string)
         (allowed: Set<string>)
@@ -509,9 +545,45 @@ module RunStore =
 
         loadMetadata runPath
 
+    /// Loads the authoritative event ledger for a run and verifies its complete
+    /// sequence, timestamp, redaction, and SHA-256 chain before returning any
+    /// event to an observer. Research instrumentation must use this boundary
+    /// instead of reparsing mutable command inputs or scanning for a hash-like
+    /// string in events.jsonl.
+    let eventsStrict root runId =
+        let locations = Workspace.requireInitialized root
+        let config = HarnessConfig.load locations
+        let runPath = runDirectory locations runId
+
+        if not (Directory.Exists(runPath)) then
+            Internal.fail $"Run nicht gefunden: {runId}"
+
+        loadEventsStrict config.Redaction (Path.Combine(runPath, "events.jsonl")) runId
+
+    /// Resolves one exact receipt only after verifying the complete authoritative
+    /// ledger. Sequence, type, and hash are all part of the lookup contract so a
+    /// valid row of the wrong semantic kind cannot be rebound as research data.
+    let eventByReceipt root runId sequence eventType eventHash =
+        if sequence < 1L then
+            Internal.fail "Event-Sequenz muss mindestens 1 sein."
+
+        validateEventType eventType
+
+        if not (Internal.isSha256 eventHash) then
+            Internal.fail "Event-Hash muss ein kleingeschriebener SHA-256-Wert sein."
+
+        eventsStrict root runId
+        |> List.tryFind (fun event ->
+            event.Sequence = sequence
+            && event.EventType = eventType
+            && String.Equals(event.EventHash, eventHash, StringComparison.Ordinal))
+        |> Option.defaultWith (fun () ->
+            Internal.fail
+                $"Autoritatives Run-Ereignis fehlt oder stimmt nicht mit Receipt ueberein: {runId}/{sequence}/{eventType}/{eventHash}.")
+
     /// Startet einen Lauf mit vollstaendiger Start-Provenienz (T-004):
     /// erweitertes Manifest, work-/evidence-Verzeichnisse und erstes run.started-Ereignis.
-    let startProvenancedAt root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
+    let private startProvenancedAtLocked root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
         if
             String.IsNullOrWhiteSpace(actorId)
             || actorId <> actorId.Trim()
@@ -574,6 +646,15 @@ module RunStore =
         |> ignore
 
         runId
+
+    let startProvenancedAt root actorId (inputs: Provenance.StartInputs) (nowUtc: DateTimeOffset) =
+        match inputs.TaskId with
+        | Some taskId when String.Equals(taskId, prospectiveTargetTaskId, StringComparison.Ordinal) ->
+            withProspectiveStartGuard root (fun () -> startProvenancedAtLocked root actorId inputs nowUtc)
+        | _ ->
+            // Non-target runs remain independent of T-053 activation and can
+            // start even while the prospective guard is held.
+            startProvenancedAtLocked root actorId inputs nowUtc
 
     let startProvenanced root actorId inputs =
         startProvenancedAt root actorId inputs (DateTimeOffset.UtcNow)

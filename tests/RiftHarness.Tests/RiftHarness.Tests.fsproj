@@ -27,6 +27,11 @@
     <Compile Include="DotnetAssetPipelineTests.fs" Condition="Exists('DotnetAssetPipelineTests.fs')" />
     <Compile Include="DotnetAssetPipelineCliTests.fs" Condition="Exists('DotnetAssetPipelineCliTests.fs')" />
     <Compile Include="RunProvenanceTests.fs" />
+    <Compile Include="ResearchLedgerTests.fs" />
+    <Compile Include="ResearchActivationTests.fs" />
+    <Compile Include="ResearchCollectorTests.fs" />
+    <Compile Include="ResearchArchitectureTests.fs" />
+    <Compile Include="ResearchAnalyticsTests.fs" />
     <Compile Include="ToolchainCheckTests.fs" Condition="Exists('ToolchainCheckTests.fs')" />
     <Compile Include="PlatformInteropTests.fs" Condition="Exists('PlatformInteropTests.fs')" />
     <Compile Include="BenchEmptyTests.fs" Condition="Exists('BenchEmptyTests.fs')" />

@@ -37,10 +37,10 @@ module Retention =
 
     let private terminalStatuses = set [ "succeeded"; "failed"; "cancelled" ]
 
-    let private historyDirectory locations =
+    let private historyDirectory (locations: WorkspacePaths) =
         Path.Combine(locations.State, "history", "accepted")
 
-    let private historyProofsFor locations (runId: string) =
+    let private historyProofsFor (locations: WorkspacePaths) (runId: string) =
         let directory = historyDirectory locations
 
         if not (Directory.Exists(directory)) then
@@ -65,7 +65,7 @@ module Retention =
                     None)
             |> Seq.toList
 
-    let private candidateFor root locations (nowUtc: DateTimeOffset) (runId: string) =
+    let private candidateFor root (locations: WorkspacePaths) (nowUtc: DateTimeOffset) (runId: string) =
         try
             let metadata = RunStore.metadataOf root runId
 

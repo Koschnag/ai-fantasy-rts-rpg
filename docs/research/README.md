@@ -47,7 +47,7 @@ Position, Hypothese und belegten Befund.
 
 ## Einstieg
 
-- [Forschungsprotokoll 2.0.0](PROTOCOL.md)
+- [Forschungsprotokoll 2.0.1](PROTOCOL.md)
 - [Observability-Datenwoerterbuch](OBSERVABILITY_DATA_DICTIONARY.md)
 - [exakte Observability-Metriken](METRICS.md)
 - [Reproduzierbarkeitsleitfaden](REPRODUCIBILITY.md)
