@@ -100,6 +100,18 @@ def validate_verdict(root: Path, value: object, reconciliation: dict[str, object
     return set(recorded), set(eligible)
 
 
+def validate_reconciliation_for_live_verdict(manifest: object, root: Path) -> dict[str, object]:
+    """Validate main-reachable Git objects for a verdict produced by the live gate.
+
+    The trusted Pages workflow creates the verdict immediately beforehand with
+    the full GitHub API audit.  Squash-only PR heads need not be reachable from
+    a complete main checkout, so this second, local validation deliberately
+    uses the same main-history mode.  The ordinary offline validator keeps its
+    stricter default and still requires every historical PR-head object.
+    """
+    return validate_reconciliation(manifest, root, require_local_pr_heads=False)
+
+
 def task_manifest_status(root: Path, task_id: str) -> str:
     matches = list((root / ".ai/tasks").glob(f"{task_id}-*.json"))
     if len(matches) != 1:
@@ -194,7 +206,7 @@ def generate(root: Path, observed_at: str, observation_file: Path, reconciliatio
     observed = canonical_time(observed_at, "public observation time")
     normalized = validate_observation(json.loads(observation_file.read_text(encoding="utf-8")), commit, tree)
     reconciliation_manifest = load_reconciliation(reconciliation_file)
-    reconciled = validate_reconciliation(reconciliation_manifest, root)
+    reconciled = validate_reconciliation_for_live_verdict(reconciliation_manifest, root)
     recorded, eligible = validate_verdict(root, load_reconciliation(verdict_file), reconciled, commit, tree)
     statuses = parse_backlog(root / "BACKLOG.md")
     done = set(statuses["DONE"])

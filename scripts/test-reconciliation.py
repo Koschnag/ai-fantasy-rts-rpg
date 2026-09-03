@@ -513,6 +513,13 @@ def test_live_invocation_does_not_require_unreachable_pr_git_objects(manifest: d
         assert validation["historicalProjectionSha256"] == EXPECTED_HISTORICAL_SHA256
         assert validation["recordedTaskIds"] == AUDIT_TASKS
 
+        # pages_status consumes the exact live verdict produced earlier in the
+        # same trusted workflow.  Its second local pass must use the identical
+        # main-history rule instead of re-demanding unreachable squash heads.
+        status_validation = pages_status.validate_reconciliation_for_live_verdict(manifest, synthetic_root)
+        assert status_validation["historicalProjectionSha256"] == EXPECTED_HISTORICAL_SHA256
+        assert status_validation["recordedTaskIds"] == AUDIT_TASKS
+
         # Offline --root must continue to require the historical PR-head blobs.
         try:
             reconciliation.validate_for_invocation(manifest, synthetic_root, False)
@@ -529,6 +536,12 @@ def test_live_invocation_does_not_require_unreachable_pr_git_objects(manifest: d
                 pass
             else:
                 raise AssertionError(f"live main-history validation accepted {fault}")
+            try:
+                pages_status.validate_reconciliation_for_live_verdict(manifest, synthetic_root)
+            except ReconciliationError:
+                pass
+            else:
+                raise AssertionError(f"Pages status live-verdict validation accepted {fault}")
     finally:
         reconciliation.git = original_git
 

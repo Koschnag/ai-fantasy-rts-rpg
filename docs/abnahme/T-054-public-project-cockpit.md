@@ -110,6 +110,21 @@ Reparaturkandidat behandelt dieses leere Array nun wie bereits die sieben
 historischen Receipts, bindet aber weiterhin den exakten PR samt Base/Head,
 Workflow, Run-Attempt, Suite, Job und Check; mehrere oder widersprüchliche
 Relationen bleiben abgelehnt.
+
+Der anschließende `main`-Deploy `33772005266` bestand Reconciliation und die
+allowgelistete GitHub-Beobachtung, scheiterte aber im ersten deterministischen
+Showcase-Build. Der Statusgenerator rief die lokale Reconciliation ein zweites
+Mal mit dem strengeren Offline-Default auf und verlangte dadurch erneut einen
+Squash-only-PR-Head. Der zweite Reparaturkandidat bindet diesen Aufruf explizit
+an das unmittelbar zuvor im selben vertrauenswürdigen Workflow erzeugte,
+Commit-, Tree-, Manifest- und Audit-gebundene Live-Verdict. Die lokale Prüfung
+von Result-Tree, Squash-Parent, Main-Ancestry und den main-erreichbaren Blobs
+bleibt erhalten; nur der bereits per API geprüfte historische PR-Head ist in
+diesem zweiten Live-Verdict-Pfad nicht lokal erforderlich. Der gewöhnliche
+Offline-Aufruf bleibt unverändert vollständig. Ein Regressionstest führt
+beide Pfade sowie falschen Result-Tree, falschen Parent und divergierte
+Main-Ancestry aus. Bis eine neue exakte CI und ein realer Pages-Deploy bestehen,
+ist auch diese Korrektur lediglich Kandidatenevidenz.
 Bis ein neuer exakter CI- und Pages-Lauf bestanden hat, ist dies kein
 Deployment- oder Abnahmebeleg und T-054 bleibt `REVIEW`.
 
