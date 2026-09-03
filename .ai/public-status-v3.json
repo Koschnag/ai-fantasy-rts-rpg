@@ -1,11 +1,11 @@
 {
   "activity": {
-    "autonomy": "bounded-autopilot",
+    "autonomy": "human-gated",
     "blocker": "awaiting-review",
     "lastGate": "waiting",
-    "parentClass": "root",
-    "phase": "repairing",
-    "role": "repair",
+    "parentClass": "child",
+    "phase": "reviewing",
+    "role": "reviewer",
     "state": "waiting",
     "taskId": "T-054"
   },

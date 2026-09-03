@@ -1,0 +1,45 @@
+{
+  "builderCommit": "e16358a32ada404c544c7940ca4fa0e221a33ed5",
+  "builderTree": "ef97c98f58040eb4315d1edfa03e4460a5ef04f5",
+  "candidateBaseCommit": "577e7c43c1782795f3af85d0322c4975cc8f8ddf",
+  "candidateBaseTree": "25df0a74a3d23fb7617ab9d2712737ebc572f8b8",
+  "contract": "riftward-historical-reconciliation-audit-v2",
+  "coveredTaskIds": [
+    "T-034",
+    "T-035",
+    "T-036",
+    "T-037",
+    "T-038",
+    "T-039",
+    "T-052"
+  ],
+  "criteria": "PASS",
+  "currentAuditSeparation": "candidate-chain-separated-reviewer-audit",
+  "historicalProjectionSha256": "2486631c7448933fe24294638dae55c5de781623345a6d28172ea2549e222a12",
+  "historicalRoleSeparation": "not-publicly-proven",
+  "identityAssurance": "role-declaration-not-personhood-proof",
+  "repairChain": [
+    {
+      "commit": "15682c27e958328fb214da4a264f63b091ff9ed1",
+      "tree": "42ab67a1c77cf9c398d675deedd2daeaa2d7616d"
+    },
+    {
+      "commit": "4f7a2e3874ab38eaa3d992cbdeba90be2548bb94",
+      "tree": "994b257fe14ab8e730cd387164dde04b21068ffa"
+    },
+    {
+      "commit": "d084c5bca3481f48d2843b7c6babac4c90b1d258",
+      "tree": "ed1e32422535345b1b6a37b0859f4509e65b8e71"
+    }
+  ],
+  "reviewedCandidateCommit": "d084c5bca3481f48d2843b7c6babac4c90b1d258",
+  "reviewedCandidateTree": "ed1e32422535345b1b6a37b0859f4509e65b8e71",
+  "reviewedCandidateTreeBlobOids": {
+    "docs/showcase/reconciliation.json": "787ca8080812775e27afb7b4e77c85f022aa8abc",
+    "docs/showcase/reconciliation.schema.json": "64de0c2f7ff906d808be30a13b6cda3aa49798a0",
+    "scripts/pages_status.py": "3ae82cb72cc77f8244f1e21e36739d72223fe0ef",
+    "scripts/test-reconciliation.py": "74b5d6d9185733bf5eaeb097290daf7139b65e5d",
+    "scripts/validate_reconciliation.py": "184a7dfa7f4dc3f02c6ac46a6a27edb687868f37"
+  },
+  "schemaVersion": 2
+}
