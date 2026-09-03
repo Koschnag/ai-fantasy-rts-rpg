@@ -21,7 +21,41 @@ rift_restore() {
   dotnet restore Riftward.slnx --locked-mode
 }
 
+rift_python() {
+  PYTHONDONTWRITEBYTECODE=1 python3 -B "$@"
+}
+
 rift_verify_commit_roles() {
+  case "${RIFT_VERIFY_SOURCE_ARCHIVE:-}" in
+    '')
+      ;;
+    1)
+      rift_archive_root=$(CDPATH= cd -- "$rift_root" 2>/dev/null && pwd -P || true)
+      rift_archive_git_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+      if [ -n "$rift_archive_git_root" ]; then
+        rift_archive_git_root=$(CDPATH= cd -- "$rift_archive_git_root" 2>/dev/null && pwd -P || true)
+      fi
+      if [ -n "${RIFT_COMMIT_ROLE_BASE:-}" ] \
+        || [ -n "${RIFT_COMMIT_ROLE_HEAD:-}" ] \
+        || [ -n "${GIT_DIR:-}" ] \
+        || [ -n "${GIT_WORK_TREE:-}" ] \
+        || [ -z "$rift_archive_root" ] \
+        || [ "$rift_archive_git_root" != "$rift_archive_root" ] \
+        || git rev-parse --verify HEAD >/dev/null 2>&1 \
+        || [ -n "$(git for-each-ref)" ] \
+        || [ -n "$(git remote)" ]; then
+        printf 'Commitrollen-Ausnahme abgelehnt: kein isoliertes Source-Archiv.\n' >&2
+        return 2
+      fi
+      printf 'Commitrollenbereich: isoliertes Source-Archiv ohne Historie; Provenienz wird im aeusseren Checkout geprueft.\n'
+      return 0
+      ;;
+    *)
+      printf 'Commitrollen-Ausnahme abgelehnt: Modus ist ungueltig.\n' >&2
+      return 2
+      ;;
+  esac
+
   rift_role_base=${RIFT_COMMIT_ROLE_BASE:-}
   rift_role_head=${RIFT_COMMIT_ROLE_HEAD:-HEAD}
 
@@ -294,13 +328,13 @@ case "$rift_command" in
     ;;
   verify)
     rift_need_rag_index
+    rift_verify_commit_roles
     rift_restore
     dotnet build Riftward.slnx --configuration Release --no-restore
     dotnet run --project tests/RiftHarness.Tests/RiftHarness.Tests.fsproj --configuration Release --no-restore
-    python3 scripts/test-commit-role.py
-    rift_verify_commit_roles
-    python3 scripts/test-reconciliation.py
-    python3 scripts/test-pages.py --source docs/showcase
+    rift_python scripts/test-commit-role.py
+    rift_python scripts/test-reconciliation.py
+    rift_python scripts/test-pages.py --source docs/showcase
     rift_harness assets-check
     rift_harness verify
     find .ai -type f -name '*.json' -not -path '.ai/runtime/*' -exec jq empty {} +

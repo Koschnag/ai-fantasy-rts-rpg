@@ -4,7 +4,7 @@
     "blocker": "awaiting-review",
     "lastGate": "waiting",
     "parentClass": "root",
-    "phase": "reviewing",
+    "phase": "repairing",
     "role": "repair",
     "state": "waiting",
     "taskId": "T-054"

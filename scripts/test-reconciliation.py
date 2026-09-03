@@ -473,7 +473,8 @@ def main() -> int:
     # Full-history Git-object verification remains opt-in through --root.
     validation = validate(manifest, None)
     assert validation["recordedTaskIds"] == AUDIT_TASKS
-    assert validation["doneEligibleTaskIds"] == []
+    expected_eligible = [] if validation["auditState"] == "pending" else AUDIT_TASKS
+    assert validation["doneEligibleTaskIds"] == expected_eligible
     validate_live(manifest, Fixture(manifest))
     rejected(manifest, lambda f, i: f.responses[f"pulls/{i['pullRequestNumber']}"]["head"]["repo"].__setitem__("id", 1))
     rejected(manifest, lambda f, i: f.responses[f"check-runs/{i['checkRunId']}"]["check_suite"].__setitem__("id", 1))
@@ -489,16 +490,22 @@ def main() -> int:
         pass
     else:
         raise AssertionError("altered historical role claim was accepted")
-    pending_overclaim = deepcopy(manifest); pending_overclaim["audit"]["doneEligibleTaskIds"] = ["T-034"]
+    pending = deepcopy(manifest)
+    pending["audit"] = {"state": "pending", "doneEligibleTaskIds": []}
+    pending_validation = validate(pending, None)
+    pending_overclaim = deepcopy(pending); pending_overclaim["audit"]["doneEligibleTaskIds"] = ["T-034"]
     try:
         validate(pending_overclaim, None)
     except ReconciliationError:
         pass
     else:
         raise AssertionError("pending audit granted eligibility")
-    test_passed_audit(manifest)
-    test_hermetic_manifest_does_not_require_local_history(manifest)
-    test_pending_builder_eligibility(validation)
+    # Exercise both legal checked-in lifecycle states before the reviewer is
+    # allowed to transition the manifest. The same frozen test must pass for
+    # today's pending candidate and the later, evidence-bound passed receipt.
+    test_passed_audit(pending)
+    test_hermetic_manifest_does_not_require_local_history(pending)
+    test_pending_builder_eligibility(pending_validation)
     test_main_gate()
     test_stale_wip_does_not_claim_offline()
     test_sidecar_blob_binding()

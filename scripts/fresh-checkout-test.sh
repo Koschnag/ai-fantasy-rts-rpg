@@ -32,6 +32,7 @@ cd "$rift_fresh_tmp"
 # fremden .git-Zustand. Ein lokaler Index bildet genau diesen Commitbaum ab.
 git init --quiet
 git add -f --all
+rift_fresh_source_tree=$(git write-tree)
 
 # Der Vertrag führt jede Prüfung der ursprünglichen Vereinigung genau einmal
 # auf denselben Archivbytes aus: bootstrap stellt Tool-Restore, Locked-Restore,
@@ -47,7 +48,16 @@ git add -f --all
 ./scripts/rift.sh bootstrap
 ./scripts/rift.sh lint
 ./scripts/rift.sh rag-build
-./scripts/rift.sh verify
+# Der PR-Commitbereich wurde bereits im äußeren Checkout geprüft. Das reine
+# Source-Archiv besitzt absichtlich weder Commitobjekte noch Remote und darf
+# deshalb auch bei geerbter GitHub-PR-Umgebung keinen impliziten Fetch starten.
+# rift.sh akzeptiert die Ausnahme nur in genau dieser gebundenen Topologie.
+RIFT_VERIFY_SOURCE_ARCHIVE=1 ./scripts/rift.sh verify
 
-git diff --quiet
+if ! git diff --quiet -- \
+  || [[ "$rift_fresh_source_tree" != "$(git write-tree)" ]] \
+  || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+  printf 'Fresh-Checkout-Gate abgelehnt: Archivbytes sind nach den Prüfungen gedriftet.\n' >&2
+  exit 2
+fi
 printf 'Fresh-Checkout-Gate: PASS\n'
