@@ -207,7 +207,7 @@ def test_main_gate() -> None:
 def test_stale_wip_does_not_claim_offline() -> None:
     gate = GateFixture()
     wip, wip_tree, source, source_tree = "d" * 40, "e" * 40, "1" * 40, "2" * 40
-    sidecar = {"schemaVersion": 1, "candidate": {"taskId": "T-054", "lifecycleStatus": "IN_PROGRESS", "blocker": "none"}, "activity": {"state": "active", "taskId": "T-054", "phase": "building", "role": "builder", "lastGate": "passed", "blocker": "none", "autonomy": "bounded-autopilot", "parentClass": "root"}}
+    sidecar = {"schemaVersion": 1, "candidate": {"taskId": "T-054", "lifecycleStatus": "IN_PROGRESS", "blocker": "none"}, "activity": {"state": "active", "taskId": "T-054", "phase": "building", "role": "wip", "lastGate": "passed", "blocker": "none", "autonomy": "bounded-autopilot", "parentClass": "root"}}
     payload = json.dumps(sidecar).encode()
     encoded = base64.b64encode(payload).decode()
     blob_oid = git_blob_oid(payload)
@@ -269,6 +269,7 @@ def test_sidecar_blob_binding() -> None:
     rejected_sidecar(lambda fixture, commit: commit.__setitem__("message", fixture.message.replace(fixture.oid, "0" * 40)))
     rejected_sidecar(lambda fixture, commit: setattr(fixture, "api_oid", "0" * 40))
     rejected_sidecar(lambda fixture, commit: commit.__setitem__("message", fixture.message.replace("Agent-Role: reviewer", "Agent-Role: unknown-role")))
+    rejected_sidecar(lambda fixture, commit: (commit.__setitem__("message", fixture.message.replace("Agent-Role: reviewer", "Agent-Role: builder")), commit.__setitem__("author", {"name": "Riftward Builder Autopilot", "email": "riftward-builder-autopilot@users.noreply.github.com"}), commit.__setitem__("committer", {"name": "Riftward Builder Autopilot", "email": "riftward-builder-autopilot@users.noreply.github.com"})))
     rejected_sidecar(lambda fixture, commit: commit["author"].__setitem__("email", "other@example.invalid"))
     rejected_sidecar(lambda fixture, commit: commit.__setitem__("parents", [{"sha": "0" * 40}]))
 

@@ -146,7 +146,7 @@ def read_sidecar(client: GitHub, commit: str, commit_record: dict[str, object]) 
     identity = ROLE_IDENTITIES.get(str(role))
     source_commit = commit_trailers.get("Source-Commit")
     source_tree = commit_trailers.get("Source-Tree")
-    if identity is None or author.get("name") != identity[0] or author.get("email") != identity[1] or committer.get("name") != identity[0] or committer.get("email") != identity[1] or commit_trailers.get("Task-ID") != candidate["taskId"] or commit_trailers.get("Public-Status-Blob") != leaf_oid or raw.get("sha") != leaf_oid or not isinstance(source_commit, str) or not SHA.fullmatch(source_commit) or not isinstance(source_tree, str) or not SHA.fullmatch(source_tree) or parents[0].get("sha") != source_commit:
+    if identity is None or activity["role"] != role or author.get("name") != identity[0] or author.get("email") != identity[1] or committer.get("name") != identity[0] or committer.get("email") != identity[1] or commit_trailers.get("Task-ID") != candidate["taskId"] or commit_trailers.get("Public-Status-Blob") != leaf_oid or raw.get("sha") != leaf_oid or not isinstance(source_commit, str) or not SHA.fullmatch(source_commit) or not isinstance(source_tree, str) or not SHA.fullmatch(source_tree) or parents[0].get("sha") != source_commit:
         return None
     try:
         source = client.get(f"git/commits/{source_commit}")

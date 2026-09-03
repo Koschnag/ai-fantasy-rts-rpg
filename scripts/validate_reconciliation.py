@@ -416,6 +416,7 @@ def allowed_review_path(path: object) -> bool:
         "docs/showcase/status.schema.json",
         "docs/showcase/README.md",
         "docs/communication/SHOWCASE_SYSTEM.md",
+        ".ai/public-status-v3.json",
     }
     return path in exact_paths or re.fullmatch(r"\.ai/tasks/T-(034|035|036|037|038|039|052)-[a-z0-9-]+\.json", path) is not None
 
