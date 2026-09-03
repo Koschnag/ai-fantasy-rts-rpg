@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koschnag.github.io/ai-fantasy-rts-rpg/reconciliation.schema.json",
+  "title": "Riftward historical receipt and retrospective audit contract v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contract", "repository", "workflow", "check", "receipts", "disclosures", "historicalProjectionSha256", "audit"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "contract": { "const": "riftward-promotion-reconciliation-v2" },
+    "repository": { "$ref": "#/$defs/repository" },
+    "workflow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "path", "trustedBlobOid"],
+      "properties": {
+        "id": { "const": "333602498" },
+        "path": { "const": ".github/workflows/verify.yml" },
+        "trustedBlobOid": { "const": "43f93d02014752b6162a923215ff7634905db165" }
+      }
+    },
+    "check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["appId", "appSlug", "name"],
+      "properties": {
+        "appId": { "const": "15368" },
+        "appSlug": { "const": "github-actions" },
+        "name": { "const": "Repository gates" }
+      }
+    },
+    "receipts": {
+      "type": "array", "minItems": 7, "maxItems": 7,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["taskId", "pullRequestNumber", "baseRepository", "headRepository", "baseRef", "baseSha", "headSha", "mergeSha", "resultSha", "resultTree", "runId", "runAttempt", "event", "checkSuiteId", "checkRunId", "outcome", "taskManifestPath", "taskManifestBlobOid", "reviewEvidencePath", "reviewEvidenceBlobOid", "reviewEvidenceClass", "roleSeparation"],
+        "properties": {
+          "taskId": { "$ref": "#/$defs/task" },
+          "pullRequestNumber": { "type": "integer", "minimum": 1 },
+          "baseRepository": { "$ref": "#/$defs/repository" },
+          "headRepository": { "$ref": "#/$defs/repository" },
+          "baseRef": { "const": "main" },
+          "baseSha": { "$ref": "#/$defs/sha" },
+          "headSha": { "$ref": "#/$defs/sha" },
+          "mergeSha": { "$ref": "#/$defs/sha" },
+          "resultSha": { "$ref": "#/$defs/sha" },
+          "resultTree": { "$ref": "#/$defs/sha" },
+          "runId": { "$ref": "#/$defs/id" },
+          "runAttempt": { "const": 1 },
+          "event": { "const": "pull_request" },
+          "checkSuiteId": { "$ref": "#/$defs/id" },
+          "checkRunId": { "$ref": "#/$defs/id" },
+          "outcome": { "const": "success" },
+          "taskManifestPath": { "type": "string", "pattern": "^\\.ai/tasks/T-[0-9]{3}-[a-z0-9-]+\\.json$" },
+          "taskManifestBlobOid": { "$ref": "#/$defs/sha" },
+          "reviewEvidencePath": { "type": "string", "pattern": "^docs/abnahme/T-[0-9]{3}-[a-z0-9-]+\\.md$" },
+          "reviewEvidenceBlobOid": { "$ref": "#/$defs/sha" },
+          "reviewEvidenceClass": { "const": "retrospective-public-record" },
+          "roleSeparation": { "const": "not-publicly-proven" }
+        }
+      }
+    },
+    "disclosures": {
+      "type": "array", "minItems": 1, "maxItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["taskId", "relation", "runId", "outcome"],
+        "properties": {
+          "taskId": { "const": "T-037" },
+          "relation": { "const": "subsequent-main-push-not-promotion-evidence" },
+          "runId": { "const": "33283226720" },
+          "outcome": { "const": "failure" }
+        }
+      }
+    },
+    "historicalProjectionSha256": { "const": "2486631c7448933fe24294638dae55c5de781623345a6d28172ea2549e222a12" },
+    "audit": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["state", "doneEligibleTaskIds"],
+          "properties": {
+            "state": { "const": "pending" },
+            "doneEligibleTaskIds": { "const": [] }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["state", "pullRequestNumber", "evidencePath", "evidenceBlobOid", "doneEligibleTaskIds"],
+          "properties": {
+            "state": { "const": "passed" },
+            "pullRequestNumber": { "type": "integer", "minimum": 1 },
+            "evidencePath": { "const": ".ai/audits/T-054-historical-reconciliation-audit.json" },
+            "evidenceBlobOid": { "$ref": "#/$defs/sha" },
+            "doneEligibleTaskIds": { "const": ["T-034", "T-035", "T-036", "T-037", "T-038", "T-039", "T-052"] }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "id": { "type": "string", "pattern": "^[1-9][0-9]{0,19}$" },
+    "task": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "repository": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "const": "1333151301" },
+        "name": { "const": "Koschnag/ai-fantasy-rts-rpg" }
+      }
+    }
+  }
+}

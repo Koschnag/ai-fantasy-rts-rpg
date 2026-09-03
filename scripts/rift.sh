@@ -260,6 +260,9 @@ case "$rift_command" in
     rift_restore
     dotnet build Riftward.slnx --configuration Release --no-restore
     dotnet run --project tests/RiftHarness.Tests/RiftHarness.Tests.fsproj --configuration Release --no-restore
+    python3 scripts/test-commit-role.py
+    python3 scripts/test-reconciliation.py
+    python3 scripts/test-pages.py --source docs/showcase
     rift_harness assets-check
     rift_harness verify
     find .ai -type f -name '*.json' -not -path '.ai/runtime/*' -exec jq empty {} +

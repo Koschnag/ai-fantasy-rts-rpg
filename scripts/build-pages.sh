@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 
 pages_script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 pages_root=$(dirname -- "$pages_script_dir")
@@ -40,13 +41,13 @@ if [[ -z "$pages_branch" ]]; then
   exit 2
 fi
 
-pages_status_temp=$(mktemp "${TMPDIR:-/tmp}/riftward-pages-status.XXXXXX")
+pages_status_temp=$(mktemp -d "${TMPDIR:-/tmp}/riftward-pages-status.XXXXXX")
 pages_parent=$(dirname -- "$pages_output")
 mkdir -p -- "$pages_parent"
 pages_stage=$(mktemp -d "$pages_parent/.riftward-pages.XXXXXX")
 
 cleanup_pages_build() {
-  rm -f -- "$pages_status_temp"
+  rm -rf -- "$pages_status_temp"
   if [[ -n "${pages_stage:-}" && -d "$pages_stage" ]]; then
     rm -rf -- "$pages_stage"
   fi
@@ -55,26 +56,24 @@ trap cleanup_pages_build EXIT
 
 pages_status_args=(
   --root "$pages_root"
-  --output "$pages_status_temp"
-  --branch "$pages_branch"
+  --output "$pages_status_temp/status.json"
+  --status-svg "$pages_status_temp/status.svg"
+  --task-svg "$pages_status_temp/task.svg"
+  --reconciliation "$pages_root/docs/showcase/reconciliation.json"
 )
-if [[ -z "${PAGES_TRUSTED_BUILD_AT:-}" ]]; then
-  printf 'PAGES_TRUSTED_BUILD_AT muss eine vertrauenswürdige aktuelle Zeit liefern.\n' >&2
+if [[ -z "${PAGES_OBSERVED_AT:-}" || -z "${PAGES_GITHUB_OBSERVATION:-}" || -z "${PAGES_RECONCILIATION_VERDICT:-}" ]]; then
+  printf 'PAGES_OBSERVED_AT, PAGES_GITHUB_OBSERVATION und PAGES_RECONCILIATION_VERDICT sind erforderlich.\n' >&2
   exit 2
 fi
-if [[ -n "${PAGES_PUBLIC_MAIN_COMMIT:-}" ]]; then
-  pages_status_args+=(--public-main-commit "$PAGES_PUBLIC_MAIN_COMMIT")
-fi
-pages_status_args+=(--trusted-build-at "$PAGES_TRUSTED_BUILD_AT")
-if [[ -n "${PAGES_WIP_COMMIT:-}" || -n "${PAGES_WIP_COMMITTED_AT:-}" ]]; then
-  pages_status_args+=(--wip-commit "${PAGES_WIP_COMMIT:-}" --wip-committed-at "${PAGES_WIP_COMMITTED_AT:-}")
-fi
+pages_status_args+=(--observed-at "$PAGES_OBSERVED_AT" --github-observation "$PAGES_GITHUB_OBSERVATION" --reconciliation-verdict "$PAGES_RECONCILIATION_VERDICT")
 python3 "$pages_root/scripts/pages_status.py" "${pages_status_args[@]}"
 
 cp -R -- "$pages_root/docs/showcase/." "$pages_stage/"
 rm -f -- "$pages_stage/README.md"
 : > "$pages_stage/.nojekyll"
-cp -- "$pages_status_temp" "$pages_stage/status.json"
+cp -- "$pages_status_temp/status.json" "$pages_stage/status.json"
+cp -- "$pages_status_temp/status.svg" "$pages_stage/status.svg"
+cp -- "$pages_status_temp/task.svg" "$pages_stage/task.svg"
 
 python3 - "$pages_stage/index.html" "$pages_stage/status.json" <<'PY'
 import json
@@ -83,7 +82,7 @@ import sys
 
 html_path = Path(sys.argv[1])
 status = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
-source = status["source"]
+source = status["accepted"]["main"]
 replacements = {
     "__RIFTWARD_SOURCE_COMMIT__": source["commit"],
     "__RIFTWARD_SOURCE_TREE__": source["tree"],
@@ -112,7 +111,7 @@ for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_fi
 manifest.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 PY
 
-python3 "$pages_root/scripts/test-pages.py" --source "$pages_root/docs/showcase" --built "$pages_stage" --trusted-current-time "$PAGES_TRUSTED_BUILD_AT"
+python3 "$pages_root/scripts/test-pages.py" --source "$pages_root/docs/showcase" --built "$pages_stage" --trusted-current-time "$PAGES_OBSERVED_AT"
 
 if [[ -d "$pages_output" ]]; then
   rmdir -- "$pages_output"

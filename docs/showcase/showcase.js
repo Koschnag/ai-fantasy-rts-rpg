@@ -1,166 +1,272 @@
 "use strict";
 
-const tabs = [...document.querySelectorAll('[role="tab"]')];
-const panels = [...document.querySelectorAll('[role="tabpanel"]')];
+(() => {
+  const SHA = /^[a-f0-9]{40}$/;
+  const TASK = /^T-\d{3}$/;
+  const RFC3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+  const OBSERVATION = new Set(["current", "stale", "offline", "unknown"]);
+  const CANDIDATE = new Set(["observed", "not-observed", "unavailable"]);
+  const CONTINUITY = new Set(["published", "not-observed", "stale", "unavailable"]);
+  const ACTIVITY = new Set(["active", "waiting", "blocked", "idle", "offline", "unknown"]);
+  const DETAILED_ACTIVITY = new Set(["active", "waiting", "blocked", "idle"]);
+  const LIFECYCLE = new Set(["DRAFT", "READY", "IN_PROGRESS", "REVIEW", "BLOCKED", "DONE", "UNKNOWN"]);
+  const GATE = new Set(["passed", "failed", "waiting", "blocked", "unknown"]);
+  const BLOCKER = new Set(["none", "awaiting-review", "awaiting-preregistered-t042-start-eligibility", "blocked", "unknown"]);
+  const ELIGIBILITY = new Set(["eligible", "waiting", "blocked", "unknown"]);
+  const PHASE = new Set(["planning", "building", "reviewing", "repairing", "waiting", "unknown"]);
+  const ROLE = new Set(["planner", "builder", "reviewer", "repair", "wip", "unknown"]);
+  const AUTONOMY = new Set(["human-gated", "bounded-autopilot", "unknown"]);
+  const PARENT = new Set(["root", "child", "unknown"]);
 
-function activate(tab) {
-  tabs.forEach((item) => {
-    const selected = item === tab;
-    item.setAttribute("aria-selected", String(selected));
-    item.tabIndex = selected ? 0 : -1;
-  });
-  panels.forEach((panel) => {
-    const selected = panel.id === `panel-${tab.dataset.panel}`;
-    panel.hidden = !selected;
-    panel.classList.toggle("active", selected);
-  });
-}
+  const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  const exactKeys = (value, keys) => isRecord(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+  const isSha = (value) => typeof value === "string" && SHA.test(value);
+  const isTask = (value) => typeof value === "string" && TASK.test(value);
+  const isPublicCommitTime = (value) => typeof value === "string" && RFC3339.test(value) && !Number.isNaN(Date.parse(value));
+  const isEnum = (set, value) => typeof value === "string" && set.has(value);
+  const isTaskList = (value) => Array.isArray(value) && value.every(isTask) && value.length === new Set(value).size;
 
-tabs.forEach((tab, index) => {
-  tab.addEventListener("click", () => activate(tab));
-  tab.addEventListener("keydown", (event) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    let next = index;
-    if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
-    if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
-    if (event.key === "Home") next = 0;
-    if (event.key === "End") next = tabs.length - 1;
-    activate(tabs[next]);
-    tabs[next].focus();
-  });
-});
-
-const statusMessage = document.querySelector("#project-status-message");
-const bind = (name, value) => {
-  document.querySelectorAll(`[data-bind="${name}"]`).forEach((node) => {
-    node.textContent = value;
-  });
-};
-
-const metadata = (name) => document.querySelector(`meta[name="${name}"]`)?.content ?? "";
-const fullHash = /^[0-9a-f]{40}$/;
-const branchName = /^[A-Za-z0-9._/-]{1,200}$/;
-const isoTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
-const earliestTrustedTimestamp = Date.parse("2021-01-01T00:00:00Z");
-const freshnessMaxAgeSeconds = 7 * 24 * 60 * 60;
-const trustedCurrentTime = () => {
-  const injected = globalThis.__RIFTWARD_TRUSTED_NOW__;
-  return Number.isFinite(injected) ? injected : Date.now();
-};
-
-function exactFields(value, fields) {
-  return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === fields.length && fields.every((field) => Object.hasOwn(value, field));
-}
-
-function timestamp(value) {
-  if (typeof value !== "string" || !isoTimestamp.test(value)) return null;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) && parsed >= earliestTrustedTimestamp ? parsed : null;
-}
-
-function validCounter(value) {
-  return Number.isSafeInteger(value) && value >= 0;
-}
-
-function validateStatus(status) {
-  if (!exactFields(status, ["schemaVersion", "statusContract", "generatedAt", "freshness", "source", "workItems", "candidate", "wip", "claims"])) throw new Error("invalid-root");
-  if (status.schemaVersion !== 2 || status.statusContract !== "riftward-public-status-v2") throw new Error("unsupported-schema");
-  if (timestamp(status.generatedAt) === null) throw new Error("invalid-generated-at");
-
-  const source = status.source;
-  if (!exactFields(source, ["branch", "classification", "commit", "tree", "committedAt", "dirty"])) throw new Error("missing-source");
-  if (!fullHash.test(source.commit) || !fullHash.test(source.tree)) throw new Error("invalid-source-hash");
-  if (!branchName.test(source.branch) || source.branch.startsWith("/") || source.branch.includes("..")) throw new Error("invalid-source-branch");
-  if (!["accepted-main", "candidate-branch"].includes(source.classification)) throw new Error("invalid-source-classification");
-  if (timestamp(source.committedAt) === null || source.dirty !== false) throw new Error("invalid-source-state");
-  const freshness = status.freshness;
-  if (!exactFields(freshness, ["basis", "sourceCommit", "trustedBuildAt", "maxAgeSeconds"]) || freshness.basis !== "source-commit-time" || freshness.sourceCommit !== source.commit || freshness.maxAgeSeconds !== freshnessMaxAgeSeconds || timestamp(freshness.trustedBuildAt) === null) throw new Error("invalid-freshness-binding");
-  const ageSeconds = (timestamp(freshness.trustedBuildAt) - timestamp(source.committedAt)) / 1000;
-  const currentAgeSeconds = (trustedCurrentTime() - timestamp(freshness.trustedBuildAt)) / 1000;
-  if (status.generatedAt !== source.committedAt || ageSeconds < 0 || ageSeconds > freshness.maxAgeSeconds || currentAgeSeconds < 0 || currentAgeSeconds > freshness.maxAgeSeconds) throw new Error("invalid-freshness-age");
-  if (source.commit !== metadata("riftward-source-commit") ||
-      source.tree !== metadata("riftward-source-tree") ||
-      source.branch !== metadata("riftward-source-branch") ||
-      source.classification !== metadata("riftward-source-classification")) {
-    throw new Error("html-status-provenance-mismatch");
+  function validateObservation(value) {
+    return exactKeys(value, ["state", "basis", "observedAtUtc", "freshForSeconds", "offlineAfterSeconds", "sourceCommit", "sourceTree"])
+      && isEnum(OBSERVATION, value.state)
+      && value.basis === "trusted-main-and-allowlisted-inputs-v1"
+      && value.freshForSeconds === 1800
+      && value.offlineAfterSeconds === 21600
+      && isPublicCommitTime(value.observedAtUtc)
+      && isSha(value.sourceCommit)
+      && isSha(value.sourceTree);
   }
 
-  const workItems = status.workItems;
-  if (!exactFields(workItems, ["accepted", "ready", "review", "acceptedTaskIds", "reviewTaskIds", "nextReady"]) || ![workItems.accepted, workItems.ready, workItems.review].every(validCounter)) throw new Error("invalid-work-items");
-  for (const [name, count] of [["acceptedTaskIds", workItems.accepted], ["reviewTaskIds", workItems.review]]) {
-    if (!Array.isArray(workItems[name]) || new Set(workItems[name]).size !== workItems[name].length || workItems[name].length !== count || !workItems[name].every((id) => /^T-[0-9]{3,}$/.test(id))) throw new Error(`invalid-${name}`);
-  }
-  if (!exactFields(workItems.nextReady, ["state", "taskIds"]) || !["none", "single", "multiple"].includes(workItems.nextReady.state)) throw new Error("invalid-next-ready");
-  if (!Array.isArray(workItems.nextReady.taskIds) || new Set(workItems.nextReady.taskIds).size !== workItems.nextReady.taskIds.length || !workItems.nextReady.taskIds.every((id) => /^T-[0-9]{3,}$/.test(id))) throw new Error("invalid-ready-ids");
-  const readyCount = workItems.nextReady.taskIds.length;
-  if (workItems.ready !== readyCount || (readyCount === 0 && workItems.nextReady.state !== "none") ||
-      (readyCount === 1 && workItems.nextReady.state !== "single") ||
-      (readyCount > 1 && workItems.nextReady.state !== "multiple")) {
-    throw new Error("inconsistent-ready-state");
+  function observationState(value, trustedNow) {
+    if (!validateObservation(value) || !Number.isFinite(trustedNow)) return "invalid";
+    if (value.state === "unknown") return "unknown";
+    const ageSeconds = (trustedNow - Date.parse(value.observedAtUtc)) / 1000;
+    if (!Number.isFinite(ageSeconds) || ageSeconds < 0) return "invalid";
+    const derived = ageSeconds <= value.freshForSeconds ? "current" : ageSeconds <= value.offlineAfterSeconds ? "stale" : "offline";
+    const rank = {current: 0, stale: 1, offline: 2};
+    return rank[value.state] >= rank[derived] ? value.state : derived;
   }
 
-  const candidate = status.candidate;
-  if (!exactFields(candidate, ["state", "reason"]) || !["checked-out-candidate", "not-observed"].includes(candidate.state) || typeof candidate.reason !== "string" || !candidate.reason) throw new Error("invalid-candidate-state");
-  if ((source.branch === "main") !== (source.classification === "accepted-main")) throw new Error("invalid-source-relation");
-  if (source.classification === "candidate-branch" && candidate.state !== "checked-out-candidate") throw new Error("missing-candidate-binding");
-  if (source.classification === "accepted-main" && candidate.state !== "not-observed") throw new Error("invented-candidate");
-
-  const wip = status.wip;
-  if (!wip || !["published", "not-observed"].includes(wip.state)) throw new Error("invalid-wip-state");
-  if (wip.classification !== "continuity-snapshot-not-accepted-progress") throw new Error("invalid-wip-classification");
-  if (!exactFields(wip.provenance, ["observed", "source", "reason"]) || wip.provenance.source !== "public-remote-ref" || typeof wip.provenance.reason !== "string" || typeof wip.provenance.observed !== "boolean" || !wip.provenance.reason) throw new Error("invalid-wip-provenance");
-  if (wip.state === "published" &&
-      (!exactFields(wip, ["state", "classification", "branch", "commit", "committedAt", "provenance"]) || wip.branch !== "autopilot/live-wip" || !fullHash.test(wip.commit) || timestamp(wip.committedAt) === null || wip.provenance.observed !== true)) {
-    throw new Error("invalid-wip-provenance");
+  function trustedHttpTime(response) {
+    if (!response || !response.headers || typeof response.headers.get !== "function") return NaN;
+    if (response.url && typeof location !== "undefined" && new URL(response.url, location.href).origin !== location.origin) return NaN;
+    const value = response.headers.get("Date");
+    if (typeof value !== "string" || !/^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(value)) return NaN;
+    const date = Date.parse(value);
+    if (!Number.isFinite(date) || date < Date.UTC(2021, 0, 1)) return NaN;
+    const ageValue = response.headers.get("Age");
+    if (ageValue !== null && !/^\d{1,8}$/.test(ageValue)) return NaN;
+    const age = ageValue === null ? 0 : Number(ageValue);
+    return Number.isSafeInteger(age) ? date + age * 1000 : NaN;
   }
-  if (wip.state === "not-observed" && (!exactFields(wip, ["state", "classification", "provenance"]) || wip.provenance.observed !== false)) throw new Error("invalid-wip-provenance");
 
-  const claims = status.claims;
-  if (!claims || claims.gameplay !== false || claims.targetHardwareValidated !== false || claims.physicalEdition !== false || claims.twentyFourSevenAutonomy !== false) {
-    throw new Error("unsupported-public-claim");
+  function validateAccepted(value) {
+    return exactKeys(value, ["main", "tasks"])
+      && exactKeys(value.main, ["branch", "classification", "commit", "tree", "committedAt", "gates"])
+      && value.main.branch === "main"
+      && value.main.classification === "accepted-main"
+      && isSha(value.main.commit)
+      && isSha(value.main.tree)
+      && isPublicCommitTime(value.main.committedAt)
+      && isEnum(new Set(["passed", "blocked", "unknown"]), value.main.gates)
+      && exactKeys(value.tasks, ["count", "ids"])
+      && Number.isSafeInteger(value.tasks.count) && value.tasks.count >= 0
+      && isTaskList(value.tasks.ids) && value.tasks.count === value.tasks.ids.length;
   }
-  return status;
-}
 
-function dateLabel(value) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) + " UTC";
-}
+  function validateCandidates(value) {
+    return exactKeys(value, ["state", "items"])
+      && isEnum(CANDIDATE, value.state)
+      && Array.isArray(value.items)
+      && ((value.state === "observed") === (value.items.length > 0))
+      && value.items.every((item) => exactKeys(item, ["taskId", "lifecycleStatus", "gate", "blocker"])
+        && isTask(item.taskId) && isEnum(LIFECYCLE, item.lifecycleStatus)
+        && isEnum(GATE, item.gate) && isEnum(BLOCKER, item.blocker));
+  }
 
-function setUnavailable() {
-  document.documentElement.dataset.projectStatus = "unavailable";
-  statusMessage.dataset.state = "unavailable";
-  statusMessage.textContent = "Status nicht verfügbar: Die Statusdatei fehlt, ist ungültig oder widerspricht der an diese Seite gebundenen Provenienz.";
-  bind("accepted", "—");
-  bind("review", "—");
-  bind("ready", "—");
-  bind("nextReady", "Nicht verfügbar");
-  bind("shortCommit", "—");
-  bind("committedAt", "Nicht verfügbar");
-  bind("sourceProvenance", "Nicht verfügbar; keine Ableitung aus sichtbaren WIP-Dateien.");
-  bind("candidateState", "Nicht verfügbar; kein Kandidat wird angenommen.");
-  bind("wipState", "Nicht verfügbar. Kontinuitätssnapshot, kein akzeptierter Fortschritt.");
-}
+  function validateContinuity(value) {
+    if (!isRecord(value) || !isEnum(CONTINUITY, value.state)) return false;
+    if (value.state === "published") {
+      return exactKeys(value, ["state", "classification", "commit", "committedAt"])
+        && value.classification === "continuity-not-accepted-progress"
+        && isSha(value.commit) && isPublicCommitTime(value.committedAt);
+    }
+    return exactKeys(value, ["state", "classification"])
+      && value.classification === "continuity-not-accepted-progress";
+  }
 
-fetch("status.json", { headers: { Accept: "application/json" }, cache: "no-store" })
-  .then((response) => response.ok ? response.json() : Promise.reject(new Error(`status-${response.status}`)))
-  .then(validateStatus)
-  .then((status) => {
-    const { source, workItems, candidate, wip } = status;
-    bind("accepted", String(workItems.accepted));
-    bind("review", String(workItems.review));
-    bind("ready", String(workItems.ready));
-    bind("nextReady", workItems.nextReady.state === "none" ? "Kein READY-Auftrag" : `${workItems.nextReady.state === "single" ? "Nächster" : "Mehrere"}: ${workItems.nextReady.taskIds.join(", ")}`);
-    bind("shortCommit", source.commit.slice(0, 8));
-    bind("committedAt", `Commit ${dateLabel(source.committedAt)}`);
-    bind("sourceProvenance", `${source.branch} · ${source.classification} · Tree ${source.tree.slice(0, 12)}`);
-    bind("candidateState", candidate.state === "checked-out-candidate" ? `Ausgecheckter Kandidatenbranch ${source.branch}; nicht als main akzeptiert.` : "Nicht beobachtet; der Pages-Build besitzt keinen autoritativen Kandidaten-Receipt.");
-    bind("wipState", wip.state === "published" ? `autopilot/live-wip · ${wip.commit.slice(0, 12)} · ${dateLabel(wip.committedAt)} · Kontinuitätssnapshot, kein akzeptierter Fortschritt.` : "Nicht beobachtet. Kontinuitätssnapshot, kein akzeptierter Fortschritt.");
-    document.querySelector('[data-lamp="source"]')?.classList.add("green");
-    if (candidate.state === "checked-out-candidate") document.querySelector('[data-lamp="candidate"]')?.classList.add("amber");
-    if (wip.state === "published") document.querySelector('[data-lamp="wip"]')?.classList.add("amber");
-    document.documentElement.dataset.projectStatus = "verified";
-    statusMessage.dataset.state = "verified";
-    statusMessage.textContent = `Status verifiziert: ${source.classification} ${source.commit.slice(0, 12)} ist an diese HTML-Ausgabe gebunden.`;
-  })
-  .catch(setUnavailable);
+  function validateActivity(value, declaredObservation) {
+    if (!isRecord(value) || !isEnum(ACTIVITY, value.state)) return false;
+    if (!DETAILED_ACTIVITY.has(value.state)) return exactKeys(value, ["state"]);
+    return declaredObservation === "current"
+      && exactKeys(value, ["state", "taskId", "phase", "role", "lastGate", "blocker", "autonomy", "parentClass"])
+      && isTask(value.taskId) && isEnum(PHASE, value.phase) && isEnum(ROLE, value.role)
+      && isEnum(GATE, value.lastGate) && isEnum(BLOCKER, value.blocker)
+      && isEnum(AUTONOMY, value.autonomy) && isEnum(PARENT, value.parentClass);
+  }
+
+  function validateTasks(value) {
+    return exactKeys(value, ["current", "ready"])
+      && exactKeys(value.current, ["taskId", "lifecycleStatus", "effectiveStartEligibility", "waitingReason", "selectorEnforcement"])
+      && isTask(value.current.taskId) && isEnum(LIFECYCLE, value.current.lifecycleStatus)
+      && isEnum(ELIGIBILITY, value.current.effectiveStartEligibility)
+      && isEnum(BLOCKER, value.current.waitingReason)
+      && value.current.selectorEnforcement === "pending"
+      && value.current.taskId === "T-053"
+      && value.current.lifecycleStatus === "READY"
+      && value.current.effectiveStartEligibility === "waiting"
+      && value.current.waitingReason === "awaiting-preregistered-t042-start-eligibility"
+      && isTaskList(value.ready);
+  }
+
+  function validateClaims(value) {
+    return exactKeys(value, ["gameplay", "targetHardware", "physicalEdition", "twentyFourSevenAutonomy", "concepts"])
+      && value.gameplay === "graybox-only"
+      && value.targetHardware === "not-validated"
+      && value.physicalEdition === "not-produced"
+      && value.twentyFourSevenAutonomy === "not-demonstrated"
+      && value.concepts === "not-gameplay";
+  }
+
+  function metadataMatches(status) {
+    const read = (name) => document.querySelector(`meta[name="${name}"]`)?.getAttribute("content") || "";
+    const metaCommit = read("riftward-source-commit");
+    const metaTree = read("riftward-source-tree");
+    const metaBranch = read("riftward-source-branch");
+    const metaClassification = read("riftward-source-classification");
+    return isSha(metaCommit) && metaCommit === status.accepted.main.commit
+      && isSha(metaTree) && metaTree === status.accepted.main.tree
+      && metaBranch === status.accepted.main.branch
+      && metaClassification === status.accepted.main.classification;
+  }
+
+  function validateStatus(value) {
+    return exactKeys(value, ["schemaVersion", "statusContract", "observation", "accepted", "candidates", "continuity", "activity", "tasks", "claims"])
+      && value.schemaVersion === 3
+      && value.statusContract === "riftward-public-status-v3"
+      && validateObservation(value.observation)
+      && validateAccepted(value.accepted)
+      && validateCandidates(value.candidates)
+      && validateContinuity(value.continuity)
+      && validateActivity(value.activity, value.observation.state)
+      && validateTasks(value.tasks)
+      && validateClaims(value.claims)
+      && value.observation.sourceCommit === value.accepted.main.commit
+      && value.observation.sourceTree === value.accepted.main.tree
+      && metadataMatches(value);
+  }
+
+  const set = (name, text) => document.querySelectorAll(`[data-bind="${name}"]`).forEach((node) => { node.textContent = text; });
+  const setNotice = (state, text) => {
+    const node = document.getElementById("project-status-message");
+    if (node) { node.dataset.state = state; node.textContent = text; }
+  };
+  const short = (sha) => sha.slice(0, 12);
+  const title = (value) => ({
+    "not-observed": "NICHT BEOBACHTET", unavailable: "UNVERFÜGBAR", stale: "VERALTET",
+    current: "AKTUELL", offline: "OFFLINE", active: "AKTIV", idle: "RUHEND",
+    observed: "BEOBACHTET", published: "VERÖFFENTLICHT",
+    eligible: "STARTBERECHTIGT", waiting: "WARTET", blocked: "BLOCKIERT", unknown: "UNBEKANNT",
+    passed: "BESTANDEN", failed: "FEHLGESCHLAGEN", "human-gated": "MENSCHLICH GEGATED",
+    "bounded-autopilot": "BEGRENZTER AUTOPILOT", none: "KEIN BLOCKER"
+  }[value] || String(value).replaceAll("-", " ").toUpperCase());
+  const publicDate = (value) => new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
+
+  function replaceList(name, items) {
+    document.querySelectorAll(`[data-bind="${name}"]`).forEach((list) => {
+      list.replaceChildren(...items.map((text) => { const item = document.createElement("li"); item.textContent = text; return item; }));
+    });
+  }
+
+  function unavailable(reason, state = "unavailable") {
+    ["main-short-commit", "main-commit", "main-tree", "observation", "current-task", "current-gate", "autonomy", "accepted-summary", "candidate-summary", "wip-summary", "activity-summary"].forEach((name) => set(name, "UNVERFÜGBAR"));
+    if (OBSERVATION.has(state)) set("observation", title(state));
+    set("main-committed-at", "Öffentliche Commitzeit: unbekannt");
+    set("effective-eligibility", "Effektiver Start: unbekannt");
+    set("current-blocker", "Blocker: unbekannt");
+    set("wip-detail", "WIP-Kontinuität: nicht verfügbar.");
+    set("activity-detail", "Aktivität: nicht verfügbar.");
+    replaceList("candidates", ["Kandidaten: nicht verfügbar."]);
+    replaceList("claims", ["Claims: nicht verfügbar."]);
+    setNotice(state, reason);
+  }
+
+  function render(status) {
+    const { observation, accepted, candidates, continuity, activity, tasks, claims } = status;
+    set("main-short-commit", short(accepted.main.commit));
+    set("main-commit", accepted.main.commit);
+    set("main-tree", accepted.main.tree);
+    set("main-committed-at", `Öffentliche Commitzeit: ${publicDate(accepted.main.committedAt)} UTC`);
+    set("observation", "AKTUELL · ≤ 30 MIN");
+    set("current-task", `${tasks.current.taskId} · ${title(tasks.current.lifecycleStatus)}`);
+    set("effective-eligibility", `Effektiver Start: ${title(tasks.current.effectiveStartEligibility)} · Selektor: NICHT NACHGEWIESEN`);
+    set("current-gate", title(accepted.main.gates));
+    set("current-blocker", `Blocker: ${title(tasks.current.waitingReason)}`);
+    set("autonomy", DETAILED_ACTIVITY.has(activity.state) ? title(activity.autonomy) : "NICHT BEOBACHTET");
+    set("accepted-summary", `${accepted.tasks.count} AKZEPTIERTE TASKS`);
+    set("candidate-summary", candidates.state === "observed" ? `${candidates.items.length} OFFENE KANDIDATEN` : title(candidates.state));
+    replaceList("candidates", candidates.state === "observed" && candidates.items.length > 0
+      ? candidates.items.map((item) => `${item.taskId}: ${title(item.lifecycleStatus)} · ${title(item.gate)} · ${title(item.blocker)}`)
+      : [`Kandidaten: ${title(candidates.state)}.`]);
+    set("wip-summary", title(continuity.state));
+    set("wip-detail", continuity.state === "published"
+      ? `Öffentliche Kontinuität veröffentlicht (${publicDate(continuity.committedAt)} UTC). Kein akzeptierter Fortschritt.`
+      : "Keine WIP-Kontinuität als Akzeptanz interpretieren.");
+    set("activity-summary", title(activity.state));
+    set("activity-detail", DETAILED_ACTIVITY.has(activity.state)
+      ? `${activity.taskId}: ${title(activity.phase)} · ${title(activity.role)} · Gate ${title(activity.lastGate)} · ${title(activity.parentClass)}.`
+      : "Keine frische, begrenzte Aktivitätsbeobachtung verfügbar.");
+    replaceList("claims", [
+      "Spielstand: ausschließlich akzeptierte interaktive Graybox.",
+      "Fertiges oder repräsentatives Spiel: nicht belegt.",
+      "Zielhardware: nicht validiert.",
+      "Physische Ausgabe: nicht produziert.",
+      "24/7-Autonomie: nicht nachgewiesen.",
+      "Konzeptbilder: kein Gameplay."
+    ]);
+    setNotice("current", "Aktuell beobachtet: exakter akzeptierter main-Baum, höchstens 30 Minuten alt. Kandidaten, WIP und Aktivität sind getrennte Aussagen.");
+  }
+
+  function installTabs() {
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    tabs.forEach((tab, index) => tab.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[next].focus();
+      tabs[next].click();
+    }));
+    tabs.forEach((tab) => tab.addEventListener("click", () => {
+      const panelId = `panel-${tab.dataset.panel}`;
+      tabs.forEach((item) => { const active = item === tab; item.setAttribute("aria-selected", String(active)); item.tabIndex = active ? 0 : -1; });
+      document.querySelectorAll(".method-panel").forEach((panel) => { const active = panel.id === panelId; panel.hidden = !active; panel.classList.toggle("active", active); });
+    }));
+  }
+
+  installTabs();
+  fetch("status.json", { cache: "no-store", credentials: "same-origin", redirect: "error" })
+    .then(async (response) => {
+      if (!response.ok) throw new Error("status response unavailable");
+      const trustedNow = trustedHttpTime(response);
+      if (!Number.isFinite(trustedNow)) throw new Error("trusted HTTP time unavailable");
+      return {status: await response.json(), trustedNow};
+    })
+    .then(({status, trustedNow}) => {
+      if (!validateStatus(status)) throw new Error("status contract invalid");
+      const freshness = observationState(status.observation, trustedNow);
+      if (freshness === "invalid") {
+        unavailable("Status nicht verfügbar: die öffentliche Beobachtungszeit ist unbekannt oder ungültig.");
+        return;
+      }
+      if (freshness === "unknown") {
+        unavailable("Status unbekannt: die öffentliche Beobachtung enthält keine belastbare Freshness-Aussage.", "unknown");
+        return;
+      }
+      if (freshness !== "current") {
+        unavailable(`Status ${title(freshness).toLowerCase()}: veraltete Werte werden nicht als aktueller Projektstand angezeigt.`, freshness);
+        return;
+      }
+      render(status);
+    })
+    .catch(() => unavailable("Status nicht verfügbar: Vertrag, Provenienz oder öffentliche Statusdatei konnte nicht geprüft werden."));
+})();

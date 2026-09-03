@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-riftward.invalid/schemas/commit-role-policy.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schemaVersion", "policy", "history", "roles"],
+  "properties": {
+    "$schema": { "const": "../schemas/commit-role-policy.schema.json" },
+    "schemaVersion": { "const": 1 },
+    "policy": { "const": "riftward-commit-roles-v1" },
+    "history": { "const": "validate-new-commits-only-no-rewrite" },
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planner", "builder", "reviewer", "repair", "wip", "project-lead"],
+      "properties": {
+        "planner": { "$ref": "#/$defs/agent" },
+        "builder": { "$ref": "#/$defs/agent" },
+        "reviewer": { "$ref": "#/$defs/agent" },
+        "repair": { "$ref": "#/$defs/agent" },
+        "wip": { "$ref": "#/$defs/agent" },
+        "project-lead": { "$ref": "#/$defs/lead" }
+      }
+    }
+  },
+  "$defs": {
+    "agent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "email", "requiredTrailers"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^Riftward (Planner|Builder|Reviewer|Repair|WIP) Autopilot$" },
+        "email": { "type": "string", "pattern": "^riftward-(planner|builder|reviewer|repair|wip)-autopilot@users\\.noreply\\.github\\.com$" },
+        "requiredTrailers": { "const": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] }
+      }
+    },
+    "lead": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "email", "requiredTrailers"],
+      "properties": {
+        "name": { "const": "Koschnag" },
+        "email": { "const": "35305653+Koschnag@users.noreply.github.com" },
+        "requiredTrailers": { "const": ["Agent-Role", "Task-ID", "Source-Commit", "Source-Tree"] }
+      }
+    }
+  }
+}

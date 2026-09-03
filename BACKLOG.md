@@ -33,7 +33,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-007 | E-001 | Fresh-Checkout-CI beweist .NET-Pin, Null-Unterprozess/-Netz, Determinismus, T-005-Regression, Recovery und T-003-Crosschecks | Z-002, Z-004, Z-005, F-007, F-008, F-009 | M | MUST | DONE |
 | T-008 | E-001 | überprüfbarer Retail-Era-Forschungs-Showcase mit Press-Kit-Prototyp, Quarantäne-Key-Art und wahrheitsgebundenen Exportregeln | Z-004, Z-005 | M | SHOULD | REVIEW |
 | T-053 | E-001 | praeregistrierte wissenschaftliche Observability mit getrennten Evidenzklassen, exakten Metriken, reproduzierbaren Exporten und fail-closed Privacy-/Publikationsgrenzen | Z-004, NF-003, NF-008 | M | SHOULD | READY |
-| T-054 | E-001 | aktuelles öffentliches Projektcockpit verbindet README, Pages, Task-/Gate-Status und pseudonyme Autopilot-Provenienz ohne WIP als Fortschritt umzudeuten | Z-004, Z-005, NF-003, NF-008 | M | SHOULD | READY |
+| T-054 | E-001 | aktuelles öffentliches Projektcockpit verbindet README, Pages, Task-/Gate-Status und pseudonyme Autopilot-Provenienz ohne WIP als Fortschritt umzudeuten | Z-004, Z-005, NF-003, NF-008 | M | SHOULD | REVIEW |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
@@ -93,6 +93,14 @@ effektive Startberechtigung ist bis zu einem schema-gültigen, normal
 startberechtigten T-042 jedoch separat `waiting` mit dem geschlossenen Grund
 `awaiting-preregistered-t042-start-eligibility`. Der Autopilot darf T-053 in
 diesem Zustand nicht erneut auswählen.
+
+Der isolierte T-054-Builderkandidat steht seit 2026-09-03 auf `REVIEW`. Seine
+historischen Promotionsbelege sind reproduzierbar lesbar, werden aber noch
+nicht als `DONE` projiziert: Die ursprüngliche Rollentrennung bleibt
+`not-publicly-proven`, und erst ein neuer, vom Builder getrennter
+retrospektiver Audit darf die expliziten Statusübergänge von T-034 bis T-039
+und T-052 autorisieren. Linux-PR-Gates, Auditreceipt, Merge und öffentlicher
+Pages-Deploy bleiben bis dahin offene, getrennte Schritte.
 
 `T-003`, `T-005`, `T-006` und `T-007` sind unabhängig abgenommen. `T-006` hat den
 BCL-only-.NET-in-process-Generator samt transaktionalem Quarantäne-Lifecycle
