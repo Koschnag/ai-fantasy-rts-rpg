@@ -9,10 +9,10 @@
   "inScope": [
     "Statusvertrag v3 mit getrennten Bereichen observation, accepted, candidates, continuity, activity und claims; geschlossene Enums, exakte relationale Validierung, sichtbare unknown-/stale-/offline-Zustaende und Beobachtungszeit getrennt von Commitzeit",
     "Sicherer Pages-Aktualisierungspfad auf jedem Push nach main, regelmaessigem begrenztem Zeitplan und manueller Ausloesung; ausgefuehrt wird ausschliesslich der exakt gebundene origin/main-Code, waehrend Pull-Request- und WIP-Referenzen nur als untrusted Daten mit strikter Feldallowlist gelesen und niemals ausgecheckt oder ausgefuehrt werden",
-    "Oeffentliche Darstellung von akzeptiertem main-Commit und Tree, geprueften offenen Kandidaten, READY-Auftraegen, WIP-Snapshotalter sowie nur bei frischem maschinenlesbar gebundenem Signal von Task, Phase, Agentenrolle, Run, Parent-Run, letztem Gate, Failure-Class und Autonomy-State; fehlende Signale bleiben unknown und WIP bleibt kein akzeptierter Fortschritt",
+    "Oeffentliche Darstellung von akzeptiertem main-Commit und Tree, geprueften offenen Kandidaten, READY-Auftraegen, WIP-Freshnessklasse sowie nur bei frischem maschinenlesbar gebundenem Signal von Task, Phase, Agentenrolle, letztem Gate, Failure-Class und Autonomy-State; interne Run-/Parent-Run-/Observation-IDs und genaue private Laufzeitpunkte bleiben lokal, eine oeffentliche Eltern-/Kindbeziehung ist hoechstens als geschlossene redigierte Klasse root|child|unknown zulaessig, und fehlende Signale bleiben unknown; WIP bleibt kein akzeptierter Fortschritt",
     "Dynamische, lokal auf GitHub Pages gehostete Status-Badges oder gleichwertige Projektionen fuer die Repository-README ohne automatische README-Selbstcommits; statische README-Aussagen werden auf den tatsaechlich akzeptierten Graybox-, Runtime-, Forschungs- und Hardwareevidenzstand korrigiert",
     "Komplette responsive und barrierearme Ueberarbeitung der bestehenden GitHub-Pages-Informationsarchitektur mit klarer Startuebersicht, aktuellem Task-/Gate-/Blockerbereich, Fortschrittschronik, Forschungsgrenzen und direkten Beleglinks; vorhandene freigegebene Medien werden bevorzugt, neue Projekt-SVGs bleiben deterministisch und provenienzgebunden",
-    "Evidenzbasierte Statusreconciliation fuer T-034 bis T-039 und T-052 anhand ihrer bereits auf main gemergten unabhaengig geprueften Promotionscommits und GitHub-Checks; keine Aufgabe wird allein aufgrund lokaler Dateien oder Commitmenge akzeptiert und T-053 bleibt bis P-001 bewusst unfertig",
+    "Evidenzbasierte Statusreconciliation fuer T-034 bis T-039 und T-052 anhand ihrer bereits auf main gemergten unabhaengig geprueften Promotionscommits und vollstaendig provenienzgebundenen GitHub-Checks; jedes Receipt bindet Repositoryidentitaet, erwartete GitHub-App, Workflow-ID und -Pfad samt vertrauenswuerdigem main-Workflow-SHA, Run-/Check-ID, Event und Base-Ref sowie Head-, Merge- und Ergebnis-SHA; keine Aufgabe wird allein aufgrund eines Checknamens, lokaler Dateien oder Commitmenge akzeptiert und T-053 bleibt bis P-001 bewusst unfertig",
     "Stabile pseudonyme Git-Rollen fuer kuenftige Planner-, Builder-, Reviewer-, Repair- und WIP-Commits sowie gebundene Commit-Trailer; Projektleitungs-Promotionen duerfen weiterhin Koschnags verifizierte GitHub-No-Reply-Identitaet tragen, bestehende Historie bleibt unveraendert",
     "Aktualisierung der zentralen README-, Showcase-, Automation-, Harness- und Statusdokumentation sowie eines kurzen Branch-/Rollbacks-Runbooks ohne zweite Produktwahrheit",
     "Erweiterte hermetische Status-, Workflow-, Datenschutz-, Barrierefreiheits-, Mobile-, Reduced-Motion-, Link-, Asset-, Provenienz- und Manipulationsnegativtests ohne neue Laufzeitabhaengigkeit"
@@ -20,7 +20,7 @@
   "outOfScope": [
     "Ausfuehrung von Code, Actions oder Skripten aus Pull-Request-, Fork- oder autopilot/live-wip-Referenzen; WIP und Kandidaten erhalten keine Schreib-, Deploy- oder main-Promotionsrechte",
     "Automatische Promotion nach main, Abschwaechung bestehender Pflichtgates, Umdeutung von WIP/Agentenaktivitaet/Commitzahl als produktiver Fortschritt oder Aenderung der T-042-/P-001-Startbedingungen",
-    "Veroeffentlichung von Prompts, Logs, Tokens, Kostenrohdaten, Modell-/Providerkonten, Personen, E-Mail-Adressen, lokalen Pfaden, Hosts, Routen, Secrets, Zugangsdaten oder privaten Forschungs-/Betriebsdaten",
+    "Veroeffentlichung von Prompts, Logs, Tokens, Kostenrohdaten, Modell-/Providerkonten, Personen, E-Mail-Adressen, lokalen Pfaden, Hosts, Routen, Secrets, Zugangsdaten, internen Run-/Parent-Run-/Observation-/Session-IDs, exakten privaten Laufzeitpunkten oder sonstigen privaten Forschungs-/Betriebsdaten",
     "Historienrewrite, nachtraegliche Aenderung bestehender Commitautoren, Zusammenfuehrung des WIP-Branches mit main oder Loeschung nicht nachweislich gemergter Branches",
     "Neue Analyse-, Tracking-, Telemetrie-, Frontend-, Build- oder externe Laufzeitdienste sowie externe Assetgenerierung ohne separaten Provenienz-/Lizenzprozess",
     "Gameplay-, Zielhardware-, 24/7-Autonomie-, Kosten-, Nachhaltigkeits-, Release- oder Fertigstellungsclaims ohne ihre jeweils akzeptierte Evidenz"
@@ -44,8 +44,8 @@
     },
     {
       "id": "AC-T054-03",
-      "statement": "Das Cockpit zeigt aktuell beobachteten main-Stand, offene gepruefte Kandidaten, READY-Auftraege und WIP-Kontinuitaet; Task/Phase/Gate/Blocker/Autonomy-State erscheinen nur aus einem frischen, commit- und treegebundenen, streng allowgelisteten Signal, andernfalls literal unknown oder nicht beobachtet.",
-      "verification": "Positivfixture fuer gueltige Sidecar-/Trailerprojektion und Negativfixtures fuer freie Committexte, HTML/Control-Zeichen, E-Mail/Pfad/Host/Token/Prompt/Modellfelder, stale WIP, falschen Tree, unbekannte Phase und Aktivitaet ohne frisches Signal"
+      "statement": "Das Cockpit zeigt aktuell beobachteten main-Stand, offene gepruefte Kandidaten, READY-Auftraege und WIP-Kontinuitaet; Task/Phase/Gate/Blocker/Autonomy-State erscheinen nur aus einem frischen, commit- und treegebundenen, streng allowgelisteten Signal, andernfalls literal unknown oder nicht beobachtet. Interne Run-/Parent-Run-/Observation-IDs und genaue private Laufzeitpunkte werden nie projiziert; nur die redigierte Elternklasse root|child|unknown und eine grobe Freshnessklasse duerfen aus der privaten Ebene abgeleitet werden.",
+      "verification": "Positivfixture fuer gueltige Sidecar-/Trailerprojektion und Negativfixtures fuer rohe Run-/Parent-Run-/Observation-/Session-IDs, exakte private Zeitpunkte, freie Committexte, HTML/Control-Zeichen, E-Mail/Pfad/Host/Token/Prompt/Modellfelder, stale WIP, falschen Tree, unbekannte Phase und Aktivitaet ohne frisches Signal"
     },
     {
       "id": "AC-T054-04",
@@ -59,8 +59,8 @@
     },
     {
       "id": "AC-T054-06",
-      "statement": "T-034 bis T-039 und T-052 werden nur dann auf accepted/DONE reconciliert, wenn das eingecheckte Receipt ihren exakten gemergten Promotionscommit, gruenen Pflichtcheck und unabhaengige Reviewevidenz bindet; T-053 bleibt ready, bis sein prospektiver Abschlussvertrag erfuellt ist.",
-      "verification": "Maschinenlesbares Reconciliation-Manifest, Git-/PR-Receiptpruefung, Task-Schema-, BACKLOG-/Manifest-Konsistenztest und Negativfixture fuer fehlenden oder fremden Promotionsbeleg"
+      "statement": "T-034 bis T-039 und T-052 werden nur dann auf accepted/DONE reconciliert, wenn das eingecheckte Receipt Repository-ID/-Name, erwartete GitHub-App-ID, Workflow-ID/-Pfad und dessen vertrauenswuerdigen main-SHA, Run-/Check-ID, Event, Base-Ref, Head-, Merge- und Ergebnis-SHA, erfolgreichen Pflichtausgang sowie buildergetrennte Reviewevidenz bindet; T-053 bleibt ready, bis sein prospektiver Abschlussvertrag erfuellt ist.",
+      "verification": "Maschinenlesbares Reconciliation-Manifest, unabhaengig wiederholte GitHub-API-/Git-Pruefung, Task-Schema-, BACKLOG-/Manifest-Konsistenztest und adversariale Fixtures fuer gleichnamigen Fremdcheck, falsche App/Repository/Workflowdatei, untrusted Workflow-SHA, falsches Event/Base, vertauschten Head/Merge/Ergebnis-SHA sowie fehlenden Promotions- oder Reviewbeleg"
     },
     {
       "id": "AC-T054-07",
