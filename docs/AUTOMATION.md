@@ -84,6 +84,14 @@ Neue Agentencommits verwenden die eingecheckte Rollenpolicy unter
 binden Rolle, Task, Ausgangscommit und Ausgangstree. Reviewer ergänzen den
 exakt geprüften Commit/Tree und `Independent-Review`.
 
+Auf Pull Requests prüft `./scripts/rift.sh verify` diese Policy zusätzlich
+gegen den tatsächlichen, aus dem GitHub-Ereignis gelesenen Base-/Head-Bereich:
+jeder neue Checkpoint muss genau einen Parent besitzen und seine
+`Source-Commit`-/`Source-Tree`-Trailer daran binden; ein Reviewer muss exakt
+den letzten Kandidatencommit und dessen Tree prüfen. Der von GitHub erzeugte
+Squash-/Promotionscommit bleibt davon getrennt und wird über PR-, Tree-,
+Pflichtcheck- und Reconciliation-Evidenz nachgewiesen.
+
 Ändert ein Commit `.ai/public-status-v3.json`, muss er zusätzlich
 `Public-Status-Blob: <Git-Blob-OID>` tragen. Der öffentliche Beobachter liest
 die Datei aus genau diesem Commit und akzeptiert sie nur, wenn Trailer,

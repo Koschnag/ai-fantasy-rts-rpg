@@ -21,6 +21,43 @@ rift_restore() {
   dotnet restore Riftward.slnx --locked-mode
 }
 
+rift_verify_commit_roles() {
+  rift_role_base=${RIFT_COMMIT_ROLE_BASE:-}
+  rift_role_head=${RIFT_COMMIT_ROLE_HEAD:-HEAD}
+
+  if [ -z "$rift_role_base" ] && [ "${GITHUB_EVENT_NAME:-}" = pull_request ]; then
+    if [ -z "${GITHUB_EVENT_PATH:-}" ] || [ ! -f "$GITHUB_EVENT_PATH" ]; then
+      printf 'Commitrollen abgelehnt: GitHub-PR-Ereignisdatei fehlt.\n' >&2
+      return 2
+    fi
+    rift_role_base=$(jq -er '.pull_request.base.sha' "$GITHUB_EVENT_PATH")
+    rift_role_head=$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")
+  fi
+
+  if [ -z "$rift_role_base" ]; then
+    printf 'Commitrollenbereich nicht automatisch bestimmt; lokal RIFT_COMMIT_ROLE_BASE setzen.\n'
+    return 0
+  fi
+  case "$rift_role_base$rift_role_head" in
+    *[!0-9a-f]*)
+      printf 'Commitrollen abgelehnt: Commitbereich ist ungueltig.\n' >&2
+      return 2
+      ;;
+  esac
+  if [ "${#rift_role_base}" -ne 40 ] || [ "${#rift_role_head}" -ne 40 ]; then
+    printf 'Commitrollen abgelehnt: Commitbereich ist ungueltig.\n' >&2
+    return 2
+  fi
+  if ! git cat-file -e "$rift_role_base^{commit}" 2>/dev/null || ! git cat-file -e "$rift_role_head^{commit}" 2>/dev/null; then
+    git fetch --no-tags --depth=100 origin "$rift_role_base" "$rift_role_head"
+  fi
+  python3 scripts/check-commit-role.py \
+    --root "$rift_root" \
+    --policy "$rift_root/.ai/policies/commit-role-policy.json" \
+    --base "$rift_role_base" \
+    --head "$rift_role_head"
+}
+
 rift_need_build_outputs() {
   if [ ! -f "$rift_root/tools/RiftHarness/bin/Release/net10.0/RiftHarness.dll" ] \
     || [ ! -f "$rift_root/tests/RiftHarness.Tests/bin/Release/net10.0/RiftHarness.Tests.dll" ]; then
@@ -261,6 +298,7 @@ case "$rift_command" in
     dotnet build Riftward.slnx --configuration Release --no-restore
     dotnet run --project tests/RiftHarness.Tests/RiftHarness.Tests.fsproj --configuration Release --no-restore
     python3 scripts/test-commit-role.py
+    rift_verify_commit_roles
     python3 scripts/test-reconciliation.py
     python3 scripts/test-pages.py --source docs/showcase
     rift_harness assets-check

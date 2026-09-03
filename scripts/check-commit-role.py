@@ -83,8 +83,19 @@ def main() -> int:
                     fail(f"missing required commit trailer at {commit[:12]}")
             if not SHA.fullmatch(found.get("Source-Commit", "")) or not SHA.fullmatch(found.get("Source-Tree", "")):
                 fail(f"invalid source identity trailer at {commit[:12]}")
-            if role == "reviewer" and (found.get("Independent-Review") not in {"PASS", "ESCALATE", "BLOCK"} or not SHA.fullmatch(found.get("Reviewed-Commit", "")) or not SHA.fullmatch(found.get("Reviewed-Tree", ""))):
-                fail(f"reviewer provenance missing at {commit[:12]}")
+            relation = run(root, "rev-list", "--parents", "-n", "1", commit).split()
+            if len(relation) != 2 or relation[0] != commit:
+                fail(f"new commit is not a single-parent checkpoint at {commit[:12]}")
+            parent = relation[1]
+            parent_tree = run(root, "rev-parse", f"{parent}^{{tree}}").strip()
+            if found.get("Source-Commit") != parent or found.get("Source-Tree") != parent_tree:
+                fail(f"source parent/tree binding mismatch at {commit[:12]}")
+            if role == "reviewer" and (
+                found.get("Independent-Review") not in {"PASS", "ESCALATE", "BLOCK"}
+                or found.get("Reviewed-Commit") != parent
+                or found.get("Reviewed-Tree") != parent_tree
+            ):
+                fail(f"reviewer provenance missing or not bound to its parent at {commit[:12]}")
             changed = set(run(root, "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", commit).splitlines())
             status_trailer = found.get("Public-Status-Blob")
             if PUBLIC_STATUS in changed:

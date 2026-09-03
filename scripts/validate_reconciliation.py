@@ -37,7 +37,11 @@ AUDIT_BLOB_PATHS = (
 )
 AUDIT_TASKS = ["T-034", "T-035", "T-036", "T-037", "T-038", "T-039", "T-052"]
 BUILDER = {"name": "Riftward Builder Autopilot", "email": "riftward-builder-autopilot@users.noreply.github.com"}
+REPAIR = {"name": "Riftward Repair Autopilot", "email": "riftward-repair-autopilot@users.noreply.github.com"}
 REVIEWER = {"name": "Riftward Reviewer Autopilot", "email": "riftward-reviewer-autopilot@users.noreply.github.com"}
+AUDIT_EVIDENCE_CONTRACT = "riftward-historical-reconciliation-audit-v2"
+MAX_AUDIT_REPAIRS = 3
+MAX_DIRECT_COMMIT_FILES = 299
 API_ROOT = f"https://api.github.com/repos/{REPOSITORY['name']}"
 MAX_RESPONSE_BYTES = 1_000_000
 
@@ -356,7 +360,28 @@ def validate(manifest: object, root: Path | None) -> dict[str, object]:
             raise ReconciliationError("pending audit must have no DONE eligibility")
         eligible: list[str] = []
     else:
-        if set(audit) != {"state", "pullRequestNumber", "evidencePath", "evidenceBlobOid", "doneEligibleTaskIds"} or not isinstance(audit["pullRequestNumber"], int) or isinstance(audit["pullRequestNumber"], bool) or audit["pullRequestNumber"] < 1 or audit["evidencePath"] != AUDIT_PATH or not isinstance(audit["evidenceBlobOid"], str) or not SHA.fullmatch(audit["evidenceBlobOid"]) or audit["doneEligibleTaskIds"] != AUDIT_TASKS:
+        passed_keys = {
+            "state", "pullRequestNumber", "evidencePath", "evidenceBlobOid", "evidenceContract",
+            "candidateBaseCommit", "candidateBaseTree", "builderCommit", "builderTree", "repairChain",
+            "reviewedCandidateCommit", "reviewedCandidateTree", "doneEligibleTaskIds",
+        }
+        repair_chain = audit.get("repairChain")
+        sha_fields = ("candidateBaseCommit", "candidateBaseTree", "builderCommit", "builderTree", "reviewedCandidateCommit", "reviewedCandidateTree")
+        if (
+            set(audit) != passed_keys
+            or not isinstance(audit["pullRequestNumber"], int)
+            or isinstance(audit["pullRequestNumber"], bool)
+            or audit["pullRequestNumber"] < 1
+            or audit["evidencePath"] != AUDIT_PATH
+            or not isinstance(audit["evidenceBlobOid"], str)
+            or not SHA.fullmatch(audit["evidenceBlobOid"])
+            or audit["evidenceContract"] != AUDIT_EVIDENCE_CONTRACT
+            or any(not isinstance(audit.get(name), str) or not SHA.fullmatch(str(audit[name])) for name in sha_fields)
+            or not isinstance(repair_chain, list)
+            or len(repair_chain) > MAX_AUDIT_REPAIRS
+            or any(not isinstance(item, dict) or set(item) != {"commit", "tree"} or not isinstance(item["commit"], str) or not SHA.fullmatch(item["commit"]) or not isinstance(item["tree"], str) or not SHA.fullmatch(item["tree"]) for item in repair_chain)
+            or audit["doneEligibleTaskIds"] != AUDIT_TASKS
+        ):
             raise ReconciliationError("invalid passed retrospective audit")
         eligible = list(AUDIT_TASKS)
     return {"recordedTaskIds": sorted(seen), "doneEligibleTaskIds": eligible, "auditState": audit["state"], "historicalProjectionSha256": digest, "manifestAudit": audit}
@@ -378,7 +403,7 @@ def validate_review_gate(client: object, head_sha: str, base_sha: str, pull_numb
         raise ReconciliationError("invalid audit runs response")
     bindings: list[tuple[dict[str, object], dict[str, object]]] = []
     for run in runs:
-        if not isinstance(run, dict) or str(run.get("workflow_id")) != WORKFLOW["id"] or run.get("path") != WORKFLOW["path"] or str(run.get("check_suite_id")) != str(suite_id) or run.get("event") != "pull_request" or run.get("head_sha") != head_sha or not repository_matches(run.get("repository")) or not isinstance(run.get("id"), int) or not isinstance(run.get("run_attempt"), int):
+        if not isinstance(run, dict) or str(run.get("workflow_id")) != WORKFLOW["id"] or run.get("path") != WORKFLOW["path"] or str(run.get("check_suite_id")) != str(suite_id) or run.get("event") != "pull_request" or run.get("head_sha") != head_sha or run.get("status") != "completed" or run.get("conclusion") != "success" or not repository_matches(run.get("repository")) or not isinstance(run.get("id"), int) or not isinstance(run.get("run_attempt"), int):
             continue
         prs = run.get("pull_requests")
         if not isinstance(prs, list) or len(prs) != 1 or not isinstance(prs[0], dict) or prs[0].get("number") != pull_number or not isinstance(prs[0].get("base"), dict) or not isinstance(prs[0].get("head"), dict) or prs[0]["base"].get("sha") != base_sha or prs[0]["head"].get("sha") != head_sha:
@@ -395,7 +420,7 @@ def validate_review_gate(client: object, head_sha: str, base_sha: str, pull_numb
     run, job = bindings[0]
     suite = record(client.get(f"check-suites/{suite_id}"), "audit suite")
     check = record(client.get(f"check-runs/{check_id}"), "audit check")
-    if job.get("name") != CHECK["name"] or job.get("head_sha") != head_sha or job.get("run_attempt") != run["run_attempt"] or job.get("conclusion") != "success":
+    if job.get("name") != CHECK["name"] or job.get("head_sha") != head_sha or job.get("run_attempt") != run["run_attempt"] or job.get("status") != "completed" or job.get("conclusion") != "success":
         raise ReconciliationError("audit job did not pass")
     if str(suite.get("id")) != str(suite_id) or suite.get("head_sha") != head_sha or suite.get("conclusion") != "success" or not app_matches(suite.get("app")):
         raise ReconciliationError("audit suite did not pass")
@@ -421,6 +446,47 @@ def allowed_review_path(path: object) -> bool:
     return path in exact_paths or re.fullmatch(r"\.ai/tasks/T-(034|035|036|037|038|039|052)-[a-z0-9-]+\.json", path) is not None
 
 
+def direct_commit_files(client: object, source_sha: str, commit_sha: str, label: str) -> list[dict[str, object]]:
+    comparison = record(client.get(f"compare/{source_sha}...{commit_sha}"), label)
+    files = comparison.get("files")
+    commits = comparison.get("commits")
+    # GitHub caps compare file lists at 300 without exposing a total. Reject
+    # the cap itself so sidecar-change detection never trusts a truncated list.
+    if (
+        comparison.get("total_commits") != 1
+        or not isinstance(commits, list)
+        or len(commits) != 1
+        or not isinstance(commits[0], dict)
+        or commits[0].get("sha") != commit_sha
+        or not isinstance(files, list)
+        or not 1 <= len(files) <= MAX_DIRECT_COMMIT_FILES
+        or any(not isinstance(item, dict) or not isinstance(item.get("filename"), str) for item in files)
+    ):
+        raise ReconciliationError(f"{label} is not one complete direct commit")
+    return files
+
+
+def validate_role_commit(
+    client: object,
+    commit: dict[str, object],
+    role: str,
+    identity: dict[str, str],
+    source_sha: str,
+    source_tree: str,
+    files: list[dict[str, object]],
+) -> None:
+    if not commit_identity(commit, identity):
+        raise ReconciliationError(f"audit {role} identity mismatch")
+    trailers = commit_trailers(commit.get("message"))
+    expected = {"Agent-Role": role, "Task-ID": "T-054", "Source-Commit": source_sha, "Source-Tree": source_tree}
+    if any(trailers.get(key) != value for key, value in expected.items()):
+        raise ReconciliationError(f"audit {role} source trailers mismatch")
+    if any(item["filename"] == ".ai/public-status-v3.json" or item.get("previous_filename") == ".ai/public-status-v3.json" for item in files):
+        expected_oid = content_oid(client, str(commit["sha"]), ".ai/public-status-v3.json")
+        if trailers.get("Public-Status-Blob") != expected_oid:
+            raise ReconciliationError(f"audit {role} public status binding mismatch")
+
+
 def validate_audit(manifest: dict[str, object], client: object, main_sha: str, main_tree: str, reconciliation_oid: str) -> str:
     audit = record(manifest["audit"], "audit")
     if audit["state"] == "pending":
@@ -440,53 +506,78 @@ def validate_audit(manifest: dict[str, object], client: object, main_sha: str, m
         raise ReconciliationError("audit result is not a distinct squash result")
 
     evidence = content_json(client, review_sha, str(audit["evidencePath"]), str(audit["evidenceBlobOid"]))
-    evidence_keys = {"schemaVersion", "contract", "reviewedBuilderCommit", "reviewedBuilderTree", "historicalProjectionSha256", "builderTreeBlobOids", "coveredTaskIds", "criteria", "historicalRoleSeparation", "currentAuditSeparation", "identityAssurance"}
+    evidence_keys = {
+        "schemaVersion", "contract", "candidateBaseCommit", "candidateBaseTree", "builderCommit", "builderTree", "repairChain",
+        "reviewedCandidateCommit", "reviewedCandidateTree", "historicalProjectionSha256", "reviewedCandidateTreeBlobOids",
+        "coveredTaskIds", "criteria", "historicalRoleSeparation", "currentAuditSeparation", "identityAssurance",
+    }
     evidence = exact(evidence, evidence_keys, "audit evidence")
-    if evidence["schemaVersion"] != 1 or evidence["contract"] != "riftward-historical-reconciliation-audit-v1" or evidence["historicalProjectionSha256"] != EXPECTED_HISTORICAL_SHA256 or evidence["coveredTaskIds"] != AUDIT_TASKS or evidence["criteria"] != "PASS" or evidence["historicalRoleSeparation"] != "not-publicly-proven" or evidence["currentAuditSeparation"] != "builder-separated-agent-audit" or evidence["identityAssurance"] != "role-declaration-not-personhood-proof":
+    if evidence["schemaVersion"] != 2 or evidence["contract"] != AUDIT_EVIDENCE_CONTRACT or evidence["historicalProjectionSha256"] != EXPECTED_HISTORICAL_SHA256 or evidence["coveredTaskIds"] != AUDIT_TASKS or evidence["criteria"] != "PASS" or evidence["historicalRoleSeparation"] != "not-publicly-proven" or evidence["currentAuditSeparation"] != "candidate-chain-separated-reviewer-audit" or evidence["identityAssurance"] != "role-declaration-not-personhood-proof":
         raise ReconciliationError("audit evidence claim mismatch")
-    builder_sha, builder_tree = evidence["reviewedBuilderCommit"], evidence["reviewedBuilderTree"]
-    if not isinstance(builder_sha, str) or not SHA.fullmatch(builder_sha) or not isinstance(builder_tree, str) or not SHA.fullmatch(builder_tree):
-        raise ReconciliationError("audit builder identity malformed")
-    blob_oids = exact(evidence["builderTreeBlobOids"], set(AUDIT_BLOB_PATHS), "builder-tree blobs")
+    chain_fields = ("candidateBaseCommit", "candidateBaseTree", "builderCommit", "builderTree", "repairChain", "reviewedCandidateCommit", "reviewedCandidateTree")
+    if any(evidence[name] != audit[name] for name in chain_fields) or evidence["contract"] != audit["evidenceContract"]:
+        raise ReconciliationError("audit evidence/manifest candidate chain mismatch")
+    builder_sha, builder_tree = str(evidence["builderCommit"]), str(evidence["builderTree"])
+    repairs = evidence["repairChain"]
+    if not isinstance(repairs, list) or len(repairs) > MAX_AUDIT_REPAIRS:
+        raise ReconciliationError("audit repair chain is malformed")
+    blob_oids = exact(evidence["reviewedCandidateTreeBlobOids"], set(AUDIT_BLOB_PATHS), "reviewed-candidate-tree blobs")
     if any(not isinstance(value, str) or not SHA.fullmatch(value) for value in blob_oids.values()):
-        raise ReconciliationError("audit builder blob is malformed")
+        raise ReconciliationError("audit reviewed candidate blob is malformed")
 
+    if evidence["candidateBaseCommit"] != parent_sha:
+        raise ReconciliationError("audit candidate base does not match pull request base")
     parent = api_commit(client, parent_sha)
+    parent_tree = str(parent["tree"]["sha"])
+    if evidence["candidateBaseTree"] != parent_tree:
+        raise ReconciliationError("audit candidate base tree mismatch")
     builder = api_commit(client, builder_sha)
     reviewer = api_commit(client, review_sha)
     result = api_commit(client, result_sha)
-    parent_tree = str(parent["tree"]["sha"])
-    reviewer_tree = str(reviewer["tree"]["sha"])
-    if builder["tree"].get("sha") != builder_tree or parent_shas(builder) != [parent_sha] or parent_shas(reviewer) != [builder_sha] or parent_shas(result) != [parent_sha] or result["tree"].get("sha") != reviewer_tree:
-        raise ReconciliationError("audit parent/tree/squash relation mismatch")
-    if not commit_identity(builder, BUILDER) or not commit_identity(reviewer, REVIEWER):
-        raise ReconciliationError("audit role identity mismatch")
-    builder_trailers = commit_trailers(builder.get("message"))
-    reviewer_trailers = commit_trailers(reviewer.get("message"))
-    expected_builder = {"Agent-Role": "builder", "Task-ID": "T-054", "Source-Commit": parent_sha, "Source-Tree": parent_tree}
-    expected_reviewer = {"Agent-Role": "reviewer", "Task-ID": "T-054", "Source-Commit": builder_sha, "Source-Tree": builder_tree, "Independent-Review": "PASS", "Reviewed-Commit": builder_sha, "Reviewed-Tree": builder_tree}
-    if any(builder_trailers.get(key) != value for key, value in expected_builder.items()) or any(reviewer_trailers.get(key) != value for key, value in expected_reviewer.items()):
-        raise ReconciliationError("audit role trailers mismatch")
+    if builder["tree"].get("sha") != builder_tree or parent_shas(builder) != [parent_sha]:
+        raise ReconciliationError("audit builder is not the sole direct builder after base")
+    builder_files = direct_commit_files(client, parent_sha, builder_sha, "audit builder delta")
+    validate_role_commit(client, builder, "builder", BUILDER, parent_sha, parent_tree, builder_files)
 
-    comparison = record(client.get(f"compare/{builder_sha}...{review_sha}"), "audit review delta")
-    files = comparison.get("files")
-    commits = comparison.get("commits")
-    if comparison.get("total_commits") != 1 or not isinstance(commits, list) or len(commits) != 1 or not isinstance(commits[0], dict) or commits[0].get("sha") != review_sha or not isinstance(files, list):
-        raise ReconciliationError("audit review delta is not a direct review commit")
+    source_sha, source_tree = builder_sha, builder_tree
+    for index, raw_repair in enumerate(repairs):
+        repair = exact(raw_repair, {"commit", "tree"}, f"audit repair {index + 1}")
+        repair_sha, repair_tree = repair["commit"], repair["tree"]
+        if not isinstance(repair_sha, str) or not SHA.fullmatch(repair_sha) or not isinstance(repair_tree, str) or not SHA.fullmatch(repair_tree):
+            raise ReconciliationError("audit repair identity malformed")
+        repair_commit = api_commit(client, repair_sha)
+        if repair_commit["tree"].get("sha") != repair_tree or parent_shas(repair_commit) != [source_sha]:
+            raise ReconciliationError("audit repair chain parent/tree mismatch")
+        repair_files = direct_commit_files(client, source_sha, repair_sha, f"audit repair {index + 1} delta")
+        validate_role_commit(client, repair_commit, "repair", REPAIR, source_sha, source_tree, repair_files)
+        source_sha, source_tree = repair_sha, repair_tree
+
+    if evidence["reviewedCandidateCommit"] != source_sha or evidence["reviewedCandidateTree"] != source_tree:
+        raise ReconciliationError("audit reviewed candidate is not the complete candidate chain head")
+    reviewer_tree = str(reviewer["tree"]["sha"])
+    if parent_shas(reviewer) != [source_sha] or parent_shas(result) != [parent_sha] or result["tree"].get("sha") != reviewer_tree:
+        raise ReconciliationError("audit parent/tree/squash relation mismatch")
+    review_files = direct_commit_files(client, source_sha, review_sha, "audit review delta")
+    validate_role_commit(client, reviewer, "reviewer", REVIEWER, source_sha, source_tree, review_files)
+    reviewer_trailers = commit_trailers(reviewer.get("message"))
+    expected_reviewer = {"Independent-Review": "PASS", "Reviewed-Commit": source_sha, "Reviewed-Tree": source_tree}
+    if any(reviewer_trailers.get(key) != value for key, value in expected_reviewer.items()):
+        raise ReconciliationError("audit reviewer verdict trailers mismatch")
     changed: set[str] = set()
-    for item in files:
+    for item in review_files:
         if not isinstance(item, dict) or not allowed_review_path(item.get("filename")) or item.get("status") not in {"added", "modified"} or "previous_filename" in item:
             raise ReconciliationError("audit review delta exceeds allowlist")
         changed.add(str(item["filename"]))
     if not {AUDIT_PATH, RECONCILIATION_PATH}.issubset(changed):
         raise ReconciliationError("audit review delta lacks required evidence")
 
-    for commit in (parent_sha, builder_sha, review_sha, result_sha):
+    candidate_shas = [builder_sha, *(str(item["commit"]) for item in repairs)]
+    for commit in (parent_sha, *candidate_shas, review_sha, result_sha, main_sha):
         if content_oid(client, commit, WORKFLOW["path"]) != WORKFLOW["trustedBlobOid"]:
             raise ReconciliationError("audit trusted workflow blob mismatch")
     for path, oid in blob_oids.items():
-        if content_oid(client, builder_sha, path) != oid:
-            raise ReconciliationError("audit builder-tree blob mismatch")
+        if content_oid(client, source_sha, path) != oid:
+            raise ReconciliationError("audit reviewed-candidate-tree blob mismatch")
     for commit in (review_sha, result_sha, main_sha):
         if content_oid(client, commit, AUDIT_PATH) != audit["evidenceBlobOid"] or content_oid(client, commit, RECONCILIATION_PATH) != reconciliation_oid:
             raise ReconciliationError("audit evidence was not retained")

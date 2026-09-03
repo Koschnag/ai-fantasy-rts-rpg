@@ -14,7 +14,6 @@ ROOT = Path(__file__).resolve().parent.parent
 CHECKER = ROOT / "scripts/check-commit-role.py"
 POLICY = ROOT / ".ai/policies/commit-role-policy.json"
 ZERO = "0" * 40
-ONE = "1" * 40
 
 
 def run(*args: str, cwd: Path, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -40,8 +39,12 @@ def require(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
-def builder_message() -> str:
-    return f"build: fixture\n\nAgent-Role: builder\nTask-ID: T-054\nSource-Commit: {ZERO}\nSource-Tree: {ONE}"
+def tree(repo: Path, commit_sha: str) -> str:
+    return run("git", "rev-parse", f"{commit_sha}^{{tree}}", cwd=repo).stdout.strip()
+
+
+def role_message(role: str, source: str, source_tree: str) -> str:
+    return f"build: fixture\n\nAgent-Role: {role}\nTask-ID: T-054\nSource-Commit: {source}\nSource-Tree: {source_tree}"
 
 
 def write_public_status(repo: Path, value: str = "candidate") -> str:
@@ -51,11 +54,11 @@ def write_public_status(repo: Path, value: str = "candidate") -> str:
     return run("git", "hash-object", str(path), cwd=repo).stdout.strip()
 
 
-def reviewer_message() -> str:
+def reviewer_message(source: str, source_tree: str) -> str:
     return (
         "review: fixture\n\n"
-        f"Agent-Role: reviewer\nTask-ID: T-054\nSource-Commit: {ZERO}\nSource-Tree: {ONE}\n"
-        f"Independent-Review: PASS\nReviewed-Commit: {ZERO}\nReviewed-Tree: {ONE}"
+        f"Agent-Role: reviewer\nTask-ID: T-054\nSource-Commit: {source}\nSource-Tree: {source_tree}\n"
+        f"Independent-Review: PASS\nReviewed-Commit: {source}\nReviewed-Tree: {source_tree}"
     )
 
 
@@ -75,36 +78,36 @@ def main() -> int:
 
         temp, repo, base = fixture()
         with temp:
-            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", builder_message())
-            commit(repo, "Riftward Reviewer Autopilot", "riftward-reviewer-autopilot@users.noreply.github.com", reviewer_message())
+            builder = commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", base, tree(repo, base)))
+            commit(repo, "Riftward Reviewer Autopilot", "riftward-reviewer-autopilot@users.noreply.github.com", reviewer_message(builder, tree(repo, builder)))
             require(verify(repo, base).returncode == 0, "valid builder/reviewer roles rejected")
 
         temp, repo, base = fixture()
         with temp:
             blob = write_public_status(repo)
-            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", builder_message() + f"\nPublic-Status-Blob: {blob}")
+            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", base, tree(repo, base)) + f"\nPublic-Status-Blob: {blob}")
             require(verify(repo, base).returncode == 0, "valid public status binding rejected")
 
         temp, repo, base = fixture()
         with temp:
             write_public_status(repo)
-            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", builder_message())
+            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", base, tree(repo, base)))
             require(verify(repo, base).returncode == 2, "unbound public status sidecar accepted")
 
         temp, repo, base = fixture()
         with temp:
             write_public_status(repo)
-            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", builder_message() + f"\nPublic-Status-Blob: {ZERO}")
+            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", base, tree(repo, base)) + f"\nPublic-Status-Blob: {ZERO}")
             require(verify(repo, base).returncode == 2, "wrong public status blob accepted")
 
         temp, repo, base = fixture()
         with temp:
-            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", builder_message() + f"\nPublic-Status-Blob: {ZERO}")
+            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", base, tree(repo, base)) + f"\nPublic-Status-Blob: {ZERO}")
             require(verify(repo, base).returncode == 2, "unearned public status blob trailer accepted")
 
         temp, repo, base = fixture()
         with temp:
-            commit(repo, "Unknown Bot", "unknown@example.invalid", builder_message())
+            commit(repo, "Unknown Bot", "unknown@example.invalid", role_message("builder", base, tree(repo, base)))
             require(verify(repo, base).returncode == 2, "unknown identity accepted")
 
         temp, repo, base = fixture()
@@ -114,14 +117,31 @@ def main() -> int:
 
         temp, repo, base = fixture()
         with temp:
-            commit(repo, "Riftward Reviewer Autopilot", "riftward-reviewer-autopilot@users.noreply.github.com", builder_message().replace("builder", "reviewer"))
+            commit(repo, "Riftward Reviewer Autopilot", "riftward-reviewer-autopilot@users.noreply.github.com", role_message("reviewer", base, tree(repo, base)))
             require(verify(repo, base).returncode == 2, "reviewer without independent receipt accepted")
 
         temp, repo, base = fixture()
         with temp:
-            bad = builder_message().replace(f"Source-Tree: {ONE}", "Source-Tree: unknown")
+            bad = role_message("builder", base, "unknown")
             commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", bad)
             require(verify(repo, base).returncode == 2, "invalid source identity accepted")
+
+        temp, repo, base = fixture()
+        with temp:
+            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", ZERO, tree(repo, base)))
+            require(verify(repo, base).returncode == 2, "wrong source parent accepted")
+
+        temp, repo, base = fixture()
+        with temp:
+            commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", base, ZERO))
+            require(verify(repo, base).returncode == 2, "wrong source tree accepted")
+
+        temp, repo, base = fixture()
+        with temp:
+            builder = commit(repo, "Riftward Builder Autopilot", "riftward-builder-autopilot@users.noreply.github.com", role_message("builder", base, tree(repo, base)))
+            bad_review = reviewer_message(builder, tree(repo, builder)).replace(f"Reviewed-Commit: {builder}", f"Reviewed-Commit: {ZERO}")
+            commit(repo, "Riftward Reviewer Autopilot", "riftward-reviewer-autopilot@users.noreply.github.com", bad_review)
+            require(verify(repo, base).returncode == 2, "reviewer bound to another commit accepted")
     except (OSError, ValueError, json.JSONDecodeError, RuntimeError) as exc:
         print(f"Commitrollen-Test fehlgeschlagen: {exc}", file=sys.stderr)
         return 2

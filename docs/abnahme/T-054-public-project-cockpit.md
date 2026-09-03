@@ -2,7 +2,7 @@
 
 ## Stand
 
-`REVIEW` – isolierter Builderkandidat. Ausgangsbasis ist der veröffentlichte
+`REVIEW` – isolierte Builder-/Repair-Kandidatenkette. Ausgangsbasis ist der veröffentlichte
 `main`-Commit `577e7c43c1782795f3af85d0322c4975cc8f8ddf` mit Tree
 `25df0a74a3d23fb7617ab9d2712737ebc572f8b8`. Der Kandidat ist noch nicht
 akzeptiert, nicht nach `main` promoviert und nicht auf GitHub Pages
@@ -13,7 +13,7 @@ weiterhin `READY`, aber wegen des noch nicht startberechtigten T-042 effektiv
 `waiting`. Der Builder hat weder T-042 noch Runtime, Produktsemantik,
 Autopilot-Leases oder `autopilot/live-wip` verändert.
 
-## Implementierter Builderstand
+## Implementierter Kandidatenstand
 
 - README und Pages verwenden dieselbe dynamische, commitgebundene
   Statusprojektion. Ein Statusrefresh erzeugt keinen README-Commit.
@@ -46,7 +46,7 @@ Autopilot-Leases oder `autopilot/live-wip` verändert.
   sichtbarer Fokus, `aria-live`, Reduced Motion, CSP, lokale Medien,
   Checksum-/Größenbudgets sowie `CONCEPT · NOT GAMEPLAY` bleiben verbindlich.
 
-## Builder-Evidenz
+## Kandidatenevidenz
 
 Folgende Prüfungen waren auf dem isolierten macOS-Builderstand erfolgreich:
 
@@ -57,10 +57,12 @@ Folgende Prüfungen waren auf dem isolierten macOS-Builderstand erfolgreich:
   → `RECONCILIATION_HERMETIC_PASS`
 - `python3 scripts/test-commit-role.py`
   → `COMMIT_ROLE_POLICY_PASS`
-- `validate_reconciliation.py --live-github` gegen die sieben eingecheckten
-  historischen Receipts; Repository, PR, Workflow, Run, Attempt, Job,
+- Eine frühere Live-GitHub-Prüfung des v1-Receiptsatzes stimmte für die sieben
+  historischen Receipts mit Repository, PR, Workflow, Run, Attempt, Job,
   Check-Run, Check-Suite, GitHub-Actions-App sowie Task-/Review-/Workflowblobs
-  stimmten überein
+  überein. Sie ist ausdrücklich kein Live-Nachweis des aktuellen v2-Vertrags;
+  dessen `validate_reconciliation.py --live-github` bleibt auf dem exakten
+  GitHub-Kandidaten und nach der Promotion erneut auszuführen.
 - `./scripts/rift.sh lint`
 - `./scripts/rift.sh build`
   → 0 Warnungen, 0 Fehler
@@ -79,17 +81,18 @@ Messung wird weder gelöscht noch als Erfolg umgedeutet.
 
 ## Noch offen
 
-- finaler Buildercommit und exakte Commit-/Tree-Bindung;
+- vollständige Builder-/Repair-Kandidatenkette mit exakter Parent-/Tree-Bindung;
 - frische Linux-GitHub-CI auf genau diesem Kandidaten;
-- buildergetrenntes unabhängiges Review des exakten Buildercommits;
+- builder- und repair-getrenntes unabhängiges Review des exakten letzten
+  Kandidatencommits;
 - maschinenlesbarer retrospektiver Auditreceipt und explizite, dadurch
   autorisierte Statusübergänge T-034 bis T-039/T-052;
 - erneute CI auf dem eingefrorenen Reviewer-Head;
 - Squash-Merge, post-merge Live-Reconciliation und GitHub-Pages-Deployment;
 - reale Browserabnahme der veröffentlichten Desktop- und Smartphoneansicht.
 
-T-054 selbst wird in diesem Kandidaten nicht `DONE`: Sein eigener Merge und
-post-merge Deploy können nicht aus dem vorangehenden Kandidatenbaum bewiesen
+T-054 selbst wird in dieser Kandidatenkette nicht `DONE`: Sein eigener Merge
+und post-merge Deploy können nicht aus dem vorangehenden Kandidatenbaum bewiesen
 werden.
 
 ## Aussagegrenzen
