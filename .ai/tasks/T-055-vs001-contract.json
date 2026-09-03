@@ -1,0 +1,49 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-055",
+  "title": "VS-001-Vertrag fuer eine 20-30-minuetige erste Riftward-Mission",
+  "status": "draft",
+  "releaseNote": "2026-09-03: Korrigierter DRAFT-Vertrag auf exakt remote main 9c5fd34d92e904c1649b3a90cba7f7891e0a95db. Er bindet den genehmigten parallel vorbereitbaren, zentral einzeln integrierten Pfad T-055 bis T-061, entscheidet keine kreative Identitaet und nimmt keine Runtime-/T-053-Aenderung vor.",
+  "objective": "Eine reviewfaehige, reversible und messbare Spezifikation fuer eine zusammenhaengende 20-30-minuetige VS-001-Mission bereitstellen, deren Folgeaufgaben Prolog, persoenlichen Loop, Aufbau, Armee und Candidate bis zum eingefrorenen RC liefern koennen, ohne offene Projektleitungsentscheidungen stillschweigend zu verbrauchen.",
+  "inScope": [
+    "docs/VS001_T055_VERTRAG.md als versionierter fachlicher T-055-Vertrag mit Kettenplan T-055 bis T-061, ohne T-062 bis T-070",
+    "Drei explizite, ungeloeste Entscheidungsbuendel fuer Level/Geschichte/Spielregeln, Assetproduktion/Lizenzen/Budgets sowie Abnahmehardware/Tester/Budget; je Buendel sind Folgen, Verantwortlichkeit, Rueckrollpunkt und nicht bindende Defaults sichtbar",
+    "Bindung der autoritativen VS-001-Minima: eine finalitaetsnahe Karte mit Erkundungs-, Basis- und Kampfzone; Held plus zwei Begleiter; maximal vier Faehigkeiten je aktiver Figur; eine Dialogkette; A/B mit bidirektionalen Folgen; zwei Ressourcen; fuenf Gebaeude beziehungsweise Gebaeudetypen; vier trainierbare Einheitentypen; vier normale Gegner plus Elite und Boss; Fog/Minimap/Gruppen/Formationen/Kontextbefehle; taktischer Heldenkampf; gemeinsames Helden-/Armeefinale; RTS-Third-Person-Wechsel in derselben Welt; Abschlusszustand und Save-Ergebnis; Settings, DE-EN-Struktur, Benchmark, deterministischer Smoke und Offline",
+    "Abnahme-, Provenienz-, Clean-Room-, Hardware- und Rueckrollrahmen fuer die Folgeaufgaben mit ehrlicher Trennung von Gameplay, Konzept, CI und realer Owner-/Hardwareevidenz",
+    "Backlog-/Dokumentationsverweis, der T-055 als DRAFT fuehrt und den Graph T-055 zu paralleler Vorbereitung durch T-050, T-056 und T-011 sowie parallel laufendem T-051, danach zentral T-057 bis T-061 bindet; T-040/T-041 und weitere Vollgates bleiben nachgelagerte RC-Gates"
+  ],
+  "outOfScope": [
+    "jede Runtime-, Simulation-, Save-, UI-, Asset-, Audio-, Build- oder Gameplayimplementierung",
+    "Erzeugung oder Promotion von Shipping-Assets sowie Aenderung von T-050 oder T-051",
+    "Aenderung oder Neuinterpretation des byteidentischen T-053-Protokollbundles, des T-054-Statusvertrags oder der oeffentlichen Akzeptanzprojektion",
+    "stille Festlegung von Namen, Lore, Fraktionen, Balancewerten, Produktionsmodellen, Lizenzen, Kosten, Testern oder Zielhardware",
+    "READY-/Review-/Accepted-Markierung, Push, Merge, Deployment oder Erzeugung von T-062 bis T-070"
+  ],
+  "requirements": ["Z-001", "Z-002", "Z-003", "Z-004", "Z-005", "Z-006", "F-001", "F-002", "F-003", "F-004", "F-005", "F-006", "F-007", "F-008", "F-009", "F-010", "NF-001", "NF-002", "NF-003", "NF-004", "NF-005", "NF-006", "NF-007", "NF-008"],
+  "acceptanceCriteria": [
+    {"id":"AC-T055-01","statement":"Der T-055-Vertrag beschreibt den Graph T-055 -> parallele Vorbereitung T-050, T-056 und T-011 bei parallel laufendem T-051 -> zentral integrierte Slices T-057, T-058, T-059 und T-060 -> T-061 Frozen RC. Nur der zentrale Integrator und seine Merges bleiben single-mutator und seriell; Runtime-, Asset- und Black-box-Testvorbereitung darf in isolierten Worktrees parallel laufen. Es entstehen keine T-062-T-070-Aufgaben.","verification":"Dokumentenpruefung und Manifest-/Backlog-Schema-Check; Suche verwirft die Behauptung einer insgesamt strikt seriellen Kette und bestaetigt isolierte Vorbereitung plus einzeln integrierte Merges; keine Taskdatei ausser T-055 wird angelegt."},
+    {"id":"AC-T055-02","statement":"Die drei Entscheidungsbuendel Level/Geschichte/Spielregeln, Assetproduktion/Lizenzen/Budgets und Abnahmehardware/Tester/Budget sind als OFFEN mit Projektleitungsentscheid, Folgen und Rueckrollregel sichtbar; die genannten Wanderbruch-/Schleusental-, stilisiert-erdigen, FOSS/local-first- und Linux-x64-Defaults sind ausdruecklich nicht bindend.","verification":"Textsuche plus Review gegen docs/OFFENE_FRAGEN.md, docs/CLEAN_ROOM.md, docs/ART_DIRECTION.md, docs/PERFORMANCE_BUDGET.md und docs/IP_UND_LIZENZEN.md."},
+    {"id":"AC-T055-03","statement":"Der Vertrag bindet alle autoritativen VS-001-Minima einschliesslich genau einer finalitaetsnahen Karte mit Erkundungs-, Basis- und Kampfzone, Held+2 Begleiter, Faehigkeitsobergrenze, genau einer Dialogkette, A/B-Folgen in beide Richtungen, zwei Ressourcen, fuenf Gebaeuden beziehungsweise Gebaeudetypen, vier Einheitentypen, Gegner-/Elite-/Bossmengen, Sicht-/Befehlsfunktionen, echtem taktischem Heldenkampf, gemeinsamem Helden-/Armeefinale, demselben Weltzustand beim RTS-Third-Person-Wechsel sowie Abschlusszustand/Save-Ergebnis, Settings, DE-EN-Struktur, Benchmark, deterministischem Smoke und Offline.","verification":"Manuelle Matrix gegen docs/GAME_DESIGN.md, docs/ANFORDERUNGEN.md und docs/USER_FLOWS.md; jede Mindestmenge und jedes Verhalten ist im Vertrag mit F-, GS- und UF-ID auffindbar, ohne kreative Identitaet festzulegen."},
+    {"id":"AC-T055-04","statement":"Die Abnahme trennt interaktive Owner-Pruefung, deterministische Gameplay-Evidenz, Clean-Room/Provenienz/Lizenz, reale Zielhardwaremessung und unabhaengige Review; Konzeptmedien, CI, Simulation oder Healthchecks ersetzen keinen dieser Nachweise.","verification":"Dokumentenpruefung der Evidenz- und Negativregeln; Review muss jeden Nachweistyp und seine Aussagegrenze zuordnen."},
+    {"id":"AC-T055-05","statement":"Die Manifest-Abhaengigkeiten enthalten nur die akzeptierten T-055-Vertragsgrundlagen T-031 und T-039. T-011, T-040, T-041, T-050 und T-051 bleiben nachgelagerte Vorbereitungs- oder RC-Gates: T-050 vor shipping-faehigen Assets, T-051 parallel; T-053 und T-054 bleiben unangetastet.","verification":"Exakte Dependencies-Pruefung auf T-031/T-039, Backlog-/Task-Diff, Hashvergleich der T-053-Dateien und Suche nach T-053/T-054-Aenderungen; keine Runtime- oder Vertragsdatei ausser dem neuen T-055-Vertrag."},
+    {"id":"AC-T055-07","statement":"T-056 liefert als kleinsten spielbaren 5-Minuten-Prolog Boot, Neues Spiel, Pause und Exit, Held plus zwei Begleiter, den RTS-Third-Person-Wechsel im selben Weltzustand, integriertes Onboarding, eine minimale echte Faehigkeit im taktischen Kampf gegen genau einen Gegner, Basis-HUD, Audio und Untertitel, den ersten Checkpoint sowie ein offline startbares Paket. T-057 bis T-061 erweitern danach nur die genehmigten vertikalen Slices.","verification":"Dokumentenpruefung der Slice-Tabelle und Traceability-Matrix gegen F-001/F-005/F-006/F-010, GS-001/GS-002/GS-008/GS-010 sowie UF-001/UF-002/UF-003/UF-007."},
+    {"id":"AC-T055-08","statement":"T-061 gate-t den eingefrorenen RC explizit mit bestehender Plattformmatrix, visueller Lesbarkeit/Atmosphaere, Provenienz/Shipping-Assets, Settings/Zugaenglichkeit, Performance/Soak, Paket/Offline sowie Owner- und echter Hardwareevidenz; kein Einzelgate oder CI-Lauf ersetzt ein anderes.","verification":"Dokumentenpruefung der T-061-Gatematrix gegen T-011, T-040, T-041, T-050/T-051, Plattform-, Performance-, Soak-, Paket-/Offline- und Owner-/Hardwarevertraege."},
+    {"id":"AC-T055-06","statement":"T-055 bleibt DRAFT und ist weder READY noch eine Implementierungsfreigabe; die Aenderung ist auf Task-, Backlog- und fachliche Vertragsdokumentation begrenzt und lokal revertierbar.","verification":"JSON-Schema- und Statuspruefung, git diff --check, Diff-Allowlist und Branch-/Remotepruefung."}
+  ],
+  "dependencies": ["T-031", "T-039"],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-DATA", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Dokumentstruktur, Reihenfolge der Folgeziele, Evidenzklassen und reversible Formulierungen innerhalb der bestaetigten VS-001-Minima",
+      "Nicht bindende Defaults als solche kennzeichnen und ohne Produktionsfreigabe als Reviewvorschlag dokumentieren",
+      "Verschaerfung von Provenienz-, Clean-Room-, Unknown-, Rueckroll- und Aussagegrenzen"
+    ],
+    "mustEscalate": [
+      "Level-, Geschichten-, Figuren-, Quest-, Ressourcen-, Gebaeude-, Einheiten-, Gegner- oder A/B-Folgenidentitaet",
+      "Assetgenerator, Lizenz, Modell, Budget, LFS-/Backup-/Cooking-Promotion oder shipping-faehiger Output",
+      "Zielhardware, Testerzahl, Owner-Abnahmebudget, Release-/Plattformfreigabe oder Performanceclaim",
+      "jede Aenderung an T-011/T-040/T-041/T-050/T-051, T-053, T-054, bestehenden Vertraegen, Runtime oder Simulationskern"
+    ]
+  }
+}
