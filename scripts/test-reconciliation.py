@@ -13,7 +13,7 @@ import tempfile
 import pages_status
 import validate_reconciliation as reconciliation
 from pages_status import StatusError, accepted_task_ids
-from pages_github_observation import SIDECAR, git_blob_oid, main_gate, observe, read_sidecar
+from pages_github_observation import SIDECAR, candidate_gate, git_blob_oid, main_gate, observe, read_sidecar
 from validate_reconciliation import AUDIT_BLOB_PATHS, AUDIT_EVIDENCE_CONTRACT, AUDIT_PATH, AUDIT_TASKS, BUILDER, CHECK, EXPECTED_HISTORICAL_SHA256, MAX_AUDIT_REPAIRS, RECONCILIATION_PATH, REPAIR, REPOSITORY, REVIEWER, WORKFLOW, ReconciliationError, load_json, validate, validate_audit, validate_live
 
 
@@ -183,7 +183,7 @@ def audit_rejected(manifest: dict[str, object], mutate) -> None:
     raise AssertionError("adversarial retrospective audit was accepted")
 
 
-class GateFixture:
+class CandidateGateFixture:
     def __init__(self):
         self.main = "a" * 40
         self.tree = "b" * 40
@@ -194,17 +194,15 @@ class GateFixture:
         self.run_total_count = 1
         self.job_total_count = 1
         repo = {"id": 1333151301, "full_name": "Koschnag/ai-fantasy-rts-rpg"}
-        self.closed = [{"number": 90, "state": "closed", "merged_at": "2026-09-03T00:00:00Z", "merge_commit_sha": self.main, "base": {"ref": "main", "sha": self.base, "repo": repo}, "head": {"sha": self.head, "repo": repo}}]
         self.checks = [{"id": 7, "name": "Repository gates", "head_sha": self.head, "status": "completed", "conclusion": "success", "check_suite": {"id": 8}, "app": {"id": 15368, "slug": "github-actions"}}]
         self.run_workflow_id = int(WORKFLOW["id"])
         self.run_workflow_path = WORKFLOW["path"]
         self.run_suite_id = 8
         self.job_attempt = 1
         self.check_suite_id = 8
+        self.pull_requests: object = [{"number": 90, "base": {"sha": self.base}, "head": {"sha": self.head}}]
 
     def get(self, endpoint: str) -> object:
-        if endpoint.startswith("pulls?state=closed"):
-            return deepcopy(self.closed)
         if endpoint == f"git/commits/{self.head}":
             return {"tree": {"sha": self.tree}}
         if endpoint == f"actions/workflows/{WORKFLOW['id']}":
@@ -217,7 +215,7 @@ class GateFixture:
             return {"total_count": self.check_total_count if len(self.checks) == 1 else len(self.checks), "check_runs": deepcopy(self.checks)}
         if endpoint == f"actions/runs?head_sha={self.head}&event=pull_request&per_page=100":
             repo = {"id": 1333151301, "full_name": "Koschnag/ai-fantasy-rts-rpg"}
-            return {"total_count": self.run_total_count, "workflow_runs": [{"id": 77, "workflow_id": self.run_workflow_id, "path": self.run_workflow_path, "check_suite_id": self.run_suite_id, "run_attempt": 1, "event": "pull_request", "head_sha": self.head, "conclusion": "success", "repository": repo, "pull_requests": [{"number": 90, "base": {"sha": self.base}, "head": {"sha": self.head}}]}]}
+            return {"total_count": self.run_total_count, "workflow_runs": [{"id": 77, "workflow_id": self.run_workflow_id, "path": self.run_workflow_path, "check_suite_id": self.run_suite_id, "run_attempt": 1, "event": "pull_request", "head_sha": self.head, "conclusion": "success", "repository": repo, "pull_requests": deepcopy(self.pull_requests)}]}
         if endpoint == "actions/runs/77/attempts/1/jobs?per_page=100":
             return {"total_count": self.job_total_count, "jobs": [{"id": 7, "name": "Repository gates", "head_sha": self.head, "run_attempt": self.job_attempt, "conclusion": "success"}]}
         if endpoint.startswith("check-suites/"):
@@ -228,25 +226,86 @@ class GateFixture:
         raise AssertionError(endpoint)
 
 
+class MainGateFixture(CandidateGateFixture):
+    def __init__(self):
+        super().__init__()
+        repo = {"id": 1333151301, "full_name": "Koschnag/ai-fantasy-rts-rpg"}
+        self.main_check_total_count = 1
+        self.main_checks = [{"id": 17, "name": "Repository gates", "head_sha": self.main, "status": "completed", "conclusion": "success", "check_suite": {"id": 18}, "app": {"id": 15368, "slug": "github-actions"}}]
+        self.main_run_total_count = 1
+        self.main_runs = [{"id": 177, "workflow_id": int(WORKFLOW["id"]), "path": WORKFLOW["path"], "check_suite_id": 18, "run_attempt": 1, "event": "push", "head_branch": "main", "head_sha": self.main, "conclusion": "success", "repository": repo}]
+        self.main_job_total_count = 1
+        self.main_jobs = [{"id": 17, "name": "Repository gates", "head_sha": self.main, "run_attempt": 1, "conclusion": "success"}]
+        self.main_suite = {"id": 18, "head_sha": self.main, "conclusion": "success", "app": {"id": 15368, "slug": "github-actions"}}
+        self.main_exact_check = deepcopy(self.main_checks[0])
+
+    def get(self, endpoint: str) -> object:
+        if endpoint == f"git/commits/{self.main}":
+            return {"tree": {"sha": self.tree}}
+        if endpoint == f"commits/{self.main}/check-runs?per_page=100":
+            return {"total_count": self.main_check_total_count, "check_runs": deepcopy(self.main_checks)}
+        if endpoint == f"actions/runs?head_sha={self.main}&event=push&branch=main&per_page=100":
+            return {"total_count": self.main_run_total_count, "workflow_runs": deepcopy(self.main_runs)}
+        if endpoint == "actions/runs/177/attempts/1/jobs?per_page=100":
+            return {"total_count": self.main_job_total_count, "jobs": deepcopy(self.main_jobs)}
+        if endpoint == "check-suites/18":
+            return deepcopy(self.main_suite)
+        if endpoint == "check-runs/17":
+            return deepcopy(self.main_exact_check)
+        return super().get(endpoint)
+
+
 def test_main_gate() -> None:
-    valid = GateFixture()
+    valid = MainGateFixture()
     assert main_gate(valid, valid.main, valid.tree) == "passed"
-    direct = GateFixture(); direct.closed = []; assert main_gate(direct, direct.main, direct.tree) == "unknown"
-    foreign = GateFixture(); foreign.closed[0]["head"]["repo"]["id"] = 1; assert main_gate(foreign, foreign.main, foreign.tree) == "unknown"
-    mismatch = GateFixture(); mismatch.tree = "d" * 40; assert main_gate(mismatch, mismatch.main, "b" * 40) == "unknown"
-    missing = GateFixture(); missing.checks = []; assert main_gate(missing, missing.main, missing.tree) == "unknown"
-    duplicate = GateFixture(); duplicate.checks.append(deepcopy(duplicate.checks[0])); assert main_gate(duplicate, duplicate.main, duplicate.tree) == "unknown"
-    foreign_workflow = GateFixture(); foreign_workflow.run_workflow_id = 1; assert main_gate(foreign_workflow, foreign_workflow.main, foreign_workflow.tree) == "unknown"
-    foreign_workflow_path = GateFixture(); foreign_workflow_path.run_workflow_path = ".github/workflows/other.yml"; assert main_gate(foreign_workflow_path, foreign_workflow_path.main, foreign_workflow_path.tree) == "unknown"
-    foreign_run_suite = GateFixture(); foreign_run_suite.run_suite_id = 9; assert main_gate(foreign_run_suite, foreign_run_suite.main, foreign_run_suite.tree) == "unknown"
-    foreign_suite = GateFixture(); foreign_suite.checks[0]["check_suite"]["id"] = 9; assert main_gate(foreign_suite, foreign_suite.main, foreign_suite.tree) == "unknown"
-    wrong_attempt = GateFixture(); wrong_attempt.job_attempt = 2; assert main_gate(wrong_attempt, wrong_attempt.main, wrong_attempt.tree) == "unknown"
-    paginated = GateFixture(); paginated.check_total_count = 101; assert main_gate(paginated, paginated.main, paginated.tree) == "unknown"
-    mutated_workflow = GateFixture(); mutated_workflow.workflow_head_blob = "0" * 40; assert main_gate(mutated_workflow, mutated_workflow.main, mutated_workflow.tree) == "unknown"
+    mismatch = MainGateFixture(); mismatch.tree = "d" * 40; assert main_gate(mismatch, mismatch.main, "b" * 40) == "unknown"
+    missing = MainGateFixture(); missing.main_checks = []; missing.main_check_total_count = 0; assert main_gate(missing, missing.main, missing.tree) == "unknown"
+    duplicate = MainGateFixture(); duplicate.main_checks.append(deepcopy(duplicate.main_checks[0])); duplicate.main_check_total_count = 2; assert main_gate(duplicate, duplicate.main, duplicate.tree) == "unknown"
+    foreign_workflow = MainGateFixture(); foreign_workflow.main_runs[0]["workflow_id"] = 1; assert main_gate(foreign_workflow, foreign_workflow.main, foreign_workflow.tree) == "unknown"
+    foreign_workflow_path = MainGateFixture(); foreign_workflow_path.main_runs[0]["path"] = ".github/workflows/other.yml"; assert main_gate(foreign_workflow_path, foreign_workflow_path.main, foreign_workflow_path.tree) == "unknown"
+    foreign_run_suite = MainGateFixture(); foreign_run_suite.main_runs[0]["check_suite_id"] = 19; assert main_gate(foreign_run_suite, foreign_run_suite.main, foreign_run_suite.tree) == "unknown"
+    wrong_event = MainGateFixture(); wrong_event.main_runs[0]["event"] = "pull_request"; assert main_gate(wrong_event, wrong_event.main, wrong_event.tree) == "unknown"
+    wrong_branch = MainGateFixture(); wrong_branch.main_runs[0]["head_branch"] = "other"; assert main_gate(wrong_branch, wrong_branch.main, wrong_branch.tree) == "unknown"
+    wrong_attempt = MainGateFixture(); wrong_attempt.main_jobs[0]["run_attempt"] = 2; assert main_gate(wrong_attempt, wrong_attempt.main, wrong_attempt.tree) == "unknown"
+    total_mismatch = MainGateFixture(); total_mismatch.main_run_total_count = 2; assert main_gate(total_mismatch, total_mismatch.main, total_mismatch.tree) == "unknown"
+    full_run_page = MainGateFixture()
+    for index in range(99):
+        unrelated = deepcopy(full_run_page.main_runs[0])
+        unrelated["id"] = 1000 + index
+        unrelated["workflow_id"] = 1
+        full_run_page.main_runs.append(unrelated)
+    full_run_page.main_run_total_count = 100
+    assert main_gate(full_run_page, full_run_page.main, full_run_page.tree) == "unknown"
+    full_check_page = MainGateFixture()
+    for index in range(99):
+        unrelated = deepcopy(full_check_page.main_checks[0])
+        unrelated["id"] = 1000 + index
+        unrelated["name"] = "other"
+        full_check_page.main_checks.append(unrelated)
+    full_check_page.main_check_total_count = 100
+    assert main_gate(full_check_page, full_check_page.main, full_check_page.tree) == "unknown"
+    failed = MainGateFixture(); failed.main_exact_check["conclusion"] = "failure"; assert main_gate(failed, failed.main, failed.tree) == "blocked"
+
+
+def test_open_candidate_gate_requires_exact_pr_association() -> None:
+    valid = CandidateGateFixture()
+    assert candidate_gate(valid, valid.head, valid.base, 90, valid.main) == "passed"
+
+    empty = CandidateGateFixture()
+    empty.pull_requests = []
+    assert candidate_gate(empty, empty.head, empty.base, 90, empty.main) == "unknown"
+
+    same_head_other_pull = CandidateGateFixture()
+    same_head_other_pull.pull_requests = [{"number": 91, "base": {"sha": same_head_other_pull.base}, "head": {"sha": same_head_other_pull.head}}]
+    assert candidate_gate(same_head_other_pull, same_head_other_pull.head, same_head_other_pull.base, 90, same_head_other_pull.main) == "unknown"
+
+    same_head_other_base = CandidateGateFixture()
+    same_head_other_base.pull_requests = [{"number": 90, "base": {"sha": "0" * 40}, "head": {"sha": same_head_other_base.head}}]
+    assert candidate_gate(same_head_other_base, same_head_other_base.head, same_head_other_base.base, 90, same_head_other_base.main) == "unknown"
 
 
 def test_stale_wip_does_not_claim_offline() -> None:
-    gate = GateFixture()
+    gate = MainGateFixture()
     wip, wip_tree, source, source_tree = "d" * 40, "e" * 40, "1" * 40, "2" * 40
     sidecar = {"schemaVersion": 1, "candidate": {"taskId": "T-054", "lifecycleStatus": "IN_PROGRESS", "blocker": "none"}, "activity": {"state": "active", "taskId": "T-054", "phase": "building", "role": "wip", "lastGate": "passed", "blocker": "none", "autonomy": "bounded-autopilot", "parentClass": "root"}}
     payload = json.dumps(sidecar).encode()
@@ -255,7 +314,7 @@ def test_stale_wip_does_not_claim_offline() -> None:
     identity = {"name": "Riftward WIP Autopilot", "email": "riftward-wip-autopilot@users.noreply.github.com"}
     message = f"chore: publish bounded WIP status\n\nAgent-Role: wip\nTask-ID: T-054\nSource-Commit: {source}\nSource-Tree: {source_tree}\nPublic-Status-Blob: {blob_oid}\n"
 
-    class ObservationFixture(GateFixture):
+    class ObservationFixture(MainGateFixture):
         def get(self, endpoint: str) -> object:
             if endpoint == "": return {"id": 1333151301, "full_name": "Koschnag/ai-fantasy-rts-rpg", "default_branch": "main"}
             if endpoint == "branches/main": return {"commit": {"sha": self.main}}
@@ -588,6 +647,7 @@ def main() -> int:
     test_live_invocation_does_not_require_unreachable_pr_git_objects(pending)
     test_pending_builder_eligibility(pending_validation)
     test_main_gate()
+    test_open_candidate_gate_requires_exact_pr_association()
     test_stale_wip_does_not_claim_offline()
     test_sidecar_blob_binding()
     print("RECONCILIATION_HERMETIC_PASS")

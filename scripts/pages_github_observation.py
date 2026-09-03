@@ -166,14 +166,14 @@ def workflow_blob_matches(client: GitHub, commit: str) -> bool:
     return isinstance(value, dict) and value.get("type") == "file" and value.get("path") == WORKFLOW_PATH and value.get("sha") == WORKFLOW_BLOB
 
 
-def gate_for(client: GitHub, head_sha: str, base_sha: str, pull_number: int, current_main_sha: str) -> str:
+def candidate_gate(client: GitHub, head_sha: str, base_sha: str, pull_number: int, current_main_sha: str) -> str:
     workflow = client.get(f"actions/workflows/{WORKFLOW_ID}")
     if not isinstance(workflow, dict) or str(workflow.get("id")) != WORKFLOW_ID or workflow.get("path") != WORKFLOW_PATH:
         return "unknown"
     if not workflow_blob_matches(client, current_main_sha) or not workflow_blob_matches(client, head_sha):
         return "unknown"
     value = client.get(f"commits/{head_sha}/check-runs?per_page=100")
-    if not isinstance(value, dict) or not isinstance(value.get("check_runs"), list) or value.get("total_count") != len(value["check_runs"]):
+    if not isinstance(value, dict) or not isinstance(value.get("check_runs"), list) or len(value["check_runs"]) >= 100 or value.get("total_count") != len(value["check_runs"]):
         return "unknown"
     matches = [item for item in value["check_runs"] if isinstance(item, dict) and item.get("name") == "Repository gates" and item.get("head_sha") == head_sha and isinstance(item.get("app"), dict) and str(item["app"].get("id")) == "15368" and item["app"].get("slug") == "github-actions"]
     if len(matches) != 1:
@@ -181,24 +181,24 @@ def gate_for(client: GitHub, head_sha: str, base_sha: str, pull_number: int, cur
     check = matches[0]
     check_id = check.get("id")
     check_suite = check.get("check_suite")
-    if not isinstance(check_id, int) or isinstance(check_id, bool) or not isinstance(check_suite, dict) or not isinstance(check_suite.get("id"), int):
+    if not isinstance(check_id, int) or isinstance(check_id, bool) or not isinstance(check_suite, dict) or not isinstance(check_suite.get("id"), int) or isinstance(check_suite.get("id"), bool):
         return "unknown"
     runs = client.get(f"actions/runs?head_sha={head_sha}&event=pull_request&per_page=100")
-    if not isinstance(runs, dict) or not isinstance(runs.get("workflow_runs"), list) or runs.get("total_count") != len(runs["workflow_runs"]):
+    if not isinstance(runs, dict) or not isinstance(runs.get("workflow_runs"), list) or len(runs["workflow_runs"]) >= 100 or runs.get("total_count") != len(runs["workflow_runs"]):
         return "unknown"
     bindings: list[tuple[dict[str, object], dict[str, object]]] = []
     for run in runs["workflow_runs"]:
-        if not isinstance(run, dict) or str(run.get("workflow_id")) != WORKFLOW_ID or run.get("path") != WORKFLOW_PATH or str(run.get("check_suite_id")) != str(check_suite["id"]) or run.get("event") != "pull_request" or run.get("head_sha") != head_sha or not repository_matches(run.get("repository")) or not isinstance(run.get("run_attempt"), int) or not isinstance(run.get("id"), int):
+        if not isinstance(run, dict) or str(run.get("workflow_id")) != WORKFLOW_ID or run.get("path") != WORKFLOW_PATH or str(run.get("check_suite_id")) != str(check_suite["id"]) or run.get("event") != "pull_request" or run.get("head_sha") != head_sha or not repository_matches(run.get("repository")) or not isinstance(run.get("run_attempt"), int) or isinstance(run.get("run_attempt"), bool) or not isinstance(run.get("id"), int) or isinstance(run.get("id"), bool):
             continue
         pull_requests = run.get("pull_requests")
         if not isinstance(pull_requests, list) or len(pull_requests) != 1 or not isinstance(pull_requests[0], dict):
             continue
         run_pr = pull_requests[0]
-        if run_pr.get("number") != pull_number or not isinstance(run_pr.get("base"), dict) or not isinstance(run_pr.get("head"), dict) or run_pr["base"].get("sha") != base_sha or run_pr["head"].get("sha") != head_sha:
+        if not isinstance(run_pr.get("number"), int) or isinstance(run_pr.get("number"), bool) or run_pr.get("number") != pull_number or not isinstance(run_pr.get("base"), dict) or not isinstance(run_pr.get("head"), dict) or run_pr["base"].get("sha") != base_sha or run_pr["head"].get("sha") != head_sha:
             continue
         jobs = client.get(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100")
         job_list = jobs.get("jobs") if isinstance(jobs, dict) else None
-        if not isinstance(job_list, list) or jobs.get("total_count") != len(job_list):
+        if not isinstance(job_list, list) or len(job_list) >= 100 or jobs.get("total_count") != len(job_list):
             continue
         exact_jobs = [job for job in job_list if isinstance(job, dict) and job.get("id") == check_id]
         if len(exact_jobs) == 1:
@@ -222,35 +222,57 @@ def gate_for(client: GitHub, head_sha: str, base_sha: str, pull_number: int, cur
 
 
 def main_gate(client: GitHub, main_sha: str, main_tree: str) -> str:
-    pulls = client.get("pulls?state=closed&base=main&per_page=100&sort=updated&direction=desc")
-    if not isinstance(pulls, list):
-        raise ObservationError("invalid merged pull request response")
-    matches: list[dict[str, object]] = []
-    for pull in pulls:
-        if not isinstance(pull, dict) or pull.get("state") != "closed" or not isinstance(pull.get("merged_at"), str) or pull.get("merge_commit_sha") != main_sha:
-            continue
-        base = pull.get("base")
-        head = pull.get("head")
-        if not isinstance(base, dict) or not isinstance(head, dict) or base.get("ref") != "main" or not isinstance(base.get("repo"), dict) or not isinstance(head.get("repo"), dict):
-            continue
-        if str(base["repo"].get("id")) != REPOSITORY_ID or str(head["repo"].get("id")) != REPOSITORY_ID:
-            continue
-        matches.append(pull)
+    workflow = client.get(f"actions/workflows/{WORKFLOW_ID}")
+    if not isinstance(workflow, dict) or str(workflow.get("id")) != WORKFLOW_ID or workflow.get("path") != WORKFLOW_PATH:
+        return "unknown"
+    if not workflow_blob_matches(client, main_sha):
+        return "unknown"
+    main_commit = client.get(f"git/commits/{main_sha}")
+    if not isinstance(main_commit, dict) or not isinstance(main_commit.get("tree"), dict) or main_commit["tree"].get("sha") != main_tree:
+        return "unknown"
+    value = client.get(f"commits/{main_sha}/check-runs?per_page=100")
+    check_runs = value.get("check_runs") if isinstance(value, dict) else None
+    if not isinstance(check_runs, list) or len(check_runs) >= 100 or value.get("total_count") != len(check_runs):
+        return "unknown"
+    matches = [item for item in check_runs if isinstance(item, dict) and item.get("name") == "Repository gates" and item.get("head_sha") == main_sha and isinstance(item.get("app"), dict) and str(item["app"].get("id")) == "15368" and item["app"].get("slug") == "github-actions"]
     if len(matches) != 1:
         return "unknown"
-    head_sha = matches[0]["head"].get("sha")
-    if not isinstance(head_sha, str) or not SHA.fullmatch(head_sha):
+    check = matches[0]
+    check_id = check.get("id")
+    check_suite = check.get("check_suite")
+    if not isinstance(check_id, int) or isinstance(check_id, bool) or not isinstance(check_suite, dict) or not isinstance(check_suite.get("id"), int) or isinstance(check_suite.get("id"), bool):
         return "unknown"
-    head_commit = client.get(f"git/commits/{head_sha}")
-    head_tree = head_commit.get("tree", {}).get("sha") if isinstance(head_commit, dict) and isinstance(head_commit.get("tree"), dict) else None
-    if head_tree != main_tree:
+    runs = client.get(f"actions/runs?head_sha={main_sha}&event=push&branch=main&per_page=100")
+    workflow_runs = runs.get("workflow_runs") if isinstance(runs, dict) else None
+    if not isinstance(workflow_runs, list) or len(workflow_runs) >= 100 or runs.get("total_count") != len(workflow_runs):
         return "unknown"
-    base_sha = matches[0]["base"].get("sha")
-    pull_number = matches[0].get("number")
-    if not isinstance(base_sha, str) or not SHA.fullmatch(base_sha) or not isinstance(pull_number, int) or isinstance(pull_number, bool):
+    bindings: list[tuple[dict[str, object], dict[str, object]]] = []
+    for run in workflow_runs:
+        if not isinstance(run, dict) or str(run.get("workflow_id")) != WORKFLOW_ID or run.get("path") != WORKFLOW_PATH or str(run.get("check_suite_id")) != str(check_suite["id"]) or run.get("event") != "push" or run.get("head_branch") != "main" or run.get("head_sha") != main_sha or not repository_matches(run.get("repository")) or not isinstance(run.get("run_attempt"), int) or isinstance(run.get("run_attempt"), bool) or not isinstance(run.get("id"), int) or isinstance(run.get("id"), bool):
+            continue
+        jobs = client.get(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100")
+        job_list = jobs.get("jobs") if isinstance(jobs, dict) else None
+        if not isinstance(job_list, list) or len(job_list) >= 100 or jobs.get("total_count") != len(job_list):
+            continue
+        exact_jobs = [job for job in job_list if isinstance(job, dict) and job.get("id") == check_id]
+        if len(exact_jobs) == 1:
+            bindings.append((run, exact_jobs[0]))
+    if len(bindings) != 1:
         return "unknown"
-    gate = gate_for(client, head_sha, base_sha, pull_number, main_sha)
-    return "passed" if gate == "passed" else "blocked" if gate == "failed" else "unknown"
+    run, job = bindings[0]
+    suite = client.get(f"check-suites/{check_suite['id']}")
+    exact_check = client.get(f"check-runs/{check_id}")
+    app = {"id": "15368", "slug": "github-actions"}
+    if not isinstance(suite, dict) or str(suite.get("id")) != str(check_suite["id"]) or suite.get("head_sha") != main_sha or not isinstance(suite.get("app"), dict) or str(suite["app"].get("id")) != app["id"] or suite["app"].get("slug") != app["slug"]:
+        return "unknown"
+    if not isinstance(exact_check, dict) or exact_check.get("id") != check_id or exact_check.get("name") != "Repository gates" or exact_check.get("head_sha") != main_sha or not isinstance(exact_check.get("check_suite"), dict) or exact_check["check_suite"].get("id") != check_suite["id"] or not isinstance(exact_check.get("app"), dict) or str(exact_check["app"].get("id")) != app["id"] or exact_check["app"].get("slug") != app["slug"]:
+        return "unknown"
+    if job.get("name") != "Repository gates" or job.get("head_sha") != main_sha or job.get("run_attempt") != run["run_attempt"]:
+        return "unknown"
+    states = (run.get("conclusion"), job.get("conclusion"), suite.get("conclusion"), exact_check.get("conclusion"))
+    if check.get("status") != "completed" or exact_check.get("status") != "completed" or any(state is None for state in states):
+        return "unknown"
+    return "passed" if states == ("success", "success", "success", "success") else "blocked" if any(state in {"failure", "cancelled", "timed_out", "action_required"} for state in states) else "unknown"
 
 
 def observe(client: GitHub, main_sha: str, main_tree: str, observed_at: str) -> dict[str, object]:
@@ -301,7 +323,7 @@ def observe(client: GitHub, main_sha: str, main_tree: str, observed_at: str) -> 
         if not isinstance(current_pull, dict) or current_pull.get("state") != "open" or not isinstance(current_head, dict) or current_head.get("sha") != head_sha or not isinstance(current_head.get("repo"), dict) or str(current_head["repo"].get("id")) != REPOSITORY_ID or not isinstance(current_base, dict) or current_base.get("ref") != "main" or current_base.get("sha") != base_sha or not isinstance(current_base.get("repo"), dict) or str(current_base["repo"].get("id")) != REPOSITORY_ID:
             candidate_invalid = True
             continue
-        candidate_items.append({**sidecar["candidate"], "gate": gate_for(client, head_sha, base_sha, number, main_sha)})
+        candidate_items.append({**sidecar["candidate"], "gate": candidate_gate(client, head_sha, base_sha, number, main_sha)})
     candidate_items.sort(key=lambda item: str(item["taskId"]))
     if len({item["taskId"] for item in candidate_items}) != len(candidate_items):
         candidate_invalid = True
