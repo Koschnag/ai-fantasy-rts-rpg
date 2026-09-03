@@ -46,16 +46,35 @@ type ResearchExportReceipt =
 [<RequireQualifiedAccess>]
 module ResearchExport =
     let private requiredStudyFields =
-        [ "studyId"; "observationId"; "evidenceClass"; "targetTaskId"; "actorIdentityRule"
-          "protocolVersion"; "protocolBundleSha256"; "baselineCommit"; "headCommit"
-          "baselineTreeId"; "resultTreeId"; "inputTreeId"; "taskManifestSha256"
-          "collectorVersion"; "exporterVersion"; "toolchainSha256"; "timezone"; "locale"
-          "pathMapVersion"; "sourceInventory"; "sourceInventorySha256"; "redactionPolicyVersion"
+        [ "studyId"
+          "observationId"
+          "evidenceClass"
+          "targetTaskId"
+          "actorIdentityRule"
+          "protocolVersion"
+          "protocolBundleSha256"
+          "baselineCommit"
+          "headCommit"
+          "baselineTreeId"
+          "resultTreeId"
+          "inputTreeId"
+          "taskManifestSha256"
+          "collectorVersion"
+          "exporterVersion"
+          "toolchainSha256"
+          "timezone"
+          "locale"
+          "pathMapVersion"
+          "sourceInventory"
+          "sourceInventorySha256"
+          "redactionPolicyVersion"
           "generatedAtUtc" ]
 
     let private workspacePath (root: string) (path: string) =
-        if Path.IsPathFullyQualified(path) then path
-        else Path.Combine(Path.GetFullPath(root), path)
+        if Path.IsPathFullyQualified(path) then
+            path
+        else
+            Path.Combine(Path.GetFullPath(root), path)
 
     let private requiredString (name: string) (root: JsonElement) =
         match root.TryGetProperty(name) with
@@ -73,8 +92,7 @@ module ResearchExport =
             || ((value.Length = 40 || value.Length = 64)
                 && value
                    |> Seq.forall (fun character ->
-                       (character >= '0' && character <= '9')
-                       || (character >= 'a' && character <= 'f')))
+                       (character >= '0' && character <= '9') || (character >= 'a' && character <= 'f')))
 
         if not valid then
             Internal.fail $"RESEARCH_MANIFEST_INVALID: {name} must be an exact Git object ID or literal unknown."
@@ -82,7 +100,11 @@ module ResearchExport =
     let private optionalUtc (name: string) (root: JsonElement) =
         match root.TryGetProperty(name) with
         | false, _ -> None
-        | true, value when value.ValueKind = JsonValueKind.String && value.GetString() = ResearchContract.Unknown -> None
+        | true, value when
+            value.ValueKind = JsonValueKind.String
+            && value.GetString() = ResearchContract.Unknown
+            ->
+            None
         | true, value when value.ValueKind = JsonValueKind.String ->
             match Internal.tryParseUtc (value.GetString()) with
             | Some timestamp -> Some timestamp
@@ -91,7 +113,10 @@ module ResearchExport =
 
     let loadStudyManifest (root: string) (path: string) =
         let locations = Workspace.requireInitialized root
-        let safePath = Workspace.requireSafePath locations "Research study manifest" false (workspacePath root path)
+
+        let safePath =
+            Workspace.requireSafePath locations "Research study manifest" false (workspacePath root path)
+
         let config = HarnessConfig.load locations
         let text = Internal.safeReadAllText safePath config.MaxSourceFileBytes
         let canonical = ResearchCanonical.canonicalizeJson text
@@ -135,10 +160,18 @@ module ResearchExport =
         if not (ResearchContract.EvidenceClasses.Contains(evidenceClass)) then
             Internal.fail "RESEARCH_MANIFEST_INVALID: evidenceClass is invalid."
 
-        if not (observationId.StartsWith("OBS-", StringComparison.Ordinal) && observationId.Length = 30) then
+        if
+            not (
+                observationId.StartsWith("OBS-", StringComparison.Ordinal)
+                && observationId.Length = 30
+            )
+        then
             Internal.fail "RESEARCH_MANIFEST_INVALID: observationId has invalid syntax."
 
-        if targetTaskId <> ResearchContract.Unknown && not (Text.RegularExpressions.Regex.IsMatch(targetTaskId, "^T-[0-9]{3,}$")) then
+        if
+            targetTaskId <> ResearchContract.Unknown
+            && not (Text.RegularExpressions.Regex.IsMatch(targetTaskId, "^T-[0-9]{3,}$"))
+        then
             Internal.fail "RESEARCH_MANIFEST_INVALID: targetTaskId is invalid."
 
         for name, value in
@@ -148,15 +181,24 @@ module ResearchExport =
               "toolchainSha256", toolchainSha256 ] do
             requireHash name value
 
-        if sourceManifest <> ResearchContract.Unknown && Internal.sha256Hex sourceInventoryBytes <> sourceManifest then
+        if
+            sourceManifest <> ResearchContract.Unknown
+            && Internal.sha256Hex sourceInventoryBytes <> sourceManifest
+        then
             Internal.fail "RESEARCH_MANIFEST_INVALID: sourceInventorySha256 does not bind sourceInventory."
 
         for name, value in
-            [ "baselineCommit", baselineCommit; "headCommit", headCommit; "baselineTreeId", baselineTree
-              "resultTreeId", resultTree; "inputTreeId", inputTree ] do
+            [ "baselineCommit", baselineCommit
+              "headCommit", headCommit
+              "baselineTreeId", baselineTree
+              "resultTreeId", resultTree
+              "inputTreeId", inputTree ] do
             requireCommit name value
 
-        if requiredString "timezone" element <> "UTC" || requiredString "locale" element <> "C" then
+        if
+            requiredString "timezone" element <> "UTC"
+            || requiredString "locale" element <> "C"
+        then
             Internal.fail "RESEARCH_MANIFEST_INVALID: timezone and locale must be UTC and C."
 
         match Internal.tryParseUtc generatedAt with
@@ -210,24 +252,67 @@ module ResearchExport =
     let private csvCell (value: string) =
         let text = if isNull value then ResearchContract.Unknown else value
 
-        if text.Contains(',') || text.Contains('"') || text.Contains('\r') || text.Contains('\n') then
+        if
+            text.Contains(',')
+            || text.Contains('"')
+            || text.Contains('\r')
+            || text.Contains('\n')
+        then
             "\"" + text.Replace("\"", "\"\"") + "\""
         else
             text
 
     let private csvLine (values: string list) =
-        values |> List.map csvCell |> String.concat "," |> fun line -> line + "\n"
+        values |> List.map csvCell |> String.concat "," |> (fun line -> line + "\n")
 
     let private commonHeaders =
-        [ "study_id"; "observation_id"; "run_id"; "parent_run_id"; "cycle_id"; "task_id"
-          "event_id"; "sequence"; "monotonic_time_ns"; "monotonic_clock_id"; "occurred_at_utc"
-          "evidence_class"; "actor_role"; "actor_id"; "provider_id"; "model_id"; "model_version"
-          "branch_ref"; "base_commit"; "head_commit"; "tree_id"; "autonomy_mode"; "activity_state"
-          "result"; "exit_code"; "failure_class"; "retry_index"; "repair_index"; "usage_provenance"
-          "cost_provenance"; "request_count"; "input_tokens"; "output_tokens"; "cache_read_tokens"
-          "cache_write_tokens"; "cost_amount"; "cost_currency"; "changed_files"; "changed_paths"
-          "lines_added"; "lines_deleted"; "binary_files_changed"; "human_active_duration_ms"
-          "privacy_class"; "redaction_status"; "redaction_policy_version"; "event_hash" ]
+        [ "study_id"
+          "observation_id"
+          "run_id"
+          "parent_run_id"
+          "cycle_id"
+          "task_id"
+          "event_id"
+          "sequence"
+          "monotonic_time_ns"
+          "monotonic_clock_id"
+          "occurred_at_utc"
+          "evidence_class"
+          "actor_role"
+          "actor_id"
+          "provider_id"
+          "model_id"
+          "model_version"
+          "branch_ref"
+          "base_commit"
+          "head_commit"
+          "tree_id"
+          "autonomy_mode"
+          "activity_state"
+          "result"
+          "exit_code"
+          "failure_class"
+          "retry_index"
+          "repair_index"
+          "usage_provenance"
+          "cost_provenance"
+          "request_count"
+          "input_tokens"
+          "output_tokens"
+          "cache_read_tokens"
+          "cache_write_tokens"
+          "cost_amount"
+          "cost_currency"
+          "changed_files"
+          "changed_paths"
+          "lines_added"
+          "lines_deleted"
+          "binary_files_changed"
+          "human_active_duration_ms"
+          "privacy_class"
+          "redaction_status"
+          "redaction_policy_version"
+          "event_hash" ]
 
     let private changedPaths (value: ResearchValue<string list>) =
         match value with
@@ -239,27 +324,59 @@ module ResearchExport =
                 writer.WriteEndArray())
             |> Constants.Utf8NoBom.GetString
 
-    let private invariantInt (value: int64) = value.ToString(CultureInfo.InvariantCulture)
+    let private invariantInt (value: int64) =
+        value.ToString(CultureInfo.InvariantCulture)
 
     let private commonValues (event: ResearchEvent) =
         let body = event.Body
 
-        [ body.StudyId; body.ObservationId; researchString body.RunId; researchString body.ParentRunId
-          researchString body.CycleId; researchString body.TaskId; body.EventId; invariantInt event.Sequence
-          researchInt body.MonotonicTimeNs; researchString body.MonotonicClockId; researchString body.OccurredAtUtc
-          body.EvidenceClass; researchString body.ActorRole; researchString body.ActorId
-          researchString body.ProviderId; researchString body.ModelId; researchString body.ModelVersion
-          researchString body.BranchRef; researchString body.BaseCommit; researchString body.HeadCommit
-          researchString body.TreeId; researchString body.AutonomyMode; researchString body.ActivityState
-          researchString body.Result; researchInt body.ExitCode; researchString body.FailureClass
-          researchInt body.RetryIndex; researchInt body.RepairIndex; researchString body.UsageProvenance
-          researchString body.CostProvenance; researchInt body.RequestCount; researchInt body.InputTokens
-          researchInt body.OutputTokens; researchInt body.CacheReadTokens; researchInt body.CacheWriteTokens
-          researchString body.CostAmount; researchString body.CostCurrency; researchInt body.ChangedFiles
-          changedPaths body.ChangedPaths; researchInt body.LinesAdded; researchInt body.LinesDeleted
-          researchInt body.BinaryFilesChanged; researchInt body.HumanActiveDurationMs
-          researchString body.PrivacyClass; researchString body.RedactionStatus
-          researchString body.RedactionPolicyVersion; event.EventHash ]
+        [ body.StudyId
+          body.ObservationId
+          researchString body.RunId
+          researchString body.ParentRunId
+          researchString body.CycleId
+          researchString body.TaskId
+          body.EventId
+          invariantInt event.Sequence
+          researchInt body.MonotonicTimeNs
+          researchString body.MonotonicClockId
+          researchString body.OccurredAtUtc
+          body.EvidenceClass
+          researchString body.ActorRole
+          researchString body.ActorId
+          researchString body.ProviderId
+          researchString body.ModelId
+          researchString body.ModelVersion
+          researchString body.BranchRef
+          researchString body.BaseCommit
+          researchString body.HeadCommit
+          researchString body.TreeId
+          researchString body.AutonomyMode
+          researchString body.ActivityState
+          researchString body.Result
+          researchInt body.ExitCode
+          researchString body.FailureClass
+          researchInt body.RetryIndex
+          researchInt body.RepairIndex
+          researchString body.UsageProvenance
+          researchString body.CostProvenance
+          researchInt body.RequestCount
+          researchInt body.InputTokens
+          researchInt body.OutputTokens
+          researchInt body.CacheReadTokens
+          researchInt body.CacheWriteTokens
+          researchString body.CostAmount
+          researchString body.CostCurrency
+          researchInt body.ChangedFiles
+          changedPaths body.ChangedPaths
+          researchInt body.LinesAdded
+          researchInt body.LinesDeleted
+          researchInt body.BinaryFilesChanged
+          researchInt body.HumanActiveDurationMs
+          researchString body.PrivacyClass
+          researchString body.RedactionStatus
+          researchString body.RedactionPolicyVersion
+          event.EventHash ]
 
     let private payloadValue (name: string) (event: ResearchEvent) =
         match event.Body.Payload.TryGetProperty(name) with
@@ -270,7 +387,9 @@ module ResearchExport =
             | _ -> ResearchCanonical.canonicalizeElement value |> Constants.Utf8NoBom.GetString
 
     let private eventCsv (selectedTypes: Set<string>) (events: ResearchEvent list) =
-        let selected = events |> List.filter (fun event -> Set.contains event.Body.EventType selectedTypes)
+        let selected =
+            events
+            |> List.filter (fun event -> Set.contains event.Body.EventType selectedTypes)
 
         let payloadHeaders =
             selectedTypes
@@ -286,13 +405,16 @@ module ResearchExport =
         buffer.Append(csvLine (commonHeaders @ payloadHeaders)) |> ignore
 
         for event in selected do
-            let payloadValues = payloadHeaders |> List.map (fun header -> payloadValue header event)
+            let payloadValues =
+                payloadHeaders |> List.map (fun header -> payloadValue header event)
+
             buffer.Append(csvLine (commonValues event @ payloadValues)) |> ignore
 
         Constants.Utf8NoBom.GetBytes(buffer.ToString())
 
     let private typeSet (prefix: string) =
-        ResearchContract.EventTypes |> Set.filter (fun eventType -> eventType.StartsWith(prefix, StringComparison.Ordinal))
+        ResearchContract.EventTypes
+        |> Set.filter (fun eventType -> eventType.StartsWith(prefix, StringComparison.Ordinal))
 
     let private writeFile (outputDirectory: string) (path: string) (bytes: byte array) =
         let target = Path.Combine(outputDirectory, path)
@@ -301,32 +423,88 @@ module ResearchExport =
         if not (String.IsNullOrEmpty(parent)) then
             Directory.CreateDirectory(parent) |> ignore
 
-        use stream = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough)
+        use stream =
+            new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough)
+
         stream.Write(bytes, 0, bytes.Length)
         stream.Flush(true)
 
     let private observationsCsv (manifest: ResearchStudyManifest) (events: ResearchEvent list) =
-        let startEvent = events |> List.tryFind (fun event -> event.Body.EventType = "observation.started")
-        let closeEvent = events |> List.tryFind (fun event -> event.Body.EventType = "observation.closed")
-        let outcomeEvent = events |> List.tryFind (fun event -> event.Body.EventType = "outcome.observed")
+        let startEvent =
+            events
+            |> List.tryFind (fun event -> event.Body.EventType = "observation.started")
+
+        let closeEvent =
+            events
+            |> List.tryFind (fun event -> event.Body.EventType = "observation.closed")
+
+        let outcomeEvent =
+            events |> List.tryFind (fun event -> event.Body.EventType = "outcome.observed")
 
         let sourceTime (event: ResearchEvent option) =
-            event |> Option.map (fun value -> researchString value.Body.OccurredAtUtc) |> Option.defaultValue ResearchContract.Unknown
-        let taskOutcome = outcomeEvent |> Option.map (payloadValue "taskOutcome") |> Option.defaultValue ResearchContract.Unknown
-        let hypothesis = outcomeEvent |> Option.map (payloadValue "hypothesisResult") |> Option.defaultValue ResearchContract.Unknown
-        let headers = [ "observation_id"; "started_at_utc"; "closed_at_utc"; "evidence_class"; "protocol_bundle_sha256"; "source_manifest_sha256"; "task_outcome"; "hypothesis_result" ]
-        let values = [ manifest.ObservationId; sourceTime startEvent; sourceTime closeEvent; manifest.EvidenceClass; manifest.ProtocolBundleSha256; manifest.SourceManifestSha256; taskOutcome; hypothesis ]
+            event
+            |> Option.map (fun value -> researchString value.Body.OccurredAtUtc)
+            |> Option.defaultValue ResearchContract.Unknown
+
+        let taskOutcome =
+            outcomeEvent
+            |> Option.map (payloadValue "taskOutcome")
+            |> Option.defaultValue ResearchContract.Unknown
+
+        let hypothesis =
+            outcomeEvent
+            |> Option.map (payloadValue "hypothesisResult")
+            |> Option.defaultValue ResearchContract.Unknown
+
+        let headers =
+            [ "observation_id"
+              "started_at_utc"
+              "closed_at_utc"
+              "evidence_class"
+              "protocol_bundle_sha256"
+              "source_manifest_sha256"
+              "task_outcome"
+              "hypothesis_result" ]
+
+        let values =
+            [ manifest.ObservationId
+              sourceTime startEvent
+              sourceTime closeEvent
+              manifest.EvidenceClass
+              manifest.ProtocolBundleSha256
+              manifest.SourceManifestSha256
+              taskOutcome
+              hypothesis ]
+
         Constants.Utf8NoBom.GetBytes(csvLine headers + csvLine values)
 
     let private metricsCsv (manifest: ResearchStudyManifest) (events: ResearchEvent list) checkpoints =
-        let metrics = ResearchMetrics.calculateWithArchitecture events manifest.WindowStartUtc manifest.WindowEndUtc checkpoints
-        let header = csvLine [ "observation_id"; "evidence_class"; "metric_id"; "value"; "unit"; "availability_reason"; "source_manifest_sha256"; "protocol_version" ]
+        let metrics =
+            ResearchMetrics.calculateWithArchitecture events manifest.WindowStartUtc manifest.WindowEndUtc checkpoints
+
+        let header =
+            csvLine
+                [ "observation_id"
+                  "evidence_class"
+                  "metric_id"
+                  "value"
+                  "unit"
+                  "availability_reason"
+                  "source_manifest_sha256"
+                  "protocol_version" ]
+
         let body =
             metrics
             |> List.map (fun (row: ResearchMetricRow) ->
                 csvLine
-                    [ manifest.ObservationId; row.EvidenceClass; row.MetricId; row.Value; row.Unit
-                      row.AvailabilityReason; manifest.SourceManifestSha256; manifest.ProtocolVersion ])
+                    [ manifest.ObservationId
+                      row.EvidenceClass
+                      row.MetricId
+                      row.Value
+                      row.Unit
+                      row.AvailabilityReason
+                      manifest.SourceManifestSha256
+                      manifest.ProtocolVersion ])
             |> String.concat ""
 
         Constants.Utf8NoBom.GetBytes(header + body)
@@ -335,18 +513,28 @@ module ResearchExport =
         let parts = path.Split('/', StringSplitOptions.None)
 
         match parts with
-        | [| ".ai"; "runtime"; "runs"; runId; "events.jsonl" |]
-            when Internal.isRunId runId
-                 && String.Equals(path, $".ai/runtime/runs/{runId}/events.jsonl", StringComparison.Ordinal) ->
+        | [| ".ai"; "runtime"; "runs"; runId; "events.jsonl" |] when
+            Internal.isRunId runId
+            && String.Equals(path, $".ai/runtime/runs/{runId}/events.jsonl", StringComparison.Ordinal)
+            ->
             runId
         | _ ->
-            Internal.fail "EXPORT_SOURCE_INVALID: harness-event path must be the exact .ai/runtime/runs/<runId>/events.jsonl receipt path."
+            Internal.fail
+                "EXPORT_SOURCE_INVALID: harness-event path must be the exact .ai/runtime/runs/<runId>/events.jsonl receipt path."
 
-    let private resolveHarnessRunEvent root expectedRunId (source: ResearchSourceReference) (path: string) (receiptHash: string) =
-        if source.RepositoryCommit <> ResearchValue.Unknown
-           || source.LineStart <> ResearchValue.Unknown
-           || source.LineEnd <> ResearchValue.Unknown
-           || receiptHash <> source.ArtifactSha256 then
+    let private resolveHarnessRunEvent
+        root
+        expectedRunId
+        (source: ResearchSourceReference)
+        (path: string)
+        (receiptHash: string)
+        =
+        if
+            source.RepositoryCommit <> ResearchValue.Unknown
+            || source.LineStart <> ResearchValue.Unknown
+            || source.LineEnd <> ResearchValue.Unknown
+            || receiptHash <> source.ArtifactSha256
+        then
             Internal.fail "EXPORT_SOURCE_INVALID: harness-event receipt metadata is not exact."
 
         let runId = harnessRunIdFromPath path
@@ -364,13 +552,17 @@ module ResearchExport =
             match matchingEvents with
             | [ event ] -> RunStore.eventByReceipt root runId event.Sequence event.EventType receiptHash
             | [] -> Internal.fail "EXPORT_SOURCE_INVALID: harness-event receipt is absent from its authoritative run."
-            | _ -> Internal.fail "EXPORT_SOURCE_INVALID: harness-event receipt hash is duplicated in its authoritative run."
+            | _ ->
+                Internal.fail
+                    "EXPORT_SOURCE_INVALID: harness-event receipt hash is duplicated in its authoritative run."
 
         if not (String.Equals(authoritative.EventHash, source.ArtifactSha256, StringComparison.Ordinal)) then
             Internal.fail "EXPORT_SOURCE_INVALID: harness-event receipt artifact hash mismatch."
 
     let private sourceBytes root priorEvents expectedRunId (source: ResearchSourceReference) =
-        match source.SourceKind, source.Resolvable, source.RepositoryCommit, source.RepositoryPath, source.SourceEventId with
+        match
+            source.SourceKind, source.Resolvable, source.RepositoryCommit, source.RepositoryPath, source.SourceEventId
+        with
         | "fixture", false, _, _, _ -> None
         | "harness-event", true, _, ResearchValue.Known path, ResearchValue.Known eventHash ->
             resolveHarnessRunEvent root expectedRunId source path eventHash
@@ -381,12 +573,20 @@ module ResearchExport =
             | _ -> Internal.fail "EXPORT_SOURCE_INVALID: research-event binding is absent or hash-mismatched."
         | _, true, ResearchValue.Known commit, ResearchValue.Known path, _ ->
             let bytes = ResearchGitImport.fileAtCommit root commit path
-            if Internal.sha256Hex bytes <> source.ArtifactSha256 then Internal.fail "EXPORT_SOURCE_INVALID: git blob hash mismatch."
+
+            if Internal.sha256Hex bytes <> source.ArtifactSha256 then
+                Internal.fail "EXPORT_SOURCE_INVALID: git blob hash mismatch."
+
             Some bytes
         | _, true, ResearchValue.Unknown, ResearchValue.Known path, _ ->
             let locations = Workspace.requireInitialized root
-            let target = Workspace.requireSafePath locations "Research export source" false (workspacePath root path)
-            if not (File.Exists(target)) || Internal.sha256File target <> source.ArtifactSha256 then Internal.fail "EXPORT_SOURCE_INVALID: current artifact hash mismatch."
+
+            let target =
+                Workspace.requireSafePath locations "Research export source" false (workspacePath root path)
+
+            if not (File.Exists(target)) || Internal.sha256File target <> source.ArtifactSha256 then
+                Internal.fail "EXPORT_SOURCE_INVALID: current artifact hash mismatch."
+
             Some(File.ReadAllBytes(target))
         | _ -> Internal.fail "EXPORT_SOURCE_INVALID: sourceRef is not exactly resolvable."
 
@@ -395,69 +595,228 @@ module ResearchExport =
         |> List.mapi (fun index event -> index, event)
         |> List.iter (fun (index, event) ->
             let prior = events |> List.take index
+
             event.Body.SourceRefs
             |> List.iter (fun source ->
                 if source.SourceKind <> "fixture" && not source.Resolvable then
                     Internal.fail "EXPORT_SOURCE_INVALID: non-fixture sourceRef must be resolvable."
+
                 sourceBytes root prior event.Body.RunId source |> ignore))
 
     let private requireClosedChain (manifest: ResearchStudyManifest) (events: ResearchEvent list) =
-        let exactlyOne eventType = events |> List.filter (fun event -> event.Body.EventType = eventType)
+        let exactlyOne eventType =
+            events |> List.filter (fun event -> event.Body.EventType = eventType)
+
         let protocol = exactlyOne "protocol.frozen"
         let started = exactlyOne "observation.started"
         let outcomes = exactlyOne "outcome.observed"
         let closes = exactlyOne "observation.closed"
-        if protocol.Length <> 1 || started.Length <> 1 || outcomes.Length <> 1 || closes.Length <> 1 || (events |> List.exists (fun event -> event.Body.EventType = "activity.state.changed") |> not) then
+
+        if
+            protocol.Length <> 1
+            || started.Length <> 1
+            || outcomes.Length <> 1
+            || closes.Length <> 1
+            || (events
+                |> List.exists (fun event -> event.Body.EventType = "activity.state.changed")
+                |> not)
+        then
             Internal.fail "EXPORT_CHAIN_INCOMPLETE: protocol/start/activity/outcome/close chain is required."
-        if events |> List.last <> closes.Head then Internal.fail "EXPORT_CHAIN_INCOMPLETE: observation.closed must be final."
+
+        if events |> List.last <> closes.Head then
+            Internal.fail "EXPORT_CHAIN_INCOMPLETE: observation.closed must be final."
+
         let close = closes.Head
         let eventCount = payloadValue "eventCount" close
-        if eventCount <> events.Length.ToString(CultureInfo.InvariantCulture) || payloadValue "sourceManifestSha256" close <> manifest.SourceManifestSha256 then
+
+        if
+            eventCount <> events.Length.ToString(CultureInfo.InvariantCulture)
+            || payloadValue "sourceManifestSha256" close <> manifest.SourceManifestSha256
+        then
             Internal.fail "EXPORT_CHAIN_INCOMPLETE: closure does not bind eventCount/source manifest."
 
     let private boundArchitecture root events =
         events
         |> List.mapi (fun index event -> index, event)
         |> List.choose (fun (index, event) ->
-            if event.Body.EventType <> "architecture.checkpoint.created" then None
+            if event.Body.EventType <> "architecture.checkpoint.created" then
+                None
             else
                 let prior = events |> List.take index
+
                 let artifacts =
                     event.Body.SourceRefs
-                    |> List.choose (fun source -> sourceBytes root prior event.Body.RunId source |> Option.map (fun bytes -> source.ArtifactSha256, bytes))
+                    |> List.choose (fun source ->
+                        sourceBytes root prior event.Body.RunId source
+                        |> Option.map (fun bytes -> source.ArtifactSha256, bytes))
                     |> Map.ofList
+
                 let find name =
                     let hash = payloadValue name event
-                    artifacts |> Map.tryFind hash |> Option.defaultWith (fun () -> Internal.fail $"ARCHITECTURE_BINDING_INVALID: missing {name} source artifact.")
-                Some(ResearchArchitecture.bind event.Body.Payload (find "fileInventorySha256") (find "dependencyInventorySha256") (find "analyzerInventorySha256") (find "testInventorySha256")))
+
+                    artifacts
+                    |> Map.tryFind hash
+                    |> Option.defaultWith (fun () ->
+                        Internal.fail $"ARCHITECTURE_BINDING_INVALID: missing {name} source artifact.")
+
+                Some(
+                    ResearchArchitecture.bind
+                        event.Body.Payload
+                        (find "fileInventorySha256")
+                        (find "dependencyInventorySha256")
+                        (find "analyzerInventorySha256")
+                        (find "testInventorySha256")
+                ))
 
     let private architectureFilesCsv (checkpoints: BoundArchitectureCheckpoint list) =
-        let header = [ "checkpoint_id"; "tree_id"; "repo_relative_path"; "file_class"; "component_id"; "lines"; "baseline_lines"; "line_delta"; "analyzer_warning_count"; "test_case_count"; "complexity_method"; "complexity_value"; "source_sha256" ]
-        let rows = checkpoints |> List.collect (fun checkpoint -> checkpoint.FileRows |> List.map (fun row -> [ checkpoint.CheckpointId; checkpoint.AcceptedTreeId; row.RepoRelativePath; row.FileClass; row.Component; row.Lines; row.BaselineLines; row.LineDelta; row.AnalyzerWarnings; row.TestCount; row.ComplexityMethod; row.Complexity; row.SourceSha256 ])) |> List.sortBy (fun row -> row[0], row[2])
+        let header =
+            [ "checkpoint_id"
+              "tree_id"
+              "repo_relative_path"
+              "file_class"
+              "component_id"
+              "lines"
+              "baseline_lines"
+              "line_delta"
+              "analyzer_warning_count"
+              "test_case_count"
+              "complexity_method"
+              "complexity_value"
+              "source_sha256" ]
+
+        let rows =
+            checkpoints
+            |> List.collect (fun checkpoint ->
+                checkpoint.FileRows
+                |> List.map (fun row ->
+                    [ checkpoint.CheckpointId
+                      checkpoint.AcceptedTreeId
+                      row.RepoRelativePath
+                      row.FileClass
+                      row.Component
+                      row.Lines
+                      row.BaselineLines
+                      row.LineDelta
+                      row.AnalyzerWarnings
+                      row.TestCount
+                      row.ComplexityMethod
+                      row.Complexity
+                      row.SourceSha256 ]))
+            |> List.sortBy (fun row -> row[0], row[2])
+
         Constants.Utf8NoBom.GetBytes(csvLine header + (rows |> List.map csvLine |> String.concat ""))
 
     let private architectureDependenciesCsv (checkpoints: BoundArchitectureCheckpoint list) =
-        let header = [ "checkpoint_id"; "tree_id"; "from_component"; "to_component"; "dependency_kind"; "direction_class"; "evidence_sha256" ]
-        let rows = checkpoints |> List.collect (fun checkpoint -> checkpoint.DependencyRows |> List.map (fun row -> [ checkpoint.CheckpointId; checkpoint.AcceptedTreeId; row.FromComponent; row.ToComponent; "project-reference"; row.Direction; ResearchContract.Unknown ])) |> List.sortBy (fun row -> row[0], row[2], row[3])
+        let header =
+            [ "checkpoint_id"
+              "tree_id"
+              "from_component"
+              "to_component"
+              "dependency_kind"
+              "direction_class"
+              "evidence_sha256" ]
+
+        let rows =
+            checkpoints
+            |> List.collect (fun checkpoint ->
+                checkpoint.DependencyRows
+                |> List.map (fun row ->
+                    [ checkpoint.CheckpointId
+                      checkpoint.AcceptedTreeId
+                      row.FromComponent
+                      row.ToComponent
+                      "project-reference"
+                      row.Direction
+                      ResearchContract.Unknown ]))
+            |> List.sortBy (fun row -> row[0], row[2], row[3])
+
         Constants.Utf8NoBom.GetBytes(csvLine header + (rows |> List.map csvLine |> String.concat ""))
 
-    let private architectureTrendsCsv (manifest: ResearchStudyManifest) (checkpoints: BoundArchitectureCheckpoint list) =
-        let header = [ "observation_id"; "checkpoint_id"; "baseline_commit"; "result_commit"; "path_map_version"; "production_files_changed"; "production_modules_touched"; "project_reference_edges_added"; "project_reference_edges_removed"; "confirmed_boundary_violations"; "gross_lines_added"; "gross_lines_deleted"; "binary_files_changed" ]
-        let rows = checkpoints |> List.map (fun checkpoint ->
-            let files = checkpoint.FileRows
-            let production = files |> List.filter (fun row -> row.FileClass = "production" && row.LineDelta <> "0")
-            let lines (selector: ArchitectureFileRow -> string) = files |> List.map selector |> List.map (fun value -> match Int64.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture) with | true, number -> Some number | _ -> None) |> fun values -> if values |> List.exists Option.isNone then ResearchContract.Unknown else values |> List.choose id |> List.sum |> string
-            [ manifest.ObservationId; checkpoint.CheckpointId; checkpoint.BaselineCommit; checkpoint.ResultCommit; checkpoint.PathMapVersion; string production.Length; string (production |> List.map (fun row -> row.Component) |> Set.ofList |> Set.count); string (checkpoint.DependencyRows |> List.filter (fun row -> row.Change = "added") |> List.length); string (checkpoint.DependencyRows |> List.filter (fun row -> row.Change = "removed") |> List.length); string checkpoint.ConfirmedFindingIds.Length; lines (fun row -> if row.LineDelta = "unknown" then "unknown" else string (max 0L (Int64.Parse(row.LineDelta, CultureInfo.InvariantCulture)))); lines (fun row -> if row.LineDelta = "unknown" then "unknown" else string (max 0L (-Int64.Parse(row.LineDelta, CultureInfo.InvariantCulture)))); string (files |> List.filter (fun row -> row.Lines = "unknown") |> List.length) ]) |> List.sortBy (fun row -> row[1])
+    let private architectureTrendsCsv
+        (manifest: ResearchStudyManifest)
+        (checkpoints: BoundArchitectureCheckpoint list)
+        =
+        let header =
+            [ "observation_id"
+              "checkpoint_id"
+              "baseline_commit"
+              "result_commit"
+              "path_map_version"
+              "production_files_changed"
+              "production_modules_touched"
+              "project_reference_edges_added"
+              "project_reference_edges_removed"
+              "confirmed_boundary_violations"
+              "gross_lines_added"
+              "gross_lines_deleted"
+              "binary_files_changed" ]
+
+        let rows =
+            checkpoints
+            |> List.map (fun checkpoint ->
+                let files = checkpoint.FileRows
+
+                let production =
+                    files
+                    |> List.filter (fun row -> row.FileClass = "production" && row.LineDelta <> "0")
+
+                let lines (selector: ArchitectureFileRow -> string) =
+                    files
+                    |> List.map selector
+                    |> List.map (fun value ->
+                        match Int64.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture) with
+                        | true, number -> Some number
+                        | _ -> None)
+                    |> fun values ->
+                        if values |> List.exists Option.isNone then
+                            ResearchContract.Unknown
+                        else
+                            values |> List.choose id |> List.sum |> string
+
+                [ manifest.ObservationId
+                  checkpoint.CheckpointId
+                  checkpoint.BaselineCommit
+                  checkpoint.ResultCommit
+                  checkpoint.PathMapVersion
+                  string production.Length
+                  string (production |> List.map (fun row -> row.Component) |> Set.ofList |> Set.count)
+                  string (
+                      checkpoint.DependencyRows
+                      |> List.filter (fun row -> row.Change = "added")
+                      |> List.length
+                  )
+                  string (
+                      checkpoint.DependencyRows
+                      |> List.filter (fun row -> row.Change = "removed")
+                      |> List.length
+                  )
+                  string checkpoint.ConfirmedFindingIds.Length
+                  lines (fun row ->
+                      if row.LineDelta = "unknown" then
+                          "unknown"
+                      else
+                          string (max 0L (Int64.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
+                  lines (fun row ->
+                      if row.LineDelta = "unknown" then
+                          "unknown"
+                      else
+                          string (max 0L (-Int64.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
+                  string (files |> List.filter (fun row -> row.Lines = "unknown") |> List.length) ])
+            |> List.sortBy (fun row -> row[1])
+
         Constants.Utf8NoBom.GetBytes(csvLine header + (rows |> List.map csvLine |> String.concat ""))
 
-    let private emptyCsv (headers: string list) = Constants.Utf8NoBom.GetBytes(csvLine headers)
+    let private emptyCsv (headers: string list) =
+        Constants.Utf8NoBom.GetBytes(csvLine headers)
 
     let private evidenceManifestBytes (files: (string * byte array) list) =
         Internal.jsonBytes false (fun writer ->
             writer.WriteStartObject()
             writer.WriteStartArray("files")
 
-            for path, bytes in files |> List.sortWith (fun (left, _) (right, _) -> StringComparer.Ordinal.Compare(left, right)) do
+            for path, bytes in
+                files
+                |> List.sortWith (fun (left, _) (right, _) -> StringComparer.Ordinal.Compare(left, right)) do
                 writer.WriteStartObject()
                 writer.WriteNumber("bytes", bytes.LongLength)
                 writer.WriteString("path", path)
@@ -486,7 +845,12 @@ module ResearchExport =
         |> Constants.Utf8NoBom.GetString
         |> ResearchCanonical.canonicalizeJson
 
-    let private reportBytes (manifest: ResearchStudyManifest) (eventCount: int) (evidenceHash: string) (summaryHash: string) =
+    let private reportBytes
+        (manifest: ResearchStudyManifest)
+        (eventCount: int)
+        (evidenceHash: string)
+        (summaryHash: string)
+        =
         $"""# Riftward research export
 
 - Study: `{manifest.StudyId}`
@@ -515,7 +879,9 @@ an authorization to publish data and does not establish a task outcome.
         |> Constants.Utf8NoBom.GetBytes
 
     let private publicationBlockBytes =
-        Constants.Utf8NoBom.GetBytes("RAW RESEARCH EXPORT - PUBLICATION BLOCKED\nThis private export contains non-public research evidence and cannot be published.\n")
+        Constants.Utf8NoBom.GetBytes(
+            "RAW RESEARCH EXPORT - PUBLICATION BLOCKED\nThis private export contains non-public research evidence and cannot be published.\n"
+        )
 
     let export (root: string) (studyManifestPath: string) (outputDirectory: string) =
         let locations = Workspace.requireInitialized root
@@ -523,7 +889,10 @@ an authorization to publish data and does not establish a task outcome.
         let ledger = ResearchLedger.ledgerPath root manifest.ObservationId
         let events = ResearchLedger.readVerified root ledger
 
-        if events |> List.exists (fun event -> event.Body.EvidenceClass <> manifest.EvidenceClass) then
+        if
+            events
+            |> List.exists (fun event -> event.Body.EvidenceClass <> manifest.EvidenceClass)
+        then
             Internal.fail "EVIDENCE_CLASS_INVALID: study manifest and ledger differ."
 
         requireClosedChain manifest events
@@ -532,7 +901,9 @@ an authorization to publish data and does not establish a task outcome.
 
         let checkpoints = boundArchitecture root events
 
-        let output = Workspace.requireSafePath locations "Research export directory" true (workspacePath root outputDirectory)
+        let output =
+            Workspace.requireSafePath locations "Research export directory" true (workspacePath root outputDirectory)
+
         let relative = Workspace.relativePath locations output
 
         if not (relative.StartsWith(".ai/runtime/research/exports/", StringComparison.Ordinal)) then
@@ -553,16 +924,41 @@ an authorization to publish data and does not establish a task outcome.
               "human-events.csv", typeSet "human."
               "interventions.csv", typeSet "research.intervention."
               "gate-attempts.csv", typeSet "gate."
-              "failures-and-repairs.csv", Set.union (typeSet "repair.") (set [ "build.failed"; "test.failed"; "lint.failed"; "security.failed"; "verify.failed" ])
-              "blocks.csv", Set.union (typeSet "block.") (set [ "budget.blocked"; "rate.blocked"; "provider.blocked"; "infrastructure.blocked" ])
+              "failures-and-repairs.csv",
+              Set.union
+                  (typeSet "repair.")
+                  (set
+                      [ "build.failed"
+                        "test.failed"
+                        "lint.failed"
+                        "security.failed"
+                        "verify.failed" ])
+              "blocks.csv",
+              Set.union
+                  (typeSet "block.")
+                  (set
+                      [ "budget.blocked"
+                        "rate.blocked"
+                        "provider.blocked"
+                        "infrastructure.blocked" ])
               "git-evolution.csv", Set.union (typeSet "git.") (set [ "revision.observed" ])
-              "outcomes.csv", set [ "outcome.observed"; "observation.closed"; "milestone.reached"; "git.tag.observed"; "defect.observed" ]
+              "outcomes.csv",
+              set
+                  [ "outcome.observed"
+                    "observation.closed"
+                    "milestone.reached"
+                    "git.tag.observed"
+                    "defect.observed" ]
               "usage.csv", set [ "agent.run.started"; "agent.run.finished"; "tool.finished"; "model.switched" ] ]
 
         let ledgerBytes = File.ReadAllBytes(ledger)
+
         let effectiveBytes =
             ResearchLedger.effectiveEvents events
-            |> List.collect (fun event -> ResearchLedger.canonicalEventBytes event |> ResearchCanonical.appendLf |> Array.toList)
+            |> List.collect (fun event ->
+                ResearchLedger.canonicalEventBytes event
+                |> ResearchCanonical.appendLf
+                |> Array.toList)
             |> List.toArray
 
         let dataFiles: (string * byte array) list =
@@ -583,7 +979,14 @@ an authorization to publish data and does not establish a task outcome.
         let summary = summaryBytes manifest events.Length evidenceHash
         let summaryHash = Internal.sha256Hex summary
         let report = reportBytes manifest events.Length evidenceHash summaryHash
-        let completeFiles = dataFiles @ [ "evidence-manifest.json", evidenceManifest; "summary.json", summary; "report.md", report; "PUBLICATION.BLOCKED", publicationBlockBytes ]
+
+        let completeFiles =
+            dataFiles
+            @ [ "evidence-manifest.json", evidenceManifest
+                "summary.json", summary
+                "report.md", report
+                "PUBLICATION.BLOCKED", publicationBlockBytes ]
+
         let outer = outerManifestBytes completeFiles
         let finalFiles = completeFiles @ [ "EXPORT.SHA256", outer ]
 
@@ -591,7 +994,8 @@ an authorization to publish data and does not establish a task outcome.
             for path, bytes in finalFiles do
                 writeFile output path bytes
         with error ->
-            Internal.fail $"EXPORT_WRITE_FAILED: {error.GetType().Name}. Partial output remains quarantined at {relative}."
+            Internal.fail
+                $"EXPORT_WRITE_FAILED: {error.GetType().Name}. Partial output remains quarantined at {relative}."
 
         { ObservationId = manifest.ObservationId
           OutputDirectory = relative
@@ -602,20 +1006,33 @@ an authorization to publish data and does not establish a task outcome.
           FileCount = finalFiles.Length }
 
     let private exactObject label fields (element: JsonElement) =
-        if element.ValueKind <> JsonValueKind.Object
-           || (element.EnumerateObject() |> Seq.map (fun property -> property.Name) |> Set.ofSeq) <> Set.ofList fields then
+        if
+            element.ValueKind <> JsonValueKind.Object
+            || (element.EnumerateObject()
+                |> Seq.map (fun property -> property.Name)
+                |> Set.ofSeq)
+               <> Set.ofList fields
+        then
             Internal.fail $"EXPORT_INVALID: {label} field set is invalid."
 
     let private canonicalJsonMember path label =
         let bytes = File.ReadAllBytes(path)
-        let canonical = ResearchCanonical.canonicalizeJson (Constants.Utf8NoBom.GetString(bytes))
-        if canonical <> bytes then Internal.fail $"EXPORT_INVALID: {label} is not canonical JSON."
+
+        let canonical =
+            ResearchCanonical.canonicalizeJson (Constants.Utf8NoBom.GetString(bytes))
+
+        if canonical <> bytes then
+            Internal.fail $"EXPORT_INVALID: {label} is not canonical JSON."
+
         use document = JsonDocument.Parse(bytes)
         document.RootElement.Clone()
 
     let verifyExportWithExpectedReceipt (root: string) (outputDirectory: string) (expectedOuterSha256: string option) =
         let locations = Workspace.requireInitialized root
-        let output = Workspace.requireSafePath locations "Research export directory" false (workspacePath root outputDirectory)
+
+        let output =
+            Workspace.requireSafePath locations "Research export directory" false (workspacePath root outputDirectory)
+
         let outerPath = Path.Combine(output, "EXPORT.SHA256")
 
         if not (File.Exists(outerPath)) then
@@ -631,17 +1048,27 @@ an authorization to publish data and does not establish a task outcome.
             let expected = line.Substring(0, 64)
             let path = line.Substring(66)
 
-            if not (Internal.isSha256 expected) || path = "EXPORT.SHA256" || not (seen.Add(path)) then
+            if
+                not (Internal.isSha256 expected)
+                || path = "EXPORT.SHA256"
+                || not (seen.Add(path))
+            then
                 Internal.fail "EXPORT_INVALID: unsafe or duplicate outer manifest entry."
 
-            let target = Workspace.requireSafePath locations "Research export member" false (Path.Combine(output, path))
+            let target =
+                Workspace.requireSafePath locations "Research export member" false (Path.Combine(output, path))
 
             if not (File.Exists(target)) || Internal.sha256File target <> expected then
                 Internal.fail $"EXPORT_HASH_INVALID: {path}."
 
-        let listedPaths = lines |> Array.map (fun line -> line.Substring(66)) |> Array.toList
+        let listedPaths =
+            lines |> Array.map (fun line -> line.Substring(66)) |> Array.toList
 
-        if listedPaths <> (listedPaths |> List.sortWith (fun left right -> StringComparer.Ordinal.Compare(left, right))) then
+        if
+            listedPaths
+            <> (listedPaths
+                |> List.sortWith (fun left right -> StringComparer.Ordinal.Compare(left, right)))
+        then
             Internal.fail "EXPORT_INVALID: EXPORT.SHA256 is not ordinal-sorted."
 
         let actualFiles =
@@ -654,26 +1081,54 @@ an authorization to publish data and does not establish a task outcome.
         if actualFiles <> expectedFiles then
             Internal.fail "EXPORT_INVALID: exported file set differs from EXPORT.SHA256."
 
-        let requiredMembers = set [ "study-manifest.json"; "events.jsonl"; "effective-events.jsonl"; "evidence-manifest.json"; "summary.json"; "report.md"; "PUBLICATION.BLOCKED" ]
-        if not (Set.isSubset requiredMembers (Set.ofSeq seen)) then Internal.fail "EXPORT_INVALID: required layered export members are missing."
-        if File.ReadAllBytes(Path.Combine(output, "PUBLICATION.BLOCKED")) <> publicationBlockBytes then
+        let requiredMembers =
+            set
+                [ "study-manifest.json"
+                  "events.jsonl"
+                  "effective-events.jsonl"
+                  "evidence-manifest.json"
+                  "summary.json"
+                  "report.md"
+                  "PUBLICATION.BLOCKED" ]
+
+        if not (Set.isSubset requiredMembers (Set.ofSeq seen)) then
+            Internal.fail "EXPORT_INVALID: required layered export members are missing."
+
+        if
+            File.ReadAllBytes(Path.Combine(output, "PUBLICATION.BLOCKED"))
+            <> publicationBlockBytes
+        then
             Internal.fail "EXPORT_INVALID: raw export publication block is missing or altered."
 
         let manifest = loadStudyManifest root (Path.Combine(output, "study-manifest.json"))
         let evidencePath = Path.Combine(output, "evidence-manifest.json")
         let evidence = canonicalJsonMember evidencePath "evidence manifest"
         exactObject "evidence manifest" [ "files"; "schemaVersion" ] evidence
-        if evidence.GetProperty("schemaVersion").GetInt32() <> 1 then Internal.fail "EXPORT_INVALID: evidence manifest schemaVersion is invalid."
+
+        if evidence.GetProperty("schemaVersion").GetInt32() <> 1 then
+            Internal.fail "EXPORT_INVALID: evidence manifest schemaVersion is invalid."
+
         let entries =
             evidence.GetProperty("files").EnumerateArray()
             |> Seq.map (fun entry ->
                 exactObject "evidence manifest entry" [ "bytes"; "path"; "sha256" ] entry
-                let path, hash, count = entry.GetProperty("path").GetString(), entry.GetProperty("sha256").GetString(), entry.GetProperty("bytes").GetInt64()
-                if not (Internal.isSha256 hash) || count < 0L then Internal.fail "EXPORT_INVALID: evidence manifest entry is malformed."
+
+                let path, hash, count =
+                    entry.GetProperty("path").GetString(),
+                    entry.GetProperty("sha256").GetString(),
+                    entry.GetProperty("bytes").GetInt64()
+
+                if not (Internal.isSha256 hash) || count < 0L then
+                    Internal.fail "EXPORT_INVALID: evidence manifest entry is malformed."
+
                 path, hash, count)
             |> Seq.toList
-        if entries <> (entries |> List.sortBy (fun (path, _, _) -> path)) then Internal.fail "EXPORT_INVALID: evidence manifest is not ordered."
+
+        if entries <> (entries |> List.sortBy (fun (path, _, _) -> path)) then
+            Internal.fail "EXPORT_INVALID: evidence manifest is not ordered."
+
         let evidencePaths = entries |> List.map (fun (path, _, _) -> path) |> Set.ofList
+
         let expectedEvidencePaths =
             seen
             |> Set.ofSeq
@@ -681,47 +1136,95 @@ an authorization to publish data and does not establish a task outcome.
             |> Set.remove "summary.json"
             |> Set.remove "report.md"
             |> Set.remove "PUBLICATION.BLOCKED"
+
         if evidencePaths.Count <> entries.Length || evidencePaths <> expectedEvidencePaths then
             Internal.fail "EXPORT_INVALID: evidence manifest member set is incomplete or duplicated."
+
         for path, hash, count in entries do
-            let memberPath = Workspace.requireSafePath locations "Evidence manifest member" false (Path.Combine(output, path))
-            if not (File.Exists(memberPath)) || FileInfo(memberPath).Length <> count || Internal.sha256File memberPath <> hash then
+            let memberPath =
+                Workspace.requireSafePath locations "Evidence manifest member" false (Path.Combine(output, path))
+
+            if
+                not (File.Exists(memberPath))
+                || FileInfo(memberPath).Length <> count
+                || Internal.sha256File memberPath <> hash
+            then
                 Internal.fail $"EXPORT_HASH_INVALID: evidence member {path}."
+
         let evidenceHash = Internal.sha256File evidencePath
 
         let summaryPath = Path.Combine(output, "summary.json")
         let summary = canonicalJsonMember summaryPath "summary"
-        exactObject "summary" [ "baselineCommit"; "evidenceManifestSha256"; "headCommit"; "inputTreeId"; "observationId"; "observedEventCount"; "protocolVersion"; "resultTreeId"; "studyId" ] summary
-        if summary.GetProperty("evidenceManifestSha256").GetString() <> evidenceHash
-           || summary.GetProperty("studyId").GetString() <> manifest.StudyId
-           || summary.GetProperty("observationId").GetString() <> manifest.ObservationId then
+
+        exactObject
+            "summary"
+            [ "baselineCommit"
+              "evidenceManifestSha256"
+              "headCommit"
+              "inputTreeId"
+              "observationId"
+              "observedEventCount"
+              "protocolVersion"
+              "resultTreeId"
+              "studyId" ]
+            summary
+
+        if
+            summary.GetProperty("evidenceManifestSha256").GetString() <> evidenceHash
+            || summary.GetProperty("studyId").GetString() <> manifest.StudyId
+            || summary.GetProperty("observationId").GetString() <> manifest.ObservationId
+        then
             Internal.fail "EXPORT_INVALID: summary binding is invalid."
 
         let ledger = ResearchLedger.ledgerPath root manifest.ObservationId
         let eventPath = Path.Combine(output, "events.jsonl")
-        if not (File.Exists(ledger)) || File.ReadAllBytes(eventPath) <> File.ReadAllBytes(ledger) then
+
+        if
+            not (File.Exists(ledger))
+            || File.ReadAllBytes(eventPath) <> File.ReadAllBytes(ledger)
+        then
             Internal.fail "EXPORT_INVALID: events.jsonl is not bound to the authoritative ledger."
+
         let events = ResearchLedger.readVerified root ledger
         requireClosedChain manifest events
         verifyLedgerSources root events
-        if summary.GetProperty("observedEventCount").GetInt32() <> events.Length then Internal.fail "EXPORT_INVALID: summary event count is invalid."
+
+        if summary.GetProperty("observedEventCount").GetInt32() <> events.Length then
+            Internal.fail "EXPORT_INVALID: summary event count is invalid."
+
         let effective =
             ResearchLedger.effectiveEvents events
-            |> List.collect (fun event -> ResearchLedger.canonicalEventBytes event |> ResearchCanonical.appendLf |> Array.toList)
+            |> List.collect (fun event ->
+                ResearchLedger.canonicalEventBytes event
+                |> ResearchCanonical.appendLf
+                |> Array.toList)
             |> List.toArray
-        if File.ReadAllBytes(Path.Combine(output, "effective-events.jsonl")) <> effective then Internal.fail "EXPORT_INVALID: effective event view is not bound to the ledger."
-        let report = Constants.Utf8NoBom.GetString(File.ReadAllBytes(Path.Combine(output, "report.md")))
+
+        if File.ReadAllBytes(Path.Combine(output, "effective-events.jsonl")) <> effective then
+            Internal.fail "EXPORT_INVALID: effective event view is not bound to the ledger."
+
+        let report =
+            Constants.Utf8NoBom.GetString(File.ReadAllBytes(Path.Combine(output, "report.md")))
+
         let summaryHash = Internal.sha256File summaryPath
-        if not (report.Contains($"Study: `{manifest.StudyId}`", StringComparison.Ordinal)
+
+        if
+            not (
+                report.Contains($"Study: `{manifest.StudyId}`", StringComparison.Ordinal)
                 && report.Contains($"Observation: `{manifest.ObservationId}`", StringComparison.Ordinal)
                 && report.Contains($"Evidence manifest SHA-256: `{evidenceHash}`", StringComparison.Ordinal)
-                && report.Contains($"Summary SHA-256: `{summaryHash}`", StringComparison.Ordinal)) then
+                && report.Contains($"Summary SHA-256: `{summaryHash}`", StringComparison.Ordinal)
+            )
+        then
             Internal.fail "EXPORT_INVALID: report bindings are invalid."
 
         let outerHash = Internal.sha256File outerPath
+
         match expectedOuterSha256 with
-        | Some expected when not (Internal.isSha256 expected) || expected <> outerHash -> Internal.fail "EXPORT_RECEIPT_MISMATCH: independently supplied export receipt does not match."
+        | Some expected when not (Internal.isSha256 expected) || expected <> outerHash ->
+            Internal.fail "EXPORT_RECEIPT_MISMATCH: independently supplied export receipt does not match."
         | _ -> ()
+
         outerHash
 
     let verifyExport (root: string) (outputDirectory: string) =

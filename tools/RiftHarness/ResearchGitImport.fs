@@ -38,12 +38,12 @@ module ResearchGitImport =
         && value.Length = length
         && value
            |> Seq.forall (fun character ->
-               (character >= '0' && character <= '9')
-               || (character >= 'a' && character <= 'f'))
+               (character >= '0' && character <= '9') || (character >= 'a' && character <= 'f'))
 
     let private requireExactObjectId expectedLength description value =
         if not (isLowerHexLength expectedLength value) then
-            Internal.fail $"{description} muss eine exakte kleingeschriebene Git-Objekt-ID mit {expectedLength} Zeichen sein."
+            Internal.fail
+                $"{description} muss eine exakte kleingeschriebene Git-Objekt-ID mit {expectedLength} Zeichen sein."
 
         value
 
@@ -136,7 +136,10 @@ module ResearchGitImport =
 
     let private requireRepositoryRoot root =
         let locations = Workspace.requireInitialized root
-        Workspace.requireSafePath locations "Workspace marker" false locations.Config |> ignore
+
+        Workspace.requireSafePath locations "Workspace marker" false locations.Config
+        |> ignore
+
         let _, prefix = runText locations.Root [ "rev-parse"; "--show-prefix" ] (set [ 0 ])
 
         if prefix <> "" then
@@ -164,7 +167,8 @@ module ResearchGitImport =
             || value.StartsWith("/", StringComparison.Ordinal)
             || value.Contains('\\')
             || value.Contains(':')
-            || (value.Split('/') |> Array.exists (fun segment -> segment = "" || segment = "." || segment = ".."))
+            || (value.Split('/')
+                |> Array.exists (fun segment -> segment = "" || segment = "." || segment = ".."))
         then
             Internal.fail "Git-Pfad ist nicht sicher repo-relativ."
 
@@ -178,7 +182,10 @@ module ResearchGitImport =
         let tree = oneLine repositoryRoot [ "rev-parse"; "--verify"; "HEAD^{tree}" ]
         requireExactObjectId expectedLength "HEAD-Commit" head |> ignore
         requireExactObjectId expectedLength "HEAD-Tree" tree |> ignore
-        let branchExit, branch = runText repositoryRoot [ "symbolic-ref"; "--quiet"; "--short"; "HEAD" ] (set [ 0; 1 ])
+
+        let branchExit, branch =
+            runText repositoryRoot [ "symbolic-ref"; "--quiet"; "--short"; "HEAD" ] (set [ 0; 1 ])
+
         let _, status =
             runText repositoryRoot [ "status"; "--porcelain=v1"; "--untracked-files=all" ] (set [ 0 ])
 
@@ -206,13 +213,21 @@ module ResearchGitImport =
         let expectedLength = objectLength objectFormat
         verifyCommit repositoryRoot expectedLength commit
         let safePath = safeRepositoryPath relativePath
-        let _, bytes = runBytes repositoryRoot [ "show"; commit + ":" + safePath ] (set [ 0 ])
+
+        let _, bytes =
+            runBytes repositoryRoot [ "show"; commit + ":" + safePath ] (set [ 0 ])
+
         bytes
 
     let requirePathsClean root relativePaths =
         let repositoryRoot = requireRepositoryRoot root
         let safePaths = relativePaths |> List.map safeRepositoryPath
-        let _, status = runText repositoryRoot ([ "status"; "--porcelain=v1"; "--untracked-files=all"; "--" ] @ safePaths) (set [ 0 ])
+
+        let _, status =
+            runText
+                repositoryRoot
+                ([ "status"; "--porcelain=v1"; "--untracked-files=all"; "--" ] @ safePaths)
+                (set [ 0 ])
 
         if not (String.IsNullOrEmpty(status)) then
             Internal.fail "RESEARCH_WORKTREE_DIRTY: frozen research inputs differ from HEAD."
@@ -223,7 +238,10 @@ module ResearchGitImport =
 
     let private parseCommit root expectedLength commit =
         let format = "%H%x00%T%x00%P%x00%cI"
-        let _, metadata = runText root [ "show"; "-s"; "--format=" + format; commit ] (set [ 0 ])
+
+        let _, metadata =
+            runText root [ "show"; "-s"; "--format=" + format; commit ] (set [ 0 ])
+
         let fields = metadata.Split('\000')
 
         if fields.Length <> 4 then
@@ -264,10 +282,7 @@ module ResearchGitImport =
         verifyCommit repositoryRoot expectedLength headCommit
 
         let ancestryExit, _ =
-            runBytes
-                repositoryRoot
-                [ "merge-base"; "--is-ancestor"; baseCommit; headCommit ]
-                (set [ 0; 1 ])
+            runBytes repositoryRoot [ "merge-base"; "--is-ancestor"; baseCommit; headCommit ] (set [ 0; 1 ])
 
         if ancestryExit <> 0 then
             Internal.fail "Die Importgrenzen bilden keine vorwaerts gerichtete Ancestry-Kette."
@@ -282,8 +297,7 @@ module ResearchGitImport =
             if String.IsNullOrEmpty(revisionText) then
                 []
             else
-                revisionText.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                |> Array.toList
+                revisionText.Split('\n', StringSplitOptions.RemoveEmptyEntries) |> Array.toList
 
         if commits.Length > MaxImportedCommits then
             Internal.fail $"Git-Import umfasst mehr als {MaxImportedCommits} Commits."

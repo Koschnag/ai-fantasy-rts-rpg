@@ -1683,8 +1683,7 @@ module Program =
             [ yield! ResearchLedgerTests.all
               yield! ResearchActivationTests.all
               yield! ResearchCollectorTests.all
-              "Research architecture snapshots are deterministic and diagnostic only",
-              ResearchArchitectureTests.all
+              "Research architecture snapshots are deterministic and diagnostic only", ResearchArchitectureTests.all
               yield! ResearchAnalyticsTests.all
               "Blender calibration schemas are offline, strict and accept the reference",
               BlenderCalibrationSpecTests.schemasAreOfflineStrictAndReferenceValid

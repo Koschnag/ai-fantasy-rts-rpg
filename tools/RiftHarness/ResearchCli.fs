@@ -22,7 +22,10 @@ module ResearchCli =
 
     let private requireOption name arguments =
         let value, rest = takeOption name arguments
-        value |> Option.defaultWith (fun () -> Internal.fail $"Required option is missing: {name}"), rest
+
+        value
+        |> Option.defaultWith (fun () -> Internal.fail $"Required option is missing: {name}"),
+        rest
 
     let private noArguments command arguments =
         if not (List.isEmpty arguments) then
@@ -46,8 +49,13 @@ module ResearchCli =
 
     let private safeCliPath (root: string) (description: string) (allowMissing: bool) (path: string) =
         let locations = Workspace.requireInitialized root
+
         let candidate =
-            if Path.IsPathRooted(path) then path else Path.Combine(locations.Root, path)
+            if Path.IsPathRooted(path) then
+                path
+            else
+                Path.Combine(locations.Root, path)
+
         Workspace.requireSafePath locations description allowMissing candidate
 
     let private writeFreshFile (root: string) (description: string) (path: string) (bytes: byte array) =
@@ -58,7 +66,17 @@ module ResearchCli =
             Internal.fail $"RESEARCH_PATH_EXISTS: {description} must be absent."
 
         Directory.CreateDirectory(Path.GetDirectoryName(target)) |> ignore
-        use stream = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None, max 1 bytes.Length, FileOptions.WriteThrough)
+
+        use stream =
+            new FileStream(
+                target,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                max 1 bytes.Length,
+                FileOptions.WriteThrough
+            )
+
         stream.Write(bytes, 0, bytes.Length)
         stream.Flush(true)
         Workspace.relativePath locations target, Internal.sha256Hex bytes
@@ -85,6 +103,7 @@ module ResearchCli =
             Internal.fail "GIT_IMPORT_INVALID: task ID is invalid."
 
         let history = ResearchGitImport.read root baseCommit headCommit
+
         let bytes =
             Internal.jsonBytes false (fun (writer: Utf8JsonWriter) ->
                 writer.WriteStartObject()
@@ -118,12 +137,15 @@ module ResearchCli =
             |> Constants.Utf8NoBom.GetString
             |> ResearchCanonical.canonicalizeJson
 
-        let relative, sha256 = writeFreshFile root "Research Git history import" output bytes
+        let relative, sha256 =
+            writeFreshFile root "Research Git history import" output bytes
+
         printJson (fun writer ->
             writer.WriteNumber("commitCount", history.Commits.Length)
             writer.WriteString("evidenceClass", "retrospective-derived")
             writer.WriteString("output", relative)
             writer.WriteString("sha256", sha256))
+
         0
 
     let execute root arguments =
@@ -131,7 +153,10 @@ module ResearchCli =
         | "begin" :: rest ->
             let manifest, rest = requireOption "--study-manifest" rest
             noArguments "research begin" rest
-            let receipt = ResearchActivation.beginObservation root (safeCliPath root "Research study manifest" false manifest)
+
+            let receipt =
+                ResearchActivation.beginObservation root (safeCliPath root "Research study manifest" false manifest)
+
             printJson (fun writer ->
                 writer.WriteString("activationEventHash", receipt.ActivationEventHash)
                 writer.WriteString("headCommit", receipt.HeadCommit)
@@ -141,6 +166,7 @@ module ResearchCli =
                 writer.WriteString("markerSha256", receipt.MarkerSha256)
                 writer.WriteString("observationId", receipt.ObservationId)
                 writer.WriteString("protocolBundleSha256", receipt.ProtocolBundleSha256))
+
             0
         | "status" :: rest ->
             let study, rest = takeOption "--study" rest
@@ -148,11 +174,17 @@ module ResearchCli =
             noArguments "research status" rest
 
             match study with
-            | Some value when value <> ResearchContract.StudyId -> Internal.fail "RESEARCH_STUDY_INVALID: unsupported study ID."
+            | Some value when value <> ResearchContract.StudyId ->
+                Internal.fail "RESEARCH_STUDY_INVALID: unsupported study ID."
             | _ -> ()
 
             let status = ResearchActivation.status root observation
-            let issues = (status.Issues @ ResearchCollector.healthIssues root) |> List.distinct |> List.sort
+
+            let issues =
+                (status.Issues @ ResearchCollector.healthIssues root)
+                |> List.distinct
+                |> List.sort
+
             { status with Issues = issues } |> statusJson
             0
         | "verify" :: rest ->
@@ -160,7 +192,10 @@ module ResearchCli =
             let recoveryPath, rest = takeOption "--recover-to" rest
             noArguments "research verify" rest
             let manifestPath = safeCliPath root "Research study manifest" false manifestPath
-            let recoveryPath = recoveryPath |> Option.map (safeCliPath root "Research recovery ledger" true)
+
+            let recoveryPath =
+                recoveryPath |> Option.map (safeCliPath root "Research recovery ledger" true)
+
             let manifest = ResearchExport.loadStudyManifest root manifestPath
             let ledger = ResearchLedger.ledgerPath root manifest.ObservationId
             let initial = ResearchLedger.verify root ledger
@@ -168,29 +203,47 @@ module ResearchCli =
             let result =
                 match recoveryPath, initial.Status with
                 | None, _ -> initial
-                | Some _, ResearchLedgerStatus.Valid -> Internal.fail "RECOVERY_NOT_APPLICABLE: ledger is already valid."
-                | Some _, ResearchLedgerStatus.Invalid -> Internal.fail "RECOVERY_NOT_APPLICABLE: invalid non-tail corruption cannot be recovered."
+                | Some _, ResearchLedgerStatus.Valid ->
+                    Internal.fail "RECOVERY_NOT_APPLICABLE: ledger is already valid."
+                | Some _, ResearchLedgerStatus.Invalid ->
+                    Internal.fail "RECOVERY_NOT_APPLICABLE: invalid non-tail corruption cannot be recovered."
                 | Some destination, ResearchLedgerStatus.TornTail ->
                     let identity = ResearchGitImport.currentIdentity root
-                    let source = ResearchRuntime.sourceFromFile root "harness-evidence" (Workspace.relativePath (Workspace.paths root) ledger)
+
+                    let source =
+                        ResearchRuntime.sourceFromFile
+                            root
+                            "harness-evidence"
+                            (Workspace.relativePath (Workspace.paths root) ledger)
+
                     let relativeDestination = Workspace.relativePath (Workspace.paths root) destination
+
                     let payload =
                         ResearchRuntime.payload (fun writer ->
                             writer.WriteString("originalLedgerSha256", Option.get initial.OriginalSha256)
                             writer.WriteString("recoveredLedgerPath", relativeDestination)
                             writer.WriteString("tornTailSha256", Option.get initial.TornTailSha256)
                             writer.WriteString("verifiedPrefixSha256", initial.VerifiedPrefixSha256))
-                    let draft = ResearchRuntime.createDraft manifest identity "ledger.recovery.recorded" [ source ] payload
+
+                    let draft =
+                        ResearchRuntime.createDraft manifest identity "ledger.recovery.recorded" [ source ] payload
+
                     ResearchLedger.recoverTo root ledger destination draft
 
             if result.Status = ResearchLedgerStatus.Valid then
                 ResearchExport.verifyLedgerSources root result.Events
 
             let baseStatus = ResearchActivation.status root (Some manifest.ObservationId)
+
             let status =
                 { baseStatus with
-                    Issues = (baseStatus.Issues @ ResearchCollector.healthIssues root) |> List.distinct |> List.sort }
+                    Issues =
+                        (baseStatus.Issues @ ResearchCollector.healthIssues root)
+                        |> List.distinct
+                        |> List.sort }
+
             let valid = result.Status = ResearchLedgerStatus.Valid && List.isEmpty status.Issues
+
             printJson (fun writer ->
                 writer.WriteNumber("eventCount", result.Events.Length)
                 writer.WriteStartArray("errors")
@@ -201,12 +254,19 @@ module ResearchCli =
                 writer.WriteString("observationId", manifest.ObservationId)
                 writer.WriteBoolean("valid", valid)
                 writer.WriteString("verifiedPrefixSha256", result.VerifiedPrefixSha256))
+
             if valid then 0 else 2
         | "export" :: rest ->
             let manifest, rest = requireOption "--study-manifest" rest
             let output, rest = requireOption "--output" rest
             noArguments "research export" rest
-            let receipt = ResearchExport.export root (safeCliPath root "Research study manifest" false manifest) (safeCliPath root "Research export directory" true output)
+
+            let receipt =
+                ResearchExport.export
+                    root
+                    (safeCliPath root "Research study manifest" false manifest)
+                    (safeCliPath root "Research export directory" true output)
+
             printJson (fun writer ->
                 writer.WriteString("evidenceManifestSha256", receipt.EvidenceManifestSha256)
                 writer.WriteNumber("fileCount", receipt.FileCount)
@@ -215,6 +275,7 @@ module ResearchCli =
                 writer.WriteString("outputDirectory", receipt.OutputDirectory)
                 writer.WriteString("studyManifestSha256", receipt.StudyManifestSha256)
                 writer.WriteString("summarySha256", receipt.SummarySha256))
+
             0
         | "summarize" :: rest ->
             let exportManifest, rest = requireOption "--export-manifest" rest
@@ -228,14 +289,19 @@ module ResearchCli =
                 Internal.fail "EXPORT_INVALID: --export-manifest must name EXPORT.SHA256."
 
             let exportDirectory = Path.GetDirectoryName(manifestPath)
-            let outerHash = ResearchExport.verifyExportWithExpectedReceipt root exportDirectory expectedReceipt
+
+            let outerHash =
+                ResearchExport.verifyExportWithExpectedReceipt root exportDirectory expectedReceipt
+
             let reportPath = Path.Combine(exportDirectory, "report.md")
             let reportBytes = File.ReadAllBytes(reportPath)
             let relative, reportHash = writeFreshFile root "Research summary" output reportBytes
+
             printJson (fun writer ->
                 writer.WriteString("exportManifestSha256", outerHash)
                 writer.WriteString("output", relative)
                 writer.WriteString("reportSha256", reportHash))
+
             0
         | "intervention" :: "start" :: rest ->
             let observation, rest = requireOption "--observation" rest
@@ -243,22 +309,30 @@ module ResearchCli =
             let sourceRef, rest = requireOption "--source-ref" rest
             let reason, rest = requireOption "--reason-code" rest
             noArguments "research intervention start" rest
-            let interventionId, result = ResearchCollector.interventionStart root observation category sourceRef reason
+
+            let interventionId, result =
+                ResearchCollector.interventionStart root observation category sourceRef reason
+
             printJson (fun writer ->
                 writer.WriteString("collection", collectionText result)
                 writer.WriteString("interventionId", interventionId)
                 writer.WriteString("observationId", observation))
+
             0
         | "intervention" :: "end" :: rest ->
             let observation, rest = requireOption "--observation" rest
             let interventionId, rest = requireOption "--intervention" rest
             let sourceRef, rest = requireOption "--source-ref" rest
             noArguments "research intervention end" rest
-            let result = ResearchCollector.interventionEnd root observation interventionId sourceRef
+
+            let result =
+                ResearchCollector.interventionEnd root observation interventionId sourceRef
+
             printJson (fun writer ->
                 writer.WriteString("collection", collectionText result)
                 writer.WriteString("interventionId", interventionId)
                 writer.WriteString("observationId", observation))
+
             0
         | "intervention" :: "record" :: rest ->
             let observation, rest = requireOption "--observation" rest
@@ -266,17 +340,27 @@ module ResearchCli =
             let sourceRef, rest = requireOption "--source-ref" rest
             let reason, rest = requireOption "--reason-code" rest
             noArguments "research intervention record" rest
-            let interventionId, result = ResearchCollector.interventionRecord root observation category sourceRef reason
+
+            let interventionId, result =
+                ResearchCollector.interventionRecord root observation category sourceRef reason
+
             printJson (fun writer ->
                 writer.WriteString("collection", collectionText result)
                 writer.WriteString("interventionId", interventionId)
                 writer.WriteString("observationId", observation))
+
             0
         | "close" :: rest ->
             let observation, rest = requireOption "--observation" rest
             let outcomeReceipt, rest = requireOption "--outcome-receipt" rest
             noArguments "research close" rest
-            let receipt = ResearchActivation.close root observation (safeCliPath root "Research outcome receipt" false outcomeReceipt)
+
+            let receipt =
+                ResearchActivation.close
+                    root
+                    observation
+                    (safeCliPath root "Research outcome receipt" false outcomeReceipt)
+
             printJson (fun writer ->
                 writer.WriteNumber("eventCount", receipt.EventCount)
                 writer.WriteString("finalEventHash", receipt.FinalEventHash)
@@ -284,6 +368,7 @@ module ResearchCli =
                 writer.WriteString("ledgerSha256", receipt.LedgerSha256)
                 writer.WriteBoolean("markerRemoved", receipt.MarkerRemoved)
                 writer.WriteString("observationId", receipt.ObservationId))
+
             0
         | "import-git-history" :: rest ->
             let taskId, rest = requireOption "--task" rest

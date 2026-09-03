@@ -322,7 +322,8 @@ Aufruf:
                 collect () |> ignore
             with error ->
                 try
-                    ResearchCollector.recordHealthFailure root hookName (error.GetType().Name) |> ignore
+                    ResearchCollector.recordHealthFailure root hookName (error.GetType().Name)
+                    |> ignore
                 with _ ->
                     ()
 
@@ -342,8 +343,7 @@ Aufruf:
             |> Console.Out.WriteLine
 
             0
-        | command :: rest when command = "research" ->
-            ResearchCli.execute root rest
+        | command :: rest when command = "research" -> ResearchCli.execute root rest
         | command :: rest when command = "start-run" ->
             let actorId, rest = takeOption "--actor" rest
             let taskId, rest = takeOption "--task" rest
@@ -758,12 +758,15 @@ Aufruf:
                 let report = Verification.verify root requestedRun
                 let reportText = report |> Verification.reportJson
                 reportText |> Console.Out.WriteLine
+
                 collectSilently "verify-finished" (fun () ->
                     ResearchCollector.recordVerificationFinished root gateId report.Valid reportText)
+
                 if report.Valid then 0 else 2
             with error ->
                 collectSilently "verify-exception" (fun () ->
                     ResearchCollector.recordVerificationException root gateId (error.GetType().Name))
+
                 reraise ()
         | command :: rest when command = "retention-plan" ->
             let nowText, rest = takeOption "--now" rest

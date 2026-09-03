@@ -131,12 +131,14 @@ module ResearchContract =
 
     let AutonomyModes = set [ "autonomous"; "human-directed" ]
 
-    let ActivityStates = set [ "agent-active"; "idle"; "sleeping"; "blocked"; "offline" ]
+    let ActivityStates =
+        set [ "agent-active"; "idle"; "sleeping"; "blocked"; "offline" ]
 
     let Results =
         set [ "success"; "pass"; "fail"; "blocked"; "cancelled"; "rejected"; "accepted" ]
 
-    let UsageProvenance = set [ "provider-receipt"; "gateway-receipt"; "local-measurement" ]
+    let UsageProvenance =
+        set [ "provider-receipt"; "gateway-receipt"; "local-measurement" ]
 
     let CostProvenance = set [ "provider-reported"; "locally-calculated"; "estimated" ]
 
@@ -239,7 +241,11 @@ module ResearchContract =
     let RequiredPayloadFields =
         [ "protocol.frozen", [ "protocolId"; "protocolVersion"; "protocolBundleSha256"; "freezeAtUtc" ]
           "observation.started",
-          [ "targetTaskId"; "baselineCommit"; "collectorVersion"; "nonInterferenceSnapshotSha256"; "activationGuardSha256" ]
+          [ "targetTaskId"
+            "baselineCommit"
+            "collectorVersion"
+            "nonInterferenceSnapshotSha256"
+            "activationGuardSha256" ]
           "autopilot.started", [ "autopilotInstanceId"; "triggerClass"; "policySha256" ]
           "autopilot.paused", [ "autopilotInstanceId"; "reasonCode" ]
           "autopilot.resumed", [ "autopilotInstanceId"; "pausedDurationNs" ]
@@ -265,7 +271,10 @@ module ResearchContract =
           "repair.attempted", [ "repairId"; "triggerEventId"; "targetFindingId"; "beforeTreeId" ]
           "repair.outcome", [ "repairId"; "afterTreeId"; "outcomeClass"; "verificationEventId" ]
           "ledger.recovery.recorded",
-          [ "originalLedgerSha256"; "verifiedPrefixSha256"; "tornTailSha256"; "recoveredLedgerPath" ]
+          [ "originalLedgerSha256"
+            "verifiedPrefixSha256"
+            "tornTailSha256"
+            "recoveredLedgerPath" ]
           "context.compacted", [ "compactionId"; "beforeContextSha256"; "summarySha256" ]
           "run.resumed", [ "resumedRunId"; "resumeFromEventId"; "resumeStateSha256" ]
           "routing.decided", [ "routingDecisionId"; "fromTier"; "toTier"; "reasonCode"; "policySha256" ]
@@ -275,28 +284,95 @@ module ResearchContract =
           "provider.blocked", [ "blockId"; "providerClass"; "reasonCode"; "receiptSha256" ]
           "infrastructure.blocked", [ "blockId"; "resourceClass"; "reasonCode"; "evidenceSha256" ]
           "block.resolved", [ "blockId"; "resolutionClass"; "resumedEventId" ]
-          "revision.observed", [ "baseCommit"; "resultCommit"; "resultTreeId"; "changedFiles"; "changedPaths"; "linesAdded"; "linesDeleted" ]
+          "revision.observed",
+          [ "baseCommit"
+            "resultCommit"
+            "resultTreeId"
+            "changedFiles"
+            "changedPaths"
+            "linesAdded"
+            "linesDeleted" ]
           "git.commit.observed", [ "commitId"; "parentCommitIds"; "commitTreeId"; "commitTimeUtc" ]
           "git.tree.promoted", [ "fromRef"; "toRef"; "promotedCommit"; "promotedTreeId"; "authorityClass" ]
           "git.rollback.observed", [ "rollbackCommit"; "fromTreeId"; "toTreeId"; "reasonCode" ]
           "git.supersession.observed", [ "supersededCommit"; "supersedingCommit"; "reasonCode" ]
           "architecture.checkpoint.created",
-          [ "checkpointId"; "pathMapVersion"; "fileInventorySha256"; "dependencyInventorySha256"; "analyzerInventorySha256"; "testInventorySha256"; "acceptedTaskId"; "acceptedTreeId"; "gateCoupled" ]
+          [ "checkpointId"
+            "pathMapVersion"
+            "fileInventorySha256"
+            "dependencyInventorySha256"
+            "analyzerInventorySha256"
+            "testInventorySha256"
+            "acceptedTaskId"
+            "acceptedTreeId"
+            "gateCoupled" ]
           "milestone.reached", [ "milestoneId"; "authorityClass"; "milestoneTreeId" ]
           "git.tag.observed", [ "tagRef"; "tagObjectId"; "targetCommit"; "targetTreeId"; "tagClass" ]
-          "defect.observed", [ "defectId"; "discoveredAtUtc"; "affectedCommit"; "affectedTreeId"; "discoveryPhase"; "severity" ]
-          "tool.finished", [ "toolClass"; "commandDigest"; "startedMonotonicNs"; "completedMonotonicNs"; "resultSha256" ]
+          "defect.observed",
+          [ "defectId"
+            "discoveredAtUtc"
+            "affectedCommit"
+            "affectedTreeId"
+            "discoveryPhase"
+            "severity" ]
+          "tool.finished",
+          [ "toolClass"
+            "commandDigest"
+            "startedMonotonicNs"
+            "completedMonotonicNs"
+            "resultSha256" ]
           "review.observed", [ "reviewId"; "verdict"; "findings"; "targetTreeId" ]
-          "research.intervention.started", [ "interventionId"; "category"; "decisionActSha256"; "counted"; "classificationReason" ]
+          "research.intervention.started",
+          [ "interventionId"
+            "category"
+            "decisionActSha256"
+            "counted"
+            "classificationReason" ]
           "research.intervention.ended", [ "interventionId"; "durationMs" ]
-          "research.intervention.recorded", [ "interventionId"; "category"; "decisionActSha256"; "counted"; "classificationReason"; "durationMs" ]
+          "research.intervention.recorded",
+          [ "interventionId"
+            "category"
+            "decisionActSha256"
+            "counted"
+            "classificationReason"
+            "durationMs" ]
           "human.instruction", [ "humanActId"; "decisionActSha256"; "interventionCategory"; "counted" ]
-          "human.review", [ "humanActId"; "reviewId"; "decisionActSha256"; "interventionCategory"; "counted" ]
-          "human.correction", [ "humanActId"; "targetFindingId"; "decisionActSha256"; "interventionCategory"; "counted" ]
-          "human.approval", [ "humanActId"; "authorityClass"; "decisionActSha256"; "interventionCategory"; "counted" ]
-          "human.emergency", [ "humanActId"; "emergencyClass"; "decisionActSha256"; "interventionCategory"; "counted" ]
-          "human.observation", [ "humanActId"; "observationClass"; "decisionActSha256"; "interventionCategory"; "counted" ]
-          "outcome.observed", [ "taskOutcome"; "hypothesisResult"; "resultCommit"; "resultTreeId"; "reasonCode" ]
+          "human.review",
+          [ "humanActId"
+            "reviewId"
+            "decisionActSha256"
+            "interventionCategory"
+            "counted" ]
+          "human.correction",
+          [ "humanActId"
+            "targetFindingId"
+            "decisionActSha256"
+            "interventionCategory"
+            "counted" ]
+          "human.approval",
+          [ "humanActId"
+            "authorityClass"
+            "decisionActSha256"
+            "interventionCategory"
+            "counted" ]
+          "human.emergency",
+          [ "humanActId"
+            "emergencyClass"
+            "decisionActSha256"
+            "interventionCategory"
+            "counted" ]
+          "human.observation",
+          [ "humanActId"
+            "observationClass"
+            "decisionActSha256"
+            "interventionCategory"
+            "counted" ]
+          "outcome.observed",
+          [ "taskOutcome"
+            "hypothesisResult"
+            "resultCommit"
+            "resultTreeId"
+            "reasonCode" ]
           "observation.closed", [ "eventCount"; "sourceManifestSha256"; "outcomeEventId"; "closedAtUtc" ] ]
         |> List.map (fun (eventType, fields) -> eventType, Set.ofList fields)
         |> Map.ofList

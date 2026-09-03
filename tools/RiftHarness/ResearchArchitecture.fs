@@ -119,7 +119,8 @@ type BoundArchitectureCheckpoint =
 
 [<RequireQualifiedAccess>]
 module ResearchArchitecture =
-    let private invariant (value: int) = value.ToString(CultureInfo.InvariantCulture)
+    let private invariant (value: int) =
+        value.ToString(CultureInfo.InvariantCulture)
 
     let private isSafeRepoPath (path: string) =
         not (String.IsNullOrWhiteSpace(path))
@@ -139,14 +140,21 @@ module ResearchArchitecture =
     let private requireObjectId label value =
         requireIdentifier label value
 
-        if (value.Length <> 40 && value.Length <> 64) || (value |> Seq.exists (fun character -> not (Uri.IsHexDigit(character)))) then
+        if
+            (value.Length <> 40 && value.Length <> 64)
+            || (value |> Seq.exists (fun character -> not (Uri.IsHexDigit(character))))
+        then
             Internal.fail $"ARCHITECTURE_INVALID_{label}"
 
     let private prefixMatches (prefix: string) (path: string) =
         path = prefix || path.StartsWith(prefix + "/", StringComparison.Ordinal)
 
     let private classify rules path =
-        match rules |> List.filter (fun rule -> prefixMatches rule.Prefix path) |> List.sortByDescending (fun rule -> rule.Prefix.Length) with
+        match
+            rules
+            |> List.filter (fun rule -> prefixMatches rule.Prefix path)
+            |> List.sortByDescending (fun rule -> rule.Prefix.Length)
+        with
         | rule :: _ -> rule.FileClass, rule.Component
         | [] -> "unknown", "unknown"
 
@@ -168,11 +176,15 @@ module ResearchArchitecture =
         receipt
         |> Option.map (fun supplied ->
             requireIdentifier "COMPLEXITY_METHOD" supplied.Method
+
             let rows =
                 supplied.Values
                 |> List.map (fun (path, value) ->
                     requireSafePath "COMPLEXITY_PATH" path
-                    if value < 0 then Internal.fail "ARCHITECTURE_NEGATIVE_COMPLEXITY"
+
+                    if value < 0 then
+                        Internal.fail "ARCHITECTURE_NEGATIVE_COMPLEXITY"
+
                     path, value)
 
             if (rows |> List.map fst |> Set.ofList |> Set.count) <> rows.Length then
@@ -185,18 +197,22 @@ module ResearchArchitecture =
 
     let private inventoryHash bytes = Internal.sha256Hex bytes
 
-    let private valueOrUnknown value = value |> Option.map invariant |> Option.defaultValue "unknown"
+    let private valueOrUnknown value =
+        value |> Option.map invariant |> Option.defaultValue "unknown"
 
     let private lineDelta observation =
-        if observation.IsBinary then None
+        if observation.IsBinary then
+            None
         else
             match observation.ResultLines, observation.BaselineLines with
             | Some result, Some baseline -> Some(result - baseline)
             | _ -> None
 
     let private knownSum values =
-        if values |> List.exists Option.isNone then "unknown"
-        else values |> List.choose id |> List.sum |> invariant
+        if values |> List.exists Option.isNone then
+            "unknown"
+        else
+            values |> List.choose id |> List.sum |> invariant
 
     let private referenceKey (reference: ArchitectureProjectReference) =
         reference.FromComponent, reference.ToComponent, reference.Direction
@@ -227,10 +243,20 @@ module ResearchArchitecture =
         |> List.iter (fun observation ->
             requireSafePath "FILE_PATH" observation.Path
             observation.BaselinePath |> Option.iter (requireSafePath "BASELINE_PATH")
-            if observation.ResultLines |> Option.exists (fun value -> value < 0) then Internal.fail "ARCHITECTURE_NEGATIVE_RESULT_LINES"
-            if observation.BaselineLines |> Option.exists (fun value -> value < 0) then Internal.fail "ARCHITECTURE_NEGATIVE_BASELINE_LINES")
 
-        if (input.Files |> List.map (fun observation -> observation.Path) |> Set.ofList |> Set.count) <> input.Files.Length then
+            if observation.ResultLines |> Option.exists (fun value -> value < 0) then
+                Internal.fail "ARCHITECTURE_NEGATIVE_RESULT_LINES"
+
+            if observation.BaselineLines |> Option.exists (fun value -> value < 0) then
+                Internal.fail "ARCHITECTURE_NEGATIVE_BASELINE_LINES")
+
+        if
+            (input.Files
+             |> List.map (fun observation -> observation.Path)
+             |> Set.ofList
+             |> Set.count)
+            <> input.Files.Length
+        then
             Internal.fail "ARCHITECTURE_DUPLICATE_FILE_PATH"
 
         (input.BaselineReferences @ input.ResultReferences)
@@ -249,12 +275,42 @@ module ResearchArchitecture =
             |> List.sortBy (fun observation -> observation.Path)
             |> List.map (fun observation ->
                 let fileClass, componentId = classify input.PathMap observation.Path
-                let lines = if observation.IsBinary then None else observation.ResultLines
-                let baselineLines = if observation.IsBinary then None else observation.BaselineLines
-                let warnings = analyzer |> Option.bind (Map.tryFind observation.Path) |> Option.map (List.length >> invariant) |> Option.defaultValue "unknown"
-                let testCount = tests |> Option.bind (Map.tryFind observation.Path) |> Option.map (List.length >> invariant) |> Option.defaultValue "unknown"
-                let complexityValue = complexity |> Option.bind (Map.tryFind observation.Path) |> Option.map invariant |> Option.defaultValue "unknown"
-                let methodName = input.ComplexityReceipt |> Option.map (fun value -> value.Method) |> Option.defaultValue "unknown"
+
+                let lines =
+                    if observation.IsBinary then
+                        None
+                    else
+                        observation.ResultLines
+
+                let baselineLines =
+                    if observation.IsBinary then
+                        None
+                    else
+                        observation.BaselineLines
+
+                let warnings =
+                    analyzer
+                    |> Option.bind (Map.tryFind observation.Path)
+                    |> Option.map (List.length >> invariant)
+                    |> Option.defaultValue "unknown"
+
+                let testCount =
+                    tests
+                    |> Option.bind (Map.tryFind observation.Path)
+                    |> Option.map (List.length >> invariant)
+                    |> Option.defaultValue "unknown"
+
+                let complexityValue =
+                    complexity
+                    |> Option.bind (Map.tryFind observation.Path)
+                    |> Option.map invariant
+                    |> Option.defaultValue "unknown"
+
+                let methodName =
+                    input.ComplexityReceipt
+                    |> Option.map (fun value -> value.Method)
+                    |> Option.defaultValue "unknown"
+
                 { RepoRelativePath = observation.Path
                   BaselinePath = observation.BaselinePath |> Option.defaultValue "unknown"
                   FileClass = fileClass
@@ -269,23 +325,68 @@ module ResearchArchitecture =
                   SourceSha256 = observation.SourceSha256
                   GateCoupled = false })
 
-        let productionRows = fileRows |> List.filter (fun row -> row.FileClass = "production")
+        let productionRows =
+            fileRows |> List.filter (fun row -> row.FileClass = "production")
+
         let testRows = fileRows |> List.filter (fun row -> row.FileClass = "test")
-        let productionLines = if input.PathMap.IsEmpty then "unknown" else productionRows |> List.map (fun row -> if row.Lines = "unknown" then None else Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture))) |> knownSum
-        let testLines = if input.PathMap.IsEmpty then "unknown" else testRows |> List.map (fun row -> if row.Lines = "unknown" then None else Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture))) |> knownSum
-        let binaryChanged = input.Files |> List.filter (fun file -> file.Changed && file.IsBinary) |> List.length |> invariant
-        let changedProduction = input.Files |> List.filter (fun file -> file.Changed && fst (classify input.PathMap file.Path) = "production")
-        let changedModules = changedProduction |> List.map (fun file -> snd (classify input.PathMap file.Path)) |> List.distinct |> List.length |> invariant
+
+        let productionLines =
+            if input.PathMap.IsEmpty then
+                "unknown"
+            else
+                productionRows
+                |> List.map (fun row ->
+                    if row.Lines = "unknown" then
+                        None
+                    else
+                        Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture)))
+                |> knownSum
+
+        let testLines =
+            if input.PathMap.IsEmpty then
+                "unknown"
+            else
+                testRows
+                |> List.map (fun row ->
+                    if row.Lines = "unknown" then
+                        None
+                    else
+                        Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture)))
+                |> knownSum
+
+        let binaryChanged =
+            input.Files
+            |> List.filter (fun file -> file.Changed && file.IsBinary)
+            |> List.length
+            |> invariant
+
+        let changedProduction =
+            input.Files
+            |> List.filter (fun file -> file.Changed && fst (classify input.PathMap file.Path) = "production")
+
+        let changedModules =
+            changedProduction
+            |> List.map (fun file -> snd (classify input.PathMap file.Path))
+            |> List.distinct
+            |> List.length
+            |> invariant
 
         let confirmedFindingIds =
             input.Findings
-            |> List.filter (fun finding -> finding.Confirmed && (finding.Source = "boundary-validator" || finding.Source = "review"))
-            |> List.map (fun finding -> requireIdentifier "FINDING_ID" finding.FindingId; finding.FindingId)
+            |> List.filter (fun finding ->
+                finding.Confirmed
+                && (finding.Source = "boundary-validator" || finding.Source = "review"))
+            |> List.map (fun finding ->
+                requireIdentifier "FINDING_ID" finding.FindingId
+                finding.FindingId)
             |> List.distinct
             |> List.sort
 
-        let baselineReferences = input.BaselineReferences |> List.map referenceKey |> Set.ofList
+        let baselineReferences =
+            input.BaselineReferences |> List.map referenceKey |> Set.ofList
+
         let resultReferences = input.ResultReferences |> List.map referenceKey |> Set.ofList
+
         let dependencyRows =
             Set.union baselineReferences resultReferences
             |> Set.toList
@@ -294,12 +395,26 @@ module ResearchArchitecture =
                 { FromComponent = fromComponent
                   ToComponent = toComponent
                   Direction = direction
-                  Change = if resultReferences.Contains((fromComponent, toComponent, direction)) && not (baselineReferences.Contains((fromComponent, toComponent, direction))) then "added" elif baselineReferences.Contains((fromComponent, toComponent, direction)) && not (resultReferences.Contains((fromComponent, toComponent, direction))) then "removed" else "unchanged"
+                  Change =
+                    if
+                        resultReferences.Contains((fromComponent, toComponent, direction))
+                        && not (baselineReferences.Contains((fromComponent, toComponent, direction)))
+                    then
+                        "added"
+                    elif
+                        baselineReferences.Contains((fromComponent, toComponent, direction))
+                        && not (resultReferences.Contains((fromComponent, toComponent, direction)))
+                    then
+                        "removed"
+                    else
+                        "unchanged"
                   GateCoupled = false })
 
         let topFiles =
             fileRows
-            |> List.filter (fun row -> (row.FileClass = "production" || row.FileClass = "test") && row.Lines <> "unknown")
+            |> List.filter (fun row ->
+                (row.FileClass = "production" || row.FileClass = "test")
+                && row.Lines <> "unknown")
             |> List.sortBy (fun row -> -Int32.Parse(row.Lines, CultureInfo.InvariantCulture), row.RepoRelativePath)
             |> List.truncate 10
             |> List.map (fun row -> row.RepoRelativePath)
@@ -314,37 +429,113 @@ module ResearchArchitecture =
         let integrationRows =
             specialIntegrations
             |> List.map (fun (name, path) ->
-                let delta = fileRows |> List.tryFind (fun row -> row.RepoRelativePath = path) |> Option.map (fun row -> row.LineDelta) |> Option.defaultValue "unknown"
-                { Name = name; RepoRelativePath = path; LineDelta = delta; GateCoupled = false })
+                let delta =
+                    fileRows
+                    |> List.tryFind (fun row -> row.RepoRelativePath = path)
+                    |> Option.map (fun row -> row.LineDelta)
+                    |> Option.defaultValue "unknown"
+
+                { Name = name
+                  RepoRelativePath = path
+                  LineDelta = delta
+                  GateCoupled = false })
 
         let integrationConcentration =
-            let allDeltas = productionRows |> List.map (fun row -> if row.LineDelta = "unknown" then None else Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
-            let specialDeltas = integrationRows |> List.map (fun row -> if row.LineDelta = "unknown" then None else Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
-            if (allDeltas |> List.exists Option.isNone) || (specialDeltas |> List.exists Option.isNone) then "unknown"
+            let allDeltas =
+                productionRows
+                |> List.map (fun row ->
+                    if row.LineDelta = "unknown" then
+                        None
+                    else
+                        Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
+
+            let specialDeltas =
+                integrationRows
+                |> List.map (fun row ->
+                    if row.LineDelta = "unknown" then
+                        None
+                    else
+                        Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
+
+            if
+                (allDeltas |> List.exists Option.isNone)
+                || (specialDeltas |> List.exists Option.isNone)
+            then
+                "unknown"
             else
                 let denominator = allDeltas |> List.choose id |> List.sum
-                if denominator = 0 then "unknown"
+
+                if denominator = 0 then
+                    "unknown"
                 else
                     let numerator = specialDeltas |> List.choose id |> List.sum
                     (decimal numerator / decimal denominator).ToString("0.######", CultureInfo.InvariantCulture)
 
         let componentShareRows =
-            let components = productionRows |> List.map (fun row -> row.Component) |> List.distinct |> List.sort
-            let productionValues = productionRows |> List.map (fun row -> if row.Lines = "unknown" then None else Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture)))
-            let changeValues = productionRows |> List.map (fun row -> if row.LineDelta = "unknown" then None else Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))) )
-            let totalProduction = if productionValues |> List.exists Option.isNone then None else Some(productionValues |> List.choose id |> List.sum)
-            let totalChange = if changeValues |> List.exists Option.isNone then None else Some(changeValues |> List.choose id |> List.sum)
+            let components =
+                productionRows
+                |> List.map (fun row -> row.Component)
+                |> List.distinct
+                |> List.sort
+
+            let productionValues =
+                productionRows
+                |> List.map (fun row ->
+                    if row.Lines = "unknown" then
+                        None
+                    else
+                        Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture)))
+
+            let changeValues =
+                productionRows
+                |> List.map (fun row ->
+                    if row.LineDelta = "unknown" then
+                        None
+                    else
+                        Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
+
+            let totalProduction =
+                if productionValues |> List.exists Option.isNone then
+                    None
+                else
+                    Some(productionValues |> List.choose id |> List.sum)
+
+            let totalChange =
+                if changeValues |> List.exists Option.isNone then
+                    None
+                else
+                    Some(changeValues |> List.choose id |> List.sum)
+
             components
             |> List.collect (fun componentId ->
-                let componentProduction = productionRows |> List.filter (fun row -> row.Component = componentId) |> List.map (fun row -> if row.Lines = "unknown" then None else Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture)))
-                let componentChange = productionRows |> List.filter (fun row -> row.Component = componentId) |> List.map (fun row -> if row.LineDelta = "unknown" then None else Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
+                let componentProduction =
+                    productionRows
+                    |> List.filter (fun row -> row.Component = componentId)
+                    |> List.map (fun row ->
+                        if row.Lines = "unknown" then
+                            None
+                        else
+                            Some(Int32.Parse(row.Lines, CultureInfo.InvariantCulture)))
+
+                let componentChange =
+                    productionRows
+                    |> List.filter (fun row -> row.Component = componentId)
+                    |> List.map (fun row ->
+                        if row.LineDelta = "unknown" then
+                            None
+                        else
+                            Some(abs (Int32.Parse(row.LineDelta, CultureInfo.InvariantCulture))))
+
                 let share values total =
-                    if values |> List.exists Option.isNone then "unknown"
+                    if values |> List.exists Option.isNone then
+                        "unknown"
                     else
                         match total with
                         | Some denominator when denominator > 0 ->
-                            (decimal (values |> List.choose id |> List.sum) / decimal denominator).ToString("0.######", CultureInfo.InvariantCulture)
+                            (decimal (values |> List.choose id |> List.sum) / decimal denominator)
+                                .ToString("0.######", CultureInfo.InvariantCulture)
                         | _ -> "unknown"
+
                 [ $"component-share/{componentId}", share componentProduction totalProduction
                   $"change-share/{componentId}", share componentChange totalChange ])
 
@@ -363,26 +554,54 @@ module ResearchArchitecture =
               "binary-files-changed", binaryChanged
               "production-files-changed", (changedProduction.Length |> invariant)
               "modules-touched", changedModules
-              "reference-edges-added", (dependencyRows |> List.filter (fun row -> row.Change = "added") |> List.length |> invariant)
-              "reference-edges-removed", (dependencyRows |> List.filter (fun row -> row.Change = "removed") |> List.length |> invariant)
+              "reference-edges-added",
+              (dependencyRows
+               |> List.filter (fun row -> row.Change = "added")
+               |> List.length
+               |> invariant)
+              "reference-edges-removed",
+              (dependencyRows
+               |> List.filter (fun row -> row.Change = "removed")
+               |> List.length
+               |> invariant)
               "boundary-findings-confirmed", (confirmedFindingIds.Length |> invariant)
-              "analyzer-warnings", if input.AnalyzerReceipt.IsSome then fileRows |> List.map (fun row -> if row.AnalyzerWarnings = "unknown" then 0 else Int32.Parse(row.AnalyzerWarnings, CultureInfo.InvariantCulture)) |> List.sum |> invariant else "unknown"
-              "test-count", testInventoryCount input.TestReceipt |> Option.map invariant |> Option.defaultValue "unknown"
+              "analyzer-warnings",
+              if input.AnalyzerReceipt.IsSome then
+                  fileRows
+                  |> List.map (fun row ->
+                      if row.AnalyzerWarnings = "unknown" then
+                          0
+                      else
+                          Int32.Parse(row.AnalyzerWarnings, CultureInfo.InvariantCulture))
+                  |> List.sum
+                  |> invariant
+              else
+                  "unknown"
+              "test-count",
+              testInventoryCount input.TestReceipt
+              |> Option.map invariant
+              |> Option.defaultValue "unknown"
               "test-growth", testGrowth
               "integration-concentration", integrationConcentration ]
             |> List.append componentShareRows
-            |> List.map (fun (metric, value) -> { Metric = metric; Value = value; GateCoupled = false })
+            |> List.map (fun (metric, value) ->
+                { Metric = metric
+                  Value = value
+                  GateCoupled = false })
 
         let fileInventoryBytes = canonicalBytes fileRows
         let dependencyInventoryBytes = canonicalBytes dependencyRows
+
         let analyzerInventoryBytes =
             match input.AnalyzerReceipt with
             | Some receipt -> canonicalBytes receipt
             | None -> ResearchCanonical.canonicalizeJson "{\"availability\":\"unknown\"}"
+
         let testInventoryBytes =
             match input.TestReceipt with
             | Some receipt -> canonicalBytes receipt
             | None -> ResearchCanonical.canonicalizeJson "{\"availability\":\"unknown\"}"
+
         let eventPayloadBytes =
             Internal.jsonBytes false (fun writer ->
                 writer.WriteStartObject()
@@ -439,7 +658,10 @@ module ResearchArchitecture =
 
     let private parseFileRows (bytes: byte array) =
         use document = JsonDocument.Parse(bytes)
-        if document.RootElement.ValueKind <> JsonValueKind.Array then Internal.fail "ARCHITECTURE_INVENTORY_INVALID: files is not an array."
+
+        if document.RootElement.ValueKind <> JsonValueKind.Array then
+            Internal.fail "ARCHITECTURE_INVENTORY_INVALID: files is not an array."
+
         document.RootElement.EnumerateArray()
         |> Seq.map (fun row ->
             { RepoRelativePath = jsonString "RepoRelativePath" row
@@ -459,7 +681,10 @@ module ResearchArchitecture =
 
     let private parseDependencyRows (bytes: byte array) =
         use document = JsonDocument.Parse(bytes)
-        if document.RootElement.ValueKind <> JsonValueKind.Array then Internal.fail "ARCHITECTURE_INVENTORY_INVALID: dependencies is not an array."
+
+        if document.RootElement.ValueKind <> JsonValueKind.Array then
+            Internal.fail "ARCHITECTURE_INVENTORY_INVALID: dependencies is not an array."
+
         document.RootElement.EnumerateArray()
         |> Seq.map (fun row ->
             { FromComponent = jsonString "FromComponent" row
@@ -469,25 +694,55 @@ module ResearchArchitecture =
               GateCoupled = jsonBool "GateCoupled" row })
         |> Seq.toList
 
-    let bind (payload: JsonElement) (files: byte array) (dependencies: byte array) (analyzer: byte array) (tests: byte array) =
-        let canonicalHash (bytes: byte array) = ResearchCanonical.canonicalizeJson (Constants.Utf8NoBom.GetString(bytes)) |> Internal.sha256Hex
+    let bind
+        (payload: JsonElement)
+        (files: byte array)
+        (dependencies: byte array)
+        (analyzer: byte array)
+        (tests: byte array)
+        =
+        let canonicalHash (bytes: byte array) =
+            ResearchCanonical.canonicalizeJson (Constants.Utf8NoBom.GetString(bytes))
+            |> Internal.sha256Hex
+
         let requiredHash name = jsonString name payload
-        if canonicalHash files <> requiredHash "fileInventorySha256"
-           || canonicalHash dependencies <> requiredHash "dependencyInventorySha256"
-           || canonicalHash analyzer <> requiredHash "analyzerInventorySha256"
-           || canonicalHash tests <> requiredHash "testInventorySha256" then
+
+        if
+            canonicalHash files <> requiredHash "fileInventorySha256"
+            || canonicalHash dependencies <> requiredHash "dependencyInventorySha256"
+            || canonicalHash analyzer <> requiredHash "analyzerInventorySha256"
+            || canonicalHash tests <> requiredHash "testInventorySha256"
+        then
             Internal.fail "ARCHITECTURE_BINDING_INVALID: inventory hash mismatch."
 
         let gateCoupled = jsonBool "gateCoupled" payload
-        if gateCoupled then Internal.fail "ARCHITECTURE_BINDING_INVALID: checkpoint is gate-coupled."
+
+        if gateCoupled then
+            Internal.fail "ARCHITECTURE_BINDING_INVALID: checkpoint is gate-coupled."
+
         let rows = parseFileRows files
         let dependenciesRows = parseDependencyRows dependencies
-        if rows |> List.exists (fun row -> row.GateCoupled) || dependenciesRows |> List.exists (fun row -> row.GateCoupled) then
+
+        if
+            rows |> List.exists (fun row -> row.GateCoupled)
+            || dependenciesRows |> List.exists (fun row -> row.GateCoupled)
+        then
             Internal.fail "ARCHITECTURE_BINDING_INVALID: diagnostic inventory is gate-coupled."
+
         let findings =
             match payload.TryGetProperty("confirmedFindingIds") with
-            | true, value when value.ValueKind = JsonValueKind.Array -> value.EnumerateArray() |> Seq.map (fun item -> if item.ValueKind <> JsonValueKind.String then Internal.fail "ARCHITECTURE_BINDING_INVALID: finding ID is invalid." else item.GetString()) |> Seq.distinct |> Seq.sort |> Seq.toList
+            | true, value when value.ValueKind = JsonValueKind.Array ->
+                value.EnumerateArray()
+                |> Seq.map (fun item ->
+                    if item.ValueKind <> JsonValueKind.String then
+                        Internal.fail "ARCHITECTURE_BINDING_INVALID: finding ID is invalid."
+                    else
+                        item.GetString())
+                |> Seq.distinct
+                |> Seq.sort
+                |> Seq.toList
             | _ -> Internal.fail "ARCHITECTURE_BINDING_INVALID: confirmed finding IDs are missing."
+
         { CheckpointId = jsonString "checkpointId" payload
           AcceptedTaskId = jsonString "acceptedTaskId" payload
           AcceptedTreeId = jsonString "acceptedTreeId" payload

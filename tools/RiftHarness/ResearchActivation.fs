@@ -92,19 +92,21 @@ module ResearchDurability =
 
     let fsyncDirectory path =
         requireLinux ()
-        let descriptor = openNative(path, O_RDONLY ||| O_DIRECTORY ||| O_CLOEXEC ||| O_NOFOLLOW)
+
+        let descriptor =
+            openNative (path, O_RDONLY ||| O_DIRECTORY ||| O_CLOEXEC ||| O_NOFOLLOW)
 
         if descriptor < 0 then
             nativeError "open directory"
 
         use handle = new SafeFileHandle(nativeint descriptor, true)
 
-        if fsyncNative(descriptor) <> 0 then
+        if fsyncNative (descriptor) <> 0 then
             nativeError "fsync directory"
 
     let readNoFollow path =
         requireLinux ()
-        let descriptor = openNative(path, O_RDONLY ||| O_CLOEXEC ||| O_NOFOLLOW)
+        let descriptor = openNative (path, O_RDONLY ||| O_CLOEXEC ||| O_NOFOLLOW)
 
         if descriptor < 0 then
             nativeError "open marker"
@@ -133,26 +135,44 @@ module ResearchActivation =
 
     let private markerFields =
         set
-            [ "schemaVersion"; "studyId"; "observationId"; "evidenceClass"; "targetTaskId"
-              "studyManifestPath"; "studyManifestSha256"; "protocolBundleSha256"; "ledgerPath"
-              "activationGuardSha256"; "activationEventHash"; "activatedAtUtc"; "state" ]
+            [ "schemaVersion"
+              "studyId"
+              "observationId"
+              "evidenceClass"
+              "targetTaskId"
+              "studyManifestPath"
+              "studyManifestSha256"
+              "protocolBundleSha256"
+              "ledgerPath"
+              "activationGuardSha256"
+              "activationEventHash"
+              "activatedAtUtc"
+              "state" ]
 
-    let private markerPath root = Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", "active.json")
+    let private markerPath root =
+        Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", "active.json")
 
     let private activationReceiptPath root =
         Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", "active.receipt.json")
 
     let private activationReceiptFields =
         set
-            [ "activationEventHash"; "activationGuardSha256"; "markerSha256"; "observationId"
-              "schemaVersion"; "targetTaskId" ]
+            [ "activationEventHash"
+              "activationGuardSha256"
+              "markerSha256"
+              "observationId"
+              "schemaVersion"
+              "targetTaskId" ]
 
     let private activationLockPath root =
         Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", ".activation.lock")
 
     let private withActivationLock root action =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Research activation lock" true (activationLockPath root)
+
+        let path =
+            Workspace.requireSafePath locations "Research activation lock" true (activationLockPath root)
+
         Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
 
         // Only an IOException while acquiring the exclusive lock denotes a
@@ -161,7 +181,14 @@ module ResearchActivation =
         // as concurrency.
         let stream =
             try
-                new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.WriteThrough)
+                new FileStream(
+                    path,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    1,
+                    FileOptions.WriteThrough
+                )
             with :? IOException as error ->
                 Internal.fail $"CONCURRENT_WRITER: {error.Message}"
 
@@ -187,6 +214,7 @@ module ResearchActivation =
         match element.TryGetProperty(name) with
         | true, value when value.ValueKind = JsonValueKind.String -> value.GetString()
         | _ -> Internal.fail $"RESEARCH_MARKER_INVALID: {name} must be a string."
+
     let private canonicalMarkerBytes
         (manifest: ResearchStudyManifest)
         (studyManifestPath: string)
@@ -225,15 +253,24 @@ module ResearchActivation =
 
         let schemaVersion = root.GetProperty("schemaVersion")
 
-        if schemaVersion.ValueKind <> JsonValueKind.Number || schemaVersion.GetInt32() <> ResearchContract.SchemaVersion then
+        if
+            schemaVersion.ValueKind <> JsonValueKind.Number
+            || schemaVersion.GetInt32() <> ResearchContract.SchemaVersion
+        then
             Internal.fail "RESEARCH_MARKER_INVALID: schemaVersion differs."
 
-        if requiredString "studyId" root <> ResearchContract.StudyId || requiredString "state" root <> "active" then
+        if
+            requiredString "studyId" root <> ResearchContract.StudyId
+            || requiredString "state" root <> "active"
+        then
             Internal.fail "RESEARCH_MARKER_INVALID: study or state differs."
 
         let hash name =
             let value = requiredString name root
-            if not (Internal.isSha256 value) then Internal.fail $"RESEARCH_MARKER_INVALID: {name} is not SHA-256."
+
+            if not (Internal.isSha256 value) then
+                Internal.fail $"RESEARCH_MARKER_INVALID: {name} is not SHA-256."
+
             value
 
         { CanonicalBytes = canonical
@@ -250,7 +287,9 @@ module ResearchActivation =
 
     let private readMarker root =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Research active marker" true (markerPath root)
+
+        let path =
+            Workspace.requireSafePath locations "Research active marker" true (markerPath root)
 
         if File.Exists(path) then
             Some(parseMarker (ResearchDurability.readNoFollow path))
@@ -272,7 +311,9 @@ module ResearchActivation =
 
     let private activationReceiptMatches root (marker: ResearchActivationMarker) =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Research activation receipt" true (activationReceiptPath root)
+
+        let path =
+            Workspace.requireSafePath locations "Research activation receipt" true (activationReceiptPath root)
 
         if not (File.Exists(path)) then
             false
@@ -288,7 +329,10 @@ module ResearchActivation =
 
             let schema = value.GetProperty("schemaVersion")
 
-            if schema.ValueKind <> JsonValueKind.Number || schema.GetInt32() <> ResearchContract.SchemaVersion then
+            if
+                schema.ValueKind <> JsonValueKind.Number
+                || schema.GetInt32() <> ResearchContract.SchemaVersion
+            then
                 Internal.fail "ACTIVATION_RECEIPT_INVALID: schemaVersion differs."
 
             let expected = canonicalActivationReceiptBytes marker
@@ -300,7 +344,10 @@ module ResearchActivation =
 
     let private writeActivationReceiptDurably root (marker: ResearchActivationMarker) =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Research activation receipt" true (activationReceiptPath root)
+
+        let path =
+            Workspace.requireSafePath locations "Research activation receipt" true (activationReceiptPath root)
+
         let parent = Path.GetDirectoryName(path)
         let bytes = canonicalActivationReceiptBytes marker
 
@@ -308,8 +355,19 @@ module ResearchActivation =
             if not (activationReceiptMatches root marker) then
                 Internal.fail "ACTIVATION_RECEIPT_INVALID: existing receipt does not bind the active marker."
         else
-            let temporary = Path.Combine(parent, ".active.receipt." + Guid.NewGuid().ToString("N") + ".tmp")
-            use stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, bytes.Length, FileOptions.WriteThrough)
+            let temporary =
+                Path.Combine(parent, ".active.receipt." + Guid.NewGuid().ToString("N") + ".tmp")
+
+            use stream =
+                new FileStream(
+                    temporary,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bytes.Length,
+                    FileOptions.WriteThrough
+                )
+
             stream.Write(bytes, 0, bytes.Length)
             stream.Flush(true)
             stream.Close()
@@ -322,7 +380,9 @@ module ResearchActivation =
 
     let private activationReceiptObservation root =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Research activation receipt" true (activationReceiptPath root)
+
+        let path =
+            Workspace.requireSafePath locations "Research activation receipt" true (activationReceiptPath root)
 
         if not (File.Exists(path)) then
             None
@@ -338,7 +398,10 @@ module ResearchActivation =
 
             let schema = value.GetProperty("schemaVersion")
 
-            if schema.ValueKind <> JsonValueKind.Number || schema.GetInt32() <> ResearchContract.SchemaVersion then
+            if
+                schema.ValueKind <> JsonValueKind.Number
+                || schema.GetInt32() <> ResearchContract.SchemaVersion
+            then
                 Internal.fail "ACTIVATION_RECEIPT_INVALID: schemaVersion differs."
 
             for field in [ "activationEventHash"; "activationGuardSha256"; "markerSha256" ] do
@@ -389,7 +452,8 @@ module ResearchActivation =
         if Internal.sha256Hex taskBytes <> manifest.TaskManifestSha256 then
             Internal.fail "TARGET_TASK_DRIFT: taskManifestSha256 differs from the bound commit."
 
-        let schemaBytes = ResearchGitImport.fileAtCommit root headCommit ".ai/schemas/task.schema.json"
+        let schemaBytes =
+            ResearchGitImport.fileAtCommit root headCommit ".ai/schemas/task.schema.json"
         // A process can validate many isolated repositories over its lifetime.
         // Never register fixture/project schema IDs in JsonSchema.Net's global
         // mutable registry, where a later run could collide with an earlier
@@ -397,8 +461,12 @@ module ResearchActivation =
         let registry = SchemaRegistry()
         registry.Fetch <- Func<Uri, SchemaRegistry, IBaseDocument>(fun _ _ -> null)
         let buildOptions = BuildOptions(SchemaRegistry = registry)
-        let schema = JsonSchema.FromText(Constants.Utf8NoBom.GetString(schemaBytes), buildOptions)
+
+        let schema =
+            JsonSchema.FromText(Constants.Utf8NoBom.GetString(schemaBytes), buildOptions)
+
         use taskDocument = JsonDocument.Parse(taskBytes)
+
         let evaluated =
             schema.Evaluate(
                 taskDocument.RootElement,
@@ -427,8 +495,10 @@ module ResearchActivation =
                 let dependencyBytes = ResearchGitImport.fileAtCommit root headCommit dependencyPath
                 use dependencyDocument = JsonDocument.Parse(dependencyBytes)
 
-                if requiredString "id" dependencyDocument.RootElement <> dependencyId
-                   || requiredString "status" dependencyDocument.RootElement <> "accepted" then
+                if
+                    requiredString "id" dependencyDocument.RootElement <> dependencyId
+                    || requiredString "status" dependencyDocument.RootElement <> "accepted"
+                then
                     Internal.fail $"TARGET_TASK_NOT_READY: dependency {dependencyId} is not accepted."
         | true, _ -> Internal.fail "TARGET_TASK_SCHEMA_INVALID: dependencies must be an array."
         | false, _ -> ()
@@ -466,11 +536,7 @@ module ResearchActivation =
             if item.ValueKind <> JsonValueKind.Object then
                 Internal.fail "RESEARCH_MANIFEST_INVALID: sourceInventory entries must be objects."
 
-            exactFields
-                "RESEARCH_MANIFEST_INVALID"
-                "sourceInventory entry"
-                (set [ "bytes"; "path"; "sha256" ])
-                item
+            exactFields "RESEARCH_MANIFEST_INVALID" "sourceInventory entry" (set [ "bytes"; "path"; "sha256" ]) item
 
             let path = requiredString "path" item
             let sha256 = requiredString "sha256" item
@@ -480,11 +546,18 @@ module ResearchActivation =
                 Internal.fail "RESEARCH_MANIFEST_INVALID: sourceInventory path/hash is invalid or duplicate."
 
             let locations = Workspace.requireInitialized root
-            let absolute = Workspace.requireSafePath locations "Research source inventory member" false (Path.Combine(root, path))
+
+            let absolute =
+                Workspace.requireSafePath locations "Research source inventory member" false (Path.Combine(root, path))
+
             let info = FileInfo(absolute)
             let mutable byteCount = 0L
 
-            if declaredBytes.ValueKind <> JsonValueKind.Number || not (declaredBytes.TryGetInt64(&byteCount)) || byteCount < 0L then
+            if
+                declaredBytes.ValueKind <> JsonValueKind.Number
+                || not (declaredBytes.TryGetInt64(&byteCount))
+                || byteCount < 0L
+            then
                 Internal.fail "RESEARCH_MANIFEST_INVALID: sourceInventory bytes must be non-negative."
 
             if info.Length <> byteCount || Internal.sha256File absolute <> sha256 then
@@ -509,11 +582,26 @@ module ResearchActivation =
 
     let private writeMarker (root: string) (bytes: byte array) crashPoint =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Research active marker" true (markerPath root)
+
+        let path =
+            Workspace.requireSafePath locations "Research active marker" true (markerPath root)
+
         let parent = Path.GetDirectoryName(path)
         Directory.CreateDirectory(parent) |> ignore
-        let temporary = Path.Combine(parent, ".active." + Guid.NewGuid().ToString("N") + ".tmp")
-        use stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, bytes.Length, FileOptions.WriteThrough)
+
+        let temporary =
+            Path.Combine(parent, ".active." + Guid.NewGuid().ToString("N") + ".tmp")
+
+        use stream =
+            new FileStream(
+                temporary,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bytes.Length,
+                FileOptions.WriteThrough
+            )
+
         stream.Write(bytes, 0, bytes.Length)
         stream.Flush(true)
         stream.Close()
@@ -533,10 +621,12 @@ module ResearchActivation =
             Internal.fail "RESEARCH_MARKER_INVALID: no-follow reopen differs after durable activation."
 
     let private verifyStartPrefix (marker: ResearchActivationMarker) (events: ResearchEvent list) =
-        if events.Length < 2
-           || events[0].Body.EventType <> "protocol.frozen"
-           || events[1].Body.EventType <> "observation.started"
-           || events[1].EventHash <> marker.ActivationEventHash then
+        if
+            events.Length < 2
+            || events[0].Body.EventType <> "protocol.frozen"
+            || events[1].Body.EventType <> "observation.started"
+            || events[1].EventHash <> marker.ActivationEventHash
+        then
             Internal.fail "RESEARCH_MARKER_INVALID: marker does not bind the required start chain."
 
     let private verifyActiveChain (marker: ResearchActivationMarker) (events: ResearchEvent list) =
@@ -558,14 +648,20 @@ module ResearchActivation =
             Internal.fail "TARGET_TASK_INVALID: the preregistered first prospective target is T-042."
 
         let locations = Workspace.requireInitialized root
-        let studyManifestAbsolute = Workspace.requireSafePath locations "Research study manifest" false studyManifestPath
+
+        let studyManifestAbsolute =
+            Workspace.requireSafePath locations "Research study manifest" false studyManifestPath
+
         let studyManifestRelative = Workspace.relativePath locations studyManifestAbsolute
         let ledgerAbsolute = ResearchLedger.ledgerPath root manifest.ObservationId
         let ledgerRelative = Workspace.relativePath locations ledgerAbsolute
 
         match readMarker root with
         | Some marker ->
-            if marker.ObservationId <> manifest.ObservationId || marker.StudyManifestSha256 <> manifest.ManifestSha256 then
+            if
+                marker.ObservationId <> manifest.ObservationId
+                || marker.StudyManifestSha256 <> manifest.ManifestSha256
+            then
                 Internal.fail "ACTIVE_OBSERVATION_CONFLICT: another observation is active."
 
             let events = ResearchLedger.readVerified root ledgerAbsolute
@@ -579,18 +675,25 @@ module ResearchActivation =
                 ResearchGitImport.requireWorktreeClean root
                 let identity = ResearchGitImport.currentIdentity root
 
-                if identity.HeadCommit <> manifest.HeadCommit || identity.HeadTreeId <> manifest.InputTreeId then
+                if
+                    identity.HeadCommit <> manifest.HeadCommit
+                    || identity.HeadTreeId <> manifest.InputTreeId
+                then
                     Internal.fail "BASELINE_DRIFT: current HEAD/tree differs during activation recovery."
 
                 let _, _, bundleHash = protocolBundle root identity.HeadCommit
 
-                if bundleHash <> manifest.ProtocolBundleSha256 || marker.ProtocolBundleSha256 <> bundleHash then
+                if
+                    bundleHash <> manifest.ProtocolBundleSha256
+                    || marker.ProtocolBundleSha256 <> bundleHash
+                then
                     Internal.fail "PROTOCOL_BUNDLE_INVALID: recovery protocol binding differs."
 
                 let targetTaskPath, _ = validateTaskSchema root identity.HeadCommit manifest
                 validateSourceInventory root manifest
 
-                let activationGuard = guardBytes manifest identity targetTaskPath |> Internal.sha256Hex
+                let activationGuard =
+                    guardBytes manifest identity targetTaskPath |> Internal.sha256Hex
 
                 if activationGuard <> marker.ActivationGuardSha256 then
                     Internal.fail "RESEARCH_MARKER_INVALID: recovery activation guard differs."
@@ -598,13 +701,15 @@ module ResearchActivation =
                 if targetRunExists root manifest.TargetTaskId then
                     Internal.fail "PROSPECTIVE_START_TOO_LATE: target run started before activation recovery."
 
-                let reopened = ResearchDurability.readNoFollow(markerPath root)
+                let reopened = ResearchDurability.readNoFollow (markerPath root)
 
-                if reopened.Length <> marker.CanonicalBytes.Length
-                   || not (Array.forall2 (=) reopened marker.CanonicalBytes) then
+                if
+                    reopened.Length <> marker.CanonicalBytes.Length
+                    || not (Array.forall2 (=) reopened marker.CanonicalBytes)
+                then
                     Internal.fail "RESEARCH_MARKER_INVALID: recovery reopen differs from the active marker."
 
-                ResearchDurability.fsyncDirectory(Path.GetDirectoryName(markerPath root))
+                ResearchDurability.fsyncDirectory (Path.GetDirectoryName(markerPath root))
                 writeActivationReceiptDurably root marker
 
             { ObservationId = manifest.ObservationId
@@ -625,15 +730,23 @@ module ResearchActivation =
             ResearchGitImport.requireWorktreeClean root
             let identity = ResearchGitImport.currentIdentity root
 
-            if manifest.CollectorVersion <> ResearchRuntime.CollectorVersion
-               || manifest.ExporterVersion <> ResearchRuntime.ExporterVersion then
+            if
+                manifest.CollectorVersion <> ResearchRuntime.CollectorVersion
+                || manifest.ExporterVersion <> ResearchRuntime.ExporterVersion
+            then
                 Internal.fail "RESEARCH_VERSION_INVALID: study manifest does not bind this collector/exporter."
 
-            if not (Internal.isSha256 manifest.SourceManifestSha256)
-               || not (Internal.isSha256 manifest.ToolchainSha256) then
-                Internal.fail "RESEARCH_MANIFEST_INVALID: prospective source inventory and toolchain must be hash-bound."
+            if
+                not (Internal.isSha256 manifest.SourceManifestSha256)
+                || not (Internal.isSha256 manifest.ToolchainSha256)
+            then
+                Internal.fail
+                    "RESEARCH_MANIFEST_INVALID: prospective source inventory and toolchain must be hash-bound."
 
-            if identity.HeadCommit <> manifest.HeadCommit || identity.HeadTreeId <> manifest.InputTreeId then
+            if
+                identity.HeadCommit <> manifest.HeadCommit
+                || identity.HeadTreeId <> manifest.InputTreeId
+            then
                 Internal.fail "BASELINE_DRIFT: current HEAD/tree differs from the frozen study manifest."
 
             if ResearchGitImport.treeAt root manifest.BaselineCommit <> manifest.BaselineTreeId then
@@ -650,9 +763,15 @@ module ResearchActivation =
             if targetRunExists root manifest.TargetTaskId then
                 Internal.fail "PROSPECTIVE_START_TOO_LATE: a target task run already exists."
 
-            let activationGuard = guardBytes manifest identity targetTaskPath |> Internal.sha256Hex
-            let protocolSources = rows |> List.map (fun (path, _, hash) -> ResearchRuntime.gitBlobSource root identity.HeadCommit path hash)
+            let activationGuard =
+                guardBytes manifest identity targetTaskPath |> Internal.sha256Hex
+
+            let protocolSources =
+                rows
+                |> List.map (fun (path, _, hash) -> ResearchRuntime.gitBlobSource root identity.HeadCommit path hash)
+
             let frozenAt = ResearchRuntime.nowText ()
+
             let frozenPayload =
                 ResearchRuntime.payload (fun writer ->
                     writer.WriteString("freezeAtUtc", frozenAt)
@@ -660,7 +779,9 @@ module ResearchActivation =
                     writer.WriteString("protocolId", ResearchContract.StudyId)
                     writer.WriteString("protocolVersion", manifest.ProtocolVersion))
 
-            let frozenDraft = ResearchRuntime.createDraft manifest identity "protocol.frozen" protocolSources frozenPayload
+            let frozenDraft =
+                ResearchRuntime.createDraft manifest identity "protocol.frozen" protocolSources frozenPayload
+
             ResearchLedger.append root ledgerAbsolute frozenDraft |> ignore
 
             let startPayload =
@@ -671,9 +792,14 @@ module ResearchActivation =
                     writer.WriteString("nonInterferenceSnapshotSha256", manifest.SourceManifestSha256)
                     writer.WriteString("targetTaskId", manifest.TargetTaskId))
 
-            let taskSource = ResearchRuntime.gitBlobSource root identity.HeadCommit targetTaskPath (Internal.sha256Hex taskBytes)
-            let startDraft = ResearchRuntime.createDraft manifest identity "observation.started" [ taskSource ] startPayload
+            let taskSource =
+                ResearchRuntime.gitBlobSource root identity.HeadCommit targetTaskPath (Internal.sha256Hex taskBytes)
+
+            let startDraft =
+                ResearchRuntime.createDraft manifest identity "observation.started" [ taskSource ] startPayload
+
             let startReceipt = ResearchLedger.append root ledgerAbsolute startDraft
+
             let markerBytes =
                 canonicalMarkerBytes
                     manifest
@@ -687,7 +813,17 @@ module ResearchActivation =
             // manifest is retained beside the observation for later verification.
             let observationDirectory = Path.GetDirectoryName(ledgerAbsolute)
             let bundlePath = Path.Combine(observationDirectory, "PROTOCOL-BUNDLE.SHA256")
-            use bundleStream = new FileStream(bundlePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bundleManifest.Length, FileOptions.WriteThrough)
+
+            use bundleStream =
+                new FileStream(
+                    bundlePath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bundleManifest.Length,
+                    FileOptions.WriteThrough
+                )
+
             bundleStream.Write(bundleManifest, 0, bundleManifest.Length)
             bundleStream.Flush(true)
             bundleStream.Close()
@@ -759,8 +895,14 @@ module ResearchActivation =
                 { Active = false
                   State = "invalid"
                   ObservationId = selectedObservation
-                  EvidenceClass = marker |> Option.map (fun value -> value.EvidenceClass) |> Option.defaultValue ResearchContract.Unknown
-                  TargetTaskId = marker |> Option.map (fun value -> value.TargetTaskId) |> Option.defaultValue ResearchContract.Unknown
+                  EvidenceClass =
+                    marker
+                    |> Option.map (fun value -> value.EvidenceClass)
+                    |> Option.defaultValue ResearchContract.Unknown
+                  TargetTaskId =
+                    marker
+                    |> Option.map (fun value -> value.TargetTaskId)
+                    |> Option.defaultValue ResearchContract.Unknown
                   LedgerStatus = "missing"
                   EventCount = 0
                   OpenRunCount = 0
@@ -771,65 +913,120 @@ module ResearchActivation =
             else
                 let verified = ResearchLedger.verify root ledger
                 let events = verified.Events
-                let closed = events |> List.exists (fun event -> event.Body.EventType = "observation.closed")
-                let starts = events |> List.filter (fun event -> event.Body.EventType = "agent.run.started") |> List.choose (fun event -> ResearchValue.toOption event.Body.RunId) |> Set.ofList
-                let finishes = events |> List.filter (fun event -> event.Body.EventType = "agent.run.finished") |> List.choose (fun event -> ResearchValue.toOption event.Body.RunId) |> Set.ofList
+
+                let closed =
+                    events |> List.exists (fun event -> event.Body.EventType = "observation.closed")
+
+                let starts =
+                    events
+                    |> List.filter (fun event -> event.Body.EventType = "agent.run.started")
+                    |> List.choose (fun event -> ResearchValue.toOption event.Body.RunId)
+                    |> Set.ofList
+
+                let finishes =
+                    events
+                    |> List.filter (fun event -> event.Body.EventType = "agent.run.finished")
+                    |> List.choose (fun event -> ResearchValue.toOption event.Body.RunId)
+                    |> Set.ofList
+
                 let interventionStarts =
                     events
                     |> List.filter (fun event -> event.Body.EventType = "research.intervention.started")
                     |> List.map (fun event -> event.Body.Payload.GetProperty("interventionId").GetString())
                     |> Set.ofList
+
                 let interventionEnds =
                     events
                     |> List.filter (fun event -> event.Body.EventType = "research.intervention.ended")
                     |> List.map (fun event -> event.Body.Payload.GetProperty("interventionId").GetString())
                     |> Set.ofList
-                let rawMarkerMatches = marker |> Option.exists (fun value -> value.ObservationId = selectedObservation)
+
+                let rawMarkerMatches =
+                    marker |> Option.exists (fun value -> value.ObservationId = selectedObservation)
+
                 let markerMatches = rawMarkerMatches && activationValidated
-                let gapDirectory = Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", "gaps", selectedObservation)
+
+                let gapDirectory =
+                    Path.Combine(Path.GetFullPath(root), ".ai", "runtime", "research", "gaps", selectedObservation)
+
                 let gapCount =
                     if Directory.Exists(gapDirectory) then
-                        Directory.EnumerateFiles(gapDirectory, "GAP-*.json", SearchOption.TopDirectoryOnly) |> Seq.length
+                        Directory.EnumerateFiles(gapDirectory, "GAP-*.json", SearchOption.TopDirectoryOnly)
+                        |> Seq.length
                     else
                         0
+
                 let issues =
-                    [ if verified.Status <> ResearchLedgerStatus.Valid then yield! verified.Errors
-                      if rawMarkerMatches && not activationValidated then yield "ACTIVATION_RECEIPT_MISSING"
-                      if markerMatches && closed then yield "STALE_ACTIVE_MARKER"
-                      if not markerMatches && not closed && not (List.isEmpty events) then yield "INCOMPLETE_ACTIVATION"
-                      if gapCount > 0 then yield "COLLECTOR_GAPS_PRESENT" ]
+                    [ if verified.Status <> ResearchLedgerStatus.Valid then
+                          yield! verified.Errors
+                      if rawMarkerMatches && not activationValidated then
+                          yield "ACTIVATION_RECEIPT_MISSING"
+                      if markerMatches && closed then
+                          yield "STALE_ACTIVE_MARKER"
+                      if not markerMatches && not closed && not (List.isEmpty events) then
+                          yield "INCOMPLETE_ACTIVATION"
+                      if gapCount > 0 then
+                          yield "COLLECTOR_GAPS_PRESENT" ]
 
                 { Active = markerMatches && not closed && verified.Status = ResearchLedgerStatus.Valid
-                  State = if closed then "closed" elif markerMatches then "active" else "incomplete"
+                  State =
+                    if closed then "closed"
+                    elif markerMatches then "active"
+                    else "incomplete"
                   ObservationId = selectedObservation
-                  EvidenceClass = events |> List.tryHead |> Option.map (fun event -> event.Body.EvidenceClass) |> Option.defaultValue ResearchContract.Unknown
-                  TargetTaskId = events |> List.tryHead |> Option.bind (fun event -> ResearchValue.toOption event.Body.TaskId) |> Option.defaultValue ResearchContract.Unknown
+                  EvidenceClass =
+                    events
+                    |> List.tryHead
+                    |> Option.map (fun event -> event.Body.EvidenceClass)
+                    |> Option.defaultValue ResearchContract.Unknown
+                  TargetTaskId =
+                    events
+                    |> List.tryHead
+                    |> Option.bind (fun event -> ResearchValue.toOption event.Body.TaskId)
+                    |> Option.defaultValue ResearchContract.Unknown
                   LedgerStatus = string verified.Status
                   EventCount = events.Length
                   OpenRunCount = Set.difference starts finishes |> Set.count
                   OpenInterventionCount = Set.difference interventionStarts interventionEnds |> Set.count
                   CollectorGapCount = gapCount
-                  LastEventHash = events |> List.tryLast |> Option.map (fun event -> event.EventHash) |> Option.defaultValue ResearchContract.Unknown
+                  LastEventHash =
+                    events
+                    |> List.tryLast
+                    |> Option.map (fun event -> event.EventHash)
+                    |> Option.defaultValue ResearchContract.Unknown
                   Issues = issues }
 
     let private loadOutcomeReceipt (root: string) (marker: ResearchActivationMarker) (path: string) =
         let locations = Workspace.requireInitialized root
-        let absolute = Workspace.requireSafePath locations "Research outcome receipt" false path
+
+        let absolute =
+            Workspace.requireSafePath locations "Research outcome receipt" false path
+
         let bytes = File.ReadAllBytes(absolute)
-        let canonical = ResearchCanonical.canonicalizeJson(Constants.Utf8NoBom.GetString(bytes))
+
+        let canonical =
+            ResearchCanonical.canonicalizeJson (Constants.Utf8NoBom.GetString(bytes))
 
         if canonical.Length <> bytes.Length || not (Array.forall2 (=) canonical bytes) then
             Internal.fail "OUTCOME_RECEIPT_INVALID: outcome receipt must already be canonical JSON."
 
         use document = JsonDocument.Parse(canonical)
         let value = document.RootElement
+
         exactFields
             "OUTCOME_RECEIPT_INVALID"
             "outcome receipt"
             (set
-                [ "observationId"; "targetTaskId"; "taskOutcome"; "hypothesisResult"
-                  "resultCommit"; "resultTreeId"; "reasonCode"; "sourceManifestSha256" ])
+                [ "observationId"
+                  "targetTaskId"
+                  "taskOutcome"
+                  "hypothesisResult"
+                  "resultCommit"
+                  "resultTreeId"
+                  "reasonCode"
+                  "sourceManifestSha256" ])
             value
+
         let observationId = requiredString "observationId" value
         let targetTaskId = requiredString "targetTaskId" value
         let taskOutcome = requiredString "taskOutcome" value
@@ -842,13 +1039,17 @@ module ResearchActivation =
         if observationId <> marker.ObservationId || targetTaskId <> marker.TargetTaskId then
             Internal.fail "OUTCOME_RECEIPT_INVALID: outcome target differs from active observation."
 
-        if not (Set.contains taskOutcome (set [ "accepted"; "rejected"; "blocked"; "cancelled"; "unknown" ]))
-           || not (Set.contains hypothesisResult (set [ "supports"; "contradicts"; "inconclusive"; "unknown" ])) then
+        if
+            not (Set.contains taskOutcome (set [ "accepted"; "rejected"; "blocked"; "cancelled"; "unknown" ]))
+            || not (Set.contains hypothesisResult (set [ "supports"; "contradicts"; "inconclusive"; "unknown" ]))
+        then
             Internal.fail "OUTCOME_RECEIPT_INVALID: outcome enums are invalid."
 
         let isObjectId (candidate: string) =
             (candidate.Length = 40 || candidate.Length = 64)
-            && candidate |> Seq.forall (fun character -> character >= '0' && character <= '9' || character >= 'a' && character <= 'f')
+            && candidate
+               |> Seq.forall (fun character ->
+                   character >= '0' && character <= '9' || character >= 'a' && character <= 'f')
 
         if resultCommit <> ResearchContract.Unknown && not (isObjectId resultCommit) then
             Internal.fail "OUTCOME_RECEIPT_INVALID: resultCommit is invalid."
@@ -883,46 +1084,69 @@ module ResearchActivation =
 
     let private sourceResolvesExactly root (prior: ResearchEvent list) expectedRunId (source: ResearchSourceReference) =
         try
-            match source.SourceKind, source.Resolvable, source.RepositoryCommit, source.RepositoryPath, source.SourceEventId with
-            | "harness-event", true, ResearchValue.Unknown, ResearchValue.Known path, ResearchValue.Known eventHash
-                when source.LineStart = ResearchValue.Unknown
-                     && source.LineEnd = ResearchValue.Unknown
-                     && eventHash = source.ArtifactSha256 ->
+            match
+                source.SourceKind,
+                source.Resolvable,
+                source.RepositoryCommit,
+                source.RepositoryPath,
+                source.SourceEventId
+            with
+            | "harness-event", true, ResearchValue.Unknown, ResearchValue.Known path, ResearchValue.Known eventHash when
+                source.LineStart = ResearchValue.Unknown
+                && source.LineEnd = ResearchValue.Unknown
+                && eventHash = source.ArtifactSha256
+                ->
                 let parts = path.Split('/', StringSplitOptions.None)
 
                 match parts, expectedRunId with
-                | [| ".ai"; "runtime"; "runs"; runId; "events.jsonl" |], ResearchValue.Known declaredRunId
-                    when Internal.isRunId runId
-                         && runId = declaredRunId
-                         && path = $".ai/runtime/runs/{runId}/events.jsonl" ->
+                | [| ".ai"; "runtime"; "runs"; runId; "events.jsonl" |], ResearchValue.Known declaredRunId when
+                    Internal.isRunId runId
+                    && runId = declaredRunId
+                    && path = $".ai/runtime/runs/{runId}/events.jsonl"
+                    ->
                     RunStore.eventsStrict root runId
                     |> List.filter (fun candidate -> candidate.EventHash = eventHash)
                     |> function
                         | [ candidate ] ->
-                            RunStore.eventByReceipt root runId candidate.Sequence candidate.EventType candidate.EventHash
+                            RunStore.eventByReceipt
+                                root
+                                runId
+                                candidate.Sequence
+                                candidate.EventType
+                                candidate.EventHash
                             |> ignore
+
                             true
                         | _ -> false
                 | _ -> false
             | "harness-event", true, ResearchValue.Unknown, ResearchValue.Unknown, ResearchValue.Known eventId ->
                 prior
                 |> List.exists (fun candidate ->
-                    candidate.Body.EventId = eventId
-                    && candidate.EventHash = source.ArtifactSha256)
+                    candidate.Body.EventId = eventId && candidate.EventHash = source.ArtifactSha256)
             | _, true, ResearchValue.Known commit, ResearchValue.Known path, _ ->
                 ResearchGitImport.fileAtCommit root commit path |> Internal.sha256Hex = source.ArtifactSha256
             | _, true, ResearchValue.Unknown, ResearchValue.Known path, _ ->
                 let locations = Workspace.requireInitialized root
-                let absolute = Workspace.requireSafePath locations "Research authoritative outcome source" false (Path.Combine(root, path))
+
+                let absolute =
+                    Workspace.requireSafePath
+                        locations
+                        "Research authoritative outcome source"
+                        false
+                        (Path.Combine(root, path))
+
                 File.Exists(absolute) && Internal.sha256File absolute = source.ArtifactSha256
             | _ -> false
         with _ ->
             false
 
     let private hasResolvableSources root (events: ResearchEvent list) (event: ResearchEvent) =
-        let prior = events |> List.takeWhile (fun candidate -> candidate.Sequence < event.Sequence)
+        let prior =
+            events |> List.takeWhile (fun candidate -> candidate.Sequence < event.Sequence)
+
         not (List.isEmpty event.Body.SourceRefs)
-        && event.Body.SourceRefs |> List.forall (sourceResolvesExactly root prior event.Body.RunId)
+        && event.Body.SourceRefs
+           |> List.forall (sourceResolvesExactly root prior event.Body.RunId)
 
     let private isExactHarnessReceipt root (events: ResearchEvent list) (event: ResearchEvent) =
         if not (hasResolvableSources root events event) then
@@ -934,7 +1158,11 @@ module ResearchActivation =
                 | ResearchValue.Known path, ResearchValue.Known hash ->
                     let expectedPath = $".ai/runtime/runs/{runId}/events.jsonl"
 
-                    if source.SourceKind <> "harness-event" || path <> expectedPath || hash <> source.ArtifactSha256 then
+                    if
+                        source.SourceKind <> "harness-event"
+                        || path <> expectedPath
+                        || hash <> source.ArtifactSha256
+                    then
                         false
                     else
                         RunStore.eventsStrict root runId
@@ -965,7 +1193,10 @@ module ResearchActivation =
         | true, gates when gates.ValueKind = JsonValueKind.Array ->
             gates.EnumerateArray()
             |> Seq.map (fun gate ->
-                if gate.ValueKind <> JsonValueKind.String || String.IsNullOrWhiteSpace(gate.GetString()) then
+                if
+                    gate.ValueKind <> JsonValueKind.String
+                    || String.IsNullOrWhiteSpace(gate.GetString())
+                then
                     Internal.fail "TARGET_TASK_SCHEMA_INVALID: requiredGates contains an invalid gate ID."
 
                 gate.GetString())
@@ -991,9 +1222,7 @@ module ResearchActivation =
 
         let exactLifecycle eventType =
             targetEvents eventType
-            |> List.filter (fun event ->
-                eventRunTargets root marker event
-                && isExactHarnessReceipt root events event)
+            |> List.filter (fun event -> eventRunTargets root marker event && isExactHarnessReceipt root events event)
 
         let before (left: ResearchEvent) (right: ResearchEvent) = left.Sequence < right.Sequence
 
@@ -1064,10 +1293,14 @@ module ResearchActivation =
                 && hasResolvableSources root events finished
                 && finished.Body.Result = ResearchValue.Known "cancelled")
 
-        [ if acceptanceIsAuthoritative () then yield "accepted"
-          if rejectionIsAuthoritative () then yield "rejected"
-          if blockedIsAuthoritative () then yield "blocked"
-          if cancelledIsAuthoritative () then yield "cancelled" ]
+        [ if acceptanceIsAuthoritative () then
+              yield "accepted"
+          if rejectionIsAuthoritative () then
+              yield "rejected"
+          if blockedIsAuthoritative () then
+              yield "blocked"
+          if cancelledIsAuthoritative () then
+              yield "cancelled" ]
         |> List.distinct
         |> function
             | [ authoritative ] -> authoritative
@@ -1076,8 +1309,13 @@ module ResearchActivation =
     let private freezeOutcomeSource root observationId (bytes: byte array) =
         let locations = Workspace.requireInitialized root
         let hash = Internal.sha256Hex bytes
-        let relative = $".ai/runtime/research/observations/{observationId}/sources/outcome-{hash}.json"
-        let path = Workspace.requireSafePath locations "Research frozen outcome source" true (Path.Combine(root, relative))
+
+        let relative =
+            $".ai/runtime/research/observations/{observationId}/sources/outcome-{hash}.json"
+
+        let path =
+            Workspace.requireSafePath locations "Research frozen outcome source" true (Path.Combine(root, relative))
+
         let parent = Path.GetDirectoryName(path)
         Directory.CreateDirectory(parent) |> ignore
 
@@ -1085,7 +1323,16 @@ module ResearchActivation =
             if Internal.sha256File path <> hash then
                 Internal.fail "OUTCOME_SOURCE_CONFLICT: existing frozen source hash differs."
         else
-            use stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, max 1 bytes.Length, FileOptions.WriteThrough)
+            use stream =
+                new FileStream(
+                    path,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    max 1 bytes.Length,
+                    FileOptions.WriteThrough
+                )
+
             stream.Write(bytes, 0, bytes.Length)
             stream.Flush(true)
             stream.Close()
@@ -1112,8 +1359,11 @@ module ResearchActivation =
             Internal.fail "DURABILITY_FAILED: activation receipt remains after unlink and directory fsync."
 
     let private validateFinalClosure expectedSourceManifest (events: ResearchEvent list) =
-        let outcomes = events |> List.filter (fun event -> event.Body.EventType = "outcome.observed")
-        let closes = events |> List.filter (fun event -> event.Body.EventType = "observation.closed")
+        let outcomes =
+            events |> List.filter (fun event -> event.Body.EventType = "outcome.observed")
+
+        let closes =
+            events |> List.filter (fun event -> event.Body.EventType = "observation.closed")
 
         match outcomes, closes with
         | [ outcome ], [ closed ] when List.last events = closed ->
@@ -1141,8 +1391,7 @@ module ResearchActivation =
             | _ -> ()
 
             closed
-        | _ ->
-            Internal.fail "RESEARCH_CLOSE_INVALID: exactly one outcome and one final closure are required."
+        | _ -> Internal.fail "RESEARCH_CLOSE_INVALID: exactly one outcome and one final closure are required."
 
     let private closeLocked root observationId outcomeReceipt crashPoint =
         let markerOption = readMarker root
@@ -1160,9 +1409,10 @@ module ResearchActivation =
                     match activationReceiptObservation root with
                     | Some receiptObservation when receiptObservation = observationId ->
                         File.Delete(activationReceiptPath root)
-                        ResearchDurability.fsyncDirectory(Path.GetDirectoryName(activationReceiptPath root))
+                        ResearchDurability.fsyncDirectory (Path.GetDirectoryName(activationReceiptPath root))
                     | Some _ ->
-                        Internal.fail "ACTIVE_OBSERVATION_CONFLICT: orphan activation receipt belongs to another observation."
+                        Internal.fail
+                            "ACTIVE_OBSERVATION_CONFLICT: orphan activation receipt belongs to another observation."
                     | None -> ()
 
                     { ObservationId = observationId
@@ -1190,7 +1440,10 @@ module ResearchActivation =
             let ledger = ResearchLedger.ledgerPath root observationId
             let existing = ResearchLedger.readVerified root ledger
             verifyStartPrefix marker existing
-            let closed = existing |> List.filter (fun event -> event.Body.EventType = "observation.closed")
+
+            let closed =
+                existing
+                |> List.filter (fun event -> event.Body.EventType = "observation.closed")
 
             match closed with
             | [ _ ] ->
@@ -1204,11 +1457,18 @@ module ResearchActivation =
                   LedgerSha256 = Internal.sha256File ledger
                   MarkerRemoved = true }
             | [] ->
-                let outcomeBytes, requestedTaskOutcome, _requestedHypothesisResult, resultCommit, resultTreeId, reasonCode, sourceManifestSha =
+                let (outcomeBytes,
+                     requestedTaskOutcome,
+                     _requestedHypothesisResult,
+                     resultCommit,
+                     resultTreeId,
+                     reasonCode,
+                     sourceManifestSha) =
                     loadOutcomeReceipt root marker outcomeReceipt
 
                 if sourceManifestSha <> manifest.SourceManifestSha256 then
-                    Internal.fail "OUTCOME_RECEIPT_INVALID: sourceManifestSha256 differs from the frozen study manifest."
+                    Internal.fail
+                        "OUTCOME_RECEIPT_INVALID: sourceManifestSha256 differs from the frozen study manifest."
 
                 // Re-read every frozen non-interference input immediately before
                 // closing. Equality of the start/close manifest hash is only
@@ -1217,8 +1477,11 @@ module ResearchActivation =
 
                 let identity = ResearchGitImport.currentIdentity root
 
-                if (resultCommit <> ResearchContract.Unknown || resultTreeId <> ResearchContract.Unknown)
-                   && not identity.WorktreeClean then
+                if
+                    (resultCommit <> ResearchContract.Unknown
+                     || resultTreeId <> ResearchContract.Unknown)
+                    && not identity.WorktreeClean
+                then
                     Internal.fail "OUTCOME_RECEIPT_INVALID: a known result commit/tree requires a clean worktree."
 
                 if resultCommit <> ResearchContract.Unknown && resultCommit <> identity.HeadCommit then
@@ -1228,7 +1491,10 @@ module ResearchActivation =
                     Internal.fail "OUTCOME_RECEIPT_INVALID: resultTreeId differs from the current immutable tree."
 
                 let targetTaskPath = taskPath root marker.TargetTaskId
-                let targetTaskBytes = ResearchGitImport.fileAtCommit root manifest.HeadCommit targetTaskPath
+
+                let targetTaskBytes =
+                    ResearchGitImport.fileAtCommit root manifest.HeadCommit targetTaskPath
+
                 let taskOutcome =
                     resolveTaskOutcome
                         root
@@ -1245,11 +1511,15 @@ module ResearchActivation =
                 // which exist yet at this boundary.
                 let hypothesisResult = ResearchContract.Unknown
 
-                let frozenOutcomeRelative, frozenOutcomeHash = freezeOutcomeSource root observationId outcomeBytes
-                let source = ResearchRuntime.sourceFromFile root "decision-receipt" frozenOutcomeRelative
+                let frozenOutcomeRelative, frozenOutcomeHash =
+                    freezeOutcomeSource root observationId outcomeBytes
+
+                let source =
+                    ResearchRuntime.sourceFromFile root "decision-receipt" frozenOutcomeRelative
 
                 if source.ArtifactSha256 <> frozenOutcomeHash then
                     Internal.fail "OUTCOME_SOURCE_CONFLICT: frozen source binding differs."
+
                 let outcomePayload =
                     ResearchRuntime.payload (fun writer ->
                         writer.WriteString("hypothesisResult", hypothesisResult)
@@ -1257,22 +1527,28 @@ module ResearchActivation =
                         writer.WriteString("resultCommit", resultCommit)
                         writer.WriteString("resultTreeId", resultTreeId)
                         writer.WriteString("taskOutcome", taskOutcome))
+
                 let expectedPayloadBytes = ResearchCanonical.canonicalizeElement outcomePayload
-                let existingOutcomes = existing |> List.filter (fun event -> event.Body.EventType = "outcome.observed")
+
+                let existingOutcomes =
+                    existing |> List.filter (fun event -> event.Body.EventType = "outcome.observed")
+
                 let outcomeEventId, outcomeEventHash, countAfterOutcome =
                     match existingOutcomes with
                     | [] ->
-                        let outcomeDraft = ResearchRuntime.createDraft manifest identity "outcome.observed" [ source ] outcomePayload
+                        let outcomeDraft =
+                            ResearchRuntime.createDraft manifest identity "outcome.observed" [ source ] outcomePayload
+
                         let receipt = ResearchLedger.append root ledger outcomeDraft
                         receipt.EventId, receipt.EventHash, existing.Length + 1
-                    | [ observed ]
-                        when observed.Body.SourceRefs = [ source ]
-                             && ResearchCanonical.canonicalizeElement observed.Body.Payload = expectedPayloadBytes ->
+                    | [ observed ] when
+                        observed.Body.SourceRefs = [ source ]
+                        && ResearchCanonical.canonicalizeElement observed.Body.Payload = expectedPayloadBytes
+                        ->
                         observed.Body.EventId, observed.EventHash, existing.Length
                     | [ _ ] ->
                         Internal.fail "RESEARCH_CLOSE_CONFLICT: existing outcome differs from the supplied receipt."
-                    | _ ->
-                        Internal.fail "RESEARCH_CLOSE_INVALID: multiple outcome events exist."
+                    | _ -> Internal.fail "RESEARCH_CLOSE_INVALID: multiple outcome events exist."
 
                 let eventCount = countAfterOutcome + 1
 
@@ -1280,14 +1556,19 @@ module ResearchActivation =
                     Internal.fail "INJECTED_CRASH: after outcome fsync before closure."
 
                 let closedAt = ResearchRuntime.nowText ()
+
                 let closePayload =
                     ResearchRuntime.payload (fun writer ->
                         writer.WriteString("closedAtUtc", closedAt)
                         writer.WriteNumber("eventCount", eventCount)
                         writer.WriteString("outcomeEventId", outcomeEventId)
                         writer.WriteString("sourceManifestSha256", sourceManifestSha))
+
                 let closeSource = ResearchRuntime.harnessEventSource outcomeEventId outcomeEventHash
-                let closeDraft = ResearchRuntime.createDraft manifest identity "observation.closed" [ closeSource ] closePayload
+
+                let closeDraft =
+                    ResearchRuntime.createDraft manifest identity "observation.closed" [ closeSource ] closePayload
+
                 ResearchLedger.append root ledger closeDraft |> ignore
                 let finalEvents = ResearchLedger.readVerified root ledger
 
@@ -1308,8 +1589,7 @@ module ResearchActivation =
                   FinalEventHash = finalEvent.EventHash
                   LedgerSha256 = Internal.sha256File ledger
                   MarkerRemoved = true }
-            | _ ->
-                Internal.fail "RESEARCH_CLOSE_INVALID: multiple closure events exist."
+            | _ -> Internal.fail "RESEARCH_CLOSE_INVALID: multiple closure events exist."
 
     let close root observationId outcomeReceipt =
         withActivationLock root (fun () -> closeLocked root observationId outcomeReceipt None)

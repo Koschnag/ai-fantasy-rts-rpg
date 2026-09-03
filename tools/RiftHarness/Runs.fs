@@ -62,12 +62,22 @@ module RunStore =
     /// holding it. Ordinary runs deliberately never acquire this lock.
     let withProspectiveStartGuard root action =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Prospective target start guard" true (prospectiveStartGuardPath root)
+
+        let path =
+            Workspace.requireSafePath locations "Prospective target start guard" true (prospectiveStartGuardPath root)
+
         Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
 
         let stream =
             try
-                new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.WriteThrough)
+                new FileStream(
+                    path,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    1,
+                    FileOptions.WriteThrough
+                )
             with :? IOException as error ->
                 Internal.fail $"CONCURRENT_WRITER: prospective target start is already being decided: {error.Message}"
 

@@ -17,7 +17,8 @@ module ResearchRuntime =
     let nowText () =
         DateTimeOffset.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture)
 
-    let newId prefix = prefix + Internal.createRunId DateTimeOffset.UtcNow
+    let newId prefix =
+        prefix + Internal.createRunId DateTimeOffset.UtcNow
 
     let private monotonicClockId () =
         if OperatingSystem.IsLinux() then
@@ -43,7 +44,8 @@ module ResearchRuntime =
         | ResearchValue.Unknown -> ResearchValue.Unknown, ResearchValue.Unknown
         | ResearchValue.Known clockId ->
             let nanoseconds =
-                (decimal (Stopwatch.GetTimestamp()) * 1_000_000_000M / decimal Stopwatch.Frequency)
+                (decimal (Stopwatch.GetTimestamp()) * 1_000_000_000M
+                 / decimal Stopwatch.Frequency)
                 |> Decimal.Truncate
                 |> int64
 
@@ -119,7 +121,8 @@ module ResearchRuntime =
         let first =
             RunStore.eventsStrict root runId
             |> List.tryHead
-            |> Option.defaultWith (fun () -> Internal.fail "RESEARCH_SOURCE_INVALID: authoritative run-start event is absent.")
+            |> Option.defaultWith (fun () ->
+                Internal.fail "RESEARCH_SOURCE_INVALID: authoritative run-start event is absent.")
             |> fun event -> RunStore.eventByReceipt root runId event.Sequence event.EventType event.EventHash
 
         if first.Sequence <> 1L || first.EventType <> "run.started" then
@@ -131,7 +134,9 @@ module ResearchRuntime =
 
     let sourceFromFile root kind relativePath =
         let locations = Workspace.requireInitialized root
-        let path = Workspace.requireSafePath locations "Research source" false (Path.Combine(root, relativePath))
+
+        let path =
+            Workspace.requireSafePath locations "Research source" false (Path.Combine(root, relativePath))
 
         { SourceKind = kind
           RepositoryCommit = ResearchValue.Unknown
@@ -169,7 +174,11 @@ module ResearchRuntime =
             BranchRef = identity.BranchRef
             BaseCommit = ResearchValue.Known manifest.BaselineCommit
             HeadCommit = ResearchValue.Known identity.HeadCommit
-            TreeId = if identity.WorktreeClean then ResearchValue.Known identity.HeadTreeId else ResearchValue.Unknown
+            TreeId =
+                if identity.WorktreeClean then
+                    ResearchValue.Known identity.HeadTreeId
+                else
+                    ResearchValue.Unknown
             AutonomyMode = ResearchValue.Known "autonomous"
             ActivityState = ResearchValue.Known "agent-active"
             RedactionPolicyVersion = ResearchValue.Known manifest.RedactionPolicyVersion }

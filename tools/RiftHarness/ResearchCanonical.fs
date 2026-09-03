@@ -21,13 +21,17 @@ module ResearchCanonical =
             leftIndex <- leftIndex + if Char.IsSurrogatePair(left, leftIndex) then 2 else 1
             rightIndex <- rightIndex + if Char.IsSurrogatePair(right, rightIndex) then 2 else 1
 
-        if result <> 0 then result else compare (left.Length - leftIndex) (right.Length - rightIndex)
+        if result <> 0 then
+            result
+        else
+            compare (left.Length - leftIndex) (right.Length - rightIndex)
 
     let private propertyComparer =
         { new IComparer<JsonProperty> with
             member _.Compare(left, right) = compareCodePoints left.Name right.Name }
 
-    let private failInvalid message = Internal.fail $"RESEARCH_JSON_INVALID: {message}"
+    let private failInvalid message =
+        Internal.fail $"RESEARCH_JSON_INVALID: {message}"
 
     let rec private validateElement (element: JsonElement) =
         match element.ValueKind with
@@ -229,12 +233,14 @@ module ResearchCanonical =
             for property in properties do
                 writer.WritePropertyName(property.Name)
 
-                if Internal.isSensitivePropertyWithPolicy policy property.Name
-                   || property.Name.Contains("account", StringComparison.OrdinalIgnoreCase)
-                   || property.Name.Contains("billing", StringComparison.OrdinalIgnoreCase)
-                   || property.Name.Contains("hostname", StringComparison.OrdinalIgnoreCase)
-                   || property.Name.Contains("tailnet", StringComparison.OrdinalIgnoreCase)
-                   || String.Equals(property.Name, "providerId", StringComparison.OrdinalIgnoreCase) then
+                if
+                    Internal.isSensitivePropertyWithPolicy policy property.Name
+                    || property.Name.Contains("account", StringComparison.OrdinalIgnoreCase)
+                    || property.Name.Contains("billing", StringComparison.OrdinalIgnoreCase)
+                    || property.Name.Contains("hostname", StringComparison.OrdinalIgnoreCase)
+                    || property.Name.Contains("tailnet", StringComparison.OrdinalIgnoreCase)
+                    || String.Equals(property.Name, "providerId", StringComparison.OrdinalIgnoreCase)
+                then
                     writer.WriteStringValue("[REDACTED:secret]")
                     changed <- true
                 else
