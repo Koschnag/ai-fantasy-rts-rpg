@@ -88,6 +88,11 @@ führt stabile Planner-/Builder-/Reviewer-/Repair-/WIP-Identitäten für künfti
 Commits ein, ohne bestehende Historie umzuschreiben. Implementierung, Merge und
 Deployment erfordern die im Manifest festgelegten Negativtests, alle
 bestehenden Pflichtgates und ein buildergetrenntes unabhängiges Review.
+Das eingefrorene T-053-Manifest bleibt dabei byteidentisch `READY`; dessen
+effektive Startberechtigung ist bis zu einem schema-gültigen, normal
+startberechtigten T-042 jedoch separat `waiting` mit dem geschlossenen Grund
+`awaiting-preregistered-t042-start-eligibility`. Der Autopilot darf T-053 in
+diesem Zustand nicht erneut auswählen.
 
 `T-003`, `T-005`, `T-006` und `T-007` sind unabhängig abgenommen. `T-006` hat den
 BCL-only-.NET-in-process-Generator samt transaktionalem Quarantäne-Lifecycle
