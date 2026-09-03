@@ -2,156 +2,120 @@
 
 ## Stand
 
-`REVIEW` – isolierte Builder-/Repair-Kandidatenkette. Ausgangsbasis ist der veröffentlichte
-`main`-Commit `577e7c43c1782795f3af85d0322c4975cc8f8ddf` mit Tree
-`25df0a74a3d23fb7617ab9d2712737ebc572f8b8`. Der Kandidat ist noch nicht
-akzeptiert, nicht nach `main` promoviert und nicht auf GitHub Pages
-veröffentlicht.
+`ACCEPTED` – getrennte Projektleitungs-Promotion nach Builder-, Repair- und
+Reviewer-Kette. Der abgenommene öffentliche Ausgangsstand ist der
+`main`-Commit `8895d379ffe2bcc9f3c24121ddb9e7ee74a99475` mit Tree
+`37958bde34c808bff536b1ed75813ba9e5394a01`.
 
-Der T-053-Quellvertrag und sein Protokollbundle bleiben unverändert. T-053 ist
-weiterhin `READY`, aber wegen des noch nicht startberechtigten T-042 effektiv
-`waiting`. Der Builder hat weder T-042 noch Runtime, Produktsemantik,
-Autopilot-Leases oder `autopilot/live-wip` verändert.
+Diese Akzeptanz verändert weder den T-053-Protokollbundle noch Runtime,
+Produktsemantik, Autopilot-Leases oder `autopilot/live-wip`. T-053 bleibt
+`READY`, ist wegen seiner vorregistrierten T-042-Bedingung aber weiterhin
+effektiv `waiting`.
 
-## Implementierter Kandidatenstand
+## Abgenommener Lieferumfang
 
-- README und Pages verwenden dieselbe dynamische, commitgebundene
+- README und GitHub Pages verwenden dieselbe dynamische, commitgebundene
   Statusprojektion. Ein Statusrefresh erzeugt keinen README-Commit.
-- Der Pages-Workflow läuft auf `main`-Push, manuell und alle 15 Minuten. Nur
-  der exakt über die GitHub-API aufgelöste `origin/main`-Commit wird
-  ausgecheckt und ausgeführt; PR-, Fork- und WIP-Refs bleiben Daten.
+- Der Pages-Workflow läuft auf jedem `main`-Push, manuell und alle 15 Minuten.
+  Ausgeführt wird ausschließlich der exakt gebundene `origin/main`-Code;
+  PR-, Fork- und WIP-Refs bleiben streng allowgelistete, nicht ausführbare
+  Daten.
 - Der geschlossene Status-v3-Vertrag trennt Beobachtung, akzeptierten Stand,
-  Kandidaten, WIP-Kontinuität, Aktivität, Tasks und enge Claim-Grenzen.
-- Die öffentliche Beobachtung gilt 30 Minuten als `current`, danach als
-  `stale` und ab sechs Stunden als `offline`. Der Browser wertet nur mit der
-  gleichoriginären HTTP-Zeit ab; eine Client-Uhr kann keinen Zustand
-  aufwerten.
-- Fehlende, mehrdeutige, veraltete, zukunftsdatierte oder
-  provenienzwidersprüchliche Daten werden fail-closed abgewertet oder
-  verhindern das Deployment.
-- Historische Promotionsreceipts, heutiger retrospektiver Audit und
-  `DONE`-Berechtigung sind getrennte Evidenzklassen. Die sieben Records für
-  T-034 bis T-039 und T-052 behalten
-  `roleSeparation=not-publicly-proven`; solange der neue Audit aussteht, bleiben
-  sie `REVIEW` und nicht akzeptiert.
-- Neue Commits erhalten stabile Planner-/Builder-/Reviewer-/Repair-/WIP-
-  Autopilotidentitäten und geschlossene Provenienztrailer. Die Identität
-  `Koschnag` bleibt der Projektleitung/Promotion vorbehalten; bestehende
-  Historie wird nicht umgeschrieben.
-- Status-Sidecars sind nicht selbstreferenziell: Der jeweilige Commit bindet
-  den Git-Blob über `Public-Status-Blob`; Beobachtung verlangt dieselbe OID aus
-  Commit-Trailer, GitHub-Content-API und lokaler Blob-Berechnung. Fehlende,
-  doppelte, falsche oder nur weitergetragene Bindungen ergeben kein Signal.
-- Die Seite wurde responsiv und status-first neu aufgebaut. Tastaturtabs,
-  sichtbarer Fokus, `aria-live`, Reduced Motion, CSP, lokale Medien,
-  Checksum-/Größenbudgets sowie `CONCEPT · NOT GAMEPLAY` bleiben verbindlich.
+  Kandidaten, WIP-Kontinuität, Aktivität, Aufgaben und Claim-Grenzen.
+- Beobachtungen sind höchstens 30 Minuten `current`, danach `stale` und ab
+  sechs Stunden `offline`. Fehlende oder widersprüchliche Daten werden
+  sichtbar abgewertet oder blockieren das Deployment.
+- Das responsive, status-first Cockpit unterstützt Tastaturtabs, sichtbaren
+  Fokus, Screenreaderstruktur, `aria-live`, Reduced Motion und rein lokale,
+  provenienzgebundene Medien.
+- Künftige Planner-, Builder-, Reviewer-, Repair- und WIP-Commits besitzen
+  geschlossene pseudonyme Rollen und Trailer. Bestehende Git-Historie wird
+  nicht umgeschrieben; `Koschnag` bleibt Projektleitungs-/Promotionsidentität.
+- Historische Promotionsreceipts für T-034 bis T-039 und T-052 sind
+  reproduzierbar gebunden. Nicht öffentlich bewiesene historische
+  Rollentrennung bleibt ausdrücklich `not-publicly-proven`.
 
-## Kandidatenevidenz
+## Exakte Promotionsevidenz
 
-Folgende Prüfungen waren auf dem isolierten macOS-Builderstand erfolgreich:
+Die finale Repair-/Review-Kette bestand folgende unabhängige Prüfungen:
 
-- `node --check docs/showcase/showcase.js`
-- `python3 scripts/test-pages.py --source docs/showcase`
-  → `PAGES_CONTRACT_PASS`
-- `python3 scripts/test-reconciliation.py`
-  → `RECONCILIATION_HERMETIC_PASS`
-- `python3 scripts/test-commit-role.py`
-  → `COMMIT_ROLE_POLICY_PASS`
-- Eine frühere Live-GitHub-Prüfung des v1-Receiptsatzes stimmte für die sieben
-  historischen Receipts mit Repository, PR, Workflow, Run, Attempt, Job,
-  Check-Run, Check-Suite, GitHub-Actions-App sowie Task-/Review-/Workflowblobs
-  überein. Sie ist ausdrücklich kein Live-Nachweis des aktuellen v2-Vertrags;
-  dessen `validate_reconciliation.py --live-github` bleibt auf dem exakten
-  GitHub-Kandidaten und nach der Promotion erneut auszuführen.
-- `./scripts/rift.sh lint`
-- `./scripts/rift.sh build`
-  → 0 Warnungen, 0 Fehler
-- `./scripts/rift.sh harness verify --run <lokaler-redigierter-run>`
-  → gültige Ereigniskette; die private Run-ID wird nicht veröffentlicht
-- `./scripts/rift.sh security` bis auf die offen ausgewiesene lokale
-  Git-LFS-Werkzeuglücke; Secretheuristik, JSON, Locked Restore/NuGetAudit und
-  native Toolchain-/Lizenz-/ISA-Prüfung bestanden
+- der hermetische `PAGES_CONTRACT_PASS` prüfte unter anderem
+  Tastatur-/DOM-Struktur, Reduced Motion, Links, Medien und responsive
+  Vertragsgrenzen; dies ist kein Ersatz für einen nicht ausgeführten realen
+  Tastatur-Playtest;
+- Repair-Commit `eadf2062e9e3631293c97c1e7ab41e40be19b64a`, Tree
+  `846de215a478dd550c8a23eaad399eea14b703dd`;
+- getrennte Reviewer-Promotion
+  `4ab4f1a61867f9b9118cf1f9931471dfea356b55`, Tree
+  `37958bde34c808bff536b1ed75813ba9e5394a01`;
+- exakter Reviewer-Verify-Lauf `33774141897`: vollständig erfolgreich;
+- unabhängiges Sol-Quality-Gate: `PASS`;
+- Squash-Promotion nach `main` als
+  `8895d379ffe2bcc9f3c24121ddb9e7ee74a99475`, exakt derselbe Reviewer-Tree;
+- post-merge Verify-Lauf `33775995196`: Build, Produktsuite, Harness,
+  Asset-Provenienz, Security und Fresh-Checkout vollständig erfolgreich;
+- gebundener Pages-Lauf `33775995228`: Reconciliation, allowgelistete
+  GitHub-Beobachtung, zwei deterministische Builds, öffentliche
+  Vertragsprüfung, erneute Main-Ref-Prüfung und Deployment erfolgreich.
 
-Die komplette Produktsuite erreichte auf dem Mac 353/383. Die 30 roten Fälle
-sind kein grüner Abnahmebeleg: Sie betreffen explizit linux-x64-konstante
-Runtime-/Report-/Paketfixtures, zwei Linux-CI-Evidenzfälle und die lokal nicht
-installierte Git-LFS-Prüfung. Der verpflichtende frische Linux-PR-Lauf muss
-daher die vollständige Suite und das Security-Gate übernehmen. Die lokale
-Messung wird weder gelöscht noch als Erfolg umgedeutet.
+## Reale Veröffentlichungskontrolle
 
-## Noch offen
+Nach dem erfolgreichen Pages-Lauf wurden die öffentliche Seite,
+`status.json`, `status.svg` und `task.svg` mit HTTP 200 abgerufen.
+`status.json` nannte exakt den abgenommenen Commit und Tree, klassifizierte
+T-053 als `READY`/`waiting` und gab fehlende Aktivitäts-, Kandidaten- und
+Kontinuitätssignale sichtbar als `unknown`, `not-observed` oder `unavailable`
+aus.
 
-- vollständige Builder-/Repair-Kandidatenkette mit exakter Parent-/Tree-Bindung;
-- frische Linux-GitHub-CI auf genau diesem Kandidaten;
-- builder- und repair-getrenntes unabhängiges Review des exakten letzten
-  Kandidatencommits;
-- maschinenlesbarer retrospektiver Auditreceipt und explizite, dadurch
-  autorisierte Statusübergänge T-034 bis T-039/T-052;
-- erneute CI auf dem eingefrorenen Reviewer-Head;
-- Squash-Merge, post-merge Live-Reconciliation und GitHub-Pages-Deployment;
-- reale Browserabnahme der veröffentlichten Desktop- und Smartphoneansicht.
+Eine reale Browserabnahme bestätigte:
 
-Der erste echte `main`-Deploy nach der Promotion wurde am 2026-09-03 im
-fail-closed Reconciliation-Schritt abgebrochen (GitHub-Actions-Run
-`33767113139`). Der saubere `main`-Checkout enthielt erwartungsgemäß nicht alle
-durch Squash-Merges historisch gewordenen PR-Headobjekte; der CLI-Einstieg
-forderte diese Objekte trotzdem zusätzlich zur bereits gebundenen Live-API-
-Prüfung lokal an. Der Reparaturkandidat trennt deshalb nur die Quellenwahl:
-Offline-`--root` behält die vollständige lokale Historienprüfung. Der
-Live-Modus überspringt lokal ausschließlich die nach einem Squash-Merge nicht
-notwendig erreichbaren PR-Heads; Result-Tree, Squash-Parent, Main-Ancestry sowie
-Base-/Result-Blobs bleiben lokale Pflicht. PR-Heads und die vollständige
-Auditkette werden zusätzlich fail-closed über die gebundene GitHub-API geprüft,
-der aktuelle `main`-Commit, Tree und Manifestblob lokal und per API gebunden.
-Ein anschließender realer Vorabtest erreichte damit das Review-Gate und zeigte
-einen zweiten Lifecycle-Fall: GitHub lieferte für den geschlossenen PR im
-historischen Workflow-Run ein leeres optionales `pull_requests`-Array. Der
-Reparaturkandidat behandelt dieses leere Array nun wie bereits die sieben
-historischen Receipts, bindet aber weiterhin den exakten PR samt Base/Head,
-Workflow, Run-Attempt, Suite, Job und Check; mehrere oder widersprüchliche
-Relationen bleiben abgelehnt.
+- Desktop bei 1440 × 900 und Smartphone bei 390 × 844 ohne horizontalen
+  Überlauf;
+- alle drei lokalen Konzeptmedien vollständig geladen;
+- funktionierende Methodentabs einschließlich sichtbarer
+  Selektionszustände;
+- lesbare Commit-, Tree-, Task-, Gate- und Claim-Grenzen;
+- keine beim kontrollierten Reload beobachteten Page- oder Request-Fehler.
 
-Der anschließende `main`-Deploy `33772005266` bestand Reconciliation und die
-allowgelistete GitHub-Beobachtung, scheiterte aber im ersten deterministischen
-Showcase-Build. Der Statusgenerator rief die lokale Reconciliation ein zweites
-Mal mit dem strengeren Offline-Default auf und verlangte dadurch erneut einen
-Squash-only-PR-Head. Der zweite Reparaturkandidat bindet diesen Aufruf explizit
-an das unmittelbar zuvor im selben vertrauenswürdigen Workflow erzeugte,
-Commit-, Tree-, Manifest- und Audit-gebundene Live-Verdict. Die lokale Prüfung
-von Result-Tree, Squash-Parent, Main-Ancestry und den main-erreichbaren Blobs
-bleibt erhalten; nur der bereits per API geprüfte historische PR-Head ist in
-diesem zweiten Live-Verdict-Pfad nicht lokal erforderlich. Der gewöhnliche
-Offline-Aufruf bleibt unverändert vollständig. Ein Regressionstest führt
-beide Pfade sowie falschen Result-Tree, falschen Parent und divergierte
-Main-Ancestry aus. Bis eine neue exakte CI und ein realer Pages-Deploy bestehen,
-ist auch diese Korrektur lediglich Kandidatenevidenz.
+## Reparaturchronik
 
-Die vom Repair-Builder getrennte Reviewidentität prüfte den exakten
-Reparaturcommit `eadf2062e9e3631293c97c1e7ab41e40be19b64a` mit Tree
-`846de215a478dd550c8a23eaad399eea14b703dd`. Das unabhängige Sol-Quality-Gate
-bewertete die erhaltene Live-/Offline-Vertrauensgrenze mit `PASS`; der exakte
-Linux-PR-Lauf `33772570962` bestand Repository-Gates, Build, Produktsuite,
-Asset-Provenienz, Security und Fresh-Checkout-Contract. Merge, erneuter
-Main-Verify und ein erfolgreicher realer Pages-Deploy bleiben weiterhin offen.
-Bis ein neuer exakter CI- und Pages-Lauf bestanden hat, ist dies kein
-Deployment- oder Abnahmebeleg und T-054 bleibt `REVIEW`.
+Der erste `main`-Deploy `33767113139` entdeckte fail-closed, dass ein sauberer
+Squash-Merge-Checkout historische PR-Headobjekte nicht zwingend enthält. Die
+erste Reparatur trennte deshalb Offline-Historienprüfung und live
+GitHub-gebundene Reconciliation, ohne Result-Tree, Squash-Parent,
+Main-Ancestry oder API-Bindungen abzuschwächen.
 
-T-054 selbst wird in dieser Kandidatenkette nicht `DONE`: Sein eigener Merge
-und post-merge Deploy können nicht aus dem vorangehenden Kandidatenbaum bewiesen
-werden.
+Der nächste Deploy `33772005266` bestand diese Reconciliation, entdeckte aber
+einen zweiten Fehler: Der Statusgenerator rief denselben Validator erneut mit
+dem strengeren Offline-Default auf. Die finale Reparatur band diesen Aufruf an
+das unmittelbar zuvor im vertrauenswürdigen Workflow erzeugte Live-Verdict.
+Adversariale Regressionstests für falschen Tree, falschen Parent und
+divergierte Main-Ancestry blieben Pflicht. Der darauf folgende Lauf
+`33775995228` bestand vollständig.
 
-## Aussagegrenzen
+Diese Fehler- und Reparaturfolge bleibt als Evidenz erhalten; fehlgeschlagene
+Läufe werden nicht gelöscht oder nachträglich als Erfolg umgedeutet.
+
+## Aussagegrenzen und Restpunkte
 
 Das Cockpit belegt weder ein fertiges oder repräsentatives Spiel noch
-Zielhardwareleistung, physische Ausgabe, Vollzeitverfügbarkeit, 24/7-
-Produktivität, menschliche Eingriffszeit, Tokenmenge oder Kosten. WIP zeigt
-Kontinuität, nicht Akzeptanz. Eine pseudonyme Git-Autorzeile ist Rollenbeleg,
-kein kryptografischer Nachweis verschiedener Personen oder Prozesse.
+Zielhardwareleistung, physische Ausgabe, Vollzeitverfügbarkeit,
+24/7-Produktivität, menschliche Eingriffszeit, Tokenmenge oder Kosten. WIP
+belegt Kontinuität, nicht Akzeptanz. Die Konzeptbilder sind kein Gameplay.
+Eine pseudonyme Git-Autorzeile ist Rollenprovenienz, kein kryptografischer
+Nachweis verschiedener Personen oder Prozesse.
+
+Der automatisch durch den Merge dieses Lifecycle-Checkpoints ausgelöste neue
+Verify-/Pages-Lauf wird als eigener nachgelagerter `main`-Beleg beobachtet. Er
+ändert die hier gebundene Abnahme des Liefer-Trees nicht. Die von GitHub
+gemeldete Node-20-Kompatibilitätswarnung der gepinnten Pages-Actions ist ein
+nicht blockierender Wartungspunkt und kein fehlgeschlagener Projekttest.
 
 ## Rückrollweg
 
-Die Änderung bleibt in einem eigenen PR und wird ausschließlich per
-Squash-Merge integriert. Vor dem Merge ist der Branch löschbar, ohne `main`
-zu verändern. Nach dem Merge setzt ein normaler Revert-PR den vorherigen
-Main-Baum wieder ein; Pages wird anschließend aus diesem akzeptierten Baum neu
-gebaut. Weder `main` noch WIP-Historie werden umgeschrieben.
+Die Akzeptanz wird als eigener, kleiner Pull Request integriert. Ein normaler
+Revert-PR setzt ausschließlich diesen Lifecycle-/Dokumentationscheckpoint
+zurück. Die Implementierung selbst bleibt über die zuvor dokumentierten
+T-054-Revert-Commits rückrollbar; danach erzeugt Pages den öffentlichen Stand
+erneut aus dem akzeptierten `main`. Weder `main` noch WIP-Historie werden
+umgeschrieben.
