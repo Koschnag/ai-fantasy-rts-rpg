@@ -19,6 +19,7 @@
     <Compile Include="ResearchArchitecture.fs" />
     <Compile Include="ResearchLedger.fs" />
     <Compile Include="ResearchGitImport.fs" />
+    <Compile Include="ResearchGitCalibration.fs" />
     <Compile Include="ResearchMetrics.fs" />
     <Compile Include="ResearchExport.fs" />
     <Compile Include="ResearchRuntime.fs" />
