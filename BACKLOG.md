@@ -37,6 +37,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-055 | E-005 | reviewfaehiger Vertrag fuer die zusammenhaengende 20–30-minuetige VS-001-Mission mit parallel vorbereitbaren Lanes, single-mutator Integration T-056 bis T-061 und drei offenen Projektleitungs-Buendeln | Z-001, Z-002, Z-003, Z-004, Z-005, Z-006 | M | MUST | DRAFT |
 | T-071 | E-001 | stale/offline Pages zeigt letzte akzeptierte main-Provenienz mit Alter, waehrend volatile Aktivitaet fail-closed bleibt | Z-004, Z-005, NF-003, NF-008 | S | SHOULD | DONE |
 | T-072 | E-001 | verifiziertes Node-24-Update der drei SHA-gepinnten GitHub-Pages-Actions ohne Aenderung des bestehenden Deploy-Vertrags | Z-004, Z-005 | S | SHOULD | DONE |
+| T-073 | E-001 | fail-closed Pages-Uebergang von T-053 waiting zu eligible, sobald das praeregistrierte T-042 nachweislich startberechtigt ist | Z-004, Z-005, NF-003, NF-008 | S | MUST | READY |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |

@@ -1,0 +1,89 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-073",
+  "title": "Fail-closed Pages-Uebergang fuer die praeregistrierte T-042-Startberechtigung",
+  "status": "ready",
+  "releaseNote": "2026-09-04: DRAFT -> READY als eng begrenzte Reparatur nach dem unabhaengigen T-042-Spec-Review. Die bestehende gemeinsame Startberechtigungsfunktion wechselt T-053 bei genau einem READY-T-042 mit akzeptierten Abhaengigkeiten korrekt von waiting auf eligible; Python- und Browservalidator sind jedoch noch auf waiting fest verdrahtet und wuerden den danach erzeugten Pages-Stand ablehnen. Der Auftrag folgt der wiederholten Projektleitungsanweisung, README und Website automatisch aktuell, wahrheitstreu und fail-closed zu halten. Er startet auf main 136ef5d45612173a79dbaac9555499568635a3da, landet zwingend vor T-042 und aendert weder T-042/T-053/T-055 noch Forschungsprotokoll, Runtime, Produktcode, Gates, Promotion oder oeffentliche Rohdaten.",
+  "objective": "Das oeffentliche Pages-Cockpit akzeptiert und rendert den bereits spezifizierten T-053-Uebergang genau dann als eligible mit waitingReason none, wenn die gemeinsame Eligibility-Funktion ihn belegt; ohne startberechtigtes T-042 bleibt waiting mit dem praeregistrierten Grund erhalten, und jede inkonsistente Paarung wird in Python, JSON-Schema und Browser fail-closed verworfen.",
+  "inScope": [
+    "scripts/test-pages.py: dieselbe geschlossene T-053-Relation in der Python-Validierung, positive waiting-/eligible-Fixtures und negative inkonsistente Paare",
+    "docs/showcase/showcase.js: browserseitig exakt dieselben zwei gueltigen T-053-Paare bei unveraendertem taskId T-053, Lifecycle READY und selectorEnforcement pending",
+    "docs/showcase/status.schema.json: bedingte Relation fuer T-053, die nur waiting plus awaiting-preregistered-t042-start-eligibility oder eligible plus none zulaesst",
+    "Hermetische TemporaryDirectory-Fixtures fuer fehlendes, doppeltes, malformed, nicht-READY oder abhaengigkeitsblockiertes T-042 sowie den positiven READY-Fall mit akzeptierten Abhaengigkeiten; keine Fixture unter produktiven .ai/tasks",
+    "docs/showcase/README.md: dokumentierter Uebergangsvertrag und Aussagegrenze; bestehende stale/offline/unknown-, WIP-, Claim- und Selektorgrenzen bleiben erhalten"
+  ],
+  "outOfScope": [
+    "Aenderung an scripts/task_eligibility.py oder scripts/pages_status.py; deren bestehende gemeinsame Ableitung bleibt die Quelle der Startberechtigung",
+    "Aenderung, Start, Abschluss, Freigabe oder Neuinterpretation von T-042, P-001, T-053, T-055/T-056 oder irgendeinem Produkt-, Runtime-, Test-, Gate- oder Forschungsartefakt ausser den expliziten Pages-Vertragstests",
+    "Aenderung von Status-V3-Feldern, Enums, Freshness-/Offline-Schwellen, akzeptierter main-Bindung, Kandidaten-/WIP-Grenzen, Rollenidentitaeten oder selectorEnforcement pending",
+    "Aenderung von .ai/public-status-v3.json, generierten Pages-Artefakten, Live-Deployment, GitHub-Beobachtungs- oder Reconciliation-Inputs",
+    "Neue Abhaengigkeiten, Netzwerkzugriff in hermetischen Tests, Tracking, private Betriebs-/Forschungsdaten, Secrets oder personenbezogene Daten"
+  ],
+  "requirements": [
+    "Z-004",
+    "Z-005",
+    "NF-003",
+    "NF-008"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T073-01",
+      "statement": "Auf dem Ausgangsstand ohne T-042 bleibt der echte Eligibility-Vertrag fuer T-053 exakt READY/waiting/awaiting-preregistered-t042-start-eligibility/pending; Python-, Schema- und Browservalidator akzeptieren diesen Stand weiterhin.",
+      "verification": "Hermetischer Bestandsfixture ueber scripts/task_eligibility.py und die Pages-Validatoren; bestehender Pages-Quelltest gruen"
+    },
+    {
+      "id": "AC-T073-02",
+      "statement": "Ein isolierter synthetischer Taskbaum mit genau einem schemafoermigen READY-T-042 und accepted Abhaengigkeiten ergibt durch die reale gemeinsame Eligibility-Funktion fuer T-053 exakt READY/eligible/none/pending; derselbe strukturierte Status besteht Python-, eingecheckte JSON-Schema- und Browservalidierung und wird als eligible dargestellt.",
+      "verification": "TemporaryDirectory-Positivfixture ohne produktive Taskaenderung; Python- und Node-Browservertrag laufen offline und deterministisch zweimal identisch"
+    },
+    {
+      "id": "AC-T073-03",
+      "statement": "Fehlendes, doppeltes, malformed, nicht-READY oder durch fehlende/nicht akzeptierte Abhaengigkeit blockiertes T-042 wird niemals als eligible ausgegeben; inkonsistente Paare eligible plus praeregistrierter Wartegrund, waiting plus none sowie blocked/unknown fuer den eingefrorenen READY-T-053-Pfad werden von Python, Schema und Browser kontrolliert abgelehnt.",
+      "verification": "Tabellengesteuerte negative Matrix mit kontrollierten Fehlern; keine Netzwerk- oder produktiven Schreibzugriffe"
+    },
+    {
+      "id": "AC-T073-04",
+      "statement": "Stale-, offline-, unknown-, Future-Clock-, Fetchfehler-, WIP-Nichtakzeptanz-, Claim-, Kandidaten-, Rollen- und selectorEnforcement-Grenzen bleiben unveraendert fail-closed; eligible wird weder als laufender Agent noch als akzeptierter Fortschritt oder durchgesetzter Selektor ausgegeben.",
+      "verification": "Bestehende Python-/Node-Negativmatrix und Strukturreview; Diff gegen Status-V3-Vertrag"
+    },
+    {
+      "id": "AC-T073-05",
+      "statement": "Der Implementierungsdiff ist auf Task/Backlog sowie scripts/test-pages.py, docs/showcase/showcase.js, docs/showcase/status.schema.json und docs/showcase/README.md begrenzt; T-042/T-053/T-055, task_eligibility.py, pages_status.py, public-status sidecar, Runtime, Forschung, Reconciliation, Workflows und Gates bleiben byteidentisch.",
+      "verification": "Explizite Diff-Allowlist und SHA-/git-diff-Pruefung gegen den Ausgangsstand"
+    },
+    {
+      "id": "AC-T073-06",
+      "statement": "Lint, Security, Verify, Pages-Quellvertrag und zwei deterministische Pages-Builds bestehen auf Linux ohne neue Warnung oder Abhaengigkeit; T-073 wird erst nach buildergetrenntem Review und exakter Candidate-CI promoviert.",
+      "verification": "Lokale hermetische Tests soweit plattformneutral, GitHub-Linux-Verify, Doppelbuildhash, unabhaengiger Review und exakte Tree-Bindung"
+    }
+  ],
+  "dependencies": [
+    "T-054",
+    "T-071",
+    "T-072"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-DATA",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Interne, dependency-free Hilfsfunktionen und Fixtureanordnung innerhalb der vier expliziten Pages-Dateien, solange die zwei gueltigen T-053-Paare und alle bestehenden Fail-closed-Grenzen zeichentreu bleiben",
+      "Bedingte JSON-Schema-Form als oneOf/if-then-Aequivalent und Namen synthetischer Fixturedateien in TemporaryDirectory",
+      "Verschaerfung der Negativmatrix und Fehlermeldungen ohne neue oeffentliche Felder oder Statusbedeutung"
+    ],
+    "mustEscalate": [
+      "Aenderung an T-042, P-001, T-053, T-055/T-056, task_eligibility.py, pages_status.py, Runtime, Forschungsprotokoll, produktiven Tests/Gates oder Task-/Promotionsstatus ausser T-073",
+      "Aenderung von Status-V3-Feldern oder Enums, Freshness-/Offline-Grenzen, main-/Tree-Bindung, Kandidaten-/WIP-/Claim-Regeln, Rollenidentitaeten, Selektorbehauptung oder Akzeptanzhoheit",
+      "Aenderung von .ai/public-status-v3.json, Reconciliation, Workflows, Deployments oder generierten Live-Artefakten",
+      "Neue Abhaengigkeit, Netzwerkzugriff in Tests, externe Uebertragung oder Persistierung privater Daten, Secrets oder personenbezogener Daten",
+      "Direkte Promotion von T-042 vor akzeptiertem T-073 und bestandener waiting-Bestandspruefung"
+    ]
+  }
+}
