@@ -167,6 +167,32 @@ def check_css(source: Path, css: str | None = None) -> None:
     require(":focus-visible" in css, "visible keyboard focus contract missing")
 
 
+def check_workflow(repo_root: Path) -> None:
+    workflow = (repo_root / ".github/workflows/pages.yml").read_text(encoding="utf-8")
+    schedules = re.findall(r'^\s*- cron: "([^"]+)"\s*$', workflow, re.MULTILINE)
+    require(len(schedules) == 1, "Pages workflow must have exactly one cron schedule")
+    fields = schedules[0].split()
+    require(len(fields) == 5 and fields[1:] == ["*", "*", "*", "*"], "Pages cron shape changed")
+    try:
+        minutes = sorted(int(value) for value in fields[0].split(","))
+    except ValueError as exc:
+        raise ContractError("Pages cron minutes are not explicit integers") from exc
+    require(minutes == sorted(set(minutes)) and len(minutes) == 4 and 0 not in minutes, "Pages cron must use four unique non-zero minutes")
+    require(all((right - left) % 60 == 15 for left, right in zip(minutes, minutes[1:] + [minutes[0] + 60])), "Pages cron is not nominally quarter-hourly")
+    lower = workflow.lower()
+    for phrase in ("best effort", "exact start-time", "availability", "24/7 guarantee"):
+        require(phrase in lower, f"Pages schedule limitation missing: {phrase}")
+    for invariant in (
+        "github.ref == 'refs/heads/main'",
+        "git ls-remote --heads origin refs/heads/main",
+        "./scripts/build-pages.sh \"$PAGES_TEMP/site-a\"",
+        "./scripts/build-pages.sh \"$PAGES_TEMP/site-b\"",
+        "diff -ru --no-dereference \"$PAGES_TEMP/site-a\" \"$PAGES_TEMP/site-b\"",
+        "test -f \"$PAGES_TEMP/site-a/publication-hashes.sha256\"",
+    ):
+        require(invariant in workflow, f"Pages workflow invariant changed: {invariant}")
+
+
 def checksum_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -224,6 +250,7 @@ def check_source(source: Path) -> set[str]:
     require(all(html.count(token) == 1 for token in PLACEHOLDERS), "source provenance placeholder is ambiguous")
     external = check_html(source, html)
     check_css(source)
+    check_workflow(source.parents[1])
     check_media(source)
     script = (source / "showcase.js").read_text(encoding="utf-8")
     require(".catch(" in script and "Status nicht verfügbar" in script, "status fetch does not fail visibly")
@@ -520,7 +547,8 @@ def negative_matrix(source: Path) -> None:
 
 
 def browser_validator(source: Path, status: dict[str, object], expected_state: str, trusted_now: str | None = "2026-09-02T12:00:00Z",
-                      expected_activity: str = "hidden", age_header: str | None = None) -> None:
+                      expected_profile: str = "unavailable", age_header: str | None = None,
+                      fetch_mode: str = "ok", expected_age: str | None = None) -> None:
     """Run the shipped browser validator with a minimal DOM, not a reimplementation."""
     script = source / "showcase.js"
     payload = json.dumps(status)
@@ -530,10 +558,14 @@ const status = JSON.parse(process.argv[1]);
 const message = {dataset:{}, textContent:""};
 const root = {dataset:{}};
 const bindings = {};
-const nodeFor = (name) => bindings[name] ||= {textContent:"", replaceChildren:()=>{}};
+const nodeFor = (name) => bindings[name] ||= {textContent:"", items:[], replaceChildren:function(...items){ this.items = items.map((item) => item.textContent); }};
 const dateHeader = process.argv[4] === "MISSING" ? null : new Date(process.argv[4]).toUTCString();
 const ageHeader = process.argv[6] === "MISSING" ? null : process.argv[6];
+const fetchMode = process.argv[7];
 global.location = {origin:"https://example.test", href:"https://example.test/index.html"};
+if (fetchMode === "missing-origin") delete global.location.origin;
+if (fetchMode === "empty-origin") global.location.origin = "";
+if (fetchMode === "invalid-origin") global.location.origin = "::not-an-origin::";
 global.document = {
   documentElement: root,
   getElementById: (id) => id === "project-status-message" ? message : null,
@@ -549,39 +581,88 @@ global.document = {
     return null;
   }
 };
-global.fetch = () => Promise.resolve({ok:true, url:"https://example.test/status.json", headers:{get:(name) => name === "Date" ? dateHeader : name === "Age" ? ageHeader : null}, json:() => Promise.resolve(status)});
+const fixtureUrls = {"empty-url":"", "invalid-url":"::not-a-url::", "relative-url":"status.json", "cross-origin":"https://other.test/status.json"};
+const response = {ok:fetchMode !== "not-ok", url:fixtureUrls[fetchMode] ?? "https://example.test/status.json", headers:{get:(name) => name === "Date" ? dateHeader : name === "Age" ? ageHeader : null}, json:() => Promise.resolve(status)};
+if (fetchMode === "missing-url") delete response.url;
+global.fetch = () => fetchMode === "reject" ? Promise.reject(new Error("fixture fetch failure")) : Promise.resolve(response);
 vm.runInThisContext(fs.readFileSync(process.argv[2], "utf8"));
 setImmediate(() => {
   if (message.dataset.state !== process.argv[3]) { console.error(`state=${message.dataset.state || "unset"} date=${dateHeader} observed=${status.observation.observedAtUtc} age=${ageHeader}`); process.exit(2); }
-  const detail = nodeFor("activity-detail").textContent;
-  if (process.argv[5] === "visible" ? !detail.includes("T-053") : detail !== "Aktivität: nicht verfügbar.") process.exit(3);
+  const profile = process.argv[5];
+  const text = (name) => nodeFor(name).textContent;
+  const allRendered = Object.values(bindings).flatMap((node) => [node.textContent, ...node.items]).join("\n");
+  if (profile === "current") {
+    if (!text("activity-detail").includes("T-053") || text("main-commit") !== status.accepted.main.commit) process.exit(3);
+  } else if (profile === "historical") {
+    const stable = text("main-commit") === status.accepted.main.commit
+      && text("main-tree") === status.accepted.main.tree
+      && text("main-short-commit") === status.accepted.main.commit.slice(0, 12)
+      && text("main-committed-at").includes(status.accepted.main.committedAt) && !text("main-committed-at").toLowerCase().includes("unbekannt")
+      && text("accepted-summary").startsWith(String(status.accepted.tasks.count) + " ");
+    const volatileNames = ["current-task", "current-gate", "autonomy", "candidate-summary", "wip-summary", "activity-summary"];
+    const volatileMasked = volatileNames.every((name) => text(name) === "UNVERFÜGBAR")
+      && text("activity-detail") === "Aktivität: nicht verfügbar."
+      && text("wip-detail") === "WIP-Kontinuität: nicht verfügbar."
+      && nodeFor("candidates").items.join(" ") === "Kandidaten: nicht verfügbar."
+      && nodeFor("claims").items.join(" ") === "Claims: nicht verfügbar.";
+    const observation = text("observation");
+    const ageVisible = process.argv[8] === "MISSING" || observation.includes(process.argv[8]);
+    const stateTitle = process.argv[3] === "stale" ? "VERALTET" : "OFFLINE";
+    const noLeak = !allRendered.includes("T-999") && !allRendered.includes("T-001") && !allRendered.includes("T-054")
+      && !allRendered.includes("BEGRENZTER AUTOPILOT") && !allRendered.includes("VERÖFFENTLICHT")
+      && !allRendered.includes("AKTUELL") && !message.textContent.toUpperCase().includes("AKTUELL");
+    if (!stable || !volatileMasked || !ageVisible || !observation.startsWith(stateTitle + " ·")
+        || !observation.includes("HTTP-VERTRAUENSZEIT") || !message.textContent.startsWith(stateTitle + ":") || !noLeak) process.exit(4);
+  } else {
+    const unavailable = ["main-short-commit", "main-commit", "main-tree", "accepted-summary"].every((name) => text(name) === "UNVERFÜGBAR")
+      && text("main-committed-at") === "Öffentliche Commitzeit: unbekannt"
+      && ["current-task", "current-gate", "autonomy", "candidate-summary", "wip-summary", "activity-summary"].every((name) => text(name) === "UNVERFÜGBAR")
+      && text("activity-detail") === "Aktivität: nicht verfügbar."
+      && text("wip-detail") === "WIP-Kontinuität: nicht verfügbar."
+      && nodeFor("candidates").items.join(" ") === "Kandidaten: nicht verfügbar."
+      && nodeFor("claims").items.join(" ") === "Claims: nicht verfügbar.";
+    if (!unavailable) process.exit(5);
+  }
 });
 '''
-    result = subprocess.run(["node", "-e", js, payload, str(script), expected_state, trusted_now or "MISSING", expected_activity, age_header or "MISSING"], check=False)
+    result = subprocess.run(["node", "-e", js, payload, str(script), expected_state, trusted_now or "MISSING", expected_profile,
+                             age_header or "MISSING", fetch_mode, expected_age or "MISSING"], check=False)
     require(result.returncode == 0, f"browser validator state/detail mismatch (expected {expected_state}, exit {result.returncode})")
 
 
 def check_browser_validator(source: Path) -> None:
     status = valid_status_fixture()
-    browser_validator(source, status, "current", expected_activity="visible")
+    browser_validator(source, status, "current", expected_profile="current")
     duplicate_ready = deepcopy(status); duplicate_ready["tasks"]["ready"] = ["T-053", "T-053"]
     browser_validator(source, duplicate_ready, "unavailable")
-    stale = deepcopy(status); stale["observation"]["observedAtUtc"] = "2026-09-02T11:29:59Z"
-    browser_validator(source, stale, "stale")
-    offline = deepcopy(status); offline["observation"]["observedAtUtc"] = "2026-09-02T05:59:59Z"
-    browser_validator(source, offline, "offline")
+    stale = deepcopy(status)
+    stale["observation"]["observedAtUtc"] = "2026-09-02T11:29:59Z"
+    stale["accepted"]["tasks"] = {"count": 2, "ids": ["T-001", "T-054"]}
+    stale["candidates"] = {"state": "observed", "items": [{"taskId": "T-999", "lifecycleStatus": "REVIEW", "gate": "passed", "blocker": "awaiting-review"}]}
+    stale["continuity"] = {"state": "published", "classification": "continuity-not-accepted-progress", "commit": "c" * 40, "committedAt": "2026-09-02T11:20:00Z"}
+    stale["activity"] = {"state": "active", "taskId": "T-053", "phase": "building", "role": "builder", "lastGate": "passed", "blocker": "none", "autonomy": "bounded-autopilot", "parentClass": "child"}
+    offline = deepcopy(stale); offline["observation"]["observedAtUtc"] = "2026-09-02T05:59:59Z"
+    browser_validator(source, stale, "stale", expected_profile="historical", expected_age="30 MIN 1 SEK ALT")
+    browser_validator(source, offline, "offline", expected_profile="historical", expected_age="6 STD 1 SEK ALT")
     future_clock = deepcopy(status); future_clock["observation"]["observedAtUtc"] = "2026-09-02T12:00:01Z"
     browser_validator(source, future_clock, "unavailable")
+    tree_mismatch = deepcopy(status); tree_mismatch["observation"]["sourceTree"] = "c" * 40
+    browser_validator(source, tree_mismatch, "unavailable")
     published_unobserved = deepcopy(status); published_unobserved["continuity"] = {"state": "published", "classification": "continuity-not-accepted-progress"}
     browser_validator(source, published_unobserved, "unavailable")
     selector_overclaim = deepcopy(status); selector_overclaim["tasks"]["current"]["selectorEnforcement"] = "enforced"
     browser_validator(source, selector_overclaim, "unavailable")
     browser_validator(source, status, "unavailable", trusted_now=None)
+    browser_validator(source, status, "unavailable", age_header="invalid")
+    browser_validator(source, status, "unavailable", fetch_mode="reject")
+    browser_validator(source, status, "unavailable", fetch_mode="not-ok")
+    for fetch_mode in ("missing-url", "empty-url", "invalid-url", "relative-url", "cross-origin", "missing-origin", "empty-origin", "invalid-origin"):
+        browser_validator(source, status, "unavailable", fetch_mode=fetch_mode)
     unknown = deepcopy(status); unknown["observation"]["state"] = "unknown"; unknown["activity"] = {"state": "unknown"}
     browser_validator(source, unknown, "unknown")
     malformed_date = deepcopy(status); browser_validator(source, malformed_date, "unavailable", trusted_now="invalid-date")
     cached = deepcopy(status); cached["observation"]["observedAtUtc"] = "2026-09-02T11:00:00Z"
-    browser_validator(source, cached, "stale", trusted_now="2026-09-02T11:29:01Z", age_header="120")
+    browser_validator(source, cached, "stale", trusted_now="2026-09-02T11:29:01Z", age_header="120", expected_profile="historical", expected_age="31 MIN 1 SEK ALT")
 
 
 def check_external(urls: set[str]) -> None:

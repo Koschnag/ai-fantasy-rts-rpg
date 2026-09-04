@@ -15,13 +15,17 @@ HTTP-`Date`-Headers (einschließlich eines gültigen `Age`-Werts) zu `stale` ode
 `offline` herabgestuft. Die lokale Browseruhr darf eine alte Beobachtung nie
 als aktuell aufwerten.
 
-Der Workflow versucht alle **15 Minuten** eine neue Beobachtung. `current` gilt
-höchstens **30 Minuten** (`freshForSeconds=1800`), danach folgt `stale`; nach
-**6 Stunden** (`offlineAfterSeconds=21600`) folgt `offline`. Die Beobachtung
-bindet exakt den veröffentlichten `main`-Commit und Tree. `observedAtUtc` ist
-ausschließlich die öffentliche GitHub-Actions-Beobachtungszeit. Daneben werden
-nur öffentliche Commitzeiten gezeigt, nie private Runtime-Zeitpunkte oder rohe
-Run-, Sitzungs-, Elternlauf-, Maschinen- oder Modell-IDs.
+Der Workflow versucht auf den versetzten Cronminuten 7, 22, 37 und 52 nominell
+alle **15 Minuten** eine neue Beobachtung. GitHub-Actions-Zeitpläne arbeiten
+jedoch nur **Best Effort**: Es gibt weder eine Garantie für eine genaue
+Startzeit oder ein exaktes 15-Minuten-Intervall noch für Verfügbarkeit oder
+24/7-Betrieb. `current` gilt höchstens **30 Minuten**
+(`freshForSeconds=1800`), danach folgt `stale`; nach **6 Stunden**
+(`offlineAfterSeconds=21600`) folgt `offline`. Die Beobachtung bindet exakt den
+veröffentlichten `main`-Commit und Tree. `observedAtUtc` ist ausschließlich die
+öffentliche GitHub-Actions-Beobachtungszeit. Daneben werden nur öffentliche
+Commitzeiten gezeigt, nie private Runtime-Zeitpunkte oder rohe Run-, Sitzungs-,
+Elternlauf-, Maschinen- oder Modell-IDs.
 
 Der Renderer muss vor dem Schreiben die folgenden exakten V3-Felder erzeugen;
 `showcase.js` verwirft unbekannte Schlüssel und ungültige Enumwerte.
@@ -84,10 +88,16 @@ keine weiteren Activity-Felder zulässig. `candidates.items` nutzt dieselben
 geschlossenen Lifecycle-, Gate- und Blockerlabels; keine Branch-, Run- oder
 Personen-ID wird ausgegeben.
 
-Sobald die Browserableitung `stale`, `offline` oder `unknown` ergibt, werden
-keine Activity-Details angezeigt. Eine Beobachtungszeit in der Zukunft oder ein
-fehlender/ungültiger gleichoriginärer HTTP-`Date`-Header führt fail-closed zu
-`unavailable`.
+Bei `stale` oder `offline` bleiben ausschließlich der zuletzt validierte
+akzeptierte `main`-Commit, Tree, öffentliche Commitzeit und die akzeptierte
+Taskanzahl sichtbar. Zustand und Beobachtungsalter werden ausdrücklich aus der
+gleichoriginigen HTTP-Vertrauenszeit ausgewiesen. Kandidaten, WIP-Kontinuität,
+Aktivität, Autonomie, aktuelle Aufgabe, Gate und Blocker sowie alle übrigen
+Werte sind dann nicht verfügbar. Eine unbekannte oder ungültige Beobachtung,
+eine Beobachtungszeit in der Zukunft, ein Fetchfehler oder ein fehlender,
+ungültiger beziehungsweise nicht gleichoriginiger HTTP-`Date`-/`Age`-Beleg
+führt vollständig fail-closed zu `unavailable`; dabei bleibt auch keine letzte
+Main-Provenienz sichtbar.
 
 Die `observation.sourceCommit`/`sourceTree` müssen exakt mit
 `accepted.main.commit`/`tree` übereinstimmen und mit den beim Pages-Build in
@@ -105,9 +115,12 @@ Startberechtigung getrennt; `READY` allein ist kein Startclaim und
 - Kandidaten und WIP können nur über explizit allowlistete, öffentliche,
   schema-geprüfte Eingaben erscheinen. Fehlt eine solche Eingabe, lautet ihr
   Zustand `not-observed` oder `unavailable`.
-- Der Workflow stößt die Beobachtung alle 15 Minuten an. Eine alte oder
-  fehlende Beobachtung ist kein Hinweis auf Inaktivität, sondern schlicht
-  `stale`, `offline`, `unknown` oder `unavailable`.
+- Der Workflow versucht die Beobachtung auf den Cronminuten 7, 22, 37 und 52
+  nominell alle 15 Minuten anzustoßen. GitHub Actions plant nur Best Effort;
+  genaue Startzeit, exaktes Intervall, Verfügbarkeit und 24/7-Betrieb sind
+  ausdrücklich nicht garantiert. Eine alte oder fehlende Beobachtung ist kein
+  Hinweis auf Inaktivität, sondern schlicht `stale`, `offline`, `unknown` oder
+  `unavailable`.
 - Git-Rollen bleiben in öffentlichen Darstellungen stabil pseudonymisiert:
   `Planner`, `Builder`, `Reviewer`, `Repair`, `WIP`. Die Promotion-Identität
   des Projektleads ist `Koschnag`; sie ersetzt keine Review- oder Gate-Evidenz.
@@ -136,3 +149,10 @@ Startberechtigung getrennt; `READY` allein ist kein Startclaim und
 
 Der Build verwendet Bash, Git, Coreutils und POSIX-Textwerkzeuge. Zum lokalen
 Ansehen genügt ein statischer HTTP-Server auf `/tmp/riftward-pages`.
+
+Die hermetischen T-071-Vertragstests prüfen Renderzustände und die statischen
+CSS-/DOM-Grenzen, sind aber kein echter Layout- oder Browsernachweis.
+`AC-T071-06` bleibt bis zu einem gerenderten Browser-Smoke des exakt
+veröffentlichten Stands ausdrücklich offen: breite und schmale Viewports,
+horizontaler Überlauf, Konsolen-/Seitenfehler sowie Tastatur- und
+Screenreaderstruktur müssen dort real geprüft werden.

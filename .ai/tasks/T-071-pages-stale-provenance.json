@@ -3,8 +3,9 @@
   "schemaVersion": 1,
   "id": "T-071",
   "title": "Stabile letzte main-Provenienz bei veralteter Pages-Beobachtung",
-  "status": "ready",
+  "status": "review",
   "releaseNote": "2026-09-04: DRAFT -> READY aufgrund der wiederholten Projektleitungsanweisung, Website und README automatisch auf dem neuesten belegbaren Stand zu halten und laufenden Fortschritt wahrheitsgetreu sichtbar zu machen. Der Auftrag startet am veroeffentlichten main-Commit 596dd0f0532434f66f31ef06e98b6db174efc51c und behebt ausschliesslich den in GitHub-Issue #43 dokumentierten Stale-/Offline-Anzeigefehler. Frischegrenzen, main-Bindung, T-053, T-055 und Gameplay bleiben unveraendert.",
+  "reviewNote": "2026-09-04: Der isolierte Builderkandidat startet auf dem nach Linux-Verify 33823333858 als exakter Tree promovierten T-071-READY-Stand e03e69bf72682f01309a144c0ea891d0fc83be2d. Hermetischer Pages-Vertrag, Reconciliation, JavaScript-Syntax, Diffpruefung, Release-Build und Lint sind lokal gruen; die unabhaengige Sol-Quality-Pruefung schloss zwei gefundene Trust-/Evidenzluecken und endete PASS. Vollstaendige Linux-CI, Merge, Pages-Deployment und AC-T071-06 mit realer Browserabnahme bei 1440x900 und 390x844 bleiben offen. Lokales macOS und ein Node-DOM-Fixture werden nicht als diese Evidenz ausgegeben.",
   "objective": "Das oeffentliche Cockpit behaelt bei einer veralteten oder offline gewordenen, aber weiterhin schema- und main-gebundenen Beobachtung die stabile letzte akzeptierte main-Provenienz sichtbar, kennzeichnet deren Alter unmissverstaendlich und blendet alle zeitlich volatilen Aktivitaetsdaten weiterhin fail-closed aus.",
   "inScope": [
     "Ein eigener stale-/offline-Renderpfad in docs/showcase/showcase.js, der ausschliesslich validierte letzte Beobachtungsdaten des akzeptierten main-Commits, Trees, Commitzeitpunkts und der akzeptierten Taskzusammenfassung erhaelt",
