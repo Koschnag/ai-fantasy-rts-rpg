@@ -1,0 +1,92 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-071",
+  "title": "Stabile letzte main-Provenienz bei veralteter Pages-Beobachtung",
+  "status": "ready",
+  "releaseNote": "2026-09-04: DRAFT -> READY aufgrund der wiederholten Projektleitungsanweisung, Website und README automatisch auf dem neuesten belegbaren Stand zu halten und laufenden Fortschritt wahrheitsgetreu sichtbar zu machen. Der Auftrag startet am veroeffentlichten main-Commit 596dd0f0532434f66f31ef06e98b6db174efc51c und behebt ausschliesslich den in GitHub-Issue #43 dokumentierten Stale-/Offline-Anzeigefehler. Frischegrenzen, main-Bindung, T-053, T-055 und Gameplay bleiben unveraendert.",
+  "objective": "Das oeffentliche Cockpit behaelt bei einer veralteten oder offline gewordenen, aber weiterhin schema- und main-gebundenen Beobachtung die stabile letzte akzeptierte main-Provenienz sichtbar, kennzeichnet deren Alter unmissverstaendlich und blendet alle zeitlich volatilen Aktivitaetsdaten weiterhin fail-closed aus.",
+  "inScope": [
+    "Ein eigener stale-/offline-Renderpfad in docs/showcase/showcase.js, der ausschliesslich validierte letzte Beobachtungsdaten des akzeptierten main-Commits, Trees, Commitzeitpunkts und der akzeptierten Taskzusammenfassung erhaelt",
+    "Sichtbare Kennzeichnung als VERALTET beziehungsweise OFFLINE samt aus vertrauenswuerdiger gleichoriginiger HTTP-Zeit berechnetem Beobachtungsalter; stale Daten werden nie als aktuell bezeichnet",
+    "Fail-closed-Ausblendung von Kandidaten, WIP-Kontinuitaet, Aktivitaet, Autonomiestatus, aktuellem Task, Gate und Blocker bei stale/offline; ungueltige, unbekannte, zukunftsdatierte oder nicht abrufbare Beobachtungen bleiben vollstaendig unverfuegbar",
+    "Adversariale und Browser-/DOM-Vertragstests in scripts/test-pages.py fuer stale, offline, Clock-Skew, Fetchfehler, erhaltene main-Provenienz, maskierte volatile Daten sowie breite und schmale Viewports",
+    "Dokumentation der Aussagegrenze und des nur best-effort arbeitenden GitHub-Actions-Zeitplans in docs/showcase/README.md",
+    "Verschiebung des bestehenden 15-Minuten-Cronrasters in .github/workflows/pages.yml weg von Minute null, ohne Frequenz-, Verfuegbarkeits- oder 24/7-Garantie und ohne Aenderung der bestehenden Checkout-, Doppelbuild-, Hash-, Berechtigungs- oder Deploymentgrenzen",
+    "Isolierter Branch, bestehende Pflichtgates, exakter Commit-/Tree-Review durch eine vom Builder getrennte Identitaet und revertierbarer Pull Request"
+  ],
+  "outOfScope": [
+    "Aenderung von freshForSeconds=1800, offlineAfterSeconds=21600 oder sonstige Aufweichung der Status-/Unknown-/Fail-closed-Grenzen",
+    "Neue Dienste, externe Telemetrie, Tracker, Poller, Abhaengigkeiten, selbstschreibende README-Commits oder garantierte Echtzeit-/15-Minuten-/24/7-Claims",
+    "Ausfuehrung von Code aus PR-, Fork- oder WIP-Refs, automatische main-Promotion, Historienrewrite oder Abschwaechung von Doppelbuild, exact-main-Bindung, Hashes, Berechtigungen und Pages-Gates",
+    "Aenderung des Status-v3-Schemas oder seiner Generatoren, sofern die bestehende Trennung von observation und accepted den Fix traegt",
+    "Aenderung oder Neuinterpretation von T-042, P-001, T-053, T-055, Gameplay, Runtime, Simulation, Assets, Zielhardware oder wissenschaftlichen Rohdaten"
+  ],
+  "requirements": [
+    "Z-004",
+    "Z-005",
+    "NF-003",
+    "NF-008"
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T071-01",
+      "statement": "Eine schema-gueltige und exact-main-gebundene Beobachtung zeigt nach Ueberschreiten der unveraenderten Frischegrenze weiterhin den zuletzt beobachteten akzeptierten main-Commit, Tree, Commitzeitpunkt und die akzeptierte Taskanzahl; Beobachtungszustand und Alter sind gleichzeitig explizit als VERALTET beziehungsweise OFFLINE sichtbar und nirgends als aktuell bezeichnet.",
+      "verification": "Browser-/DOM-Fixtures fuer stale und offline mit positivem Nachweis der vier stabilen main-Felder, sichtbarer Zustands-/Altersangabe und Negativsuche nach Aktualitaetsclaims"
+    },
+    {
+      "id": "AC-T071-02",
+      "statement": "Bei stale/offline bleiben Kandidaten, WIP-Kontinuitaet, Aktivitaet, Autonomie, aktueller Task, Gate und Blocker unbekannt oder unverfuegbar; aus alten Daten wird weder laufende Arbeit noch produktiver Fortschritt abgeleitet.",
+      "verification": "Adversariale DOM-Fixtures speisen gueltige alte volatile Werte ein und bestaetigen, dass kein Wert und kein Aktivitaetsclaim gerendert wird"
+    },
+    {
+      "id": "AC-T071-03",
+      "statement": "Unbekannte, schemaungueltige, main- oder tree-widerspruechliche, zukunftsdatierte, per Fetch nicht erreichbare oder ohne vertrauenswuerdige HTTP-Zeit geladene Daten bleiben vollstaendig fail-closed; sie duerfen auch keine letzte main-Provenienz anzeigen.",
+      "verification": "Bestehende und additive Negativfixtures fuer unknown, Schemafehler, Bindungsfehler, Clock-Skew, Fetchfehler sowie fehlenden oder ungueltigen Date-/Age-Header"
+    },
+    {
+      "id": "AC-T071-04",
+      "statement": "Die Konstanten freshForSeconds=1800 und offlineAfterSeconds=21600 sowie Statusschema v3, accepted-main-Bindung, deterministischer Doppelbuild, Artefakthashes, eingeschraenkte Berechtigungen und Deploypfad bleiben unveraendert.",
+      "verification": "Diff-Allowlist, statischer Workflow-/Schema-Vertrag, Pages-Doppelbuild und bestehende Manipulations-/Provenienztests"
+    },
+    {
+      "id": "AC-T071-05",
+      "statement": "Der Zeitplan bleibt nominell viertelstuendlich, liegt nicht auf Minute null und wird in Workflow und Showcase-Dokumentation ausdruecklich als GitHub-best-effort ohne Startzeit-, Verfuegbarkeits- oder 24/7-Garantie beschrieben.",
+      "verification": "Workflow-/Dokumenttest prueft vier Cronminuten pro Stunde ausser Minute null sowie die explizite Best-effort- und Nichtgarantieformulierung"
+    },
+    {
+      "id": "AC-T071-06",
+      "statement": "Die korrigierte Anzeige bleibt auf Desktop- und Smartphonebreite, per Tastatur und Screenreaderstruktur verstaendlich; Zustand und Alter sind nicht allein durch Farbe codiert.",
+      "verification": "Hermetischer DOM-/CSS-Vertrag und Browser-Smoke auf breitem sowie schmalem Viewport mit aria-live- und Textkennzeichnung"
+    },
+    {
+      "id": "AC-T071-07",
+      "statement": "Die Aenderung bleibt auf dem T-071-Scope, durchlaeuft alle bestehenden Pflichtgates sowie einen vom Builder getrennten exakten Review und wird ausschliesslich ueber einen revertierbaren Pull Request nach main promotet.",
+      "verification": "Diff-Inventar, Gruenstatus der Pflichtgates, gebundener Reviewer-Receipt und PR-/Tree-/Mergeevidenz"
+    }
+  ],
+  "dependencies": [
+    "T-054"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-DATA",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Konkrete deutsche Kurztexte, Altersformatierung und barrierearme Anordnung innerhalb der bestehenden Showcase-Informationsarchitektur",
+      "Die vier viertelstuendlichen Cronminuten ausserhalb Minute null, solange die nominale Frequenz und alle Vertrauensgrenzen erhalten bleiben",
+      "Additive hermetische Testfixtures und Dokumentverschaerfungen ohne neue Abhaengigkeit oder Claim"
+    ],
+    "mustEscalate": [
+      "Aenderung von Statusschema, Freshness-/Offline-Schwellen, accepted-main-Bindung, Doppelbuild, Hash-, Berechtigungs-, Checkout-, Deployment- oder main-Promotionsregeln",
+      "Neuer Dienst, externer Poller, Tracker, Telemetrie, Abhaengigkeit, selbstschreibender Git-Pfad oder Verfuegbarkeits-/Echtzeit-/24/7-Claim",
+      "Veroeffentlichung privater Betriebs-/Forschungsdaten oder Aenderung an T-042, P-001, T-053, T-055, Gameplay, Runtime, Simulation, Assets oder Zielhardware"
+    ]
+  }
+}
