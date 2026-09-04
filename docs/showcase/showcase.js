@@ -40,16 +40,30 @@
   function observationState(value, trustedNow) {
     if (!validateObservation(value) || !Number.isFinite(trustedNow)) return "invalid";
     if (value.state === "unknown") return "unknown";
-    const ageSeconds = (trustedNow - Date.parse(value.observedAtUtc)) / 1000;
+    const ageSeconds = observationAgeSeconds(value, trustedNow);
     if (!Number.isFinite(ageSeconds) || ageSeconds < 0) return "invalid";
     const derived = ageSeconds <= value.freshForSeconds ? "current" : ageSeconds <= value.offlineAfterSeconds ? "stale" : "offline";
     const rank = {current: 0, stale: 1, offline: 2};
     return rank[value.state] >= rank[derived] ? value.state : derived;
   }
 
+  function observationAgeSeconds(value, trustedNow) {
+    return (trustedNow - Date.parse(value.observedAtUtc)) / 1000;
+  }
+
   function trustedHttpTime(response) {
     if (!response || !response.headers || typeof response.headers.get !== "function") return NaN;
-    if (response.url && typeof location !== "undefined" && new URL(response.url, location.href).origin !== location.origin) return NaN;
+    if (typeof response.url !== "string" || response.url.length === 0
+        || typeof location === "undefined" || typeof location.origin !== "string" || location.origin.length === 0) return NaN;
+    let responseUrl;
+    let locationOrigin;
+    try {
+      responseUrl = new URL(response.url);
+      locationOrigin = new URL(location.origin);
+    } catch {
+      return NaN;
+    }
+    if (responseUrl.origin !== locationOrigin.origin) return NaN;
     const value = response.headers.get("Date");
     if (typeof value !== "string" || !/^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(value)) return NaN;
     const date = Date.parse(value);
@@ -171,6 +185,18 @@
     "bounded-autopilot": "BEGRENZTER AUTOPILOT", none: "KEIN BLOCKER"
   }[value] || String(value).replaceAll("-", " ").toUpperCase());
   const publicDate = (value) => new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
+  const observationAge = (value) => {
+    let seconds = Math.ceil(value);
+    const days = Math.floor(seconds / 86400); seconds %= 86400;
+    const hours = Math.floor(seconds / 3600); seconds %= 3600;
+    const minutes = Math.floor(seconds / 60); seconds %= 60;
+    const parts = [];
+    if (days > 0) parts.push(`${days} T`);
+    if (hours > 0) parts.push(`${hours} STD`);
+    if (minutes > 0) parts.push(`${minutes} MIN`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds} SEK`);
+    return parts.join(" ");
+  };
 
   function replaceList(name, items) {
     document.querySelectorAll(`[data-bind="${name}"]`).forEach((list) => {
@@ -178,17 +204,34 @@
     });
   }
 
-  function unavailable(reason, state = "unavailable") {
-    ["main-short-commit", "main-commit", "main-tree", "observation", "current-task", "current-gate", "autonomy", "accepted-summary", "candidate-summary", "wip-summary", "activity-summary"].forEach((name) => set(name, "UNVERFÜGBAR"));
-    if (OBSERVATION.has(state)) set("observation", title(state));
-    set("main-committed-at", "Öffentliche Commitzeit: unbekannt");
+  function maskVolatile() {
+    ["current-task", "current-gate", "autonomy", "candidate-summary", "wip-summary", "activity-summary"].forEach((name) => set(name, "UNVERFÜGBAR"));
     set("effective-eligibility", "Effektiver Start: unbekannt");
     set("current-blocker", "Blocker: unbekannt");
     set("wip-detail", "WIP-Kontinuität: nicht verfügbar.");
     set("activity-detail", "Aktivität: nicht verfügbar.");
     replaceList("candidates", ["Kandidaten: nicht verfügbar."]);
     replaceList("claims", ["Claims: nicht verfügbar."]);
+  }
+
+  function unavailable(reason, state = "unavailable") {
+    ["main-short-commit", "main-commit", "main-tree", "observation", "accepted-summary"].forEach((name) => set(name, "UNVERFÜGBAR"));
+    if (OBSERVATION.has(state)) set("observation", title(state));
+    set("main-committed-at", "Öffentliche Commitzeit: unbekannt");
+    maskVolatile();
     setNotice(state, reason);
+  }
+
+  function renderHistorical(status, state, ageSeconds) {
+    const age = observationAge(ageSeconds);
+    set("main-short-commit", short(status.accepted.main.commit));
+    set("main-commit", status.accepted.main.commit);
+    set("main-tree", status.accepted.main.tree);
+    set("main-committed-at", `Zuletzt beobachteter öffentlicher Commitzeitpunkt: ${status.accepted.main.committedAt}`);
+    set("observation", `${title(state)} · ${age} ALT · HTTP-VERTRAUENSZEIT`);
+    set("accepted-summary", `${status.accepted.tasks.count} ZULETZT BEOBACHTETE AKZEPTIERTE TASKS`);
+    maskVolatile();
+    setNotice(state, `${title(state)}: letzte validierte akzeptierte main-Provenienz, ${age} alt nach gleichoriginiger HTTP-Vertrauenszeit. Volatile Werte sind nicht verfügbar.`);
   }
 
   function render(status) {
@@ -263,7 +306,7 @@
         return;
       }
       if (freshness !== "current") {
-        unavailable(`Status ${title(freshness).toLowerCase()}: veraltete Werte werden nicht als aktueller Projektstand angezeigt.`, freshness);
+        renderHistorical(status, freshness, observationAgeSeconds(status.observation, trustedNow));
         return;
       }
       render(status);
