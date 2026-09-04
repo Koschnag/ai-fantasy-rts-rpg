@@ -1,0 +1,74 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-072",
+  "title": "SHA-gepinntes Node-24-Update der Pages-Actions",
+  "status": "ready",
+  "releaseNote": "2026-09-04: T-072 ist READY aufgrund des bestehenden, begrenzten Wartungsauftrags aus GitHub-Issue #47 und der Projektleitungsanweisung, die Website aktuell zu halten. Dies ist eine technische Kompatibilitaetswartung ohne kreative oder produktseitige Entscheidung. Der Auftrag startet auf main 1fc5d359d775e361f3c7655d81d15191487fa14a mit Tree 29aea44fc065f7038ae379de42d9cd1353ac9a89.",
+  "objective": "Aktualisiere die drei bereits SHA-gepinnten GitHub-Pages-Actions auf die verifizierten Node-24-kompatiblen Releases aus Issue #47 und erhalte dabei den vollstaendigen bestehenden Checkout-, Build-, Verify-, Hash- und Deployment-Vertrag.",
+  "inScope": [
+    "Aenderung ausschliesslich der drei bestehenden Action-Referenzen in .github/workflows/pages.yml: actions/configure-pages auf v6.0.0 mit SHA 45bfe0192ca1faeb007ade9deae92b16b8254a0d, actions/upload-pages-artifact auf v5.0.0 mit SHA fc324d3547104276b827a68afc52ff2a11cc49c9 und actions/deploy-pages auf v5.0.1 mit SHA 368f82528645a54fb793d4d04e342629a3f51346",
+    "Verifikation der Release-/SHA-Zuordnung und der bestehenden Workflow-Vertragsgrenzen anhand des freigegebenen Issue-47-Kontexts",
+    "Vollstaendige bestehende Pflichtgates, exakte PR-Promotion mit buildergetrennter Reviewidentitaet, post-merge Verify sowie Pages-Deployment und anschliessende Warnungsbeobachtung",
+    "Strikt administrative Lifecycle- und Evidenzpflege ausschliesslich fuer T-072: Status sowie releaseNote/reviewNote/completionNote in .ai/tasks/T-072-node24-pages-actions.json, die T-072-Zeile in BACKLOG.md und, nur falls fuer den etablierten Abschlussweg erforderlich, docs/abnahme/T-072-node24-pages-actions.md samt genau einem Indexlink in docs/abnahme/README.md; diese Pflege darf keine ausfuehrbare Workflow- oder Statussemantik aendern"
+  ],
+  "outOfScope": [
+    "Jede ausfuehrbare oder produktwirksame Datei ausser .github/workflows/pages.yml sowie jede andere Zeile dieser Workflowdatei als die drei bestehenden Action-Referenzen; als rein administrative Ausnahme sind nur die vier inScope exakt benannten T-072-Lifecycle-/Evidenzpfade erlaubt, keine Aenderung eines anderen Task-Manifests, anderer Backlog-Zeilen, der Projekt-README, von Showcase, Status, Schema oder Forschungsdaten",
+    "Aenderung von Triggern, Berechtigungen, Checkout, exact-main/ref-Reconciliation, deterministischem Doppelbuild, Tests, Hashmanifest, Deploy-Grenzen oder Warnungs-/Stale-/Unknown-Semantik",
+    "T-053, T-055, T-056 bis T-061, T-054 und T-071 als abgeschlossene Vorarbeiten, Gameplay, Runtime, Assets, Forschung, Autopilot-Architektur oder Verfuegbarkeitsclaims",
+    "Neue Dienste, Laufzeitabhaengigkeiten, externe Telemetrie, unpinned Actions, automatische Promotion ohne Review oder Umschreiben bestehender Historie"
+  ],
+  "requirements": ["Z-004", "Z-005"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T072-01",
+      "statement": "Der ausfuehrbare Workflow-Diff von .github/workflows/pages.yml gegen den gebundenen Ausgangsstand besteht aus exakt drei geaenderten uses-Zeilen fuer die freigegebenen Action-Releases und deren SHA-Pins; Trigger, Permissions, Checkout-/Ref-Grenzen, Buildschritte, Tests, Doppelbuild-, Hashmanifest- und Deploymentgrenzen bleiben byteidentisch. Getrennte, rein administrative T-072-Lifecycle-/Evidenzpflege erweitert diesen ausfuehrbaren Workflow-Diff nicht.",
+      "verification": "Eine Diff-Allowlist klassifiziert exakt die drei uses-Zeilen als ausfuehrbare Aenderung und erlaubt daneben nur die ausdruecklich benannte administrative T-072-Pflege; Workflow-Contract-Tests und bestehende Pages-/Harness-Gates pruefen, dass keine weitere Workflow-Semantik veraendert wurde."
+    },
+    {
+      "id": "AC-T072-02",
+      "statement": "Die drei Action-Referenzen sind exakt auf configure-pages v6.0.0 @ 45bfe0192ca1faeb007ade9deae92b16b8254a0d, upload-pages-artifact v5.0.0 @ fc324d3547104276b827a68afc52ff2a11cc49c9 und deploy-pages v5.0.1 @ 368f82528645a54fb793d4d04e342629a3f51346 gepinnt.",
+      "verification": "Deterministischer statischer Pin-/Release-Vertrag und reproduzierbarer Fresh-Checkout-Nachweis; unbekannte oder abweichende SHAs fail-closed."
+    },
+    {
+      "id": "AC-T072-03",
+      "statement": "Die Aenderung besteht alle bestehenden Pflichtgates und wird in einem isolierten, revertierbaren PR durch eine vom Builder getrennte Reviewidentitaet exakt gegen den Ausgangs- und Ergebnis-Tree geprueft.",
+      "verification": "Vollstaendiger Linux-Verify-/Harness-Lauf, unabhaengiger Review-Receipt sowie PR-, Commit- und Tree-Reconciliation."
+    },
+    {
+      "id": "AC-T072-04",
+      "statement": "Nach der Promotion nach main besteht der gebundene post-merge Verify-Lauf, das Pages-Deployment referenziert exakt den akzeptierten main-Tree, und eine anschliessende Beobachtung dokumentiert Warnungen oder unknown statt sie zu erfinden.",
+      "verification": "Exakter post-merge-Run, Pages-Deployment-Receipt und nachgelagerte, allowlist-gebundene Warnungsbeobachtung; fehlende Beobachtung bleibt unknown."
+    },
+    {
+      "id": "AC-T072-05",
+      "statement": "T-072 bleibt auf den Node-24-Action-Pin-Fix und seine eigene rein administrative Lifecycle-/Evidenzpflege begrenzt; T-053/T-055/T-056 bis T-061, Gameplay, Runtime, Forschung und bestehende Qualitaets- oder Sicherheitsgates bleiben unveraendert.",
+      "verification": "Nach Kategorien getrenntes Diff-Inventar fuer exakt drei ausfuehrbare uses-Zeilen und die eng allowgelistete T-072-Verwaltung, Manifest-/Backlog-Konsistenz, JSON-/Schema-Validierung und git diff --check."
+    }
+  ],
+  "dependencies": [
+    "T-071",
+    "T-054"
+  ],
+  "requiredGates": [
+    "G-SPEC",
+    "G-FORMAT",
+    "G-STATIC",
+    "G-TEST",
+    "G-HARNESS",
+    "G-DATA",
+    "G-SECURITY"
+  ],
+  "decisionPolicy": {
+    "mayDecide": [
+      "Nur die drei in AC-T072-02 genannten, bereits verifizierten Release-/SHA-Paare einsetzen",
+      "Exakte Run-, Commit-, Tree-, Review-, Deployment- und Warnungsergebnisse nur in den ausdruecklich erlaubten administrativen T-072-Feldern beziehungsweise dem optionalen T-072-Abnahmebeleg dokumentieren, ohne Tests oder Produktionsdateien zu aendern",
+      "Revertierbaren PR- und Beobachtungsablauf gemass bestehendem Pages-Vertrag ausfuehren"
+    ],
+    "mustEscalate": [
+      "Jede Abweichung von den drei exakten Release-/SHA-Paaren, jede weitere ausfuehrbare Datei-/Workflow-Semantikaenderung oder jede administrative Aenderung ausserhalb der ausdruecklich benannten T-072-Pfade",
+      "Aenderung von Triggern, Permissions, Checkout, exact-main/ref-Reconciliation, Doppelbuild, Tests, Hashmanifest, Deployment- oder Fail-closed-Grenzen",
+      "Neue Dienste, Abhaengigkeiten, externe Datenuebertragung, oeffentliche Forschungs-/Betriebsdaten oder Entscheidungen zu T-053, T-055, T-056 bis T-061, Gameplay und Runtime"
+    ]
+  }
+}
