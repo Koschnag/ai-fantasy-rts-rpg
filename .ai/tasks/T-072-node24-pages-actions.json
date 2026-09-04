@@ -3,8 +3,9 @@
   "schemaVersion": 1,
   "id": "T-072",
   "title": "SHA-gepinntes Node-24-Update der Pages-Actions",
-  "status": "ready",
+  "status": "review",
   "releaseNote": "2026-09-04: T-072 ist READY aufgrund des bestehenden, begrenzten Wartungsauftrags aus GitHub-Issue #47 und der Projektleitungsanweisung, die Website aktuell zu halten. Dies ist eine technische Kompatibilitaetswartung ohne kreative oder produktseitige Entscheidung. Der Auftrag startet auf main 1fc5d359d775e361f3c7655d81d15191487fa14a mit Tree 29aea44fc065f7038ae379de42d9cd1353ac9a89.",
+  "reviewNote": "2026-09-04: Der isolierte Repair-Kandidat startet auf dem nach exaktem post-merge Linux-Verify 33841240761 akzeptierten T-072-READY-Stand 2814ad2d84ce5cbf2bcf951343a954c64962f5e0 mit Tree 0270855ac796455222bd1867522dcd4777d6f612. Der ausfuehrbare Diff ist auf exakt die drei in AC-T072-02 freigegebenen uses-Zeilen begrenzt; T-072-eigene Statuspflege fuehrt READY nach REVIEW. Lokale Vertrags-, Pin-, Reconciliation-, Commitrollen-, JSON- und Diffpruefungen sowie unabhängiges Review und exakte Linux-CI bleiben vor Promotion verpflichtend; post-merge Verify, Pages-Deployment und reale Warnungsbeobachtung bleiben Abnahmebedingungen und werden hier nicht vorweggenommen.",
   "objective": "Aktualisiere die drei bereits SHA-gepinnten GitHub-Pages-Actions auf die verifizierten Node-24-kompatiblen Releases aus Issue #47 und erhalte dabei den vollstaendigen bestehenden Checkout-, Build-, Verify-, Hash- und Deployment-Vertrag.",
   "inScope": [
     "Aenderung ausschliesslich der drei bestehenden Action-Referenzen in .github/workflows/pages.yml: actions/configure-pages auf v6.0.0 mit SHA 45bfe0192ca1faeb007ade9deae92b16b8254a0d, actions/upload-pages-artifact auf v5.0.0 mit SHA fc324d3547104276b827a68afc52ff2a11cc49c9 und actions/deploy-pages auf v5.0.1 mit SHA 368f82528645a54fb793d4d04e342629a3f51346",
