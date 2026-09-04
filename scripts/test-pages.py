@@ -19,6 +19,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from task_eligibility import EligibilityError, evaluate as evaluate_task
+
 
 FULL_HASH = re.compile(r"^[0-9a-f]{40}$")
 TASK_ID = re.compile(r"^T-[0-9]{3,}$")
@@ -416,7 +418,14 @@ def validate_status(status: object, expected_meta: dict[str, str] | None = None,
     current_task = tasks["current"]
     require(isinstance(current_task, dict) and set(current_task) == {"taskId", "lifecycleStatus", "effectiveStartEligibility", "waitingReason", "selectorEnforcement"}, "current task fields mismatch")
     require(current_task["taskId"] == "T-053" and current_task["lifecycleStatus"] == "READY", "frozen T-053 lifecycle changed")
-    require(current_task["effectiveStartEligibility"] == "waiting" and current_task["waitingReason"] == "awaiting-preregistered-t042-start-eligibility", "T-053 fail-closed eligibility mismatch")
+    eligibility_pair = (
+        current_task["effectiveStartEligibility"] == "waiting"
+        and current_task["waitingReason"] == "awaiting-preregistered-t042-start-eligibility"
+    ) or (
+        current_task["effectiveStartEligibility"] == "eligible"
+        and current_task["waitingReason"] == "none"
+    )
+    require(eligibility_pair, "T-053 fail-closed eligibility mismatch")
     require(current_task["selectorEnforcement"] == "pending", "selector enforcement is overstated")
 
     claims = status["claims"]
@@ -487,7 +496,15 @@ def expect_failure(name: str, callback) -> None:
     raise ContractError(f"negative test did not fail: {name}")
 
 
-def valid_status_fixture() -> dict[str, object]:
+def valid_status_fixture(eligibility: str = "waiting") -> dict[str, object]:
+    if eligibility == "waiting":
+        waiting_reason = "awaiting-preregistered-t042-start-eligibility"
+        ready = ["T-053"]
+    elif eligibility == "eligible":
+        waiting_reason = "none"
+        ready = ["T-042", "T-053"]
+    else:
+        raise ValueError("unsupported T-053 fixture eligibility")
     return {
         "schemaVersion": 3,
         "statusContract": "riftward-public-status-v3",
@@ -495,10 +512,77 @@ def valid_status_fixture() -> dict[str, object]:
         "accepted": {"main": {"branch": "main", "classification": "accepted-main", "commit": "a" * 40, "tree": "b" * 40, "committedAt": "2026-01-02T12:00:00Z", "gates": "passed"}, "tasks": {"count": 1, "ids": ["T-001"]}},
         "candidates": {"state": "not-observed", "items": []},
         "continuity": {"state": "not-observed", "classification": "continuity-not-accepted-progress"},
-        "activity": {"state": "waiting", "taskId": "T-053", "phase": "waiting", "role": "unknown", "lastGate": "waiting", "blocker": "awaiting-preregistered-t042-start-eligibility", "autonomy": "unknown", "parentClass": "unknown"},
-        "tasks": {"current": {"taskId": "T-053", "lifecycleStatus": "READY", "effectiveStartEligibility": "waiting", "waitingReason": "awaiting-preregistered-t042-start-eligibility", "selectorEnforcement": "pending"}, "ready": ["T-053"]},
+        "activity": {"state": "waiting", "taskId": "T-053", "phase": "waiting", "role": "unknown", "lastGate": "waiting", "blocker": waiting_reason, "autonomy": "unknown", "parentClass": "unknown"},
+        "tasks": {"current": {"taskId": "T-053", "lifecycleStatus": "READY", "effectiveStartEligibility": eligibility, "waitingReason": waiting_reason, "selectorEnforcement": "pending"}, "ready": ready},
         "claims": {"gameplay": "graybox-only", "targetHardware": "not-validated", "physicalEdition": "not-produced", "twentyFourSevenAutonomy": "not-demonstrated", "concepts": "not-gameplay"},
     }
+
+
+def task_fixture(task_id: str, status: str, dependencies: list[str]) -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "id": task_id,
+        "title": f"Synthetic fixture {task_id}",
+        "status": status,
+        "objective": "Exercise the fail-closed eligibility transition.",
+        "inScope": ["synthetic-test-only"],
+        "outOfScope": [],
+        "requirements": ["synthetic-test-only"],
+        "acceptanceCriteria": [{"id": "AC-FIXTURE", "statement": "synthetic", "verification": "test"}],
+        "dependencies": dependencies,
+        "requiredGates": ["G-SYNTHETIC"],
+        "decisionPolicy": {"mayDecide": [], "mustEscalate": []},
+    }
+
+
+def write_task_fixture(root: Path, name: str, value: object) -> Path:
+    path = root / ".ai" / "tasks" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
+def check_task_eligibility_transition(source: Path) -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
+        write_task_fixture(root, "T-053-observer.json", task_fixture("T-053", "ready", []))
+        expected_waiting = {
+            "taskId": "T-053", "lifecycleStatus": "READY", "effectiveStartEligibility": "waiting",
+            "waitingReason": "awaiting-preregistered-t042-start-eligibility", "selectorEnforcement": "pending",
+        }
+        require(evaluate_task(root, "T-053") == expected_waiting, "missing T-042 did not stay waiting")
+
+        dependency = write_task_fixture(root, "T-039-dependency.json", task_fixture("T-039", "accepted", []))
+        target = write_task_fixture(root, "T-042-target.json", task_fixture("T-042", "ready", ["T-039"]))
+        eligible = evaluate_task(root, "T-053")
+        require(eligible == evaluate_task(root, "T-053"), "eligible transition is not deterministic")
+        expected_eligible = {
+            "taskId": "T-053", "lifecycleStatus": "READY", "effectiveStartEligibility": "eligible",
+            "waitingReason": "none", "selectorEnforcement": "pending",
+        }
+        require(eligible == expected_eligible, "READY T-042 with accepted dependencies did not become eligible")
+        status = valid_status_fixture("eligible")
+        status["tasks"]["current"] = eligible
+        validate_status(status, schema_path=source / "status.schema.json", trusted_current_time="2026-09-02T12:00:00Z")
+
+        target.write_text(json.dumps(task_fixture("T-042", "review", ["T-039"])) + "\n", encoding="utf-8", newline="\n")
+        require(evaluate_task(root, "T-053") == expected_waiting, "non-READY T-042 did not stay waiting")
+        target.write_text(json.dumps(task_fixture("T-042", "ready", ["T-039"])) + "\n", encoding="utf-8", newline="\n")
+        dependency.unlink()
+        require(evaluate_task(root, "T-053") == expected_waiting, "missing dependency did not stay waiting")
+        write_task_fixture(root, "T-039-dependency.json", task_fixture("T-039", "ready", []))
+        require(evaluate_task(root, "T-053") == expected_waiting, "non-accepted dependency did not stay waiting")
+        write_task_fixture(root, "T-042-duplicate.json", task_fixture("T-042", "ready", []))
+        require(evaluate_task(root, "T-053") == expected_waiting, "duplicate T-042 did not stay waiting")
+
+        (root / ".ai" / "tasks" / "T-042-duplicate.json").unlink()
+        target.write_text("{not-json}\n", encoding="utf-8", newline="\n")
+        try:
+            evaluate_task(root, "T-053")
+        except (json.JSONDecodeError, EligibilityError):
+            pass
+        else:
+            raise ContractError("malformed T-042 did not fail controlled")
 
 
 def negative_matrix(source: Path) -> None:
@@ -525,6 +609,7 @@ def negative_matrix(source: Path) -> None:
     cases: list[tuple[str, dict[str, object]]] = []
     schema_path = source / "status.schema.json"
     validate_checked_in_schema(valid_status_fixture(), schema_path)
+    validate_checked_in_schema(valid_status_fixture("eligible"), schema_path)
     malformed = valid_status_fixture(); malformed["schemaVersion"] = 1; cases.append(("malformed status schema", malformed))
     missing_provenance = valid_status_fixture(); del missing_provenance["accepted"]["main"]["tree"]; cases.append(("missing provenance", missing_provenance))
     invented_active = valid_status_fixture(); invented_active["activeTask"] = {"id": "T-042", "status": "accepted"}; cases.append(("invented active T-042", invented_active))
@@ -539,7 +624,14 @@ def negative_matrix(source: Path) -> None:
     year_2000 = valid_status_fixture(); year_2000["accepted"]["main"]["committedAt"] = "2000-01-01T00:00:00Z"; cases.append(("year-2000 timestamp", year_2000))
     wip_iff = valid_status_fixture(); wip_iff["continuity"] = {"state": "published", "classification": "continuity-not-accepted-progress"}; cases.append(("published WIP without identity", wip_iff))
     stale_activity = valid_status_fixture(); stale_activity["observation"]["state"] = "stale"; stale_activity["observation"]["observedAtUtc"] = "2026-09-02T11:00:00Z"; cases.append(("stale observation with activity details", stale_activity))
-    t053_fail_open = valid_status_fixture(); t053_fail_open["tasks"]["current"]["effectiveStartEligibility"] = "eligible"; t053_fail_open["tasks"]["current"]["waitingReason"] = "none"; cases.append(("T-053 fail-open eligibility", t053_fail_open))
+    eligibility_cases: list[tuple[str, dict[str, object]]] = []
+    eligible_waiting_reason = valid_status_fixture("eligible"); eligible_waiting_reason["tasks"]["current"]["waitingReason"] = "awaiting-preregistered-t042-start-eligibility"; eligibility_cases.append(("eligible T-053 with waiting reason", eligible_waiting_reason))
+    waiting_without_reason = valid_status_fixture(); waiting_without_reason["tasks"]["current"]["waitingReason"] = "none"; eligibility_cases.append(("waiting T-053 without waiting reason", waiting_without_reason))
+    blocked_t053 = valid_status_fixture(); blocked_t053["tasks"]["current"]["effectiveStartEligibility"] = "blocked"; blocked_t053["tasks"]["current"]["waitingReason"] = "blocked"; eligibility_cases.append(("blocked frozen T-053", blocked_t053))
+    unknown_t053 = valid_status_fixture(); unknown_t053["tasks"]["current"]["effectiveStartEligibility"] = "unknown"; unknown_t053["tasks"]["current"]["waitingReason"] = "unknown"; eligibility_cases.append(("unknown frozen T-053", unknown_t053))
+    cases.extend(eligibility_cases)
+    for name, status in eligibility_cases:
+        expect_failure(f"status schema: {name}", lambda status=status: validate_checked_in_schema(status, schema_path))
     for name, status in cases:
         expect_failure(name, lambda status=status: validate_status(status, schema_path=schema_path, trusted_current_time="2026-09-02T12:00:00Z"))
     published_schema_only = valid_status_fixture(); published_schema_only["continuity"] = {"state": "published", "classification": "continuity-not-accepted-progress"}
@@ -592,7 +684,10 @@ setImmediate(() => {
   const text = (name) => nodeFor(name).textContent;
   const allRendered = Object.values(bindings).flatMap((node) => [node.textContent, ...node.items]).join("\n");
   if (profile === "current") {
-    if (!text("activity-detail").includes("T-053") || text("main-commit") !== status.accepted.main.commit) process.exit(3);
+    const expectedEligibility = status.tasks.current.effectiveStartEligibility === "eligible" ? "STARTBERECHTIGT" : "WARTET";
+    const expectedBlocker = status.tasks.current.waitingReason === "none" ? "KEIN BLOCKER" : "AWAITING PREREGISTERED T042 START ELIGIBILITY";
+    if (!text("activity-detail").includes("T-053") || text("main-commit") !== status.accepted.main.commit
+        || !text("effective-eligibility").includes(expectedEligibility) || !text("current-blocker").includes(expectedBlocker)) process.exit(3);
   } else if (profile === "historical") {
     const stable = text("main-commit") === status.accepted.main.commit
       && text("main-tree") === status.accepted.main.tree
@@ -633,6 +728,16 @@ setImmediate(() => {
 def check_browser_validator(source: Path) -> None:
     status = valid_status_fixture()
     browser_validator(source, status, "current", expected_profile="current")
+    eligible = valid_status_fixture("eligible")
+    browser_validator(source, eligible, "current", expected_profile="current")
+    eligible_bad_reason = deepcopy(eligible); eligible_bad_reason["tasks"]["current"]["waitingReason"] = "awaiting-preregistered-t042-start-eligibility"
+    browser_validator(source, eligible_bad_reason, "unavailable")
+    waiting_bad_reason = deepcopy(status); waiting_bad_reason["tasks"]["current"]["waitingReason"] = "none"
+    browser_validator(source, waiting_bad_reason, "unavailable")
+    blocked = deepcopy(status); blocked["tasks"]["current"]["effectiveStartEligibility"] = "blocked"; blocked["tasks"]["current"]["waitingReason"] = "blocked"
+    browser_validator(source, blocked, "unavailable")
+    unknown_eligibility = deepcopy(status); unknown_eligibility["tasks"]["current"]["effectiveStartEligibility"] = "unknown"; unknown_eligibility["tasks"]["current"]["waitingReason"] = "unknown"
+    browser_validator(source, unknown_eligibility, "unavailable")
     duplicate_ready = deepcopy(status); duplicate_ready["tasks"]["ready"] = ["T-053", "T-053"]
     browser_validator(source, duplicate_ready, "unavailable")
     stale = deepcopy(status)
@@ -695,6 +800,7 @@ def main() -> int:
     try:
         source = args.source.resolve(strict=True)
         external = check_source(source)
+        check_task_eligibility_transition(source)
         negative_matrix(source)
         check_browser_validator(source)
         if args.built is not None:
