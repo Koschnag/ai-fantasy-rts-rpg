@@ -18,6 +18,11 @@ type ResearchGitHistory =
       ObjectFormat: string
       Commits: ResearchGitCommit list }
 
+type ResearchGitBlob =
+    { BlobOid: string
+      Bytes: byte array
+      Sha256: string }
+
 type ResearchGitIdentity =
     { ObjectFormat: string
       HeadCommit: string
@@ -207,17 +212,28 @@ module ResearchGitImport =
         let tree = oneLine repositoryRoot [ "rev-parse"; "--verify"; commit + "^{tree}" ]
         requireExactObjectId expectedLength "Commit-Tree" tree
 
-    let fileAtCommit root commit relativePath =
+    let blobAtCommit root commit relativePath =
         let repositoryRoot = requireRepositoryRoot root
         let objectFormat = oneLine repositoryRoot [ "rev-parse"; "--show-object-format" ]
         let expectedLength = objectLength objectFormat
         verifyCommit repositoryRoot expectedLength commit
         let safePath = safeRepositoryPath relativePath
 
-        let _, bytes =
-            runBytes repositoryRoot [ "show"; commit + ":" + safePath ] (set [ 0 ])
+        let blobOid =
+            oneLine repositoryRoot [ "rev-parse"; "--verify"; commit + ":" + safePath ]
+            |> requireExactObjectId expectedLength "Git-Blob-ID"
 
-        bytes
+        if oneLine repositoryRoot [ "cat-file"; "-t"; blobOid ] <> "blob" then
+            Internal.fail "Git-Pfad bezeichnet am gebundenen Commit keinen Blob."
+
+        let _, bytes = runBytes repositoryRoot [ "cat-file"; "blob"; blobOid ] (set [ 0 ])
+
+        { BlobOid = blobOid
+          Bytes = bytes
+          Sha256 = Internal.sha256Hex bytes }
+
+    let fileAtCommit root commit relativePath =
+        (blobAtCommit root commit relativePath).Bytes
 
     let requirePathsClean root relativePaths =
         let repositoryRoot = requireRepositoryRoot root

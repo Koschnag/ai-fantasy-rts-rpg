@@ -98,16 +98,22 @@ module ResearchCli =
             status.Issues |> List.iter writer.WriteStringValue
             writer.WriteEndArray())
 
-    let private importHistory (root: string) (taskId: string) baseCommit headCommit output =
+    let private importHistory (root: string) (taskId: string) baseCommit headCommit calibrationSpec output =
         if not (Text.RegularExpressions.Regex.IsMatch(taskId, "^T-[0-9]{3,}$")) then
             Internal.fail "GIT_IMPORT_INVALID: task ID is invalid."
 
         let history = ResearchGitImport.read root baseCommit headCommit
 
+        let calibration =
+            calibrationSpec
+            |> Option.map (fun path ->
+                ResearchGitCalibration.loadAndVerify root taskId baseCommit headCommit path history)
+
         let bytes =
             Internal.jsonBytes false (fun (writer: Utf8JsonWriter) ->
                 writer.WriteStartObject()
                 writer.WriteString("baseCommit", history.BaseCommit)
+                calibration |> Option.iter (ResearchGitCalibration.writeJson writer)
                 writer.WriteStartArray("commits")
 
                 for commit in history.Commits do
@@ -375,7 +381,19 @@ module ResearchCli =
             let taskId, rest = requireOption "--task" rest
             let baseCommit, rest = requireOption "--base" rest
             let headCommit, rest = requireOption "--head" rest
+            let calibrationSpec, rest = takeOption "--calibration-spec" rest
             let output, rest = requireOption "--output" rest
             noArguments "research import-git-history" rest
-            importHistory root taskId baseCommit headCommit (safeCliPath root "Research Git history output" true output)
+
+            let calibrationSpec =
+                calibrationSpec
+                |> Option.map (safeCliPath root "Research Git calibration spec" false)
+
+            importHistory
+                root
+                taskId
+                baseCommit
+                headCommit
+                calibrationSpec
+                (safeCliPath root "Research Git history output" true output)
         | _ -> Internal.fail "Unknown or incomplete research command."

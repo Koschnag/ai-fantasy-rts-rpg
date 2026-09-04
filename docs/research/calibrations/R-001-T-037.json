@@ -1,0 +1,52 @@
+{
+  "baseCommit": "c22f4b267a45bedca769c5d77739bf0d91873143",
+  "baseTreeId": "1f57e5bdb7337d150fe4ff07603bdc7b863e2bcb",
+  "calibrationId": "R-001",
+  "evidenceClass": "retrospective-derived",
+  "expectedCommitIds": [
+    "66051d78b6986522ac10125a12ce744e87c8f89f",
+    "bbedc09f85e885bfe6b9f618aac42c7e61eced02"
+  ],
+  "headCommit": "bbedc09f85e885bfe6b9f618aac42c7e61eced02",
+  "headManifest": {
+    "blobOid": "2cf0f578a28645cfb005bcc0a997ab6bcc5467e4",
+    "kind": "task-manifest",
+    "path": ".ai/tasks/T-037-graybox-continuation-restart.json",
+    "sha256": "e3cf4d7ae3928367f8d88bf1472591800a28898b87f7410426a739ff9a429ffd"
+  },
+  "headManifestStatus": "review",
+  "headReviewEvidence": {
+    "blobOid": "cefdbcfe654ba8a21b2879a26ac8e1eeb5b8857a",
+    "kind": "review-receipt",
+    "path": "docs/abnahme/T-037-graybox-continuation-restart.md",
+    "sha256": "5236c4b01f80fd0fe43b776b146cd5171b83726bc7396a0fb9db646e16d838f8"
+  },
+  "headTreeId": "14b30db93f00fd3b412530827fa4dbb421c874e7",
+  "laterLifecycle": {
+    "acceptedManifest": {
+      "blobOid": "daf13b00e59cd2b9d8440ade5f32fec82056774d",
+      "kind": "task-manifest",
+      "path": ".ai/tasks/T-037-graybox-continuation-restart.json",
+      "sha256": "dd40b49b40243a7af7937e9b9fac0358ef005251eaab8a27f9908756d6d05e4c"
+    },
+    "acceptedManifestStatus": "accepted",
+    "auditEvidence": {
+      "blobOid": "ccd4613405e6398428d97035bd7b938163b424cd",
+      "kind": "review-receipt",
+      "path": ".ai/audits/T-054-historical-reconciliation-audit.json",
+      "sha256": "06e0cd4c9a1f3c0e7a8ca3dc81420d8e7b1f7b297dd0828a3a0c3ec57ffb900b"
+    },
+    "reconciliationEvidence": {
+      "blobOid": "95a3555794a6d30bbf7702648f6c594545083f94",
+      "kind": "review-receipt",
+      "path": "docs/showcase/reconciliation.json",
+      "sha256": "4916002965723b8328a8af2411ffc693a1a2bb0e59a44a34c9c998019e79da24"
+    },
+    "relation": "git.supersession.observed",
+    "supersededCommit": "bbedc09f85e885bfe6b9f618aac42c7e61eced02",
+    "supersedingCommit": "2506d71211fd539d3781ce8c52cf30f0c757724a",
+    "supersedingTreeId": "25582e3ab00a93314104e49c63d47f8f7e1ca797"
+  },
+  "schemaVersion": 1,
+  "targetTaskId": "T-037"
+}

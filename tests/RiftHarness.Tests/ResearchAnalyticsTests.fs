@@ -429,7 +429,365 @@ module ResearchAnalyticsTests =
                 assertEqual
                     ResearchContract.Unknown
                     (document.RootElement.GetProperty(name).GetString())
-                    $"Retrospective import fabricated {name}")
+                    $"Retrospective import fabricated {name}"
+
+            let mutable unexpectedCalibration = Unchecked.defaultof<JsonElement>
+
+            assertTrue
+                (not (document.RootElement.TryGetProperty("calibration", &unexpectedCalibration)))
+                "Raw import unexpectedly gained a calibration field"
+
+            let history = ResearchGitImport.read root baseline head
+
+            let expected =
+                Internal.jsonBytes false (fun writer ->
+                    writer.WriteStartObject()
+                    writer.WriteString("baseCommit", history.BaseCommit)
+                    writer.WriteStartArray("commits")
+
+                    for imported in history.Commits do
+                        writer.WriteStartObject()
+                        writer.WriteString("commitId", imported.CommitId)
+                        writer.WriteString("commitObjectSha256", imported.CommitObjectSha256)
+                        writer.WriteString("commitTimeUtc", imported.CommitTimeUtc)
+                        writer.WriteStartArray("parentCommitIds")
+                        imported.ParentCommitIds |> List.iter writer.WriteStringValue
+                        writer.WriteEndArray()
+                        writer.WriteString("treeId", imported.TreeId)
+                        writer.WriteEndObject()
+
+                    writer.WriteEndArray()
+                    writer.WriteString("costAmount", ResearchContract.Unknown)
+                    writer.WriteString("costCurrency", ResearchContract.Unknown)
+                    writer.WriteString("evidenceClass", "retrospective-derived")
+                    writer.WriteString("headCommit", history.HeadCommit)
+                    writer.WriteString("humanActiveDurationMs", ResearchContract.Unknown)
+                    writer.WriteString("inputTokens", ResearchContract.Unknown)
+                    writer.WriteString("objectFormat", history.ObjectFormat)
+                    writer.WriteString("outputTokens", ResearchContract.Unknown)
+                    writer.WriteNumber("schemaVersion", ResearchContract.SchemaVersion)
+                    writer.WriteString("studyId", ResearchContract.StudyId)
+                    writer.WriteString("targetTaskId", "T-053")
+                    writer.WriteEndObject())
+                |> Constants.Utf8NoBom.GetString
+                |> ResearchCanonical.canonicalizeJson
+
+            assertTrue
+                (expected.AsSpan().SequenceEqual(ReadOnlySpan<byte>(File.ReadAllBytes(Path.Combine(root, output)))))
+                "Raw import bytes differ from the pre-calibration contract")
+
+    type private CalibrationFixture =
+        { BaseCommit: string
+          BaseTree: string
+          ReadyCommit: string
+          ReviewCommit: string
+          ReviewTree: string
+          ContaminatedCommit: string
+          ContaminatedTree: string
+          LaterCommit: string
+          LaterTree: string
+          HeadManifest: ResearchGitBlob
+          ReadySnapshot: ResearchGitBlob
+          HeadReview: ResearchGitBlob
+          AcceptedManifest: ResearchGitBlob
+          Reconciliation: ResearchGitBlob
+          Audit: ResearchGitBlob }
+
+    let private writeRelative root relativePath (text: string) =
+        let path = Path.Combine(root, relativePath)
+        Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
+        File.WriteAllText(path, text, Constants.Utf8NoBom)
+
+    let private commitAll root message =
+        git root [ "add"; "--all" ] |> ignore
+        git root [ "commit"; "--quiet"; "-m"; message ] |> ignore
+        git root [ "rev-parse"; "HEAD" ]
+
+    let private calibrationFixture root =
+        git root [ "init"; "--quiet" ] |> ignore
+        git root [ "config"; "user.email"; "fixture@example.invalid" ] |> ignore
+        git root [ "config"; "user.name"; "fixture" ] |> ignore
+        writeRelative root "seed.txt" "base\n"
+        let baseCommit = commitAll root "base"
+        let baseTree = ResearchGitImport.treeAt root baseCommit
+        let manifestPath = ".ai/tasks/T-037-fixture.json"
+        let readySnapshotPath = ".ai/tasks/T-037-ready-snapshot.json"
+        let reviewPath = "docs/abnahme/T-037-fixture.md"
+        writeRelative root manifestPath "{\"status\":\"ready\"}\n"
+        writeRelative root readySnapshotPath "{\"status\":\"ready\"}\n"
+        let readyCommit = commitAll root "T-037 ready"
+        writeRelative root manifestPath "{\"status\":\"review\"}\n"
+        writeRelative root reviewPath "review-state evidence\n"
+        let reviewCommit = commitAll root "T-037 review"
+        let reviewTree = ResearchGitImport.treeAt root reviewCommit
+        let headManifest = ResearchGitImport.blobAtCommit root reviewCommit manifestPath
+        let headReview = ResearchGitImport.blobAtCommit root reviewCommit reviewPath
+
+        writeRelative root "foreign.txt" "unrelated change\n"
+        let contaminatedCommit = commitAll root "foreign commit"
+        let contaminatedTree = ResearchGitImport.treeAt root contaminatedCommit
+        writeRelative root manifestPath "{\"status\":\"accepted\"}\n"
+
+        writeRelative
+            root
+            "docs/showcase/reconciliation.json"
+            $"""{{"receipts":[{{"baseSha":"{readyCommit}","mergeSha":"{reviewCommit}","outcome":"success","resultSha":"{reviewCommit}","resultTree":"{reviewTree}","reviewEvidenceBlobOid":"{headReview.BlobOid}","roleSeparation":"not-publicly-proven","taskId":"T-037","taskManifestBlobOid":"{headManifest.BlobOid}"}}]}}"""
+
+        writeRelative
+            root
+            ".ai/audits/T-054-fixture.json"
+            "{\"coveredTaskIds\":[\"T-037\"],\"criteria\":\"PASS\",\"historicalRoleSeparation\":\"not-publicly-proven\"}\n"
+
+        let laterCommit = commitAll root "later acceptance reconciliation"
+        let laterTree = ResearchGitImport.treeAt root laterCommit
+
+        { BaseCommit = baseCommit
+          BaseTree = baseTree
+          ReadyCommit = readyCommit
+          ReviewCommit = reviewCommit
+          ReviewTree = reviewTree
+          ContaminatedCommit = contaminatedCommit
+          ContaminatedTree = contaminatedTree
+          LaterCommit = laterCommit
+          LaterTree = laterTree
+          HeadManifest = headManifest
+          ReadySnapshot = ResearchGitImport.blobAtCommit root reviewCommit readySnapshotPath
+          HeadReview = headReview
+          AcceptedManifest = ResearchGitImport.blobAtCommit root laterCommit manifestPath
+          Reconciliation = ResearchGitImport.blobAtCommit root laterCommit "docs/showcase/reconciliation.json"
+          Audit = ResearchGitImport.blobAtCommit root laterCommit ".ai/audits/T-054-fixture.json" }
+
+    let private calibrationSpec (fixture: CalibrationFixture) =
+        $"""{{
+  "baseCommit": "{fixture.BaseCommit}",
+  "baseTreeId": "{fixture.BaseTree}",
+  "calibrationId": "R-001",
+  "evidenceClass": "retrospective-derived",
+  "expectedCommitIds": ["{fixture.ReadyCommit}", "{fixture.ReviewCommit}"],
+  "headCommit": "{fixture.ReviewCommit}",
+  "headManifest": {{"blobOid":"{fixture.HeadManifest.BlobOid}","kind":"task-manifest","path":".ai/tasks/T-037-fixture.json","sha256":"{fixture.HeadManifest.Sha256}"}},
+  "headManifestStatus": "review",
+  "headReviewEvidence": {{"blobOid":"{fixture.HeadReview.BlobOid}","kind":"review-receipt","path":"docs/abnahme/T-037-fixture.md","sha256":"{fixture.HeadReview.Sha256}"}},
+  "headTreeId": "{fixture.ReviewTree}",
+  "laterLifecycle": {{
+    "acceptedManifest": {{"blobOid":"{fixture.AcceptedManifest.BlobOid}","kind":"task-manifest","path":".ai/tasks/T-037-fixture.json","sha256":"{fixture.AcceptedManifest.Sha256}"}},
+    "acceptedManifestStatus": "accepted",
+    "auditEvidence": {{"blobOid":"{fixture.Audit.BlobOid}","kind":"review-receipt","path":".ai/audits/T-054-fixture.json","sha256":"{fixture.Audit.Sha256}"}},
+    "reconciliationEvidence": {{"blobOid":"{fixture.Reconciliation.BlobOid}","kind":"review-receipt","path":"docs/showcase/reconciliation.json","sha256":"{fixture.Reconciliation.Sha256}"}},
+    "relation": "git.supersession.observed",
+    "supersededCommit": "{fixture.ReviewCommit}",
+    "supersedingCommit": "{fixture.LaterCommit}",
+    "supersedingTreeId": "{fixture.LaterTree}"
+  }},
+  "schemaVersion": 1,
+  "targetTaskId": "T-037"
+}}"""
+
+    let private importCalibration root baseCommit headCommit spec output =
+        ResearchCli.execute
+            root
+            [ "import-git-history"
+              "--task"
+              "T-037"
+              "--base"
+              baseCommit
+              "--head"
+              headCommit
+              "--calibration-spec"
+              spec
+              "--output"
+              output ]
+
+    let retrospectiveCalibrationIsExactUnknownAndDeterministic () =
+        withWorkspace (fun root ->
+            let fixture = calibrationFixture root
+            let spec = "calibration.json"
+            writeRelative root spec (calibrationSpec fixture)
+            let first = ".ai/runtime/research/imports/R-001-first.json"
+            let second = ".ai/runtime/research/imports/R-001-second.json"
+
+            assertEqual
+                0
+                (importCalibration root fixture.BaseCommit fixture.ReviewCommit spec first)
+                "First calibration import failed"
+
+            assertEqual
+                0
+                (importCalibration root fixture.BaseCommit fixture.ReviewCommit spec second)
+                "Second calibration import failed"
+
+            let firstBytes = File.ReadAllBytes(Path.Combine(root, first))
+            let secondBytes = File.ReadAllBytes(Path.Combine(root, second))
+            assertTrue (firstBytes.AsSpan().SequenceEqual(secondBytes)) "Calibration imports were not byte-identical"
+            use document = JsonDocument.Parse(firstBytes)
+            let calibration = document.RootElement.GetProperty("calibration")
+
+            assertEqual
+                "retrospective-derived"
+                (document.RootElement.GetProperty("evidenceClass").GetString())
+                "Evidence class changed"
+
+            assertEqual
+                "review"
+                (calibration.GetProperty("headManifestStatus").GetString())
+                "Review state was retrodicted"
+
+            assertEqual
+                "accepted"
+                (calibration.GetProperty("laterLifecycle").GetProperty("acceptedManifestStatus").GetString())
+                "Later acceptance was omitted"
+
+            assertEqual
+                "git.supersession.observed"
+                (calibration.GetProperty("laterLifecycle").GetProperty("relation").GetString())
+                "Lifecycle relation changed"
+
+            assertEqual
+                "not-publicly-proven"
+                (calibration.GetProperty("historicalRoleSeparation").GetString())
+                "Role-separation limitation changed"
+
+            for name in
+                [ "actorId"
+                  "actorRole"
+                  "agentActiveDurationMs"
+                  "autonomousDurationMs"
+                  "cacheReadTokens"
+                  "cacheWriteTokens"
+                  "costProvenance"
+                  "elapsedDurationMs"
+                  "identityAssurance"
+                  "interventionCount"
+                  "interventionDurationMs"
+                  "modelId"
+                  "modelVersion"
+                  "providerId"
+                  "requestCount"
+                  "taskOutcome"
+                  "usageProvenance" ] do
+                assertEqual
+                    ResearchContract.Unknown
+                    (calibration.GetProperty(name).GetString())
+                    $"Calibration fabricated {name}")
+
+    let retrospectiveCalibrationRejectsContaminationRetrodatingAndTampering () =
+        withWorkspace (fun root ->
+            let fixture = calibrationFixture root
+            let valid = calibrationSpec fixture
+
+            let contaminated =
+                valid.Replace(
+                    $"\"headCommit\": \"{fixture.ReviewCommit}\"",
+                    $"\"headCommit\": \"{fixture.ContaminatedCommit}\"",
+                    StringComparison.Ordinal
+                )
+                |> fun value ->
+                    value.Replace(
+                        $"\"headTreeId\": \"{fixture.ReviewTree}\"",
+                        $"\"headTreeId\": \"{fixture.ContaminatedTree}\"",
+                        StringComparison.Ordinal
+                    )
+                |> fun value ->
+                    value.Replace(
+                        $"\"supersededCommit\": \"{fixture.ReviewCommit}\"",
+                        $"\"supersededCommit\": \"{fixture.ContaminatedCommit}\"",
+                        StringComparison.Ordinal
+                    )
+
+            writeRelative root "contaminated.json" contaminated
+
+            expectFailure "ordered commit list" (fun () ->
+                importCalibration
+                    root
+                    fixture.BaseCommit
+                    fixture.ContaminatedCommit
+                    "contaminated.json"
+                    ".ai/runtime/research/imports/contaminated.json"
+                |> ignore)
+
+            assertTrue
+                (not (File.Exists(Path.Combine(root, ".ai/runtime/research/imports/contaminated.json"))))
+                "Contaminated range wrote output"
+
+            let retrodating =
+                valid.Replace(
+                    $"\"supersedingCommit\": \"{fixture.LaterCommit}\"",
+                    $"\"supersedingCommit\": \"{fixture.ReviewCommit}\"",
+                    StringComparison.Ordinal
+                )
+                |> fun value ->
+                    value.Replace(
+                        $"\"supersedingTreeId\": \"{fixture.LaterTree}\"",
+                        $"\"supersedingTreeId\": \"{fixture.ReviewTree}\"",
+                        StringComparison.Ordinal
+                    )
+
+            writeRelative root "retrodating.json" retrodating
+
+            expectFailure "later acceptance cannot be dated" (fun () ->
+                importCalibration
+                    root
+                    fixture.BaseCommit
+                    fixture.ReviewCommit
+                    "retrodating.json"
+                    ".ai/runtime/research/imports/retrodating.json"
+                |> ignore)
+
+            let wrongHash = String('0', 64)
+
+            let tampered =
+                valid.Replace(fixture.HeadManifest.Sha256, wrongHash, StringComparison.Ordinal)
+
+            writeRelative root "tampered.json" tampered
+
+            expectFailure "SHA-256" (fun () ->
+                importCalibration
+                    root
+                    fixture.BaseCommit
+                    fixture.ReviewCommit
+                    "tampered.json"
+                    ".ai/runtime/research/imports/tampered.json"
+                |> ignore)
+
+            let wrongDeclaredStatus =
+                valid.Replace(
+                    "\"headManifestStatus\": \"review\"",
+                    "\"headManifestStatus\": \"accepted\"",
+                    StringComparison.Ordinal
+                )
+
+            writeRelative root "wrong-declared-status.json" wrongDeclaredStatus
+
+            expectFailure "head manifest status contract" (fun () ->
+                importCalibration
+                    root
+                    fixture.BaseCommit
+                    fixture.ReviewCommit
+                    "wrong-declared-status.json"
+                    ".ai/runtime/research/imports/wrong-declared-status.json"
+                |> ignore)
+
+            let wrongActualStatus =
+                valid.Replace(fixture.HeadManifest.BlobOid, fixture.ReadySnapshot.BlobOid, StringComparison.Ordinal)
+                |> fun value ->
+                    value.Replace(
+                        ".ai/tasks/T-037-fixture.json",
+                        ".ai/tasks/T-037-ready-snapshot.json",
+                        StringComparison.Ordinal
+                    )
+                |> fun value ->
+                    value.Replace(fixture.HeadManifest.Sha256, fixture.ReadySnapshot.Sha256, StringComparison.Ordinal)
+
+            writeRelative root "wrong-actual-status.json" wrongActualStatus
+
+            expectFailure "head manifest status" (fun () ->
+                importCalibration
+                    root
+                    fixture.BaseCommit
+                    fixture.ReviewCommit
+                    "wrong-actual-status.json"
+                    ".ai/runtime/research/imports/wrong-actual-status.json"
+                |> ignore))
 
     let architectureAblationsStayDiagnostic () =
         let baseInput files =
@@ -494,4 +852,8 @@ module ResearchAnalyticsTests =
           "research git import rejects malformed and moving boundaries", gitBoundariesRejectMalformedAndMovingNames
           "research retrospective import preserves unknown usage and human duration",
           retrospectiveImportKeepsHumanAndUsageUnknown
+          "research retrospective calibration is exact, unknown, and deterministic",
+          retrospectiveCalibrationIsExactUnknownAndDeterministic
+          "research retrospective calibration rejects contamination, retrodating, and tampering",
+          retrospectiveCalibrationRejectsContaminationRetrodatingAndTampering
           "research architecture binary and path-map ablations stay diagnostic", architectureAblationsStayDiagnostic ]
