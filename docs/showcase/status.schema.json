@@ -125,7 +125,27 @@
             "effectiveStartEligibility": { "enum": ["eligible", "waiting", "blocked", "unknown"] },
             "waitingReason": { "$ref": "#/$defs/blocker" },
             "selectorEnforcement": { "const": "pending" }
-          }
+          },
+          "allOf": [{
+            "if": { "properties": { "taskId": { "const": "T-053" } }, "required": ["taskId"] },
+            "then": {
+              "properties": { "lifecycleStatus": { "const": "READY" } },
+              "anyOf": [
+                {
+                  "properties": {
+                    "effectiveStartEligibility": { "const": "waiting" },
+                    "waitingReason": { "const": "awaiting-preregistered-t042-start-eligibility" }
+                  }
+                },
+                {
+                  "properties": {
+                    "effectiveStartEligibility": { "const": "eligible" },
+                    "waitingReason": { "const": "none" }
+                  }
+                }
+              ]
+            }
+          }]
         },
         "ready": { "$ref": "#/$defs/taskList" }
       }

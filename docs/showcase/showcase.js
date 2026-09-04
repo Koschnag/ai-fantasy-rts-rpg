@@ -120,16 +120,21 @@
   }
 
   function validateTasks(value) {
+    const current = isRecord(value) ? value.current : null;
+    const eligibilityPair = isRecord(current)
+      && ((current.effectiveStartEligibility === "waiting"
+          && current.waitingReason === "awaiting-preregistered-t042-start-eligibility")
+        || (current.effectiveStartEligibility === "eligible"
+          && current.waitingReason === "none"));
     return exactKeys(value, ["current", "ready"])
-      && exactKeys(value.current, ["taskId", "lifecycleStatus", "effectiveStartEligibility", "waitingReason", "selectorEnforcement"])
-      && isTask(value.current.taskId) && isEnum(LIFECYCLE, value.current.lifecycleStatus)
-      && isEnum(ELIGIBILITY, value.current.effectiveStartEligibility)
-      && isEnum(BLOCKER, value.current.waitingReason)
-      && value.current.selectorEnforcement === "pending"
-      && value.current.taskId === "T-053"
-      && value.current.lifecycleStatus === "READY"
-      && value.current.effectiveStartEligibility === "waiting"
-      && value.current.waitingReason === "awaiting-preregistered-t042-start-eligibility"
+      && exactKeys(current, ["taskId", "lifecycleStatus", "effectiveStartEligibility", "waitingReason", "selectorEnforcement"])
+      && isTask(current.taskId) && isEnum(LIFECYCLE, current.lifecycleStatus)
+      && isEnum(ELIGIBILITY, current.effectiveStartEligibility)
+      && isEnum(BLOCKER, current.waitingReason)
+      && current.selectorEnforcement === "pending"
+      && current.taskId === "T-053"
+      && current.lifecycleStatus === "READY"
+      && eligibilityPair
       && isTaskList(value.ready);
   }
 

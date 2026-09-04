@@ -108,6 +108,16 @@ Actions-Beobachtungszeit. `tasks.current` beschreibt Lifecycle und effektive
 Startberechtigung getrennt; `READY` allein ist kein Startclaim und
 `selectorEnforcement=pending` behauptet keine bereits wirksame Selektorsperre.
 
+Für den eingefrorenen Beobachtungsauftrag T-053 sind genau zwei Zustände
+zulässig: Solange kein eindeutig vorhandenes, schemaförmiges und über
+akzeptierte Abhängigkeiten startberechtigtes T-042 vorliegt, gilt
+`READY / waiting / awaiting-preregistered-t042-start-eligibility`. Sobald
+diese Bedingung belegt ist, gilt `READY / eligible / none`. `eligible` bedeutet
+nur, dass die Beobachtung vor dem ersten T-042-Zielereignis gestartet werden
+darf; es ist weder ein laufender Agent noch eine T-042-Akzeptanz oder bereits
+durchgesetzte Selektorsperre. Python-, JSON-Schema- und Browservalidatoren
+verwerfen jede andere Kombination fail-closed.
+
 ## Provenienz und Betrieb
 
 - Der Pages-Renderer führt ausschließlich den exakten `origin/main`-Baum aus.
