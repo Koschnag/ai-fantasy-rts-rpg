@@ -54,11 +54,23 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-037 | E-004 | kleinster spielbarer Fortsetzungsschritt: die Graybox-Auftragskette überlebt den Prozessneustart (Savevertrags-Erweiterung um die additive Sitzungsschicht) über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
 | T-038 | E-004 | kleinster Single-Platform-Releasepfad: versioniertes, checksumgebundenes linux-x64-Alphapaket mit Lizenz-/Attributionsmanifest und Release Notes über der Graybox-Auftragskette (G-PACKAGE) | Z-001, Z-003, Z-004, NF-003, NF-006, NF-008 | M | MUST | DONE |
 | T-039 | E-004 | kleinster spielbarer Abschluss- und Wiederholungsschritt: definierter Auftragsabschluss der Graybox-Kette mit ruhigem Abschlussausweis und sitzungslokalem Kettenneustart (Wiederholen) über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | DONE |
+| T-042 | E-004 | kleinster spielbarer Pausenschritt: sitzungsseitige Pause mit Einfrieren an der Tickgrenze, erhaltenem Auswahl-/Kontextzustand und deterministischer Kettenidentität über dem unveränderten Simulationskern | Z-001, F-001, F-005, F-010, NF-001, NF-002, NF-003, NF-005, NF-007, NF-008 | L | MUST | READY |
 | T-040 | E-005 | repräsentative Riftward-Mission besteht Atmosphären-, Originalitäts- und visuelles Lesbarkeitsgate | Z-001, Z-005 | XL | MUST | DRAFT |
 | T-041 | E-005 | finale UI-, Eingabe-, Untertitel- und Einstellungsabnahme auf allen Zielplattformen | Z-002, Z-003 | L | MUST | DRAFT |
 | T-050 | E-006 | eine validierte KI-/prozedurale Assetfamilie durchläuft Quarantäne, Review, LFS-Quelle und Cooking reproduzierbar | Z-004, Z-005 | L | MUST | DRAFT |
 | T-051 | E-006 | gemessene Karten-/Quest-/Audio-Pipeline erzeugt konsistente Inhalte mit vollständiger Provenienz | Z-001, Z-004, Z-005 | XL | MUST | DRAFT |
 | T-052 | E-001 | wahrheitstreuer GitHub-Pages-Status trennt akzeptiertes main, Kandidaten und WIP-Kontinuität mit öffentlichen Showcase-Gates | Z-004, Z-005, NF-008 | M | SHOULD | DONE |
+
+`T-042` ist als präregistrierter nächster Gameplay-Slice `READY`. Die am
+2026-09-01 im WIP-Snapshot
+`297ac92a72411b295162018f472916d0b3956732` erhaltene Spezifikation wurde am
+2026-09-04 gegen den aktuellen `main`-Stand erneut geprüft: alle im Manifest
+genannten Abhängigkeiten T-010, T-020, T-021, T-023 und T-031 bis T-039 sind
+`DONE`/`accepted`. Die Wiederherstellung der Spezifikation implementiert
+noch keine Pause und startet insbesondere noch nicht den prospektiven P-001-
+Lauf. Nach ihrer geprüften Promotion muss T-053 als beobachtende Schicht
+erfolgreich beginnen, bevor das erste reguläre T-042-Zielereignis erzeugt wird.
+T-055 bleibt davon getrennt `DRAFT`.
 
 Der folgende T-052-Absatz konserviert den historischen Builderstand vom
 2026-09-02. Seine damaligen offenen CI-, Review-, Merge- und
