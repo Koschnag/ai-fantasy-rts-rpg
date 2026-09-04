@@ -39,6 +39,7 @@ Lifecycle steht im jeweiligen `.ai/tasks/T-…json` und in `BACKLOG.md`.
 
 - [T-052 – Pages-Status und Showcase-Gates](T-052-pages-status-and-showcase-gates.md)
 - [T-054 – Projektcockpit und Autopilot-Provenienz](T-054-public-project-cockpit.md)
+- [T-072 – Node-24-Pins der Pages-Actions](T-072-node24-pages-actions.md)
 
 Fehlende, lokale oder private Runs werden hier nicht nachträglich erfunden.
 Jeder Bericht nennt seine offenen Gates und Aussagegrenzen; die verifizierte
