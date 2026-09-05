@@ -1,0 +1,60 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-074",
+  "title": "Native Archivprovenienz und relative Toolchain-Pfade reparieren",
+  "status": "review",
+  "releaseNote": "2026-09-05: READY als begrenzte technische Wartung aufgrund der ausdruecklichen Projektleitungsanweisung, Riftward auf GitHub zu konsolidieren und den Produktionsbetrieb einzurichten. Ausgangsstand main 8e3b9c7b5ce831059b7797e7e9be21608d247402. Keine neue Produkt-, Asset-, Forschungs- oder Hardwareentscheidung. Der bereits isoliert untersuchte Reparaturkandidat wird vor Integration separat geprueft; READY behauptet keine Abnahme.",
+  "reviewNote": "2026-09-05: Unabhaengige Astra-Spezifikationspruefung PASS fuer Planner-Commit 62f85de49c5757a5ef630986ede079fee11ddddb/Tree 12e0814e69c4eb411fffe7e6d48637433d958a25. Nach den zwei echten CI-Lockbindungsfehlern wurde das technische Scope-Amendment ebenfalls unabhaengig mit PASS geprueft: Commit 6ed00eb43863f4836d88e9093189e34102995ca9/Tree 441ee80ccaebc40993a9c6f8b35e262d7cb73069. Schema, enger Diff, historische Git-Lockbytes und echte Neugenerierung statt Receipt-Umschreibung sind gebunden. Keine Implementierungs-, aktueller-main-Build- oder Betriebsabnahme vorweggenommen.",
+  "objective": "Stelle die reproduzierbare native Linux-Buildvorbereitung wieder her: bestaetigten Codeload-Containerhash erneuern, relativen Include-/Library-Prefix absolut aufloesen und die dadurch technisch veraltete Kalibrierprovenienz mit einem echten neuen Lauf erneuern, ohne historische Erzeugungsereignisse umzuschreiben.",
+  "completionNote": "2026-09-05: Erste exact-head CI an ff950943fc3e9358ed7c87b3d63fbb696a414d56: 383/385 Tests bestanden. Die zwei alten Lockbindungen wurden nach unabhaengig freigegebenem Scope-Amendment korrigiert, einschliesslich der spaeter direkt nachgewiesenen exakten Schema-Konstante (gesondertes Astra-Scope-PASS). Echte Neugenerierung 01M1RR3QZPNSGBTG44ZCYE1FVX um 12:18:53 UTC: gleiche drei Payloadhashes und 2348418 Payloadbytes, aktueller Lock gebunden, quarantine unveraendert. Neue lokale Assetpruefung und globale sechs-Manifest-Pruefung bestanden. Historische Manifest-/Receipt-/Lockbytes bleiben exakt erhalten. Direkter Regressionstest einschliesslich Whitespace-Bindung und Schema-Ablehnung sowie bestehende Unsafe-Workspace-Tests bestanden; Formatpruefung bestanden. REVIEW bleibt bis zu unabhaengiger finaler Implementierungspruefung, neuer exact-head CI und erfolgreichem post-merge Verify. Fruehere Native-Belege sind keine vollstaendige aktuelle Tree-/Betriebs- oder Gameplayabnahme.",
+  "inScope": [
+    "toolchain.lock.json: ausschliesslich bgfx fetchedAtUtc und sourceSha256 bei unveraendertem Commit 35a98dd6453cf25dc75c68e233abb400836d5920 und unveraenderter Bezugsquelle",
+    "scripts/native-build-linux-x64.sh: vorhandenen toolchain_usr-Prefix vor Export von CPATH und LIBRARY_PATH absolut aufloesen",
+    "docs/NATIVE_UNTERBAU.md: notwendige primaere Commit-/Tree-/Blob-/Moduspruefung fuer einen reinen Archivcontainer-Refresh dokumentieren",
+    "tests/RiftHarness.Tests/DotnetAssetCiEvidenceTests.fs: erwarteten Gesamthash unabhaengig aus den vollstaendigen aktuellen Lockbytes berechnen und technische Whitespace-Aenderung als Bindungsregression pruefen",
+    ".ai/schemas/dotnet-asset-calibration-ci-evidence.schema.json: ausschliesslich die exakte lockFileSha256-Konstante von 49dd75fa91e539fcf19ab3f8b01aecd81a3cf11fbff940f14051ce80ec088b42 auf den geprueften aktuellen Gesamthash 4310f9c405f261a698235c835bc56cb3d01821a44936b6146fc009e51df933cf erneuern; keinerlei Schema-Verbreiterung",
+    "assets/manifests/CAL-STONEWOOD-V1-39FAAE34C4CD.json und genau ein neuer Erzeugungsreceipt unter assets/receipts/CAL-STONEWOOD-V1-39FAAE34C4CD/: nur Ausgabe eines echten neuen Kalibrierlaufs mit unveraendertem Generator, Seed, Spec und drei identischen Payloadhashes; Status bleibt quarantine",
+    "assets/provenance/calibration-history/01M0RDE866TV2P42S1D3XG9ZEC/: byteidentischer Snapshot des bisherigen Manifests und alten toolchain.lock.json sowie rein technische Erklaerung; bestehender alter Receipt bleibt unveraendert",
+    "Eigene T-074-Spezifikation, Backlog-Zeile und nachvollziehbare Review-/Abnahmebelege; keine Statusaenderung anderer Aufgaben"
+  ],
+  "outOfScope": [
+    "Andere native Versionen, neue Bibliotheken, gelockerte Hashpruefung, Gameplay-, Simulations-, kreative Asset- oder Forschungsveraenderungen; Generator-/Validator-Aenderungen, neue Assetfreigaben oder historische Receipt-Umschreibung",
+    "T-042-Implementierung, T-053-Beobachtungsstart, Writer-Aktivierung, Speicher- oder Credential-Aenderungen",
+    "Ungepruefte WIP-Zusammenfuehrung, Historienumschreibung, direkter main-Push oder abgeschwaechte Pflichtgates"
+  ],
+  "requirements": ["Z-003", "Z-004", "NF-008"],
+  "dependencies": ["T-010"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T074-01",
+      "statement": "Der neue bgfx-Archivhash ec4967a243c6b6e5438da0ed04b19617d52738689ff014313cc75f2f72a20c90 ist durch vollstaendigen Vergleich aller 5194 Archiveintraege mit Blob-IDs und Dateimodi des primaeren Root-Trees a72e6c7cb722e213ca7395f9a190b0f3744e7aec belegt. Commit und Quellinhalt bleiben unveraendert.",
+      "verification": "Exakten Commit ueber Git beziehen, Archiv-SHA und alle Eintraege gegen dessen Tree vergleichen; fehlende, zusaetzliche oder abweichende Eintraege fuehren zum Abbruch."
+    },
+    {
+      "id": "AC-T074-02",
+      "statement": "Der Include-/Library-Prefix ist auch bei relativem Cache-Pfad nach Wechsel des Build-Arbeitsverzeichnisses gueltig; die bestehenden Pin-, Offline-Cache-, Build- und ISA-Pruefungen bleiben erhalten.",
+      "verification": "Shell-Syntaxpruefung, nativer Build mit relativem Cache-Pfad und anschliessendes --verify-cache; bestehende Native-/Toolchain-Quellen werden exakt an die Belege gebunden."
+    },
+    {
+      "id": "AC-T074-03",
+      "statement": "Der Code-Diff bleibt auf die genannte Builddatei und den direkten Lockbindungs-Regressionstest begrenzt; weitere Aenderungen betreffen nur den benannten Lock, Dokumentation, taskgebundene Lifecycle-Dateien und echte begrenzte Kalibrierprovenienz. Alle bestehenden Pflichtgates und ein unabhaengiges Review bestehen am gebundenen PR-Stand.",
+      "verification": "Diff-Allowlist, JSON-/Schema-, Format-, Security-, Harness-/Fresh-Checkout-Pruefungen, exact-head Repository gates und unabhaengiger Review mit Commit-/Tree-Bindung."
+    },
+    {
+      "id": "AC-T074-05",
+      "statement": "Der echte neue Kalibrierlauf bindet den aktuellen vollstaendigen Toolchain-Lock bei unveraenderten Generatorquellen, Spec, Seed und Payloadhashes. Das alte Manifest, der alte Receipt und die alten Lockbytes mit SHA-256 49dd75fa91e539fcf19ab3f8b01aecd81a3cf11fbff940f14051ce80ec088b42 bleiben byteidentisch nachweisbar. Es gibt keine nachtraeglich erfundenen Erzeugungsereignisse oder Assetfreigaben.",
+      "verification": "Vorhandene Generator-DLL gegen Embedded Sources und SDK-Metadaten pruefen, neuen Run in isoliertem leerem Workspace mit echter Run-ID/Zeit ausfuehren, drei Payloadhashes gegen den historischen Lauf vergleichen, neuen Manifest-/Receipt-Verbund gezielt validieren und historische Bytes unabhaengig nachpruefen. Regressionstest vergleicht Lockbindungswert mit separat berechnetem SHA-256 und weist Aenderung nach Lock-Whitespace-Mutation sowie deren Ablehnung durch das unveraenderte exakte Schema nach; alle bestehenden Sicherheits- und Assettests bleiben erhalten."
+    },
+    {
+      "id": "AC-T074-04",
+      "statement": "Integration erfolgt ausschliesslich ueber PR und Squash-Merge; DONE/accepted folgt erst nach erfolgreichem post-merge Verify. Die Reparatur behauptet weder einen gestarteten Autopiloten noch eine neue Gameplay- oder Hardwareabnahme.",
+      "verification": "PR-/Commit-/Tree-Reconciliation, post-merge Verify und ehrlicher taskgebundener Abschlussbeleg."
+    }
+  ],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-DATA", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": ["Den exakt belegten Containerhash und die begrenzte absolute Prefix-Aufloesung uebernehmen", "Den eng beschriebenen Lockbindungs-Test und echten technischen Kalibrierrefresh mit byteidentischer Historienerhaltung umsetzen", "Eigene T-074-Lifecycle- und Pruefbelege aktualisieren"],
+    "mustEscalate": ["Jede unerwartete Quell-, Tree-, Blob-, Dateimodus- oder Payloadabweichung", "Andere ausfuehrbare Dateien, Abhaengigkeiten, Gates oder Aufgaben aendern", "Fehlende unabhängige Review-, Provenienz- oder CI-Evidenz", "Fehlende echte Neugenerierung oder Versuch, alte Receipts passend umzuschreiben"]
+  }
+}

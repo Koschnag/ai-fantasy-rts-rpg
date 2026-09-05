@@ -73,6 +73,7 @@ done
 # damit auch die genie-generierten bgfx-Makefiles sie finden.
 toolchain_usr=$cache/toolchain/usr
 if [ -d "$toolchain_usr/include" ]; then
+  toolchain_usr=$(CDPATH= cd -- "$toolchain_usr" && pwd)
   export CPATH="${CPATH:+$CPATH:}$toolchain_usr/include"
   export LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}$toolchain_usr/lib/x86_64-linux-gnu"
 fi

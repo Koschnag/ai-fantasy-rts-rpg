@@ -41,6 +41,16 @@ Verhalten:
    `toolchain.lock.json` geprüft. Fehlt ein Archiv im Cache, wird es genau dann
    einmalig von der gepinnten `sourceArchiveUrl` geladen (protokollierte
    Erstbeschaffung); danach genügt der Cache ohne Netzwerk.
+   Eine Änderung nur des von Codeload erzeugten Archivcontainers darf den
+   Commit-Pin nicht still lockern: Vor einer Aktualisierung von
+   `sourceSha256` müssen ein Blob-gefilterter Fetch des exakten Commits und
+   ein vollständiger Vergleich aller Archivdateien, Git-Dateimodi und
+   Git-Blob-IDs gegen dessen primären Root-Tree erfolgreich sein. Für den
+   bgfx-Commit `35a98dd6453cf25dc75c68e233abb400836d5920` wurde am 2026-09-05
+   Root-Tree `a72e6c7cb722e213ca7395f9a190b0f3744e7aec` mit 5194 von 5194
+   Archiveinträgen ohne fehlende, zusätzliche oder abweichende Einträge
+   bestätigt; der Commit und sämtliche Quellbytes/-modi bleiben damit
+   unverändert, während ausschließlich der Codeload-Archivhash erneuert wird.
 2. **Build**: SDL3 via CMake/Ninja (minimale Optionen, kein Audio/Gamepad/
    Wayland), bgfx/bx/bimg via GENie/gmake (`config=release64`) mit injiziertem
    `-DBGFX_CONFIG_RENDERER_OPENGL=33` (GL-3.3-Core-Pflichtpfad) sowie
