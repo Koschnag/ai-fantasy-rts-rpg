@@ -2,6 +2,7 @@ namespace RiftHarness.Tests
 
 open System
 open System.IO
+open System.Security.Cryptography
 open System.Text.Json
 open RiftHarness
 open global.Json.Schema
@@ -68,16 +69,45 @@ module DotnetAssetCiEvidenceTests =
         let lockFileSha256 =
             evidence.RootElement.GetProperty("toolchain").GetProperty("lockFileSha256").GetString()
 
+        let independentlyHashLock sourceRoot =
+            File.ReadAllBytes(Path.Combine(sourceRoot, "toolchain.lock.json"))
+            |> SHA256.HashData
+            |> Convert.ToHexString
+            |> fun value -> value.ToLowerInvariant()
+
         assertTrue
-            (lockFileSha256 = "49dd75fa91e539fcf19ab3f8b01aecd81a3cf11fbff940f14051ce80ec088b42")
+            (lockFileSha256 = independentlyHashLock root)
             "Evidence did not bind the complete toolchain lock bytes."
 
+        let pinnedSchema = JsonSchema.FromText(schema.RootElement.GetRawText())
+
         let evaluation =
-            JsonSchema
-                .FromText(schema.RootElement.GetRawText())
-                .Evaluate(evidence.RootElement, EvaluationOptions(OutputFormat = OutputFormat.List))
+            pinnedSchema.Evaluate(evidence.RootElement, EvaluationOptions(OutputFormat = OutputFormat.List))
 
         assertTrue evaluation.IsValid "Evidence failed its closed offline schema."
+
+        withCopiedEvidenceInputs (fun temporary ->
+            assertTrue
+                (independentlyHashLock temporary = lockFileSha256)
+                "Copied evidence inputs changed the original lock bytes."
+
+            File.AppendAllText(Path.Combine(temporary, "toolchain.lock.json"), "\n", Constants.Utf8NoBom)
+            let mutated = DotnetAssetCiEvidence.generate temporary
+            use mutatedEvidence = JsonDocument.Parse(mutated.CanonicalJson)
+
+            let mutatedLockSha256 =
+                mutatedEvidence.RootElement.GetProperty("toolchain").GetProperty("lockFileSha256").GetString()
+
+            assertTrue
+                (mutatedLockSha256 = independentlyHashLock temporary)
+                "Whitespace-mutated lock bytes were not fully bound."
+
+            assertTrue (mutatedLockSha256 <> lockFileSha256) "Lock whitespace drift kept the old evidence hash."
+
+            let mutatedEvaluation =
+                pinnedSchema.Evaluate(mutatedEvidence.RootElement, EvaluationOptions(OutputFormat = OutputFormat.List))
+
+            assertTrue (not mutatedEvaluation.IsValid) "The pinned schema accepted lock-byte drift.")
 
     /// Unsafe roots are rejected before a run can create an output workspace.
     let unsafeWorkspaceFailsClosed () =
