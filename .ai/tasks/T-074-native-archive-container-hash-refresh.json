@@ -1,0 +1,49 @@
+{
+  "$schema": "../schemas/task.schema.json",
+  "schemaVersion": 1,
+  "id": "T-074",
+  "title": "Native Archivprovenienz und relative Toolchain-Pfade reparieren",
+  "status": "ready",
+  "releaseNote": "2026-09-05: READY als begrenzte technische Wartung aufgrund der ausdruecklichen Projektleitungsanweisung, Riftward auf GitHub zu konsolidieren und den Produktionsbetrieb einzurichten. Ausgangsstand main 8e3b9c7b5ce831059b7797e7e9be21608d247402. Keine neue Produkt-, Asset-, Forschungs- oder Hardwareentscheidung. Der bereits isoliert untersuchte Reparaturkandidat wird vor Integration separat geprueft; READY behauptet keine Abnahme.",
+  "objective": "Stelle die reproduzierbare native Linux-Buildvorbereitung wieder her, indem ausschliesslich ein nach primaerem Git-Tree-Vergleich bestaetigter Codeload-Containerhash erneuert und ein relativer Include-/Library-Prefix absolut aufgeloest wird.",
+  "inScope": [
+    "toolchain.lock.json: ausschliesslich bgfx fetchedAtUtc und sourceSha256 bei unveraendertem Commit 35a98dd6453cf25dc75c68e233abb400836d5920 und unveraenderter Bezugsquelle",
+    "scripts/native-build-linux-x64.sh: vorhandenen toolchain_usr-Prefix vor Export von CPATH und LIBRARY_PATH absolut aufloesen",
+    "docs/NATIVE_UNTERBAU.md: notwendige primaere Commit-/Tree-/Blob-/Moduspruefung fuer einen reinen Archivcontainer-Refresh dokumentieren",
+    "Eigene T-074-Spezifikation, Backlog-Zeile und nachvollziehbare Review-/Abnahmebelege; keine Statusaenderung anderer Aufgaben"
+  ],
+  "outOfScope": [
+    "Andere native Versionen, neue Bibliotheken, gelockerte Hashpruefung, Gameplay-, Simulations-, Asset- oder Forschungsveraenderungen",
+    "T-042-Implementierung, T-053-Beobachtungsstart, Writer-Aktivierung, Speicher- oder Credential-Aenderungen",
+    "Ungepruefte WIP-Zusammenfuehrung, Historienumschreibung, direkter main-Push oder abgeschwaechte Pflichtgates"
+  ],
+  "requirements": ["Z-003", "Z-004", "NF-008"],
+  "dependencies": ["T-010"],
+  "acceptanceCriteria": [
+    {
+      "id": "AC-T074-01",
+      "statement": "Der neue bgfx-Archivhash ec4967a243c6b6e5438da0ed04b19617d52738689ff014313cc75f2f72a20c90 ist durch vollstaendigen Vergleich aller 5194 Archiveintraege mit Blob-IDs und Dateimodi des primaeren Root-Trees a72e6c7cb722e213ca7395f9a190b0f3744e7aec belegt. Commit und Quellinhalt bleiben unveraendert.",
+      "verification": "Exakten Commit ueber Git beziehen, Archiv-SHA und alle Eintraege gegen dessen Tree vergleichen; fehlende, zusaetzliche oder abweichende Eintraege fuehren zum Abbruch."
+    },
+    {
+      "id": "AC-T074-02",
+      "statement": "Der Include-/Library-Prefix ist auch bei relativem Cache-Pfad nach Wechsel des Build-Arbeitsverzeichnisses gueltig; die bestehenden Pin-, Offline-Cache-, Build- und ISA-Pruefungen bleiben erhalten.",
+      "verification": "Shell-Syntaxpruefung, nativer Build mit relativem Cache-Pfad und anschliessendes --verify-cache; bestehende Native-/Toolchain-Quellen werden exakt an die Belege gebunden."
+    },
+    {
+      "id": "AC-T074-03",
+      "statement": "Der ausfuehrbare Diff ist auf die zwei genannten Build-/Lockdateien begrenzt; alle bestehenden Repository-Pflichtgates und ein vom Erzeuger getrenntes Review bestehen am gebundenen PR-Stand.",
+      "verification": "Diff-Allowlist, JSON-/Schema-, Format-, Security-, Harness-/Fresh-Checkout-Pruefungen, exact-head Repository gates und unabhaengiger Review mit Commit-/Tree-Bindung."
+    },
+    {
+      "id": "AC-T074-04",
+      "statement": "Integration erfolgt ausschliesslich ueber PR und Squash-Merge; DONE/accepted folgt erst nach erfolgreichem post-merge Verify. Die Reparatur behauptet weder einen gestarteten Autopiloten noch eine neue Gameplay- oder Hardwareabnahme.",
+      "verification": "PR-/Commit-/Tree-Reconciliation, post-merge Verify und ehrlicher taskgebundener Abschlussbeleg."
+    }
+  ],
+  "requiredGates": ["G-SPEC", "G-FORMAT", "G-STATIC", "G-TEST", "G-HARNESS", "G-DATA", "G-SECURITY"],
+  "decisionPolicy": {
+    "mayDecide": ["Den exakt belegten Containerhash und die begrenzte absolute Prefix-Aufloesung uebernehmen", "Eigene T-074-Lifecycle- und Pruefbelege aktualisieren"],
+    "mustEscalate": ["Jede Commit-, Tree-, Blob- oder Dateimodusabweichung", "Andere ausfuehrbare Dateien, Abhaengigkeiten, Gates oder Aufgaben aendern", "Fehlende unabhängige Review-, Provenienz- oder CI-Evidenz"]
+  }
+}
