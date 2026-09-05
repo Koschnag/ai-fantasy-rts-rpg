@@ -38,7 +38,7 @@ Nur Einträge mit Status `READY` dürfen ohne weitere fachliche Klärung impleme
 | T-071 | E-001 | stale/offline Pages zeigt letzte akzeptierte main-Provenienz mit Alter, waehrend volatile Aktivitaet fail-closed bleibt | Z-004, Z-005, NF-003, NF-008 | S | SHOULD | DONE |
 | T-072 | E-001 | verifiziertes Node-24-Update der drei SHA-gepinnten GitHub-Pages-Actions ohne Aenderung des bestehenden Deploy-Vertrags | Z-004, Z-005 | S | SHOULD | DONE |
 | T-073 | E-001 | fail-closed Pages-Uebergang von T-053 waiting zu eligible, sobald das praeregistrierte T-042 nachweislich startberechtigt ist | Z-004, Z-005, NF-003, NF-008 | S | MUST | DONE |
-| T-074 | E-002 | primaer verifizierter bgfx-Archivcontainer-Refresh, absolute native Include-/Library-Pfade und echter technischer Kalibrierrefresh bei erhaltener Historie und unveraenderten Payloads/Pflichtgates | Z-003, Z-004, NF-008 | S | MUST | REVIEW |
+| T-074 | E-002 | primaer verifizierter bgfx-Archivcontainer-Refresh, absolute native Include-/Library-Pfade und echter technischer Kalibrierrefresh bei erhaltener Historie und unveraenderten Payloads/Pflichtgates | Z-003, Z-004, NF-008 | S | MUST | DONE |
 | T-010 | E-002 | SDL3-Fenster, Input und bgfx-Dreieck zuerst nativ auf linux-x64 auf Referenzhardware; Windows-/macOS-Nachweise folgen über T-011 | Z-002, Z-003 | L | MUST | DONE |
 | T-011 | E-002 | plattformspezifische Shader-/Native-Buildmatrix und Smoke-Artefakte | Z-003 | L | MUST | DRAFT |
 | T-020 | E-003 | leere Benchmarkszene mit Telemetrie auf allen Hardwareprofilen | Z-002 | M | MUST | DONE |
@@ -115,6 +115,23 @@ effektive Startberechtigung ist bis zu einem schema-gültigen, normal
 startberechtigten T-042 jedoch separat `waiting` mit dem geschlossenen Grund
 `awaiting-preregistered-t042-start-eligibility`. Der Autopilot darf T-053 in
 diesem Zustand nicht erneut auswählen.
+
+`T-074` ist seit dem Abnahmelauf am 2026-09-05 `DONE` fuer den ueber PR 56
+integrierten Implementierungsstand `290752299306b09cc0f2a2daca1342ee070f3dc3`
+mit Tree `d2d5fcdd6cb6e623c743d500b8d0df7e5553c152`. Das unabhaengige
+Astra-Review band exakt denselben Kandidatentree; PR-Verify `33966183053`,
+PR-Asset `33966183043`, post-merge Verify `33966971347` und post-merge Asset
+`33966971433` bestanden. Der echte heutige Verifikationslauf
+`01M1RTMY67F5RRARHWMN1HT2MR` ist abgeschlossen und integritaetsgueltig;
+er prueft fruehere Implementierungs-/Native-Belege rueckblickend und erfindet
+keinen damaligen Implementierungslauf. Archiv-/Quellidentitaet, echte neue
+Kalibrierung, historische Byteerhaltung und aktuelle gezielte Tests sind im
+[T-074-Abnahmebeleg](docs/abnahme/T-074-native-archive-container-hash-refresh.md)
+zugeordnet. Der fehlende historische Runtime-Run im isolierten Historienpaket
+und das fehlende Node fuer den zusaetzlichen lokalen Pages-Test bleiben
+ausdruecklich offengelegt; die unveraenderten Pflichtgates sind durch den
+erfolgreichen exakten GitHub-Stand belegt. Keine neue Gameplay-, Zielhardware-,
+Forschungs- oder Autopilot-Betriebsabnahme folgt daraus.
 
 `T-054` ist seit 2026-09-03 `DONE`. Die getrennte Builder-, Repair- und
 Reviewer-Kette wurde nach zwei fail-closed gefundenen und reparierten
