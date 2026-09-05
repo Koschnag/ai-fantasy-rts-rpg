@@ -13,6 +13,7 @@
     "scripts/native-build-linux-x64.sh: vorhandenen toolchain_usr-Prefix vor Export von CPATH und LIBRARY_PATH absolut aufloesen",
     "docs/NATIVE_UNTERBAU.md: notwendige primaere Commit-/Tree-/Blob-/Moduspruefung fuer einen reinen Archivcontainer-Refresh dokumentieren",
     "tests/RiftHarness.Tests/DotnetAssetCiEvidenceTests.fs: erwarteten Gesamthash unabhaengig aus den vollstaendigen aktuellen Lockbytes berechnen und technische Whitespace-Aenderung als Bindungsregression pruefen",
+    ".ai/schemas/dotnet-asset-calibration-ci-evidence.schema.json: ausschliesslich die exakte lockFileSha256-Konstante von 49dd75fa91e539fcf19ab3f8b01aecd81a3cf11fbff940f14051ce80ec088b42 auf den geprueften aktuellen Gesamthash 4310f9c405f261a698235c835bc56cb3d01821a44936b6146fc009e51df933cf erneuern; keinerlei Schema-Verbreiterung",
     "assets/manifests/CAL-STONEWOOD-V1-39FAAE34C4CD.json und genau ein neuer Erzeugungsreceipt unter assets/receipts/CAL-STONEWOOD-V1-39FAAE34C4CD/: nur Ausgabe eines echten neuen Kalibrierlaufs mit unveraendertem Generator, Seed, Spec und drei identischen Payloadhashes; Status bleibt quarantine",
     "assets/provenance/calibration-history/01M0RDE866TV2P42S1D3XG9ZEC/: byteidentischer Snapshot des bisherigen Manifests und alten toolchain.lock.json sowie rein technische Erklaerung; bestehender alter Receipt bleibt unveraendert",
     "Eigene T-074-Spezifikation, Backlog-Zeile und nachvollziehbare Review-/Abnahmebelege; keine Statusaenderung anderer Aufgaben"
@@ -43,7 +44,7 @@
     {
       "id": "AC-T074-05",
       "statement": "Der echte neue Kalibrierlauf bindet den aktuellen vollstaendigen Toolchain-Lock bei unveraenderten Generatorquellen, Spec, Seed und Payloadhashes. Das alte Manifest, der alte Receipt und die alten Lockbytes mit SHA-256 49dd75fa91e539fcf19ab3f8b01aecd81a3cf11fbff940f14051ce80ec088b42 bleiben byteidentisch nachweisbar. Es gibt keine nachtraeglich erfundenen Erzeugungsereignisse oder Assetfreigaben.",
-      "verification": "Vorhandene Generator-DLL gegen Embedded Sources und SDK-Metadaten pruefen, neuen Run in isoliertem leerem Workspace mit echter Run-ID/Zeit ausfuehren, drei Payloadhashes gegen den historischen Lauf vergleichen, neuen Manifest-/Receipt-Verbund gezielt validieren und historische Bytes unabhaengig nachpruefen. Regressionstest vergleicht Lockbindungswert mit separat berechnetem SHA-256 und weist Aenderung nach Lock-Whitespace-Mutation nach; alle bestehenden Sicherheits- und Assettests bleiben erhalten."
+      "verification": "Vorhandene Generator-DLL gegen Embedded Sources und SDK-Metadaten pruefen, neuen Run in isoliertem leerem Workspace mit echter Run-ID/Zeit ausfuehren, drei Payloadhashes gegen den historischen Lauf vergleichen, neuen Manifest-/Receipt-Verbund gezielt validieren und historische Bytes unabhaengig nachpruefen. Regressionstest vergleicht Lockbindungswert mit separat berechnetem SHA-256 und weist Aenderung nach Lock-Whitespace-Mutation sowie deren Ablehnung durch das unveraenderte exakte Schema nach; alle bestehenden Sicherheits- und Assettests bleiben erhalten."
     },
     {
       "id": "AC-T074-04",
