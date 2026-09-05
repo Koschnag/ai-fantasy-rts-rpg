@@ -3,10 +3,11 @@
   "schemaVersion": 1,
   "id": "T-074",
   "title": "Native Archivprovenienz und relative Toolchain-Pfade reparieren",
-  "status": "ready",
+  "status": "review",
   "releaseNote": "2026-09-05: READY als begrenzte technische Wartung aufgrund der ausdruecklichen Projektleitungsanweisung, Riftward auf GitHub zu konsolidieren und den Produktionsbetrieb einzurichten. Ausgangsstand main 8e3b9c7b5ce831059b7797e7e9be21608d247402. Keine neue Produkt-, Asset-, Forschungs- oder Hardwareentscheidung. Der bereits isoliert untersuchte Reparaturkandidat wird vor Integration separat geprueft; READY behauptet keine Abnahme.",
   "reviewNote": "2026-09-05: Unabhaengige Astra-Spezifikationspruefung PASS, gebunden an Planner-Commit 62f85de49c5757a5ef630986ede079fee11ddddb und Tree 12e0814e69c4eb411fffe7e6d48637433d958a25. Geprueft wurden Task-Schema, Scope, beide Patch-Applicability-Pruefungen am aktuellen main, byteidentische native Ausgangsdateien und primaere bgfx-Tree-Provenienz. Keine Implementierungs-, aktueller-main-Build- oder Betriebsabnahme vorweggenommen.",
   "objective": "Stelle die reproduzierbare native Linux-Buildvorbereitung wieder her, indem ausschliesslich ein nach primaerem Git-Tree-Vergleich bestaetigter Codeload-Containerhash erneuert und ein relativer Include-/Library-Prefix absolut aufgeloest wird.",
+  "completionNote": "2026-09-05: Der exakte begrenzte Drei-Dateien-Kandidat ist auf den aktuellen main-Ausgangsstand uebertragen. Native Ausgangsdateien waren gegen den zuvor getesteten isolierten Ausgangsstand byteidentisch. Die frueheren Native-/Offline-Cache-/Software-Smoke-Belege betreffen diesen nativen Codepfad, nicht den vollstaendigen aktuellen main-Tree. REVIEW bis zu unabhaengiger Implementierungspruefung, exact-head CI und post-merge Verify; keine Betriebs- oder Gameplayfreigabe.",
   "inScope": [
     "toolchain.lock.json: ausschliesslich bgfx fetchedAtUtc und sourceSha256 bei unveraendertem Commit 35a98dd6453cf25dc75c68e233abb400836d5920 und unveraenderter Bezugsquelle",
     "scripts/native-build-linux-x64.sh: vorhandenen toolchain_usr-Prefix vor Export von CPATH und LIBRARY_PATH absolut aufloesen",
